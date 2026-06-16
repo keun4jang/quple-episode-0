@@ -1,9 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="3"]
 [ext_resource type="Script" path="res://scripts/interaction/interactable.gd" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ChoiceBox.tscn" id="5"]
+[ext_resource type="Script" path="res://scripts/characters/partner_quokka.gd" id="6"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
 size = Vector2(70, 40)
@@ -36,8 +38,7 @@ offset_bottom = 400.0
 
 [node name="PartnerQuokka" type="Area2D" parent="."]
 position = Vector2(700, 480)
-script = ExtResource("4")
-interact_text = "애인 쿼카가 모니터만 바라보고 있다. \"조금만 더 하면 끝나... 먼저 가 있어.\""
+script = ExtResource("6")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PartnerQuokka"]
 shape = SubResource("RectangleShape2D_1")
@@ -77,3 +78,5 @@ position = Vector2(120, 300)
 [node name="KeyGuideUI" parent="." instance=ExtResource("2")]
 
 [node name="DialogueBox" parent="." instance=ExtResource("3")]
+
+[node name="ChoiceBox" parent="." instance=ExtResource("5")]
