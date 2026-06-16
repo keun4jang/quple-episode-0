@@ -9,3 +9,9 @@ config_version=5
 
 config/name="QupleEpisode0"
 config/features=PackedStringArray("4.3", "GL Compatibility")
+run/main_scene="res://scenes/maps/TestLobby.tscn"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
