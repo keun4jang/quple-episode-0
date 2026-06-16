@@ -1,0 +1,79 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="3"]
+[ext_resource type="Script" path="res://scripts/interaction/interactable.gd" id="4"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(70, 40)
+
+[node name="Office" type="Node2D"]
+
+[node name="Floor" type="ColorRect" parent="."]
+color = Color(0.5, 0.55, 0.6, 1)
+offset_right = 1280.0
+offset_bottom = 720.0
+
+[node name="WallTop" type="ColorRect" parent="."]
+color = Color(0.3, 0.34, 0.4, 1)
+offset_right = 1280.0
+offset_bottom = 40.0
+
+[node name="DeskRow1" type="ColorRect" parent="."]
+color = Color(0.4, 0.43, 0.48, 1)
+offset_left = 200.0
+offset_top = 200.0
+offset_right = 1080.0
+offset_bottom = 240.0
+
+[node name="DeskRow2" type="ColorRect" parent="."]
+color = Color(0.4, 0.43, 0.48, 1)
+offset_left = 200.0
+offset_top = 360.0
+offset_right = 1080.0
+offset_bottom = 400.0
+
+[node name="PartnerQuokka" type="Area2D" parent="."]
+position = Vector2(700, 480)
+script = ExtResource("4")
+interact_text = "애인 쿼카가 모니터만 바라보고 있다. \"조금만 더 하면 끝나... 먼저 가 있어.\""
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PartnerQuokka"]
+shape = SubResource("RectangleShape2D_1")
+
+[node name="Body" type="Polygon2D" parent="PartnerQuokka"]
+color = Color(0.78, 0.55, 0.5, 1)
+polygon = PackedVector2Array(16, 0, 11.3, 11.3, 0, 16, -11.3, 11.3, -16, 0, -11.3, -11.3, 0, -16, 11.3, -11.3)
+
+[node name="EarLeft" type="Polygon2D" parent="PartnerQuokka"]
+color = Color(0.62, 0.42, 0.38, 1)
+position = Vector2(-9, -13)
+polygon = PackedVector2Array(5, 0, 3.5, 3.5, 0, 5, -3.5, 3.5, -5, 0, -3.5, -3.5, 0, -5, 3.5, -3.5)
+
+[node name="EarRight" type="Polygon2D" parent="PartnerQuokka"]
+color = Color(0.62, 0.42, 0.38, 1)
+position = Vector2(9, -13)
+polygon = PackedVector2Array(5, 0, 3.5, 3.5, 0, 5, -3.5, 3.5, -5, 0, -3.5, -3.5, 0, -5, 3.5, -3.5)
+
+[node name="ExitDoor" type="Area2D" parent="."]
+position = Vector2(80, 200)
+script = ExtResource("4")
+target_scene_path = "res://scenes/maps/CompanyLobby.tscn"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ExitDoor"]
+shape = SubResource("RectangleShape2D_1")
+
+[node name="DoorMark" type="ColorRect" parent="ExitDoor"]
+color = Color(0.78, 0.6, 0.42, 1)
+offset_left = -25.0
+offset_top = -30.0
+offset_right = 25.0
+offset_bottom = 30.0
+
+[node name="PlayerQuokka" parent="." instance=ExtResource("1")]
+position = Vector2(120, 300)
+
+[node name="KeyGuideUI" parent="." instance=ExtResource("2")]
+
+[node name="DialogueBox" parent="." instance=ExtResource("3")]

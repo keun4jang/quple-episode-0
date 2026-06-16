@@ -8,7 +8,10 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
 size = Vector2(200, 80)
 
-[node name="TestLobby" type="Node2D"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_2"]
+size = Vector2(70, 40)
+
+[node name="CompanyLobby" type="Node2D"]
 
 [node name="Floor" type="ColorRect" parent="."]
 color = Color(0.46, 0.52, 0.58, 1)
@@ -52,6 +55,36 @@ interact_text = "안내 데스크다. 오늘도 조용하다... 다들 자리에
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="ReceptionDeskInteractable"]
 shape = SubResource("RectangleShape2D_1")
+
+[node name="ExitDoor" type="Area2D" parent="."]
+position = Vector2(640, 700)
+script = ExtResource("4")
+target_scene_path = "res://scenes/maps/CompanyFront.tscn"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ExitDoor"]
+shape = SubResource("RectangleShape2D_2")
+
+[node name="DoorMark" type="ColorRect" parent="ExitDoor"]
+color = Color(0.78, 0.6, 0.42, 1)
+offset_left = -35.0
+offset_top = -20.0
+offset_right = 35.0
+offset_bottom = 20.0
+
+[node name="OfficeDoor" type="Area2D" parent="."]
+position = Vector2(1200, 200)
+script = ExtResource("4")
+target_scene_path = "res://scenes/maps/Office.tscn"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="OfficeDoor"]
+shape = SubResource("RectangleShape2D_2")
+
+[node name="DoorMark" type="ColorRect" parent="OfficeDoor"]
+color = Color(0.78, 0.6, 0.42, 1)
+offset_left = -35.0
+offset_top = -20.0
+offset_right = 35.0
+offset_bottom = 20.0
 
 [node name="PlayerQuokka" parent="." instance=ExtResource("1")]
 position = Vector2(640, 450)

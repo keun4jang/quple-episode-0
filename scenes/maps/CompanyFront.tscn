@@ -1,0 +1,68 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="3"]
+[ext_resource type="Script" path="res://scripts/interaction/interactable.gd" id="4"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(70, 40)
+
+[node name="CompanyFront" type="Node2D"]
+
+[node name="Sidewalk" type="ColorRect" parent="."]
+color = Color(0.55, 0.56, 0.58, 1)
+offset_right = 1280.0
+offset_bottom = 720.0
+
+[node name="Sky" type="ColorRect" parent="."]
+color = Color(0.42, 0.46, 0.55, 1)
+offset_right = 1280.0
+offset_bottom = 220.0
+
+[node name="BuildingFacade" type="ColorRect" parent="."]
+color = Color(0.3, 0.33, 0.4, 1)
+offset_left = 440.0
+offset_top = 100.0
+offset_right = 840.0
+offset_bottom = 280.0
+
+[node name="CompanySign" type="ColorRect" parent="."]
+color = Color(0.85, 0.62, 0.32, 1)
+offset_left = 560.0
+offset_top = 120.0
+offset_right = 720.0
+offset_bottom = 155.0
+
+[node name="CompanySignLabel" type="Label" parent="."]
+offset_left = 560.0
+offset_top = 122.0
+offset_right = 720.0
+offset_bottom = 153.0
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.2, 0.15, 0.1, 1)
+theme_override_font_sizes/font_size = 16
+text = "쿼카전자"
+
+[node name="EntranceDoor" type="Area2D" parent="."]
+position = Vector2(640, 260)
+script = ExtResource("4")
+target_scene_path = "res://scenes/maps/CompanyLobby.tscn"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EntranceDoor"]
+shape = SubResource("RectangleShape2D_1")
+
+[node name="DoorMark" type="ColorRect" parent="EntranceDoor"]
+color = Color(0.2, 0.18, 0.16, 1)
+offset_left = -35.0
+offset_top = -20.0
+offset_right = 35.0
+offset_bottom = 20.0
+
+[node name="PlayerQuokka" parent="." instance=ExtResource("1")]
+position = Vector2(640, 520)
+
+[node name="KeyGuideUI" parent="." instance=ExtResource("2")]
+
+[node name="DialogueBox" parent="." instance=ExtResource("3")]

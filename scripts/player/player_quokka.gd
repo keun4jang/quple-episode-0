@@ -30,8 +30,16 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if dialogue_box.is_open():
 		dialogue_box.hide_box()
-	elif nearby_interactables.size() > 0:
-		dialogue_box.show_text(nearby_interactables[0].interact_text)
+		return
+
+	if nearby_interactables.size() == 0:
+		return
+
+	var target: Area2D = nearby_interactables[0]
+	if target.target_scene_path != "":
+		get_tree().change_scene_to_file(target.target_scene_path)
+	else:
+		dialogue_box.show_text(target.interact_text)
 
 func _on_interaction_area_entered(area: Area2D) -> void:
 	if area.is_in_group("interactable"):
