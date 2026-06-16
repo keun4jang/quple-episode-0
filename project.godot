@@ -1,0 +1,11 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are meant to be edited
+; using the UI and not by hand, with a few exceptions.
+
+config_version=5
+
+[application]
+
+config/name="QupleEpisode0"
+config/features=PackedStringArray("4.3", "GL Compatibility")
