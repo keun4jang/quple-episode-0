@@ -2,14 +2,14 @@
 
 [ext_resource type="Script" path="res://scripts/maps/company_front_3d.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2"]
-[ext_resource type="PackedScene" path="res://scenes/characters/PartnerQuokka3D.tscn" id="10"]
-[ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="3"]
-[ext_resource type="PackedScene" path="res://scenes/ui/ChoiceBox.tscn" id="4"]
-[ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="5"]
-[ext_resource type="PackedScene" path="res://scenes/ui/WindNoteUI.tscn" id="6"]
-[ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="7"]
-[ext_resource type="PackedScene" path="res://scenes/ui/ClearScreen.tscn" id="8"]
-[ext_resource type="Script" path="res://scripts/systems/photo_system.gd" id="9"]
+[ext_resource type="PackedScene" path="res://scenes/characters/PartnerQuokka3D.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ChoiceBox.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/WindNoteUI.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ClearScreen.tscn" id="9"]
+[ext_resource type="Script" path="res://scripts/systems/photo_system.gd" id="10"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -49,7 +49,7 @@ transform = Transform3D(1, 0, 0, 0, 0.707, 0.707, 0, -0.707, 0.707, 0, 8, 8)
 [node name="PlayerQuokka3D" parent="." instance=ExtResource("2")]
 position = Vector3(0, 0.05, 3)
 
-[node name="PartnerQuokka3D" parent="." instance=ExtResource("10")]
+[node name="PartnerQuokka3D" parent="." instance=ExtResource("3")]
 position = Vector3(1, 0.05, 3)
 
 [node name="EntranceTrigger" type="Area3D" parent="."]
@@ -63,21 +63,21 @@ shape = SubResource("CapsuleShape3D_1")
 
 [node name="PhotoPoint" type="Node3D" parent="."]
 position = Vector3(0, 0, 2)
-script = ExtResource("9")
+script = ExtResource("10")
 
 [node name="PhotoArea" type="Area3D" parent="PhotoPoint"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PhotoPoint/PhotoArea"]
 shape = SubResource("SphereShape3D_1")
 
-[node name="DialogueBox" parent="." instance=ExtResource("3")]
+[node name="DialogueBox" parent="." instance=ExtResource("4")]
 
-[node name="ChoiceBox" parent="." instance=ExtResource("4")]
+[node name="ChoiceBox" parent="." instance=ExtResource("5")]
 
-[node name="KeyGuideUI" parent="." instance=ExtResource("5")]
+[node name="KeyGuideUI" parent="." instance=ExtResource("6")]
 
-[node name="WindNoteUI" parent="." instance=ExtResource("6")]
+[node name="WindNoteUI" parent="." instance=ExtResource("7")]
 
-[node name="AlbumUI" parent="." instance=ExtResource("7")]
+[node name="AlbumUI" parent="." instance=ExtResource("8")]
 
-[node name="ClearScreen" parent="." instance=ExtResource("8")]
+[node name="ClearScreen" parent="." instance=ExtResource("9")]
