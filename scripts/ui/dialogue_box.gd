@@ -1,10 +1,10 @@
 extends CanvasLayer
 
-@onready var label: Label = $PanelRect/MarginContainer/Label
+@onready var label: Label = $PanelRect/MarginContainer/VBoxContainer/Label
 
 func _ready() -> void:
 	add_to_group("dialogue_box")
-	hide_box()
+	visible = false
 
 func show_text(text: String) -> void:
 	label.text = text

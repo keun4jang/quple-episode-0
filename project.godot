@@ -8,10 +8,31 @@ config_version=5
 [application]
 
 config/name="QupleEpisode0"
-config/features=PackedStringArray("4.3", "GL Compatibility")
-run/main_scene="res://scenes/menu/StartScreen.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+run/main_scene="res://scenes/maps/CompanyFront3D.tscn"
+
+[autoload]
+
+Episode0State="*res://scripts/systems/episode0_state.gd"
+SaveManager="*res://scripts/systems/save_manager.gd"
+SceneTransition="*res://scenes/systems/SceneTransition.tscn"
 
 [display]
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+
+[input]
+
+key_wind_note={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":68,"key_label":0,"unicode":100,"location":0,"echo":false,"script":null)]
+}
+key_album={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":66,"key_label":0,"unicode":98,"location":0,"echo":false,"script":null)]
+}
+key_photo={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":70,"key_label":0,"unicode":102,"location":0,"echo":false,"script":null)]
+}

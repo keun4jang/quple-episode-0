@@ -1,0 +1,90 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player_quokka_3d.gd" id="1"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.22
+height = 0.85
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_1"]
+radius = 0.45
+
+[node name="PlayerQuokka3D" type="CharacterBody3D"]
+script = ExtResource("1")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_1")
+position = Vector3(0, 0.425, 0)
+
+[node name="BodyPivot" type="Node3D" parent="."]
+position = Vector3(0, 0.42, 0)
+
+[node name="BodyMesh" type="MeshInstance3D" parent="BodyPivot"]
+
+[node name="BellyMesh" type="MeshInstance3D" parent="BodyPivot"]
+position = Vector3(0, -0.02, 0.12)
+
+[node name="HeadPivot" type="Node3D" parent="BodyPivot"]
+position = Vector3(0, 0.35, 0)
+
+[node name="HeadMesh" type="MeshInstance3D" parent="BodyPivot/HeadPivot"]
+
+[node name="LeftEarPivot" type="Node3D" parent="BodyPivot/HeadPivot"]
+position = Vector3(-0.14, 0.22, 0)
+
+[node name="LeftEarMesh" type="MeshInstance3D" parent="BodyPivot/HeadPivot/LeftEarPivot"]
+
+[node name="RightEarPivot" type="Node3D" parent="BodyPivot/HeadPivot"]
+position = Vector3(0.14, 0.22, 0)
+
+[node name="RightEarMesh" type="MeshInstance3D" parent="BodyPivot/HeadPivot/RightEarPivot"]
+
+[node name="LeftEyeMesh" type="MeshInstance3D" parent="BodyPivot/HeadPivot"]
+position = Vector3(-0.1, 0.04, 0.22)
+
+[node name="RightEyeMesh" type="MeshInstance3D" parent="BodyPivot/HeadPivot"]
+position = Vector3(0.1, 0.04, 0.22)
+
+[node name="NoseMesh" type="MeshInstance3D" parent="BodyPivot/HeadPivot"]
+position = Vector3(0, -0.05, 0.25)
+
+[node name="LeftCheekMesh" type="MeshInstance3D" parent="BodyPivot/HeadPivot"]
+position = Vector3(-0.15, -0.04, 0.2)
+
+[node name="RightCheekMesh" type="MeshInstance3D" parent="BodyPivot/HeadPivot"]
+position = Vector3(0.15, -0.04, 0.2)
+
+[node name="LeftArmPivot" type="Node3D" parent="BodyPivot"]
+position = Vector3(-0.3, 0.1, 0)
+
+[node name="LeftArmMesh" type="MeshInstance3D" parent="BodyPivot/LeftArmPivot"]
+position = Vector3(0, -0.11, 0)
+
+[node name="RightArmPivot" type="Node3D" parent="BodyPivot"]
+position = Vector3(0.3, 0.1, 0)
+
+[node name="RightArmMesh" type="MeshInstance3D" parent="BodyPivot/RightArmPivot"]
+position = Vector3(0, -0.11, 0)
+
+[node name="LeftLegPivot" type="Node3D" parent="BodyPivot"]
+position = Vector3(-0.14, -0.28, 0)
+
+[node name="LeftLegMesh" type="MeshInstance3D" parent="BodyPivot/LeftLegPivot"]
+position = Vector3(0, -0.12, 0)
+
+[node name="RightLegPivot" type="Node3D" parent="BodyPivot"]
+position = Vector3(0.14, -0.28, 0)
+
+[node name="RightLegMesh" type="MeshInstance3D" parent="BodyPivot/RightLegPivot"]
+position = Vector3(0, -0.12, 0)
+
+[node name="BackpackPivot" type="Node3D" parent="BodyPivot"]
+position = Vector3(0, 0.15, -0.3)
+
+[node name="BackpackMesh" type="MeshInstance3D" parent="BodyPivot/BackpackPivot"]
+
+[node name="InteractionArea" type="Area3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea"]
+position = Vector3(0, 0.45, 0)
+shape = SubResource("SphereShape3D_1")
