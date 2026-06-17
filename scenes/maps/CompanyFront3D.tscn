@@ -1,7 +1,8 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/company_front_3d.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/characters/PartnerQuokka3D.tscn" id="10"]
 [ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ChoiceBox.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="5"]
@@ -47,6 +48,9 @@ transform = Transform3D(1, 0, 0, 0, 0.707, 0.707, 0, -0.707, 0.707, 0, 8, 8)
 
 [node name="PlayerQuokka3D" parent="." instance=ExtResource("2")]
 position = Vector3(0, 0.05, 3)
+
+[node name="PartnerQuokka3D" parent="." instance=ExtResource("10")]
+position = Vector3(1, 0.05, 3)
 
 [node name="EntranceTrigger" type="Area3D" parent="."]
 position = Vector3(0, 1.0, -4.5)

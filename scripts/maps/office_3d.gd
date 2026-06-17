@@ -41,7 +41,10 @@ func talk_to_partner() -> void:
 		else:
 			dialogue_box.show_text("애인: \"여행 물품 3가지 챙기는 거 잊지 마.\"")
 	elif Episode0State.current_state == Episode0State.State.RETURN_BADGE:
-		dialogue_box.show_text("애인: \"사원증 반납했어? 그럼 나가자!\"")
+		if not Episode0State.badge_returned:
+			dialogue_box.show_text("애인: \"사원증 먼저 반납하고 와. 로비 입구 쪽에 반납함 있어.\"")
+			return
+		dialogue_box.show_text("애인: \"사원증 반납했구나. 그럼 이제 진짜 나가자!\"")
 		if Episode0State.badge_returned:
 			Episode0State.partner_joined = true
 			Episode0State.advance_to(Episode0State.State.PARTNER_JOINED)

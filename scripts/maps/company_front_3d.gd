@@ -4,6 +4,7 @@ extends Node3D
 @onready var camera: Camera3D = $Camera3D
 @onready var warm_window_light: OmniLight3D = $WarmWindowLight
 @onready var dialogue_box = $DialogueBox
+@onready var partner = $PartnerQuokka3D
 
 const CAM_OFFSET = Vector3(0, 8, 8)
 const CAM_LERP = 5.0
@@ -17,6 +18,8 @@ func _ready() -> void:
 		_show_opening()
 	elif Episode0State.current_state == Episode0State.State.PARTNER_JOINED:
 		Episode0State.advance_to(Episode0State.State.FIRST_PHOTO)
+	if Episode0State.partner_joined:
+		partner.join_player()
 
 func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET

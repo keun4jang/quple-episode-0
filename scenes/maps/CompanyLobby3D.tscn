@@ -58,6 +58,7 @@ shape = SubResource("CapsuleShape3D_1")
 [node name="BadgeTrigger" type="Area3D" parent="."]
 position = Vector3(-5, 0.6, -3)
 script = load("res://scripts/systems/interactable_3d.gd")
+interact_text = "사원증을 반납하기"
 item_id = "badge"
 
 [node name="CollisionShape3D2" type="CollisionShape3D" parent="BadgeTrigger"]
