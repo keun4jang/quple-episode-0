@@ -1,7 +1,7 @@
 extends "res://scripts/interaction/interactable.gd"
 
 func interact() -> void:
-	var choice_box: CanvasLayer = get_tree().get_first_node_in_group("choice_box")
+	var choice_box = get_tree().get_first_node_in_group("choice_box")
 	if choice_box == null:
 		return
 
@@ -12,7 +12,7 @@ func interact() -> void:
 	)
 
 func _on_choice_made(index: int) -> void:
-	var dialogue_box: CanvasLayer = get_tree().get_first_node_in_group("dialogue_box")
+	var dialogue_box = get_tree().get_first_node_in_group("dialogue_box")
 	if dialogue_box == null:
 		return
 

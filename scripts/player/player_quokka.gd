@@ -3,8 +3,8 @@ extends CharacterBody2D
 const SPEED: float = 140.0
 
 var nearby_interactables: Array[Area2D] = []
-var dialogue_box: CanvasLayer = null
-var choice_box: CanvasLayer = null
+var dialogue_box = null
+var choice_box = null
 
 func _ready() -> void:
 	$InteractionArea.area_entered.connect(_on_interaction_area_entered)
