@@ -1,0 +1,132 @@
+[gd_scene load_steps=18 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/office_3d.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/characters/PartnerQuokka3D.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ChoiceBox.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/WindNoteUI.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ClearScreen.tscn" id="9"]
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 1
+background_color = Color(0.08, 0.1, 0.16, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.12, 0.15, 0.22, 1)
+ambient_light_energy = 0.35
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.5
+height = 1.5
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_2"]
+radius = 0.3
+height = 0.8
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_3"]
+radius = 0.3
+height = 0.8
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_4"]
+radius = 0.3
+height = 0.8
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_5"]
+radius = 0.3
+height = 0.8
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_6"]
+radius = 0.3
+height = 0.8
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_7"]
+radius = 0.5
+height = 1.5
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_8"]
+radius = 0.5
+height = 1.5
+
+[node name="Office3D" type="Node3D"]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.353, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 8, 0)
+light_color = Color(0.4, 0.5, 0.7, 1)
+light_energy = 0.3
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.707, 0.707, 0, -0.707, 0.707, 0, 6, 6)
+
+[node name="PlayerQuokka3D" parent="." instance=ExtResource("2")]
+position = Vector3(0, 0.05, 3)
+
+[node name="PartnerQuokka3D" parent="." instance=ExtResource("3")]
+position = Vector3(-2, 0.05, -1.2)
+
+[node name="PartnerInteract" type="Area3D" parent="."]
+position = Vector3(-2, 0.5, -1.2)
+script = load("res://scripts/systems/interactable_3d.gd")
+interact_text = "애인에게 말걸기"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PartnerInteract"]
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="CameraItem" type="Area3D" parent="."]
+position = Vector3(2.5, 1.0, -2)
+script = load("res://scripts/systems/interactable_3d.gd")
+item_id = "camera"
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="CameraItem"]
+shape = SubResource("CapsuleShape3D_2")
+
+[node name="NotebookItem" type="Area3D" parent="."]
+position = Vector3(2, 1.0, -2)
+script = load("res://scripts/systems/interactable_3d.gd")
+item_id = "notebook"
+
+[node name="CollisionShape3D3" type="CollisionShape3D" parent="NotebookItem"]
+shape = SubResource("CapsuleShape3D_3")
+
+[node name="BagItem" type="Area3D" parent="."]
+position = Vector3(1.5, 0.1, -1)
+script = load("res://scripts/systems/interactable_3d.gd")
+item_id = "travel_bag"
+
+[node name="CollisionShape3D4" type="CollisionShape3D" parent="BagItem"]
+shape = SubResource("CapsuleShape3D_4")
+
+[node name="BossDoorTrigger" type="Area3D" parent="."]
+position = Vector3(4, 1.5, -3.5)
+script = load("res://scripts/systems/interactable_3d.gd")
+target_scene_path = "res://scenes/maps/BossDoorHallway3D.tscn"
+interact_text = "복도로 가기"
+
+[node name="CollisionShape3D5" type="CollisionShape3D" parent="BossDoorTrigger"]
+shape = SubResource("CapsuleShape3D_5")
+
+[node name="LobbyDoorTrigger" type="Area3D" parent="."]
+position = Vector3(-4, 1.5, -3.5)
+script = load("res://scripts/systems/interactable_3d.gd")
+target_scene_path = "res://scenes/maps/CompanyLobby3D.tscn"
+interact_text = "로비로 가기"
+
+[node name="CollisionShape3D6" type="CollisionShape3D" parent="LobbyDoorTrigger"]
+shape = SubResource("CapsuleShape3D_6")
+
+[node name="DialogueBox" parent="." instance=ExtResource("4")]
+
+[node name="ChoiceBox" parent="." instance=ExtResource("5")]
+
+[node name="KeyGuideUI" parent="." instance=ExtResource("6")]
+
+[node name="WindNoteUI" parent="." instance=ExtResource("7")]
+
+[node name="AlbumUI" parent="." instance=ExtResource("8")]
+
+[node name="ClearScreen" parent="." instance=ExtResource("9")]
