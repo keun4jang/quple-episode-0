@@ -1,6 +1,7 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/boss_door_hallway_3d.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/systems/interactable_3d.gd" id="IA"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ChoiceBox.tscn" id="4"]
@@ -42,7 +43,7 @@ position = Vector3(0, 0.05, 2)
 
 [node name="EavesdropTrigger" type="Area3D" parent="."]
 position = Vector3(0, 1.0, -3.0)
-script = load("res://scripts/systems/interactable_3d.gd")
+script = ExtResource("IA")
 interact_text = "문 앞에서 귀 기울이기"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="EavesdropTrigger"]
@@ -50,7 +51,7 @@ shape = SubResource("CapsuleShape3D_1")
 
 [node name="ExitTrigger" type="Area3D" parent="."]
 position = Vector3(0, 1.5, 3.5)
-script = load("res://scripts/systems/interactable_3d.gd")
+script = ExtResource("IA")
 target_scene_path = "res://scenes/maps/Office3D.tscn"
 interact_text = "사무실로 돌아가기"
 

@@ -1,6 +1,7 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/company_front_3d.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/systems/interactable_3d.gd" id="IA"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PartnerQuokka3D.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="4"]
@@ -54,7 +55,7 @@ position = Vector3(1, 0.05, 3)
 
 [node name="EntranceTrigger" type="Area3D" parent="."]
 position = Vector3(0, 1.0, -4.5)
-script = load("res://scripts/systems/interactable_3d.gd")
+script = ExtResource("IA")
 target_scene_path = "res://scenes/maps/CompanyLobby3D.tscn"
 interact_text = "회사 안으로 들어가기"
 

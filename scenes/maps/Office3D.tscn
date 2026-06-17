@@ -1,6 +1,7 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/office_3d.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/systems/interactable_3d.gd" id="IA"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PartnerQuokka3D.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="4"]
@@ -71,7 +72,7 @@ position = Vector3(-2, 0.05, -1.2)
 
 [node name="PartnerInteract" type="Area3D" parent="."]
 position = Vector3(-2, 0.5, -1.2)
-script = load("res://scripts/systems/interactable_3d.gd")
+script = ExtResource("IA")
 interact_text = "애인에게 말걸기"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PartnerInteract"]
@@ -79,7 +80,7 @@ shape = SubResource("CapsuleShape3D_1")
 
 [node name="CameraItem" type="Area3D" parent="."]
 position = Vector3(2.5, 1.0, -2)
-script = load("res://scripts/systems/interactable_3d.gd")
+script = ExtResource("IA")
 item_id = "camera"
 
 [node name="CollisionShape3D2" type="CollisionShape3D" parent="CameraItem"]
@@ -87,7 +88,7 @@ shape = SubResource("CapsuleShape3D_2")
 
 [node name="NotebookItem" type="Area3D" parent="."]
 position = Vector3(2, 1.0, -2)
-script = load("res://scripts/systems/interactable_3d.gd")
+script = ExtResource("IA")
 item_id = "notebook"
 
 [node name="CollisionShape3D3" type="CollisionShape3D" parent="NotebookItem"]
@@ -95,7 +96,7 @@ shape = SubResource("CapsuleShape3D_3")
 
 [node name="BagItem" type="Area3D" parent="."]
 position = Vector3(1.5, 0.1, -1)
-script = load("res://scripts/systems/interactable_3d.gd")
+script = ExtResource("IA")
 item_id = "travel_bag"
 
 [node name="CollisionShape3D4" type="CollisionShape3D" parent="BagItem"]
@@ -103,7 +104,7 @@ shape = SubResource("CapsuleShape3D_4")
 
 [node name="BossDoorTrigger" type="Area3D" parent="."]
 position = Vector3(4, 1.5, -3.5)
-script = load("res://scripts/systems/interactable_3d.gd")
+script = ExtResource("IA")
 target_scene_path = "res://scenes/maps/BossDoorHallway3D.tscn"
 interact_text = "복도로 가기"
 
@@ -112,7 +113,7 @@ shape = SubResource("CapsuleShape3D_5")
 
 [node name="LobbyDoorTrigger" type="Area3D" parent="."]
 position = Vector3(-4, 1.5, -3.5)
-script = load("res://scripts/systems/interactable_3d.gd")
+script = ExtResource("IA")
 target_scene_path = "res://scenes/maps/CompanyLobby3D.tscn"
 interact_text = "로비로 가기"
 
