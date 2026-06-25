@@ -8,6 +8,8 @@ const CAM_OFFSET = Vector3(0, 5, 5)
 const CAM_LERP = 5.0
 
 var _eavesdrop_done: bool = false
+var _red_light: OmniLight3D = null
+var _tension_time: float = 0.0
 
 func _ready() -> void:
 	_build_scene()
@@ -18,6 +20,9 @@ func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET
 	camera.global_position = camera.global_position.lerp(target_pos, CAM_LERP * delta)
 	camera.look_at(player.global_position + Vector3(0, 0.5, 0), Vector3.UP)
+	_tension_time += delta
+	if _red_light:
+		_red_light.light_energy = 0.12 + sin(_tension_time * 7.3) * 0.04
 
 func eavesdrop() -> void:
 	if _eavesdrop_done:
@@ -54,6 +59,17 @@ func _build_scene() -> void:
 	hall_light.omni_range = 5.0
 	self.add_child(hall_light)
 	_box(self, Vector3(0, 1.5, 3.9), Vector3(1.8, 3.0, 0.2), "#2D3A4A", "ExitDoor")
+	# Red tension light near boss door
+	_red_light = OmniLight3D.new()
+	_red_light.position = Vector3(0, 0.3, -3.5)
+	_red_light.light_color = Color("#FF1010")
+	_red_light.light_energy = 0.12
+	_red_light.omni_range = 2.5
+	self.add_child(_red_light)
+	# Light bleeding under door
+	_box(self, Vector3(0, 0.005, -3.82), Vector3(1.5, 0.01, 0.08), "#FF6020", "DoorLight")
+	# Door number plate
+	_box(self, Vector3(-0.95, 2.3, -3.88), Vector3(0.14, 0.1, 0.02), "#C8A840", "DoorPlate")
 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "") -> MeshInstance3D:
 	var mi = MeshInstance3D.new()

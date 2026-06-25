@@ -16,6 +16,7 @@ run/main_scene="res://scenes/maps/CompanyFront3D.tscn"
 Episode0State="*res://scripts/systems/episode0_state.gd"
 SaveManager="*res://scripts/systems/save_manager.gd"
 SceneTransition="*res://scenes/systems/SceneTransition.tscn"
+AudioManager="*res://scripts/systems/audio_manager.gd"
 
 [display]
 

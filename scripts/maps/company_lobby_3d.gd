@@ -41,6 +41,26 @@ func _build_scene() -> void:
 	_planter(self, Vector3(6, 0, -4))
 	_planter(self, Vector3(-6, 0, -4))
 	_box(self, Vector3(0, 0.01, 0), Vector3(0.05, 0.01, 10), "#6D7D8F", "FloorLine")
+	# Ceiling OmniLights for lobby ambiance
+	for lx in [-4.0, 0.0, 4.0]:
+		var cl = OmniLight3D.new()
+		cl.position = Vector3(lx, 5.5, -2)
+		cl.light_color = Color("#C8D0E8")
+		cl.light_energy = 0.6
+		cl.omni_range = 5.0
+		self.add_child(cl)
+	# Small plant on reception desk
+	var plant_stem = MeshInstance3D.new()
+	var sm = SphereMesh.new(); sm.radius = 0.12; sm.height = 0.24; plant_stem.mesh = sm
+	var pm = StandardMaterial3D.new(); pm.albedo_color = Color("#72B48D"); pm.roughness = 0.9
+	plant_stem.material_override = pm; plant_stem.position = Vector3(1.5, 1.45, -2.2)
+	self.add_child(plant_stem)
+	# Floor center stripe more visible
+	_box(self, Vector3(0, 0.01, -2), Vector3(0.05, 0.01, 6), "#8A9AA8", "FloorStripe2")
+	# Elevator indicator panel
+	_box(self, Vector3(4, 3.2, -4.85), Vector3(0.4, 0.3, 0.05), "#1E2733", "ElevPanel")
+	_box(self, Vector3(4, 3.3, -4.82), Vector3(0.1, 0.1, 0.03), "#FFD76D", "ElevBtnUp")
+	_box(self, Vector3(4, 3.1, -4.82), Vector3(0.1, 0.1, 0.03), "#2A3A4A", "ElevBtnDown")
 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "") -> MeshInstance3D:
 	var mi = MeshInstance3D.new()

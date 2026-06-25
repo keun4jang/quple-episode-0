@@ -5,11 +5,13 @@ extends Node3D
 @onready var warm_window_light: OmniLight3D = $WarmWindowLight
 @onready var dialogue_box = $DialogueBox
 @onready var partner = $PartnerQuokka3D
+@onready var dir_light: DirectionalLight3D = $DirectionalLight3D
 
 const CAM_OFFSET = Vector3(0, 8, 8)
 const CAM_LERP = 5.0
 
 var _light_time: float = 0.0
+var _dawn_progress: float = 0.0
 
 func _ready() -> void:
 	_build_scene()
@@ -27,6 +29,11 @@ func _process(delta: float) -> void:
 	camera.look_at(player.global_position + Vector3(0, 0.5, 0), Vector3.UP)
 	_light_time += delta
 	warm_window_light.light_energy = 1.0 + sin(_light_time * TAU / 2.5) * 0.06
+	if Episode0State.current_state >= Episode0State.State.FIRST_PHOTO:
+		_dawn_progress = min(_dawn_progress + delta * 0.04, 1.0)
+		if dir_light:
+			dir_light.light_color = Color("#2030A0").lerp(Color("#FF8060"), _dawn_progress)
+			dir_light.light_energy = lerp(0.6, 1.2, _dawn_progress)
 
 func _show_opening() -> void:
 	await get_tree().create_timer(0.8).timeout
@@ -59,6 +66,31 @@ func _build_scene() -> void:
 	_planter(self, Vector3(-3.5, 0, -2))
 	_tree(self, Vector3(-8, 0, 0))
 	_tree(self, Vector3(8, 0, 0))
+	# Bus stop shelter at left
+	_box(self, Vector3(-9, 1.5, 1), Vector3(0.1, 3.0, 0.1), "#4A5568", "BusPost1")
+	_box(self, Vector3(-7, 1.5, 1), Vector3(0.1, 3.0, 0.1), "#4A5568", "BusPost2")
+	_box(self, Vector3(-8, 3.1, 1), Vector3(2.2, 0.1, 1.0), "#4A5568", "BusRoof")
+	# Bike rack
+	for bi in range(3):
+		_box(self, Vector3(7.5, 0.5, 0.3 + bi * 0.45), Vector3(0.05, 1.0, 0.05), "#5A6472", "Bike%d" % bi)
+	_box(self, Vector3(7.5, 1.05, 0.75), Vector3(0.05, 0.05, 1.4), "#5A6472", "BikeRail")
+	# Puddle reflections on road
+	for pi in range(3):
+		var pr = _box(self, Vector3(-3.0 + pi * 2.5, -0.02, 4.5), Vector3(0.7, 0.01, 0.45), "#50607A", "Puddle%d" % pi)
+		if pr and pr.material_override:
+			pr.material_override.roughness = 0.05
+	# Moon in background
+	var moon = MeshInstance3D.new()
+	var moon_mesh = SphereMesh.new(); moon_mesh.radius = 0.6; moon_mesh.height = 1.2
+	moon.mesh = moon_mesh
+	var moon_mat = StandardMaterial3D.new()
+	moon_mat.albedo_color = Color("#E8E8F0")
+	moon_mat.emission_enabled = true
+	moon_mat.emission = Color("#E8E8F0")
+	moon_mat.emission_energy_multiplier = 0.6
+	moon.material_override = moon_mat
+	moon.position = Vector3(8, 16, -10)
+	self.add_child(moon)
 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "") -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
@@ -70,12 +102,14 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: Strin
 func _lamppost(parent: Node3D, pos: Vector3) -> void:
 	_box(parent, pos + Vector3(0, 2.5, 0), Vector3(0.12, 5.0, 0.12), "#4A5568", "Post")
 	_box(parent, pos + Vector3(0, 5.1, 0), Vector3(0.5, 0.12, 0.12), "#4A5568", "Arm")
-	var light = OmniLight3D.new()
-	light.position = pos + Vector3(0, 5.2, 0)
-	light.light_color = Color("#FFE7A8")
-	light.light_energy = 0.8
-	light.omni_range = 4.0
-	parent.add_child(light)
+	var spot = SpotLight3D.new()
+	spot.position = pos + Vector3(0.25, 5.0, 0)
+	spot.rotation_degrees.z = -15
+	spot.light_color = Color("#FFE7A8")
+	spot.light_energy = 1.8
+	spot.spot_range = 7.0
+	spot.spot_angle = 35.0
+	parent.add_child(spot)
 
 func _bench(parent: Node3D, pos: Vector3) -> void:
 	_box(parent, pos + Vector3(0, 0.2, 0), Vector3(1.4, 0.1, 0.4), "#7F8790", "BenchSeat")
