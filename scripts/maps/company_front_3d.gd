@@ -7,7 +7,7 @@ extends Node3D
 @onready var partner = $PartnerQuokka3D
 @onready var dir_light: DirectionalLight3D = $DirectionalLight3D
 
-const CAM_OFFSET = Vector3(0, 10, 7)
+const CAM_OFFSET = Vector3(0, 13, 9)
 const CAM_LERP = 5.0
 
 var _light_time: float = 0.0
@@ -33,7 +33,7 @@ func _process(delta: float) -> void:
 		_dawn_progress = min(_dawn_progress + delta * 0.04, 1.0)
 		if dir_light:
 			dir_light.light_color = Color("#2030A0").lerp(Color("#FF8060"), _dawn_progress)
-			dir_light.light_energy = lerp(0.6, 1.2, _dawn_progress)
+			dir_light.light_energy = lerp(0.6, 1.4, _dawn_progress)
 
 func _show_opening() -> void:
 	await get_tree().create_timer(0.8).timeout
@@ -45,16 +45,19 @@ func _build_scene() -> void:
 	_box(self, Vector3(0, 0, -1), Vector3(24, 0.1, 6), "#7F8790", "Sidewalk")
 	for i in range(-2, 3):
 		_box(self, Vector3(i * 0.9, 0.01, 3.5), Vector3(0.45, 0.01, 2.5), "#F2EEE2", "Crosswalk%d" % i)
-	_box(self, Vector3(0, 9, -6), Vector3(10, 18, 2), "#2D3A4A", "Building")
-	_box(self, Vector3(-5.1, 9, -6), Vector3(0.2, 18, 2.5), "#1E2733", "BuildingLeft")
-	_box(self, Vector3(5.1, 9, -6), Vector3(0.2, 18, 2.5), "#1E2733", "BuildingRight")
-	for row in range(10):
+	# 건물 높이 축소 (18→10) - 카메라가 지붕 위에서 볼 수 있도록
+	_box(self, Vector3(0, 5, -6), Vector3(10, 10, 2), "#2D3A4A", "Building")
+	_box(self, Vector3(-5.1, 5, -6), Vector3(0.2, 10, 2.5), "#1E2733", "BuildingLeft")
+	_box(self, Vector3(5.1, 5, -6), Vector3(0.2, 10, 2.5), "#1E2733", "BuildingRight")
+	# 옥상 테두리 디테일
+	_box(self, Vector3(0, 10.1, -6), Vector3(10.4, 0.2, 2.4), "#1A2530", "RoofEdge")
+	for row in range(6):
 		for col in range(5):
 			var wx = -4.0 + col * 1.8
-			var wy = 2.5 + row * 1.5
-			var color = "#17283A" if not (row == 6 and col == 2) else "#FFD76D"
+			var wy = 1.5 + row * 1.4
+			var color = "#17283A" if not (row == 4 and col == 2) else "#FFD76D"
 			_box(self, Vector3(wx, wy, -4.95), Vector3(1.0, 0.8, 0.05), color, "Win_%d_%d" % [row, col])
-	_box(self, Vector3(0, 18.5, -5.1), Vector3(5, 0.6, 0.3), "#FFD76D", "SignBG")
+	_box(self, Vector3(0, 10.4, -5.1), Vector3(5, 0.5, 0.3), "#FFD76D", "SignBG")
 	_box(self, Vector3(0, 1.2, -5.0), Vector3(2.2, 2.4, 0.15), "#182533", "EntranceDoor")
 	_box(self, Vector3(0, 1.2, -4.84), Vector3(2.0, 2.2, 0.05), "#3E6278", "DoorGlass")
 	_lamppost(self, Vector3(-6, 0, -2))

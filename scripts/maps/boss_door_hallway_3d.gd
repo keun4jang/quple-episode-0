@@ -4,7 +4,7 @@ extends Node3D
 @onready var camera: Camera3D = $Camera3D
 @onready var dialogue_box = $DialogueBox
 
-const CAM_OFFSET = Vector3(0, 7, 4)
+const CAM_OFFSET = Vector3(0, 8, 5)
 const CAM_LERP = 5.0
 
 var _eavesdrop_done: bool = false
@@ -43,7 +43,7 @@ func _build_scene() -> void:
 	_box(self, Vector3(-2.1, 2, 0), Vector3(0.2, 4, 8), "#17283A", "WallLeft")
 	_box(self, Vector3(2.1, 2, 0), Vector3(0.2, 4, 8), "#17283A", "WallRight")
 	_box(self, Vector3(0, 2, -4.1), Vector3(4, 4, 0.2), "#17283A", "WallBack")
-	_box(self, Vector3(0, 4.1, 0), Vector3(4, 0.2, 8), "#1A1A2A", "Ceiling")
+	# Ceiling 제거 - 위에서 내려다보는 카메라 구조
 	_box(self, Vector3(0, 1.5, -3.9), Vector3(1.8, 3.0, 0.2), "#2D3A4A", "BossDoor")
 	_box(self, Vector3(0, 1.5, -3.7), Vector3(1.6, 2.8, 0.05), "#1E2A3A", "BossDoorGlass")
 	var glow = OmniLight3D.new()

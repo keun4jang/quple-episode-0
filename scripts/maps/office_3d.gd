@@ -6,7 +6,7 @@ extends Node3D
 @onready var choice_box = $ChoiceBox
 @onready var partner = $PartnerQuokka3D
 
-const CAM_OFFSET = Vector3(0, 8, 5)
+const CAM_OFFSET = Vector3(0, 9, 6)
 const CAM_LERP = 5.0
 
 func _ready() -> void:
@@ -72,7 +72,7 @@ func _build_scene() -> void:
 	_box(self, Vector3(-5.1, 2.5, 0), Vector3(0.2, 5, 8), "#2D3A4A", "WallLeft")
 	_box(self, Vector3(5.1, 2.5, 0), Vector3(0.2, 5, 8), "#2D3A4A", "WallRight")
 	_box(self, Vector3(0, 2.5, -4.1), Vector3(10, 5, 0.2), "#2D3A4A", "WallBack")
-	_box(self, Vector3(0, 5.1, 0), Vector3(10, 0.2, 8), "#1E2733", "Ceiling")
+	# Ceiling 제거 - 카메라가 위에서 내려다보는 구조, 천장 없어야 플레이어 보임
 	_box(self, Vector3(-2, 0.4, -2), Vector3(2, 0.8, 1.2), "#43566A", "PartnerDesk")
 	_box(self, Vector3(-2, 0.85, -2), Vector3(2.2, 0.06, 1.3), "#2D3A4A", "PartnerDeskTop")
 	_box(self, Vector3(-2, 1.3, -2.5), Vector3(1.0, 0.65, 0.06), "#17283A", "Monitor")
