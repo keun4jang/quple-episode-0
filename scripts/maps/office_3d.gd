@@ -68,10 +68,12 @@ func _on_choice(index: int) -> void:
 		SceneTransition.go_to("res://scenes/maps/BossDoorHallway3D.tscn")
 
 func _build_scene() -> void:
-	_box(self, Vector3(0, -0.05, 0), Vector3(10, 0.1, 8), "#43566A", "Floor")
-	_box(self, Vector3(-5.1, 2.5, 0), Vector3(0.2, 5, 8), "#2D3A4A", "WallLeft")
-	_box(self, Vector3(5.1, 2.5, 0), Vector3(0.2, 5, 8), "#2D3A4A", "WallRight")
+	_box(self, Vector3(0, -0.05, 1), Vector3(10, 0.1, 14), "#43566A", "Floor")
+	_box(self, Vector3(-5.1, 2.5, 1), Vector3(0.2, 5, 14), "#2D3A4A", "WallLeft")
+	_box(self, Vector3(5.1, 2.5, 1), Vector3(0.2, 5, 14), "#2D3A4A", "WallRight")
 	_box(self, Vector3(0, 2.5, -4.1), Vector3(10, 5, 0.2), "#2D3A4A", "WallBack")
+	# 앞쪽 낮은 벽 (파란 빈 공간 가림, 카메라 시야 밖)
+	_box(self, Vector3(0, 1.0, 7.9), Vector3(10, 2, 0.2), "#2D3A4A", "WallFront")
 	# Ceiling 제거 - 카메라가 위에서 내려다보는 구조, 천장 없어야 플레이어 보임
 	_box(self, Vector3(-2, 0.4, -2), Vector3(2, 0.8, 1.2), "#43566A", "PartnerDesk")
 	_box(self, Vector3(-2, 0.85, -2), Vector3(2.2, 0.06, 1.3), "#2D3A4A", "PartnerDeskTop")

@@ -19,10 +19,12 @@ func _process(delta: float) -> void:
 	camera.look_at(player.global_position + Vector3(0, 0.5, 0), Vector3.UP)
 
 func _build_scene() -> void:
-	_box(self, Vector3(0, -0.05, 0), Vector3(14, 0.1, 10), "#7F8790", "Floor")
-	_box(self, Vector3(-7.1, 3, 0), Vector3(0.2, 6, 10), "#43566A", "WallLeft")
-	_box(self, Vector3(7.1, 3, 0), Vector3(0.2, 6, 10), "#43566A", "WallRight")
+	_box(self, Vector3(0, -0.05, 1), Vector3(14, 0.1, 16), "#7F8790", "Floor")
+	_box(self, Vector3(-7.1, 3, 1), Vector3(0.2, 6, 16), "#43566A", "WallLeft")
+	_box(self, Vector3(7.1, 3, 1), Vector3(0.2, 6, 16), "#43566A", "WallRight")
 	_box(self, Vector3(0, 3, -5.1), Vector3(14, 6, 0.2), "#43566A", "WallBack")
+	# 앞쪽 낮은 벽 (파란 빈 공간 가림)
+	_box(self, Vector3(0, 1.0, 8.9), Vector3(14, 2, 0.2), "#43566A", "WallFront")
 	# Ceiling 제거 - 위에서 내려다보는 카메라 구조
 	_box(self, Vector3(0, 0.6, -2), Vector3(4, 1.2, 1), "#43566A", "Desk")
 	_box(self, Vector3(0, 1.25, -2), Vector3(4.2, 0.1, 1.1), "#2D3A4A", "DeskTop")

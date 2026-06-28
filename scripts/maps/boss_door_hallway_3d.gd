@@ -39,10 +39,12 @@ func eavesdrop() -> void:
 	SceneTransition.go_to("res://scenes/maps/Office3D.tscn")
 
 func _build_scene() -> void:
-	_box(self, Vector3(0, -0.05, 0), Vector3(4, 0.1, 8), "#1E2733", "Floor")
-	_box(self, Vector3(-2.1, 2, 0), Vector3(0.2, 4, 8), "#17283A", "WallLeft")
-	_box(self, Vector3(2.1, 2, 0), Vector3(0.2, 4, 8), "#17283A", "WallRight")
-	_box(self, Vector3(0, 2, -4.1), Vector3(4, 4, 0.2), "#17283A", "WallBack")
+	_box(self, Vector3(0, -0.05, 1), Vector3(6, 0.1, 14), "#1E2733", "Floor")
+	_box(self, Vector3(-3.1, 2, 1), Vector3(0.2, 4, 14), "#17283A", "WallLeft")
+	_box(self, Vector3(3.1, 2, 1), Vector3(0.2, 4, 14), "#17283A", "WallRight")
+	_box(self, Vector3(0, 2, -4.1), Vector3(6, 4, 0.2), "#17283A", "WallBack")
+	# 앞쪽 낮은 벽
+	_box(self, Vector3(0, 1.0, 7.9), Vector3(6, 2, 0.2), "#17283A", "WallFront")
 	# Ceiling 제거 - 위에서 내려다보는 카메라 구조
 	_box(self, Vector3(0, 1.5, -3.9), Vector3(1.8, 3.0, 0.2), "#2D3A4A", "BossDoor")
 	_box(self, Vector3(0, 1.5, -3.7), Vector3(1.6, 2.8, 0.05), "#1E2A3A", "BossDoorGlass")
@@ -52,12 +54,14 @@ func _build_scene() -> void:
 	glow.light_energy = 0.4
 	glow.omni_range = 1.5
 	self.add_child(glow)
-	var hall_light = OmniLight3D.new()
-	hall_light.position = Vector3(0, 3.5, 0)
-	hall_light.light_color = Color("#B0C0D8")
-	hall_light.light_energy = 0.3
-	hall_light.omni_range = 5.0
-	self.add_child(hall_light)
+	# 복도 조명 (어두워서 밝게 보강, 여러 개)
+	for hz in [-2.0, 1.0, 4.0]:
+		var hall_light = OmniLight3D.new()
+		hall_light.position = Vector3(0, 3.5, hz)
+		hall_light.light_color = Color("#B0C0D8")
+		hall_light.light_energy = 1.0
+		hall_light.omni_range = 6.0
+		self.add_child(hall_light)
 	_box(self, Vector3(0, 1.5, 3.9), Vector3(1.8, 3.0, 0.2), "#2D3A4A", "ExitDoor")
 	# Red tension light near boss door
 	_red_light = OmniLight3D.new()

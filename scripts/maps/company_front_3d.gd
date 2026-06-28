@@ -41,8 +41,8 @@ func _show_opening() -> void:
 	Episode0State.advance_to(Episode0State.State.ENTER_COMPANY)
 
 func _build_scene() -> void:
-	_box(self, Vector3(0, -0.04, 4), Vector3(24, 0.08, 8), "#3B3E46", "Road")
-	_box(self, Vector3(0, 0, -1), Vector3(24, 0.1, 6), "#7F8790", "Sidewalk")
+	_box(self, Vector3(0, -0.04, 7), Vector3(28, 0.08, 16), "#3B3E46", "Road")
+	_box(self, Vector3(0, 0, -1), Vector3(28, 0.1, 6), "#7F8790", "Sidewalk")
 	for i in range(-2, 3):
 		_box(self, Vector3(i * 0.9, 0.01, 3.5), Vector3(0.45, 0.01, 2.5), "#F2EEE2", "Crosswalk%d" % i)
 	# 건물 높이 축소 (18→10) - 카메라가 지붕 위에서 볼 수 있도록
