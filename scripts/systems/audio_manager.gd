@@ -39,7 +39,7 @@ func _tone(freqs: Array, dur: float, vol: float, attack: float, decay: float) ->
             s += sin(TAU * f * t)
         s /= max(1, freqs.size())
         # 엔벨로프 (attack/decay)
-        var env := 1.0
+        var env: float = 1.0
         if t < attack:
             env = t / attack
         elif t > dur - decay:
@@ -65,7 +65,7 @@ func _noise(dur: float, vol: float, lowpass: float) -> AudioStreamWAV:
         var r := (float(seed_v) / 1073741823.0) - 1.0
         prev = lerp(prev, r, lowpass)  # 간단 저역통과
         var t := float(i) / SR
-        var env := max(0.0, 1.0 - t / dur)
+        var env: float = max(0.0, 1.0 - t / dur)
         var v := int(clamp(prev * env * vol, -1.0, 1.0) * 32767.0)
         data.encode_s16(i * 2, v)
     var st := AudioStreamWAV.new()

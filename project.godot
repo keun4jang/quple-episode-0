@@ -18,6 +18,12 @@ SaveManager="*res://scripts/systems/save_manager.gd"
 SceneTransition="*res://scenes/systems/SceneTransition.tscn"
 AudioManager="*res://scripts/systems/audio_manager.gd"
 
+[debug]
+
+gdscript/warnings/treat_warnings_as_errors=false
+gdscript/warnings/inference_on_variant=0
+gdscript/warnings/untyped_declaration=0
+
 [display]
 
 window/size/viewport_width=1080

@@ -6,12 +6,11 @@ var _t := 0.0
 
 func _ready() -> void:
     _build_scene()
-    if has_node("UILayer/VBox/ContinueBtn"):
-        var cont = $UILayer/VBox/ContinueBtn
-        cont.disabled = not FileAccess.file_exists("user://save.cfg")
-    $UILayer/VBox/StartBtn.pressed.connect(_on_start)
-    $UILayer/VBox/ContinueBtn.pressed.connect(_on_continue)
-    $UILayer/VBox/QuitBtn.pressed.connect(_on_quit)
+    var cont = $UILayer/Control/VBox/ContinueBtn
+    cont.disabled = not FileAccess.file_exists("user://save.cfg")
+    $UILayer/Control/VBox/StartBtn.pressed.connect(_on_start)
+    cont.pressed.connect(_on_continue)
+    $UILayer/Control/VBox/QuitBtn.pressed.connect(_on_quit)
     if AudioManager:
         AudioManager.play_bgm("menu")
 
