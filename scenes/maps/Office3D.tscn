@@ -87,25 +87,28 @@ interact_text = "애인에게 말걸기"
 shape = SubResource("CapsuleShape3D_1")
 
 [node name="CameraItem" type="Area3D" parent="."]
-position = Vector3(2.5, 1.0, -2)
+position = Vector3(3.2, 1.0, -1.6)
 script = ExtResource("IA")
 item_id = "camera"
+interact_text = "카메라 줍기"
 
 [node name="CollisionShape3D2" type="CollisionShape3D" parent="CameraItem"]
 shape = SubResource("CapsuleShape3D_2")
 
 [node name="NotebookItem" type="Area3D" parent="."]
-position = Vector3(2, 1.0, -2)
+position = Vector3(2, 1.0, -2.6)
 script = ExtResource("IA")
 item_id = "notebook"
+interact_text = "수첩 줍기"
 
 [node name="CollisionShape3D3" type="CollisionShape3D" parent="NotebookItem"]
 shape = SubResource("CapsuleShape3D_3")
 
 [node name="BagItem" type="Area3D" parent="."]
-position = Vector3(1.5, 0.1, -1)
+position = Vector3(0.8, 1.0, -1.6)
 script = ExtResource("IA")
 item_id = "travel_bag"
+interact_text = "가방 줍기"
 
 [node name="CollisionShape3D4" type="CollisionShape3D" parent="BagItem"]
 shape = SubResource("CapsuleShape3D_4")

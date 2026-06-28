@@ -137,6 +137,15 @@ func _build_marker() -> void:
 
 func _process(delta: float) -> void:
     _t += delta
+    # 플레이어가 가까울 때만 글자 라벨/아이콘 표시 (화면 깔끔하게)
+    var near = false
+    var p = get_tree().get_first_node_in_group("player")
+    if p:
+        near = global_position.distance_to(p.global_position) < 2.6
+    if _label:
+        _label.visible = near
+    if hint_mesh:
+        hint_mesh.visible = near
     if ring_mesh:
         # 링 회전 + 맥동 스케일
         ring_mesh.rotate_y(delta * 0.8)
