@@ -63,6 +63,15 @@ func _build_scene() -> void:
 	_box(self, Vector3(4, 3.2, -4.85), Vector3(0.4, 0.3, 0.05), "#1E2733", "ElevPanel")
 	_box(self, Vector3(4, 3.3, -4.82), Vector3(0.1, 0.1, 0.03), "#FFD76D", "ElevBtnUp")
 	_box(self, Vector3(4, 3.1, -4.82), Vector3(0.1, 0.1, 0.03), "#2A3A4A", "ElevBtnDown")
+	# 안내 카펫 (입구→데스크 레드카펫 느낌으로 동선 유도)
+	_box(self, Vector3(0, 0.01, 3), Vector3(2.2, 0.02, 11), "#6B5560", "EntryCarpet")
+	_box(self, Vector3(0, 0.02, 3), Vector3(1.6, 0.02, 11), "#8A6E78", "EntryCarpetInner")
+	# 천장 매달린 안내 표지판
+	_box(self, Vector3(0, 4.5, -0.5), Vector3(2.5, 0.5, 0.1), "#1E2733", "SignBoard")
+	var sb = _box(self, Vector3(0, 4.5, -0.42), Vector3(2.2, 0.35, 0.05), "#54E0FF", "SignBoardGlow")
+	var sbm = sb.material_override as StandardMaterial3D
+	if sbm:
+		sbm.emission_enabled = true; sbm.emission = Color("#54E0FF"); sbm.emission_energy_multiplier = 2.0
 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "") -> MeshInstance3D:
 	var mi = MeshInstance3D.new()

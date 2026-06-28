@@ -123,6 +123,13 @@ func _build_scene() -> void:
 		self.add_child(ceil_light)
 	# Small trash bin
 	_box(self, Vector3(1, 0.2, -0.5), Vector3(0.3, 0.4, 0.3), "#4A5568", "Trash")
+	# 바닥 러그 (구역 구분 - 디자인 디테일)
+	_box(self, Vector3(0, 0.01, 1.5), Vector3(5, 0.02, 5), "#3A4A66", "Rug")
+	_box(self, Vector3(0, 0.02, 1.5), Vector3(4.4, 0.02, 4.4), "#46587A", "RugInner")
+	# 책장 (벽면 디테일)
+	_box(self, Vector3(-4.6, 1.2, 1), Vector3(0.4, 2.4, 3), "#2A3850", "Bookshelf")
+	for bsy in range(3):
+		_box(self, Vector3(-4.5, 0.6 + bsy * 0.7, 1), Vector3(0.35, 0.06, 3), "#1E2A3C", "Shelf%d" % bsy)
 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "") -> MeshInstance3D:
 	var mi = MeshInstance3D.new()

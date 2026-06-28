@@ -57,7 +57,25 @@ func _build_scene() -> void:
 			var wy = 1.5 + row * 1.4
 			var color = "#17283A" if not (row == 4 and col == 2) else "#FFD76D"
 			_box(self, Vector3(wx, wy, -4.95), Vector3(1.0, 0.8, 0.05), color, "Win_%d_%d" % [row, col])
-	_box(self, Vector3(0, 10.4, -5.1), Vector3(5, 0.5, 0.3), "#FFD76D", "SignBG")
+	# 발광 네온 간판 (QUOKKA CORP 느낌의 빛나는 사인)
+	var sign_bg = _box(self, Vector3(0, 10.6, -5.0), Vector3(5.4, 0.9, 0.25), "#101820", "SignBG")
+	_emit(sign_bg, "#101820", 0.0)
+	for sx in range(-2, 3):
+		var letter = _box(self, Vector3(sx * 0.9, 10.6, -4.85), Vector3(0.5, 0.55, 0.1), "#54E0FF", "SignLetter%d" % sx)
+		_emit(letter, "#54E0FF", 3.0)
+	var sign_light = OmniLight3D.new()
+	sign_light.position = Vector3(0, 10.6, -4.4)
+	sign_light.light_color = Color("#54E0FF")
+	sign_light.light_energy = 1.2
+	sign_light.omni_range = 5.0
+	self.add_child(sign_light)
+	# 창문마다 얇은 창틀 디테일
+	for row in range(6):
+		for col in range(5):
+			var fwx = -4.0 + col * 1.8
+			var fwy = 1.5 + row * 1.4
+			_box(self, Vector3(fwx, fwy, -4.92), Vector3(1.12, 0.06, 0.04), "#0E1822", "WinFrameT_%d_%d" % [row, col])
+			_box(self, Vector3(fwx, fwy - 0.43, -4.92), Vector3(1.12, 0.06, 0.04), "#0E1822", "WinFrameB_%d_%d" % [row, col])
 	_box(self, Vector3(0, 1.2, -5.0), Vector3(2.2, 2.4, 0.15), "#182533", "EntranceDoor")
 	_box(self, Vector3(0, 1.2, -4.84), Vector3(2.0, 2.2, 0.05), "#3E6278", "DoorGlass")
 	_lamppost(self, Vector3(-6, 0, -2))
@@ -101,6 +119,14 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: Strin
 	var mesh = BoxMesh.new(); mesh.size = size; mi.mesh = mesh
 	var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.9
 	mi.material_override = mat; mi.position = pos; parent.add_child(mi); return mi
+
+func _emit(mi: MeshInstance3D, hex: String, energy: float) -> void:
+	var mat = mi.material_override as StandardMaterial3D
+	if mat == null:
+		return
+	mat.emission_enabled = energy > 0.0
+	mat.emission = Color(hex)
+	mat.emission_energy_multiplier = energy
 
 func _lamppost(parent: Node3D, pos: Vector3) -> void:
 	_box(parent, pos + Vector3(0, 2.5, 0), Vector3(0.12, 5.0, 0.12), "#4A5568", "Post")
