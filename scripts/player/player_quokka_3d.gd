@@ -11,6 +11,7 @@ var _blink_timer: float = 0.0
 var _blink_duration: float = 0.0
 var _is_walking: bool = false
 var _speed: float = 0.0
+var _step_accum: float = 0.0
 
 var dialogue_box = null
 var choice_box = null
@@ -38,6 +39,25 @@ var nearby_interactables: Array = []
 
 func _ready() -> void:
 	_build_meshes()
+	# 인물 전용 부드러운 조명 (항상 캐릭터가 잘 보이게)
+	var keylight = OmniLight3D.new()
+	keylight.light_color = Color("#FFE9C8")
+	keylight.light_energy = 1.1
+	keylight.omni_range = 3.2
+	keylight.position = Vector3(0, 1.6, 0.6)
+	keylight.shadow_enabled = false
+	add_child(keylight)
+	# 발밑 그림자 블롭
+	var shadow = MeshInstance3D.new()
+	var sc = CylinderMesh.new(); sc.top_radius = 0.32; sc.bottom_radius = 0.32; sc.height = 0.01
+	shadow.mesh = sc
+	var smat = StandardMaterial3D.new()
+	smat.albedo_color = Color(0, 0, 0, 0.35)
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shadow.material_override = smat
+	shadow.position = Vector3(0, 0.03, 0)
+	add_child(shadow)
 	interaction_area.area_entered.connect(_on_area_entered)
 	interaction_area.area_exited.connect(_on_area_exited)
 	_blink_timer = randf_range(3.0, 5.0)
@@ -81,6 +101,10 @@ func _animate(delta: float) -> void:
 		left_ear.rotation.z = sin(_walk_time * 2.5) * deg_to_rad(2.0)
 		right_ear.rotation.z = -sin(_walk_time * 2.5) * deg_to_rad(2.0)
 		backpack.rotation.x = sin(_walk_time * 3.0 - 0.3) * deg_to_rad(4.0)
+		_step_accum += delta * _speed
+		if _step_accum >= 0.5:
+			_step_accum = 0.0
+			if AudioManager: AudioManager.footstep()
 		_idle_time = 0.0
 	else:
 		_idle_time += delta

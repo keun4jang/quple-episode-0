@@ -166,6 +166,7 @@ func _process(delta: float) -> void:
         _label.position.y = (0.04 - global_position.y) + 1.6 + sin(_t * 2.0) * 0.08
 
 func interact() -> void:
+    if AudioManager: AudioManager.ui_select()
     interacted.emit()
     if item_id != "":
         _collect_item()

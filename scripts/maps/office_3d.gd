@@ -11,6 +11,7 @@ const CAM_LERP = 5.0
 
 func _ready() -> void:
 	_build_scene()
+	if AudioManager: AudioManager.play_bgm("indoor")
 	player.add_to_group("player")
 	if Episode0State.partner_joined:
 		partner.join_player()

@@ -33,6 +33,8 @@ func _process(delta: float) -> void:
 	if _char_timer >= CHAR_DELAY:
 		_char_timer = 0.0
 		_display_index = min(_display_index + 1, _full_text.length())
+		if _display_index % 2 == 0:
+			if AudioManager: AudioManager.dialogue_tick()
 		label.text = _full_text.substr(0, _display_index)
 		if _display_index >= _full_text.length():
 			_is_typing = false

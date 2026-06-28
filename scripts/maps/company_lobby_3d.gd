@@ -9,6 +9,7 @@ const CAM_LERP = 5.0
 
 func _ready() -> void:
 	_build_scene()
+	if AudioManager: AudioManager.play_bgm("indoor")
 	player.add_to_group("player")
 	if Episode0State.current_state == Episode0State.State.ENTER_COMPANY:
 		Episode0State.advance_to(Episode0State.State.FIND_PARTNER)

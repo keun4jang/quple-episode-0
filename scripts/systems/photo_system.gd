@@ -30,6 +30,7 @@ func _take_photo() -> void:
 	if Episode0State.first_photo_taken:
 		return
 	Episode0State.first_photo_taken = true
+	if AudioManager: AudioManager.photo_shutter()
 	Episode0State.album_created = true
 	var db = get_tree().get_first_node_in_group("dialogue_box")
 	if db:

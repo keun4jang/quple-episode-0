@@ -10,6 +10,7 @@ var _idle_time: float = 0.0
 var _walk_time: float = 0.0
 var _is_walking: bool = false
 var _joined: bool = false
+var _holding: bool = false
 
 var _tail_mesh: MeshInstance3D = null
 var _left_eye_hl: MeshInstance3D = null
@@ -31,6 +32,17 @@ var _right_ear: Node3D = null
 func _ready() -> void:
     _build_meshes()
 
+    var shadow = MeshInstance3D.new()
+    var sc = CylinderMesh.new(); sc.top_radius = 0.3; sc.bottom_radius = 0.3; sc.height = 0.01
+    shadow.mesh = sc
+    var smat = StandardMaterial3D.new()
+    smat.albedo_color = Color(0, 0, 0, 0.32)
+    smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    shadow.material_override = smat
+    shadow.position = Vector3(0, 0.03, 0)
+    add_child(shadow)
+
 func join_player() -> void:
     _joined = true
 
@@ -40,13 +52,16 @@ func set_emotion(emotion: String) -> void:
 
 func _physics_process(delta: float) -> void:
     if not _joined:
+        _holding = false
         _animate_idle(delta)
         return
     var player = get_tree().get_first_node_in_group("player")
     if player == null:
+        _holding = false
         _animate_idle(delta)
         return
     var dist = global_position.distance_to(player.global_position)
+    _holding = _joined and dist <= 1.5
     if dist > TELEPORT_DIST:
         global_position = player.global_position + Vector3(0.8, 0, 0.8)
     if dist > FOLLOW_START_DIST:
@@ -92,6 +107,10 @@ func _animate_idle(delta: float) -> void:
         _:
             if _tail_mesh: _tail_mesh.rotation.z = sin(_idle_time * 1.5) * deg_to_rad(8.0)
 
+    if _holding:
+        left_arm.rotation.x = lerp(left_arm.rotation.x, deg_to_rad(-25.0), delta * 6.0)
+        left_arm.rotation.z = lerp(left_arm.rotation.z, deg_to_rad(-30.0), delta * 6.0)
+
 func _animate_walk(delta: float) -> void:
     _walk_time += delta * FOLLOW_SPEED * 2.5
     body_pivot.position.y = sin(_walk_time * 3.0) * 0.06
@@ -122,6 +141,10 @@ func _animate_walk(delta: float) -> void:
             if _tail_mesh: _tail_mesh.rotation.z = sin(_idle_time * 6.0) * deg_to_rad(30.0)
         _:
             if _tail_mesh: _tail_mesh.rotation.z = sin(_idle_time * 1.5) * deg_to_rad(8.0)
+
+    if _holding:
+        left_arm.rotation.x = lerp(left_arm.rotation.x, deg_to_rad(-25.0), delta * 6.0)
+        left_arm.rotation.z = lerp(left_arm.rotation.z, deg_to_rad(-30.0), delta * 6.0)
 
 func _build_meshes() -> void:
     _set_sphere($BodyPivot/BodyMesh, 0.28, 0.32, "#C98B61")

@@ -13,6 +13,7 @@ var _tension_time: float = 0.0
 
 func _ready() -> void:
 	_build_scene()
+	if AudioManager: AudioManager.play_bgm("tense")
 	player.add_to_group("player")
 	$EavesdropTrigger.interacted.connect(eavesdrop)
 

@@ -15,6 +15,7 @@ var _dawn_progress: float = 0.0
 
 func _ready() -> void:
 	_build_scene()
+	if AudioManager: AudioManager.play_bgm("night")
 	player.add_to_group("player")
 	if Episode0State.current_state == Episode0State.State.START:
 		_show_opening()
