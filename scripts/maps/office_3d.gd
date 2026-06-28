@@ -6,7 +6,7 @@ extends Node3D
 @onready var choice_box = $ChoiceBox
 @onready var partner = $PartnerQuokka3D
 
-const CAM_OFFSET = Vector3(0, 6, 6)
+const CAM_OFFSET = Vector3(0, 8, 5)
 const CAM_LERP = 5.0
 
 func _ready() -> void:

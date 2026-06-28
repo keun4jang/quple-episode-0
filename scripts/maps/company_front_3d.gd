@@ -7,7 +7,7 @@ extends Node3D
 @onready var partner = $PartnerQuokka3D
 @onready var dir_light: DirectionalLight3D = $DirectionalLight3D
 
-const CAM_OFFSET = Vector3(0, 8, 8)
+const CAM_OFFSET = Vector3(0, 10, 7)
 const CAM_LERP = 5.0
 
 var _light_time: float = 0.0

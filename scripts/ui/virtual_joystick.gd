@@ -13,8 +13,15 @@ var _max_radius: float = 80.0
 var input_vector: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
+	add_to_group("virtual_joystick")
 	_base_center = Vector2(100, 100)
-	interact_btn.pressed.connect(func(): interact_pressed.emit())
+	interact_btn.pressed.connect(func():
+		interact_pressed.emit()
+		var ev = InputEventAction.new()
+		ev.action = "ui_accept"
+		ev.pressed = true
+		Input.parse_input_event(ev)
+	)
 	_style_buttons()
 
 func _style_buttons() -> void:

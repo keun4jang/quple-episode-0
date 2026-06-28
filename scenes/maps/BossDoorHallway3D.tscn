@@ -16,6 +16,13 @@ background_color = Color(0.05, 0.06, 0.1, 1)
 ambient_light_source = 2
 ambient_light_color = Color(0.08, 0.1, 0.15, 1)
 ambient_light_energy = 0.25
+glow_enabled = true
+glow_intensity = 1.2
+glow_bloom = 0.25
+glow_blend_mode = 2
+ssao_enabled = true
+ssao_radius = 1.2
+ssao_intensity = 2.5
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.5
@@ -68,3 +75,5 @@ shape = SubResource("CapsuleShape3D_2")
 [node name="WindNoteUI" parent="." instance=ExtResource("6")]
 
 [node name="AlbumUI" parent="." instance=ExtResource("7")]
+
+[node name="VirtualJoystick" parent="." instance=ExtResource("VJ")]

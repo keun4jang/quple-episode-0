@@ -4,7 +4,7 @@ extends Node3D
 @onready var camera: Camera3D = $Camera3D
 @onready var dialogue_box = $DialogueBox
 
-const CAM_OFFSET = Vector3(0, 6, 6)
+const CAM_OFFSET = Vector3(0, 8, 5)
 const CAM_LERP = 5.0
 
 func _ready() -> void:

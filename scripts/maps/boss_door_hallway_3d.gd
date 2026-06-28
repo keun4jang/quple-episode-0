@@ -4,7 +4,7 @@ extends Node3D
 @onready var camera: Camera3D = $Camera3D
 @onready var dialogue_box = $DialogueBox
 
-const CAM_OFFSET = Vector3(0, 5, 5)
+const CAM_OFFSET = Vector3(0, 7, 4)
 const CAM_LERP = 5.0
 
 var _eavesdrop_done: bool = false
