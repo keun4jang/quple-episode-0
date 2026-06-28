@@ -147,120 +147,140 @@ func _animate_walk(delta: float) -> void:
         left_arm.rotation.z = lerp(left_arm.rotation.z, deg_to_rad(-30.0), delta * 6.0)
 
 func _build_meshes() -> void:
-    _set_sphere($BodyPivot/BodyMesh, 0.28, 0.32, "#C98B61")
-    _set_sphere($BodyPivot/BellyMesh, 0.2, 0.24, "#F5D9B5")
-    _set_sphere($BodyPivot/HeadPivot/HeadMesh, 0.31, 0.33, "#C98B61")
-    _set_sphere($BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh, 0.095, 0.11, "#C98B61")
-    _set_sphere($BodyPivot/HeadPivot/RightEarPivot/RightEarMesh, 0.095, 0.11, "#C98B61")
-    _set_sphere($BodyPivot/HeadPivot/LeftEyeMesh, 0.058, 0.064, "#1A1412")
-    _set_sphere($BodyPivot/HeadPivot/RightEyeMesh, 0.058, 0.064, "#1A1412")
-    _set_sphere($BodyPivot/HeadPivot/NoseMesh, 0.028, 0.032, "#3A2418")
-    _set_sphere($BodyPivot/HeadPivot/LeftCheekMesh, 0.062, 0.07, "#FFB0B8")
-    _set_sphere($BodyPivot/HeadPivot/RightCheekMesh, 0.062, 0.07, "#FFB0B8")
-    _set_capsule($BodyPivot/LeftArmPivot/LeftArmMesh, 0.065, 0.2, "#C98B61")
-    _set_capsule($BodyPivot/RightArmPivot/RightArmMesh, 0.065, 0.2, "#C98B61")
-    _set_capsule($BodyPivot/LeftLegPivot/LeftLegMesh, 0.065, 0.22, "#C98B61")
-    _set_capsule($BodyPivot/RightLegPivot/RightLegMesh, 0.065, 0.22, "#C98B61")
-    _set_box($BodyPivot/BadgeMesh, Vector3(0.08, 0.1, 0.02), "#EDEDED")
-
-    # Reposition face features for bigger chibi head
-    $BodyPivot/HeadPivot/LeftEyeMesh.position = Vector3(-0.11, 0.05, 0.25)
-    $BodyPivot/HeadPivot/RightEyeMesh.position = Vector3(0.11, 0.05, 0.25)
-    $BodyPivot/HeadPivot/NoseMesh.position = Vector3(0, -0.02, 0.3)
-    $BodyPivot/HeadPivot/LeftCheekMesh.position = Vector3(-0.16, -0.04, 0.23)
-    $BodyPivot/HeadPivot/RightCheekMesh.position = Vector3(0.16, -0.04, 0.23)
-
-    # Get eye positions for sclera and highlight placement
-    var left_eye_mi: MeshInstance3D = $BodyPivot/HeadPivot/LeftEyeMesh
-    var right_eye_mi: MeshInstance3D = $BodyPivot/HeadPivot/RightEyeMesh
-
-    # White sclera behind each eye
-    var left_sclera = MeshInstance3D.new()
-    var right_sclera = MeshInstance3D.new()
-    $BodyPivot/HeadPivot.add_child(left_sclera)
-    $BodyPivot/HeadPivot.add_child(right_sclera)
-    left_sclera.position = left_eye_mi.position + Vector3(0, 0, -0.01)
-    right_sclera.position = right_eye_mi.position + Vector3(0, 0, -0.01)
-    _set_sphere_mi(left_sclera, 0.07, 0.083, "#F5F5F5")
-    _set_sphere_mi(right_sclera, 0.07, 0.083, "#F5F5F5")
-
-    # Eye highlights
-    var left_hl = MeshInstance3D.new()
-    var right_hl = MeshInstance3D.new()
-    $BodyPivot/HeadPivot.add_child(left_hl)
-    $BodyPivot/HeadPivot.add_child(right_hl)
-    left_hl.position = left_eye_mi.position + Vector3(-0.012, 0, 0.03)
-    right_hl.position = right_eye_mi.position + Vector3(-0.012, 0, 0.03)
-    _set_sphere_mi(left_hl, 0.023, 0.029, "#FFFFFF")
-    _set_sphere_mi(right_hl, 0.023, 0.029, "#FFFFFF")
-    _left_eye_hl = left_hl
-    _right_eye_hl = right_hl
-
-    # Tail
-    var tail = MeshInstance3D.new()
-    $BodyPivot.add_child(tail)
-    tail.position = Vector3(0, 0.08, -0.27)
-    _set_sphere_mi(tail, 0.09, 0.11, "#F5D9B5")
-    _tail_mesh = tail
-
-    # 코랄 니트 스웨터
-    var sweater = MeshInstance3D.new()
-    _set_sphere_mi(sweater, 0.295, 0.28, "#F2B9A0")
-    sweater.position = Vector3(0, -0.02, 0)
-    sweater.scale = Vector3(1.0, 0.85, 1.0)
-    $BodyPivot.add_child(sweater)
+    var fur = "#C98B61"
+    var body_col = "#F2B9A0"   # 코랄 스웨터
+    # ── 몸통(스웨터) ──
+    _set_sphere($BodyPivot/BodyMesh, 0.31, 0.50, body_col)
+    $BodyPivot/BodyMesh.position = Vector3(0, -0.02, 0)
+    $BodyPivot/BodyMesh.scale = Vector3(1.0, 1.0, 0.95)
     var collar = MeshInstance3D.new()
-    _set_sphere_mi(collar, 0.15, 0.11, "#E0A088")
-    collar.position = Vector3(0, 0.19, 0.02)
+    _set_sphere_mi(collar, 0.21, 0.15, _shade(body_col, -0.08))
+    collar.position = Vector3(0, 0.2, 0.02); collar.scale = Vector3(1.0, 0.5, 1.0)
     $BodyPivot.add_child(collar)
+    _set_sphere($BodyPivot/BellyMesh, 0.18, 0.18, _shade(body_col, 0.05))
+    $BodyPivot/BellyMesh.position = Vector3(0, 0.02, 0.16); $BodyPivot/BellyMesh.scale = Vector3(0.85, 0.95, 0.5)
 
-    # 둥근 주둥이
+    # ── 머리 ──
+    $BodyPivot/HeadPivot.position = Vector3(0, 0.4, 0)
+    _set_sphere($BodyPivot/HeadPivot/HeadMesh, 0.33, 0.34, fur)
+    $BodyPivot/HeadPivot/HeadMesh.scale = Vector3(1.05, 0.98, 1.0)
+
+    # ── 귀 + 분홍 안쪽 ──
+    $BodyPivot/HeadPivot/LeftEarPivot.position = Vector3(-0.18, 0.21, 0.05)
+    $BodyPivot/HeadPivot/RightEarPivot.position = Vector3(0.18, 0.21, 0.05)
+    _set_sphere($BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh, 0.11, 0.12, fur)
+    _set_sphere($BodyPivot/HeadPivot/RightEarPivot/RightEarMesh, 0.11, 0.12, fur)
+    $BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh.scale = Vector3(0.9, 1.0, 0.7)
+    $BodyPivot/HeadPivot/RightEarPivot/RightEarMesh.scale = Vector3(0.9, 1.0, 0.7)
+    _child_sphere($BodyPivot/HeadPivot/LeftEarPivot, 0.065, 0.07, "#F2A6AE", Vector3(0, 0.01, 0.045), Vector3(0.8, 1.0, 0.6))
+    _child_sphere($BodyPivot/HeadPivot/RightEarPivot, 0.065, 0.07, "#F2A6AE", Vector3(0, 0.01, 0.045), Vector3(0.8, 1.0, 0.6))
+
+    # ── 주둥이 ──
     var muzzle = MeshInstance3D.new()
-    _set_sphere_mi(muzzle, 0.13, 0.12, "#E0B088")
-    muzzle.position = Vector3(0, -0.04, 0.24)
-    muzzle.scale = Vector3(1.1, 0.85, 0.8)
+    _set_sphere_mi(muzzle, 0.15, 0.14, _shade(fur, 0.22))
+    muzzle.position = Vector3(0, -0.06, 0.25); muzzle.scale = Vector3(1.25, 0.85, 0.8)
     $BodyPivot/HeadPivot.add_child(muzzle)
 
-    # 미소
-    for sgn in [-1.0, 1.0]:
-        var sm = MeshInstance3D.new()
-        var cm = CapsuleMesh.new(); cm.radius = 0.011; cm.height = 0.08; sm.mesh = cm
-        var smat = StandardMaterial3D.new(); smat.albedo_color = Color("#5A3A28"); smat.roughness = 0.8
-        sm.material_override = smat
-        sm.position = Vector3(sgn * 0.045, -0.1, 0.31)
-        sm.rotation_degrees = Vector3(0, 0, 90 + sgn * 25)
-        $BodyPivot/HeadPivot.add_child(sm)
+    # ── 눈 + 하이라이트 ──
+    _set_sphere($BodyPivot/HeadPivot/LeftEyeMesh, 0.055, 0.066, "#2A211C")
+    _set_sphere($BodyPivot/HeadPivot/RightEyeMesh, 0.055, 0.066, "#2A211C")
+    $BodyPivot/HeadPivot/LeftEyeMesh.position = Vector3(-0.13, 0.07, 0.28)
+    $BodyPivot/HeadPivot/RightEyeMesh.position = Vector3(0.13, 0.07, 0.28)
+    _left_eye_hl = _child_sphere($BodyPivot/HeadPivot, 0.019, 0.023, "#FFFFFF", Vector3(-0.143, 0.092, 0.31), Vector3.ONE)
+    _right_eye_hl = _child_sphere($BodyPivot/HeadPivot, 0.019, 0.023, "#FFFFFF", Vector3(0.117, 0.092, 0.31), Vector3.ONE)
 
-    # 등에 배낭 + 돌돌 만 매트
+    # ── 코 ──
+    _set_sphere($BodyPivot/HeadPivot/NoseMesh, 0.032, 0.038, "#3A2418")
+    $BodyPivot/HeadPivot/NoseMesh.position = Vector3(0, 0.0, 0.33); $BodyPivot/HeadPivot/NoseMesh.scale = Vector3(1.2, 0.9, 0.9)
+
+    # ── 미소(입) ──
+    var mouth = MeshInstance3D.new()
+    _set_sphere_mi(mouth, 0.046, 0.046, "#5A3A28")
+    mouth.position = Vector3(0, -0.08, 0.32); mouth.scale = Vector3(1.4, 0.45, 0.4)
+    $BodyPivot/HeadPivot.add_child(mouth)
+
+    # ── 볼터치 ──
+    _set_sphere($BodyPivot/HeadPivot/LeftCheekMesh, 0.058, 0.058, "#FFB0B8")
+    _set_sphere($BodyPivot/HeadPivot/RightCheekMesh, 0.058, 0.058, "#FFB0B8")
+    $BodyPivot/HeadPivot/LeftCheekMesh.position = Vector3(-0.21, -0.03, 0.22)
+    $BodyPivot/HeadPivot/RightCheekMesh.position = Vector3(0.21, -0.03, 0.22)
+    $BodyPivot/HeadPivot/LeftCheekMesh.scale = Vector3(1.0, 0.7, 0.5)
+    $BodyPivot/HeadPivot/RightCheekMesh.scale = Vector3(1.0, 0.7, 0.5)
+
+    # ── 팔(소매) + 손 ──
+    $BodyPivot/LeftArmPivot.position = Vector3(-0.3, 0.08, 0.04)
+    $BodyPivot/RightArmPivot.position = Vector3(0.3, 0.08, 0.04)
+    _set_capsule($BodyPivot/LeftArmPivot/LeftArmMesh, 0.075, 0.24, body_col)
+    _set_capsule($BodyPivot/RightArmPivot/RightArmMesh, 0.075, 0.24, body_col)
+    $BodyPivot/LeftArmPivot/LeftArmMesh.position = Vector3(0, -0.1, 0)
+    $BodyPivot/RightArmPivot/RightArmMesh.position = Vector3(0, -0.1, 0)
+    $BodyPivot/LeftArmPivot.rotation_degrees = Vector3(0, 0, 12)
+    $BodyPivot/RightArmPivot.rotation_degrees = Vector3(0, 0, -12)
+    _child_sphere($BodyPivot/LeftArmPivot, 0.07, 0.075, fur, Vector3(0, -0.22, 0.01), Vector3.ONE)
+    _child_sphere($BodyPivot/RightArmPivot, 0.07, 0.075, fur, Vector3(0, -0.22, 0.01), Vector3.ONE)
+
+    # ── 다리 + 발 ──
+    $BodyPivot/LeftLegPivot.position = Vector3(-0.13, -0.24, 0.03)
+    $BodyPivot/RightLegPivot.position = Vector3(0.13, -0.24, 0.03)
+    _set_capsule($BodyPivot/LeftLegPivot/LeftLegMesh, 0.08, 0.16, fur)
+    _set_capsule($BodyPivot/RightLegPivot/RightLegMesh, 0.08, 0.16, fur)
+    $BodyPivot/LeftLegPivot/LeftLegMesh.position = Vector3(0, -0.05, 0)
+    $BodyPivot/RightLegPivot/RightLegMesh.position = Vector3(0, -0.05, 0)
+    _child_sphere($BodyPivot/LeftLegPivot, 0.085, 0.065, _shade(fur, -0.1), Vector3(0, -0.14, 0.05), Vector3(1.0, 0.7, 1.3))
+    _child_sphere($BodyPivot/RightLegPivot, 0.085, 0.065, _shade(fur, -0.1), Vector3(0, -0.14, 0.05), Vector3(1.0, 0.7, 1.3))
+
+    # ── 사원증(가슴) ──
+    _set_box($BodyPivot/BadgeMesh, Vector3(0.09, 0.11, 0.02), "#EDEDED")
+    $BodyPivot/BadgeMesh.position = Vector3(0.1, 0.04, 0.27)
+
+    # ── 꼬리 ──
+    var tail = _child_sphere($BodyPivot, 0.09, 0.11, _shade(fur, 0.18), Vector3(0, -0.05, -0.3), Vector3(0.8, 0.8, 1.0))
+    _tail_mesh = tail
+
+    # ── 배낭 + 매트(등 뒤) ──
     var pack = MeshInstance3D.new()
-    _set_sphere_mi(pack, 0.16, 0.18, "#C97A5A")
-    pack.position = Vector3(0, 0.05, -0.28)
-    pack.scale = Vector3(1.0, 1.1, 0.7)
+    _set_sphere_mi(pack, 0.17, 0.34, "#C97A5A")
+    pack.position = Vector3(0, 0.05, -0.3); pack.scale = Vector3(1.0, 1.0, 0.6)
     $BodyPivot.add_child(pack)
-    var mat_roll = MeshInstance3D.new()
-    var rm = CapsuleMesh.new(); rm.radius = 0.055; rm.height = 0.24; mat_roll.mesh = rm
+    var matroll = MeshInstance3D.new()
+    var rm = CapsuleMesh.new(); rm.radius = 0.065; rm.height = 0.32; matroll.mesh = rm
     var rmat = StandardMaterial3D.new(); rmat.albedo_color = Color("#F2A0B0"); rmat.roughness = 0.9
-    mat_roll.material_override = rmat
-    mat_roll.position = Vector3(0, 0.18, -0.28)
-    mat_roll.rotation_degrees = Vector3(0, 0, 90)
-    $BodyPivot.add_child(mat_roll)
+    matroll.material_override = rmat
+    matroll.position = Vector3(0, 0.24, -0.3); matroll.rotation_degrees = Vector3(0, 0, 90)
+    $BodyPivot.add_child(matroll)
 
-func _set_sphere(mi: MeshInstance3D, radius: float, height: float, hex: String) -> void:
+func _shade(hex: String, amt: float) -> Color:
+    var c = Color(hex)
+    return c.lightened(amt) if amt >= 0.0 else c.darkened(-amt)
+
+func _to_col(c) -> Color:
+    return c if c is Color else Color(c)
+
+func _child_sphere(parent: Node3D, radius: float, height: float, col, pos: Vector3, scl: Vector3) -> MeshInstance3D:
+    var mi = MeshInstance3D.new()
     var m = SphereMesh.new(); m.radius = radius; m.height = height; mi.mesh = m
-    var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.85
+    var mat = StandardMaterial3D.new(); mat.albedo_color = _to_col(col); mat.roughness = 0.85
+    mi.material_override = mat
+    mi.position = pos; mi.scale = scl
+    parent.add_child(mi)
+    return mi
+
+func _set_sphere(mi: MeshInstance3D, radius: float, height: float, hex) -> void:
+    var m = SphereMesh.new(); m.radius = radius; m.height = height; mi.mesh = m
+    var mat = StandardMaterial3D.new(); mat.albedo_color = _to_col(hex); mat.roughness = 0.85
     mi.material_override = mat
 
-func _set_sphere_mi(mi: MeshInstance3D, radius: float, height: float, hex: String) -> void:
+func _set_sphere_mi(mi: MeshInstance3D, radius: float, height: float, hex) -> void:
     var m = SphereMesh.new(); m.radius = radius; m.height = height; mi.mesh = m
-    var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.85
+    var mat = StandardMaterial3D.new(); mat.albedo_color = _to_col(hex); mat.roughness = 0.85
     mi.material_override = mat
 
-func _set_capsule(mi: MeshInstance3D, radius: float, height: float, hex: String) -> void:
+func _set_capsule(mi: MeshInstance3D, radius: float, height: float, hex) -> void:
     var m = CapsuleMesh.new(); m.radius = radius; m.height = height; mi.mesh = m
-    var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.85
+    var mat = StandardMaterial3D.new(); mat.albedo_color = _to_col(hex); mat.roughness = 0.85
     mi.material_override = mat
 
-func _set_box(mi: MeshInstance3D, size: Vector3, hex: String) -> void:
+func _set_box(mi: MeshInstance3D, size: Vector3, hex) -> void:
     var m = BoxMesh.new(); m.size = size; mi.mesh = m
-    var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.85
+    var mat = StandardMaterial3D.new(); mat.albedo_color = _to_col(hex); mat.roughness = 0.85
     mi.material_override = mat
