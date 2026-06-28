@@ -203,6 +203,48 @@ func _build_meshes() -> void:
     _set_sphere_mi(tail, 0.09, 0.11, "#F5D9B5")
     _tail_mesh = tail
 
+    # 코랄 니트 스웨터
+    var sweater = MeshInstance3D.new()
+    _set_sphere_mi(sweater, 0.295, 0.28, "#F2B9A0")
+    sweater.position = Vector3(0, -0.02, 0)
+    sweater.scale = Vector3(1.0, 0.85, 1.0)
+    $BodyPivot.add_child(sweater)
+    var collar = MeshInstance3D.new()
+    _set_sphere_mi(collar, 0.15, 0.11, "#E0A088")
+    collar.position = Vector3(0, 0.19, 0.02)
+    $BodyPivot.add_child(collar)
+
+    # 둥근 주둥이
+    var muzzle = MeshInstance3D.new()
+    _set_sphere_mi(muzzle, 0.13, 0.12, "#E0B088")
+    muzzle.position = Vector3(0, -0.04, 0.24)
+    muzzle.scale = Vector3(1.1, 0.85, 0.8)
+    $BodyPivot/HeadPivot.add_child(muzzle)
+
+    # 미소
+    for sgn in [-1.0, 1.0]:
+        var sm = MeshInstance3D.new()
+        var cm = CapsuleMesh.new(); cm.radius = 0.011; cm.height = 0.08; sm.mesh = cm
+        var smat = StandardMaterial3D.new(); smat.albedo_color = Color("#5A3A28"); smat.roughness = 0.8
+        sm.material_override = smat
+        sm.position = Vector3(sgn * 0.045, -0.1, 0.31)
+        sm.rotation_degrees = Vector3(0, 0, 90 + sgn * 25)
+        $BodyPivot/HeadPivot.add_child(sm)
+
+    # 등에 배낭 + 돌돌 만 매트
+    var pack = MeshInstance3D.new()
+    _set_sphere_mi(pack, 0.16, 0.18, "#C97A5A")
+    pack.position = Vector3(0, 0.05, -0.28)
+    pack.scale = Vector3(1.0, 1.1, 0.7)
+    $BodyPivot.add_child(pack)
+    var mat_roll = MeshInstance3D.new()
+    var rm = CapsuleMesh.new(); rm.radius = 0.055; rm.height = 0.24; mat_roll.mesh = rm
+    var rmat = StandardMaterial3D.new(); rmat.albedo_color = Color("#F2A0B0"); rmat.roughness = 0.9
+    mat_roll.material_override = rmat
+    mat_roll.position = Vector3(0, 0.18, -0.28)
+    mat_roll.rotation_degrees = Vector3(0, 0, 90)
+    $BodyPivot.add_child(mat_roll)
+
 func _set_sphere(mi: MeshInstance3D, radius: float, height: float, hex: String) -> void:
     var m = SphereMesh.new(); m.radius = radius; m.height = height; mi.mesh = m
     var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.85

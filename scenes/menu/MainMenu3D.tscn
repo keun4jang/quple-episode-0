@@ -5,18 +5,38 @@
 [ext_resource type="Script" path="res://scripts/menu/main_menu_3d.gd" id="s"]
 [ext_resource type="PackedScene" path="res://scenes/ui/SettingsUI.tscn" id="SET"]
 
+[sub_resource type="ProceduralSkyMaterial" id="Sky_1"]
+sky_top_color = Color(0.5, 0.66, 0.93, 1)
+sky_horizon_color = Color(0.97, 0.82, 0.9, 1)
+ground_horizon_color = Color(0.95, 0.83, 0.92, 1)
+ground_bottom_color = Color(0.82, 0.78, 0.95, 1)
+
+[sub_resource type="Sky" id="SkyR_1"]
+sky_material = SubResource("Sky_1")
+
 [sub_resource type="Environment" id="Env_1"]
-background_mode = 1
-background_color = Color(0.06, 0.08, 0.18, 1)
-ambient_light_color = Color(0.6, 0.65, 0.85, 1)
-ambient_light_energy = 0.6
+background_mode = 2
+sky = SubResource("SkyR_1")
+ambient_light_source = 3
+ambient_light_energy = 1.1
+tonemap_mode = 2
 glow_enabled = true
+glow_intensity = 0.5
+glow_bloom = 0.1
 
 [sub_resource type="LabelSettings" id="Title_1"]
-font_size = 88
-font_color = Color(1, 0.95, 0.82, 1)
-outline_size = 12
-outline_color = Color(0.1, 0.12, 0.25, 1)
+font_size = 130
+font_color = Color(1, 0.72, 0.66, 1)
+outline_size = 22
+outline_color = Color(1, 1, 1, 0.95)
+shadow_size = 8
+shadow_color = Color(0.4, 0.3, 0.5, 0.5)
+
+[sub_resource type="LabelSettings" id="Sub_1"]
+font_size = 48
+font_color = Color(0.45, 0.4, 0.7, 1)
+outline_size = 10
+outline_color = Color(1, 1, 1, 0.9)
 
 [node name="MainMenu3D" type="Node3D"]
 script = ExtResource("s")
@@ -26,19 +46,20 @@ environment = SubResource("Env_1")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.7, -0.5, 0.5, 0, 0.7, 0.7, -0.7, -0.5, 0.5, 0, 5, 3)
-light_energy = 1.0
+light_color = Color(1, 0.97, 0.92, 1)
+light_energy = 1.2
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.9, 0.43, 0, -0.43, 0.9, 0, 1.5, 5)
+transform = Transform3D(1, 0, 0, 0, 0.94, 0.34, 0, -0.34, 0.94, 0, 1.4, 5.2)
 
 [node name="QuokkaPivot" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
 
 [node name="PlayerQuokka3D" parent="QuokkaPivot" instance=ExtResource("p")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0, 0)
+transform = Transform3D(0.92, 0, 0, 0, 0.92, 0, 0, 0, 0.92, -0.42, 0, 0)
 
 [node name="PartnerQuokka3D" parent="QuokkaPivot" instance=ExtResource("q")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
+transform = Transform3D(0.92, 0, 0, 0, 0.92, 0, 0, 0, 0.92, 0.42, 0, 0)
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
@@ -56,13 +77,27 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -500.0
-offset_top = 160.0
+offset_top = 90.0
 offset_right = 500.0
-offset_bottom = 480.0
+offset_bottom = 340.0
 grow_horizontal = 2
-text = "쿼플 0편
-퇴근 말고 출발"
+text = "쿼플"
 label_settings = SubResource("Title_1")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Subtitle" type="Label" parent="UILayer/Control"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -500.0
+offset_top = 360.0
+offset_right = 500.0
+offset_bottom = 440.0
+grow_horizontal = 2
+text = "쿼카 커플의 힐링 여행"
+label_settings = SubResource("Sub_1")
 horizontal_alignment = 1
 vertical_alignment = 1
 

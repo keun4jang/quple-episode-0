@@ -237,6 +237,44 @@ func _build_meshes() -> void:
 	rfoot.position = Vector3(0, -0.2, 0.04)
 	$BodyPivot/RightLegPivot.add_child(rfoot)
 
+	# === 추가: 니트 스웨터 ===
+	var sweater = MeshInstance3D.new()
+	_set_sphere_mi(sweater, 0.315, 0.30, "#F2E4C6")
+	sweater.position = Vector3(0, -0.02, 0)
+	sweater.scale = Vector3(1.0, 0.85, 1.0)
+	$BodyPivot.add_child(sweater)
+	# 스웨터 목 칼라
+	var collar = MeshInstance3D.new()
+	_set_sphere_mi(collar, 0.16, 0.12, "#E5D2A8")
+	collar.position = Vector3(0, 0.2, 0.02)
+	$BodyPivot.add_child(collar)
+
+	# === 추가: 둥근 주둥이 ===
+	var muzzle = MeshInstance3D.new()
+	_set_sphere_mi(muzzle, 0.14, 0.13, "#D8A878")
+	muzzle.position = Vector3(0, -0.05, 0.26)
+	muzzle.scale = Vector3(1.1, 0.85, 0.8)
+	$BodyPivot/HeadPivot.add_child(muzzle)
+
+	# === 추가: 미소 ===
+	for sgn in [-1.0, 1.0]:
+		var m = MeshInstance3D.new()
+		var cm = CapsuleMesh.new(); cm.radius = 0.012; cm.height = 0.09; m.mesh = cm
+		var mat = StandardMaterial3D.new(); mat.albedo_color = Color("#5A3A28"); mat.roughness = 0.8
+		m.material_override = mat
+		m.position = Vector3(sgn * 0.05, -0.12, 0.34)
+		m.rotation_degrees = Vector3(0, 0, 90 + sgn * 25)
+		$BodyPivot/HeadPivot.add_child(m)
+
+	# === 추가: 배낭 위 돌돌 만 매트 ===
+	var mat_roll = MeshInstance3D.new()
+	var rm = CapsuleMesh.new(); rm.radius = 0.06; rm.height = 0.26; mat_roll.mesh = rm
+	var rmat = StandardMaterial3D.new(); rmat.albedo_color = Color("#6FB8C8"); rmat.roughness = 0.9
+	mat_roll.material_override = rmat
+	mat_roll.position = Vector3(0, 0.13, -0.02)
+	mat_roll.rotation_degrees = Vector3(0, 0, 90)
+	$BodyPivot/BackpackPivot.add_child(mat_roll)
+
 func _set_sphere_mi(mi: MeshInstance3D, radius: float, height: float, hex: String) -> void:
 	var m = SphereMesh.new()
 	m.radius = radius
