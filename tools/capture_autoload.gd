@@ -6,6 +6,7 @@ extends Node
 var _frames := 0
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	DisplayServer.window_set_size(Vector2i(1080, 1920))
 
 func _process(_delta: float) -> void:
