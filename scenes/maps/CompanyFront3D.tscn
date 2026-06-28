@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/company_front_3d.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/systems/interactable_3d.gd" id="IA"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ClearScreen.tscn" id="9"]
 [ext_resource type="Script" path="res://scripts/systems/photo_system.gd" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/ui/VirtualJoystick.tscn" id="VJ"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -45,7 +46,7 @@ light_energy = 1.0
 omni_range = 3.0
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.707, 0.707, 0, -0.707, 0.707, 0, 8, 8)
+transform = Transform3D(1, 0, 0, 0, 0.766, 0.643, 0, -0.643, 0.766, 0, 10, 8)
 
 [node name="PlayerQuokka3D" parent="." instance=ExtResource("2")]
 position = Vector3(0, 0.05, 3)
@@ -82,3 +83,5 @@ shape = SubResource("SphereShape3D_1")
 [node name="AlbumUI" parent="." instance=ExtResource("8")]
 
 [node name="ClearScreen" parent="." instance=ExtResource("9")]
+
+[node name="VirtualJoystick" parent="." instance=ExtResource("VJ")]

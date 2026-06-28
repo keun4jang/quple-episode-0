@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/company_lobby_3d.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/systems/interactable_3d.gd" id="IA"]
@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/WindNoteUI.tscn" id="6"]
 [ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="7"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ClearScreen.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/ui/VirtualJoystick.tscn" id="VJ"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -85,3 +86,5 @@ shape = SubResource("CapsuleShape3D_3")
 [node name="AlbumUI" parent="." instance=ExtResource("7")]
 
 [node name="ClearScreen" parent="." instance=ExtResource("8")]
+
+[node name="VirtualJoystick" parent="." instance=ExtResource("VJ")]
