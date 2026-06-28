@@ -23,6 +23,9 @@ func _ready() -> void:
 		Episode0State.advance_to(Episode0State.State.FIRST_PHOTO)
 	if Episode0State.partner_joined:
 		partner.join_player()
+	if Episode0State.current_state == Episode0State.State.ENTER_COMPANY or Episode0State.current_state == Episode0State.State.START:
+		if has_node("TutorialUI"):
+			$TutorialUI.maybe_show()
 
 func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET

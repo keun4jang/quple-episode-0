@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://bmenu0quple00"]
+[gd_scene load_steps=7 format=3 uid="uid://bmenu0quple00"]
 
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="p"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PartnerQuokka3D.tscn" id="q"]
 [ext_resource type="Script" path="res://scripts/menu/main_menu_3d.gd" id="s"]
+[ext_resource type="PackedScene" path="res://scenes/ui/SettingsUI.tscn" id="SET"]
 
 [sub_resource type="Environment" id="Env_1"]
 background_mode = 1
@@ -92,8 +93,16 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 48
 text = "이어하기"
 
+[node name="SettingsBtn" type="Button" parent="UILayer/Control/VBox"]
+custom_minimum_size = Vector2(500, 110)
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "설정"
+
 [node name="QuitBtn" type="Button" parent="UILayer/Control/VBox"]
 custom_minimum_size = Vector2(500, 110)
 layout_mode = 2
 theme_override_font_sizes/font_size = 48
 text = "종료"
+
+[node name="SettingsUI" parent="." instance=ExtResource("SET")]

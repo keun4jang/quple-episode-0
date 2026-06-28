@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/boss_door_hallway_3d.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/systems/interactable_3d.gd" id="IA"]
@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/WindNoteUI.tscn" id="6"]
 [ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="7"]
 [ext_resource type="PackedScene" path="res://scenes/ui/VirtualJoystick.tscn" id="VJ"]
+[ext_resource type="PackedScene" path="res://scenes/ui/PauseMenu.tscn" id="PM"]
+[ext_resource type="PackedScene" path="res://scenes/ui/SettingsUI.tscn" id="SET"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -77,3 +79,7 @@ shape = SubResource("CapsuleShape3D_2")
 [node name="AlbumUI" parent="." instance=ExtResource("7")]
 
 [node name="VirtualJoystick" parent="." instance=ExtResource("VJ")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("PM")]
+
+[node name="SettingsUI" parent="." instance=ExtResource("SET")]

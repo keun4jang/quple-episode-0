@@ -1,7 +1,8 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/office_3d.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/systems/interactable_3d.gd" id="IA"]
+[ext_resource type="Script" path="res://scripts/systems/memo_3d.gd" id="MEMO"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PartnerQuokka3D.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="4"]
@@ -11,6 +12,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ClearScreen.tscn" id="9"]
 [ext_resource type="PackedScene" path="res://scenes/ui/VirtualJoystick.tscn" id="VJ"]
+[ext_resource type="PackedScene" path="res://scenes/ui/PauseMenu.tscn" id="PM"]
+[ext_resource type="PackedScene" path="res://scenes/ui/SettingsUI.tscn" id="SET"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -57,6 +60,9 @@ height = 1.5
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_8"]
 radius = 0.5
 height = 1.5
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_Memo"]
+radius = 0.6
 
 [node name="Office3D" type="Node3D"]
 script = ExtResource("1")
@@ -131,6 +137,15 @@ interact_text = "로비로 가기"
 [node name="CollisionShape3D6" type="CollisionShape3D" parent="LobbyDoorTrigger"]
 shape = SubResource("CapsuleShape3D_6")
 
+[node name="Memo1" type="Area3D" parent="."]
+position = Vector3(4, 0.5, 1)
+script = ExtResource("MEMO")
+memo_id = "office_letter"
+memo_text = "동료의 사직서 초안: \"미안해, 나도 이제 내 삶을 살래.\""
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Memo1"]
+shape = SubResource("SphereShape3D_Memo")
+
 [node name="DialogueBox" parent="." instance=ExtResource("4")]
 
 [node name="ChoiceBox" parent="." instance=ExtResource("5")]
@@ -144,3 +159,7 @@ shape = SubResource("CapsuleShape3D_6")
 [node name="ClearScreen" parent="." instance=ExtResource("9")]
 
 [node name="VirtualJoystick" parent="." instance=ExtResource("VJ")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("PM")]
+
+[node name="SettingsUI" parent="." instance=ExtResource("SET")]

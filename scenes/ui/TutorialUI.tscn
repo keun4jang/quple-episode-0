@@ -1,0 +1,51 @@
+[gd_scene load_steps=2 format=3 uid="uid://btut0quple0ui01"]
+
+[ext_resource type="Script" path="res://scripts/ui/tutorial_ui.gd" id="1_tut"]
+
+[node name="TutorialUI" type="CanvasLayer"]
+layer = 25
+process_mode = 3
+script = ExtResource("1_tut")
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -410.0
+offset_top = -280.0
+offset_right = 410.0
+offset_bottom = 280.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 50.0
+offset_top = 50.0
+offset_right = -50.0
+offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 40
+alignment = 1
+
+[node name="Label" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 40
+text = "조이스틱(왼쪽 아래)으로 이동해요."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="OkBtn" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(360, 100)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 40
+text = "알겠어요!"

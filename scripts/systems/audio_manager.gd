@@ -11,6 +11,9 @@ var _sfx_lib := {}
 var _bgm_stream: AudioStreamWAV = null
 var _current_bgm: String = ""
 
+var bgm_volume: float = 0.8
+var sfx_volume: float = 1.0
+
 func _ready() -> void:
     _bgm_player = AudioStreamPlayer.new()
     _bgm_player.bus = "Master"
@@ -112,7 +115,7 @@ func play_bgm(track_name: String, _fade_in: float = 1.0) -> void:
         _bgm_stream = _build_bgm()
     _current_bgm = track_name
     _bgm_player.stream = _bgm_stream
-    _bgm_player.volume_db = -12.0
+    set_bgm_volume(bgm_volume)
     _bgm_player.play()
 
 func stop_bgm(_fade_out: float = 1.0) -> void:
@@ -122,7 +125,18 @@ func stop_bgm(_fade_out: float = 1.0) -> void:
 func play_sfx(sfx_name: String) -> void:
     if sfx_name in _sfx_lib:
         _sfx_player.stream = _sfx_lib[sfx_name]
+        _sfx_player.volume_db = -40.0 if sfx_volume <= 0.001 else linear_to_db(sfx_volume)
         _sfx_player.play()
+
+func set_bgm_volume(v: float) -> void:
+    bgm_volume = clamp(v, 0.0, 1.0)
+    if _bgm_player:
+        _bgm_player.volume_db = -40.0 if bgm_volume <= 0.001 else linear_to_db(bgm_volume) - 6.0
+
+func set_sfx_volume(v: float) -> void:
+    sfx_volume = clamp(v, 0.0, 1.0)
+    if _sfx_player:
+        _sfx_player.volume_db = -40.0 if sfx_volume <= 0.001 else linear_to_db(sfx_volume)
 
 func footstep() -> void: play_sfx("footstep")
 func photo_shutter() -> void: play_sfx("camera_shutter")

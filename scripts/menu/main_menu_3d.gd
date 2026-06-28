@@ -11,6 +11,7 @@ func _ready() -> void:
     $UILayer/Control/VBox/StartBtn.pressed.connect(_on_start)
     cont.pressed.connect(_on_continue)
     $UILayer/Control/VBox/QuitBtn.pressed.connect(_on_quit)
+    $UILayer/Control/VBox/SettingsBtn.pressed.connect(func(): var s = get_tree().get_first_node_in_group("settings_ui"); if s: s.open())
     if AudioManager:
         AudioManager.play_bgm("menu")
 

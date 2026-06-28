@@ -25,8 +25,15 @@ var partner_joined: bool = false
 var first_photo_taken: bool = false
 var album_created: bool = false
 var episode0_cleared: bool = false
+var memos_found: Array = []
 
 signal state_changed(new_state: State)
+
+func collect_memo(id: String) -> bool:
+    if id in memos_found:
+        return false
+    memos_found.append(id)
+    return true
 
 func advance_to(new_state: State) -> void:
     current_state = new_state
