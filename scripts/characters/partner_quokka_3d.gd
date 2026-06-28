@@ -124,21 +124,28 @@ func _animate_walk(delta: float) -> void:
             if _tail_mesh: _tail_mesh.rotation.z = sin(_idle_time * 1.5) * deg_to_rad(8.0)
 
 func _build_meshes() -> void:
-    _set_sphere($BodyPivot/BodyMesh, 0.3, 0.34, "#C98B61")
+    _set_sphere($BodyPivot/BodyMesh, 0.28, 0.32, "#C98B61")
     _set_sphere($BodyPivot/BellyMesh, 0.2, 0.24, "#F5D9B5")
-    _set_sphere($BodyPivot/HeadPivot/HeadMesh, 0.26, 0.28, "#C98B61")
-    _set_sphere($BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh, 0.08, 0.09, "#C98B61")
-    _set_sphere($BodyPivot/HeadPivot/RightEarPivot/RightEarMesh, 0.08, 0.09, "#C98B61")
-    _set_sphere($BodyPivot/HeadPivot/LeftEyeMesh, 0.042, 0.048, "#1A1412")
-    _set_sphere($BodyPivot/HeadPivot/RightEyeMesh, 0.042, 0.048, "#1A1412")
-    _set_sphere($BodyPivot/HeadPivot/NoseMesh, 0.032, 0.038, "#3A2418")
-    _set_sphere($BodyPivot/HeadPivot/LeftCheekMesh, 0.05, 0.055, "#EFA3A3")
-    _set_sphere($BodyPivot/HeadPivot/RightCheekMesh, 0.05, 0.055, "#EFA3A3")
+    _set_sphere($BodyPivot/HeadPivot/HeadMesh, 0.31, 0.33, "#C98B61")
+    _set_sphere($BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh, 0.095, 0.11, "#C98B61")
+    _set_sphere($BodyPivot/HeadPivot/RightEarPivot/RightEarMesh, 0.095, 0.11, "#C98B61")
+    _set_sphere($BodyPivot/HeadPivot/LeftEyeMesh, 0.058, 0.064, "#1A1412")
+    _set_sphere($BodyPivot/HeadPivot/RightEyeMesh, 0.058, 0.064, "#1A1412")
+    _set_sphere($BodyPivot/HeadPivot/NoseMesh, 0.028, 0.032, "#3A2418")
+    _set_sphere($BodyPivot/HeadPivot/LeftCheekMesh, 0.062, 0.07, "#FFB0B8")
+    _set_sphere($BodyPivot/HeadPivot/RightCheekMesh, 0.062, 0.07, "#FFB0B8")
     _set_capsule($BodyPivot/LeftArmPivot/LeftArmMesh, 0.065, 0.2, "#C98B61")
     _set_capsule($BodyPivot/RightArmPivot/RightArmMesh, 0.065, 0.2, "#C98B61")
     _set_capsule($BodyPivot/LeftLegPivot/LeftLegMesh, 0.065, 0.22, "#C98B61")
     _set_capsule($BodyPivot/RightLegPivot/RightLegMesh, 0.065, 0.22, "#C98B61")
     _set_box($BodyPivot/BadgeMesh, Vector3(0.08, 0.1, 0.02), "#EDEDED")
+
+    # Reposition face features for bigger chibi head
+    $BodyPivot/HeadPivot/LeftEyeMesh.position = Vector3(-0.11, 0.05, 0.25)
+    $BodyPivot/HeadPivot/RightEyeMesh.position = Vector3(0.11, 0.05, 0.25)
+    $BodyPivot/HeadPivot/NoseMesh.position = Vector3(0, -0.02, 0.3)
+    $BodyPivot/HeadPivot/LeftCheekMesh.position = Vector3(-0.16, -0.04, 0.23)
+    $BodyPivot/HeadPivot/RightCheekMesh.position = Vector3(0.16, -0.04, 0.23)
 
     # Get eye positions for sclera and highlight placement
     var left_eye_mi: MeshInstance3D = $BodyPivot/HeadPivot/LeftEyeMesh
@@ -151,8 +158,8 @@ func _build_meshes() -> void:
     $BodyPivot/HeadPivot.add_child(right_sclera)
     left_sclera.position = left_eye_mi.position + Vector3(0, 0, -0.01)
     right_sclera.position = right_eye_mi.position + Vector3(0, 0, -0.01)
-    _set_sphere_mi(left_sclera, 0.052, 0.062, "#F5F5F5")
-    _set_sphere_mi(right_sclera, 0.052, 0.062, "#F5F5F5")
+    _set_sphere_mi(left_sclera, 0.07, 0.083, "#F5F5F5")
+    _set_sphere_mi(right_sclera, 0.07, 0.083, "#F5F5F5")
 
     # Eye highlights
     var left_hl = MeshInstance3D.new()
@@ -161,8 +168,8 @@ func _build_meshes() -> void:
     $BodyPivot/HeadPivot.add_child(right_hl)
     left_hl.position = left_eye_mi.position + Vector3(-0.012, 0, 0.03)
     right_hl.position = right_eye_mi.position + Vector3(-0.012, 0, 0.03)
-    _set_sphere_mi(left_hl, 0.015, 0.019, "#FFFFFF")
-    _set_sphere_mi(right_hl, 0.015, 0.019, "#FFFFFF")
+    _set_sphere_mi(left_hl, 0.023, 0.029, "#FFFFFF")
+    _set_sphere_mi(right_hl, 0.023, 0.029, "#FFFFFF")
     _left_eye_hl = left_hl
     _right_eye_hl = right_hl
 

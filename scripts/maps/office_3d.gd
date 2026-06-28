@@ -118,8 +118,8 @@ func _build_scene() -> void:
 		var ceil_light = OmniLight3D.new()
 		ceil_light.position = Vector3(lx, 4.7, -1.5)
 		ceil_light.light_color = Color("#C8D8F0")
-		ceil_light.light_energy = 0.5
-		ceil_light.omni_range = 4.0
+		ceil_light.light_energy = 0.9
+		ceil_light.omni_range = 5.5
 		self.add_child(ceil_light)
 	# Small trash bin
 	_box(self, Vector3(1, 0.2, -0.5), Vector3(0.3, 0.4, 0.3), "#4A5568", "Trash")

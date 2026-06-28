@@ -11,6 +11,7 @@ var ring_mesh: MeshInstance3D = null      # 바닥 링
 var beam_mesh: MeshInstance3D = null      # 포탈 빛기둥
 var _kind: String = "npc"                 # portal / item / npc
 var _t: float = 0.0
+var _label: Label3D = null
 
 func _ready() -> void:
     add_to_group("interactable")
@@ -113,6 +114,27 @@ func _build_marker() -> void:
     hint_mesh.position = Vector3(0, 0.7, 0)
     add_child(hint_mesh)
 
+    # 떠다니는 글자 라벨 (무엇을 하는 곳인지 표시)
+    var label = Label3D.new()
+    var txt = interact_text
+    if txt == "":
+        match _kind:
+            "portal": txt = "이동하기"
+            "item": txt = "줍기"
+            _: txt = "대화하기"
+    label.text = txt
+    label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+    label.no_depth_test = true
+    label.fixed_size = true
+    label.pixel_size = 0.0012
+    label.modulate = col
+    label.outline_modulate = Color(0, 0, 0, 0.9)
+    label.outline_size = 12
+    label.font_size = 48
+    label.position = Vector3(0, floor_y + 1.6, 0)
+    add_child(label)
+    _label = label
+
 func _process(delta: float) -> void:
     _t += delta
     if ring_mesh:
@@ -131,6 +153,8 @@ func _process(delta: float) -> void:
         var bm = beam_mesh.material_override as StandardMaterial3D
         if bm:
             bm.albedo_color.a = 0.10 + sin(_t * 2.0) * 0.05
+    if _label:
+        _label.position.y = (0.04 - global_position.y) + 1.6 + sin(_t * 2.0) * 0.08
 
 func interact() -> void:
     interacted.emit()
@@ -171,4 +195,5 @@ func _show_and_remove(text: String) -> void:
         db.show_text(text)
     if hint_mesh: hint_mesh.visible = false
     if ring_mesh: ring_mesh.visible = false
+    if _label: _label.visible = false
     set_deferred("monitoring", false)
