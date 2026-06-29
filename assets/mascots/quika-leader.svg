@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 380" width="300" height="380">
+  <defs>
+    <radialGradient id="bodyGrad_a" cx="40%" cy="35%" r="60%" fx="35%" fy="30%">
+      <stop offset="0%"   stop-color="#D7A564" />
+      <stop offset="55%"  stop-color="#B98246" />
+      <stop offset="100%" stop-color="#8C5A28" />
+    </radialGradient>
+    <radialGradient id="headGrad_a" cx="42%" cy="38%" r="58%" fx="38%" fy="33%">
+      <stop offset="0%"   stop-color="#D7A564" />
+      <stop offset="50%"  stop-color="#B98246" />
+      <stop offset="100%" stop-color="#8C5A28" />
+    </radialGradient>
+    <radialGradient id="bellyGrad_a" cx="50%" cy="45%" r="55%">
+      <stop offset="0%"   stop-color="#FAEBD0" />
+      <stop offset="70%"  stop-color="#E6C391" />
+      <stop offset="100%" stop-color="#B98246" />
+    </radialGradient>
+    <radialGradient id="earGrad_a" cx="45%" cy="38%" r="60%">
+      <stop offset="0%"   stop-color="#D7A564" />
+      <stop offset="100%" stop-color="#B98246" />
+    </radialGradient>
+    <radialGradient id="earInnerGrad_a" cx="50%" cy="50%" r="55%">
+      <stop offset="0%"   stop-color="#F5C8B0" />
+      <stop offset="100%" stop-color="#DCA082" />
+    </radialGradient>
+    <radialGradient id="muzzleGrad_a" cx="50%" cy="42%" r="58%">
+      <stop offset="0%"   stop-color="#FAEEE0" />
+      <stop offset="70%"  stop-color="#F5E1C3" />
+      <stop offset="100%" stop-color="#DCC8A0" />
+    </radialGradient>
+    <radialGradient id="armGrad_a" cx="40%" cy="35%" r="62%">
+      <stop offset="0%"   stop-color="#D7A564" />
+      <stop offset="60%"  stop-color="#B98246" />
+      <stop offset="100%" stop-color="#8C5A28" />
+    </radialGradient>
+    <radialGradient id="legGrad_a" cx="40%" cy="30%" r="65%">
+      <stop offset="0%"   stop-color="#D7A564" />
+      <stop offset="60%"  stop-color="#B98246" />
+      <stop offset="100%" stop-color="#8C5A28" />
+    </radialGradient>
+    <radialGradient id="footGrad_a" cx="40%" cy="35%" r="62%">
+      <stop offset="0%"   stop-color="#D7A564" />
+      <stop offset="100%" stop-color="#8C5A28" />
+    </radialGradient>
+    <linearGradient id="capGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#60B478" />
+      <stop offset="50%"  stop-color="#3C8C50" />
+      <stop offset="100%" stop-color="#2A6438" />
+    </linearGradient>
+    <linearGradient id="backpackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#64A8E8" />
+      <stop offset="50%"  stop-color="#4A90D0" />
+      <stop offset="100%" stop-color="#2E6499" />
+    </linearGradient>
+    <linearGradient id="bagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#DEB870" />
+      <stop offset="50%"  stop-color="#C89650" />
+      <stop offset="100%" stop-color="#9A6E30" />
+    </linearGradient>
+    <linearGradient id="scarfGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#F8A0C0" />
+      <stop offset="50%"  stop-color="#E86090" />
+      <stop offset="100%" stop-color="#C04470" />
+    </linearGradient>
+    <linearGradient id="camGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#383848" />
+      <stop offset="100%" stop-color="#282832" />
+    </linearGradient>
+    <radialGradient id="irisGrad_a" cx="45%" cy="40%" r="60%">
+      <stop offset="0%"   stop-color="#7A4A22" />
+      <stop offset="100%" stop-color="#5C3818" />
+    </radialGradient>
+    <radialGradient id="cheekGradA" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="rgba(255,170,120,0.72)" />
+      <stop offset="100%" stop-color="rgba(255,140,90,0.0)" />
+    </radialGradient>
+    <radialGradient id="cheekGradB" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="rgba(255,140,180,0.72)" />
+      <stop offset="100%" stop-color="rgba(255,100,160,0.0)" />
+    </radialGradient>
+    <radialGradient id="badgeGrad" cx="40%" cy="35%" r="60%">
+      <stop offset="0%"   stop-color="#FFE88A" />
+      <stop offset="100%" stop-color="#F5D060" />
+    </radialGradient>
+    <linearGradient id="ticketGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#FFFAE8" />
+      <stop offset="100%" stop-color="#FFF5C0" />
+    </linearGradient>
+    <radialGradient id="lensGrad" cx="35%" cy="30%" r="60%">
+      <stop offset="0%"   stop-color="#3040A0" />
+      <stop offset="40%"  stop-color="#0A0A14" />
+      <stop offset="100%" stop-color="#000008" />
+    </radialGradient>
+    <filter id="dropShadow" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,0.30)" />
+    </filter>
+    <filter id="groundShadow" x="-30%" y="-50%" width="160%" height="200%">
+      <feGaussianBlur stdDeviation="12" />
+    </filter>
+    <pattern id="ticketStripe" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+      <rect width="3" height="6" fill="#B0903A" opacity="0.4"/>
+    </pattern>
+  </defs>
+
+  <!-- ═══ LEADER CHARACTER ═══ -->
+  <g filter="url(#dropShadow)">
+
+  <!-- 1. Ground shadow -->
+  <ellipse cx="152" cy="370" rx="72" ry="9" fill="rgba(0,0,0,0.22)" filter="url(#groundShadow)" />
+
+  <!-- 2. BACKPACK (behind body, left side) -->
+  <g id="backpack">
+    <!-- Pack body -->
+    <rect x="66" y="186" width="44" height="60" rx="11" ry="11"
+          fill="url(#backpackGrad)" stroke="#2E6499" stroke-width="1.2" />
+    <!-- Pack top flap -->
+    <rect x="68" y="183" width="40" height="20" rx="9" ry="9"
+          fill="#5AAAE0" stroke="#2E6499" stroke-width="1" />
+    <!-- Flap crease -->
+    <path d="M 70,195 Q 88,190 108,195" stroke="#2E6499" stroke-width="1" fill="none" opacity="0.5"/>
+    <!-- Front pocket -->
+    <rect x="71" y="218" width="34" height="22" rx="5" ry="5"
+          fill="#2E6499" opacity="0.50" />
+    <!-- Pocket zipper -->
+    <line x1="74" y1="225" x2="103" y2="225" stroke="#A0C8F0" stroke-width="1.5" stroke-linecap="round" />
+    <circle cx="89" cy="225" r="2.5" fill="#C0D8F0" />
+    <!-- Zipper pull tag -->
+    <rect x="87" y="225" width="4" height="6" rx="1" fill="#A0C8F0" opacity="0.8"/>
+    <!-- Strap detail left shoulder -->
+    <path d="M 80,183 C 76,170 73,158 72,150" stroke="#3A72A8" stroke-width="4"
+          stroke-linecap="round" opacity="0.82" fill="none"/>
+    <!-- Pack highlight streak -->
+    <rect x="73" y="192" width="9" height="32" rx="4"
+          fill="rgba(255,255,255,0.24)" />
+    <!-- Side handle bar -->
+    <rect x="105" y="194" width="6" height="18" rx="3"
+          fill="#2E6499" opacity="0.70" />
+    <!-- Pack logo detail (small circle emblem) -->
+    <circle cx="96" cy="196" r="5" fill="rgba(255,255,255,0.15)" stroke="#5AAAE0" stroke-width="1" />
+    <circle cx="96" cy="196" r="2" fill="rgba(255,255,255,0.3)"/>
+  </g>
+
+  <!-- 3. BODY -->
+  <ellipse cx="152" cy="237" rx="76" ry="86"
+           fill="url(#bodyGrad_a)" />
+  <!-- Body side rim highlight (left) -->
+  <path d="M 80,207 C 74,237 78,267 84,292"
+        stroke="rgba(255,255,255,0.22)" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <!-- 4. BELLY PATCH -->
+  <ellipse cx="152" cy="245" rx="49" ry="59"
+           fill="url(#bellyGrad_a)" opacity="0.92" />
+  <ellipse cx="152" cy="245" rx="37" ry="45"
+           fill="none" stroke="#E6C391" stroke-width="0.8" opacity="0.40" />
+  <ellipse cx="152" cy="245" rx="25" ry="31"
+           fill="none" stroke="#E6C391" stroke-width="0.6" opacity="0.28" />
+
+  <!-- 5. LEFT ARM (down-left, relaxed natural pose) -->
+  <ellipse cx="83" cy="258" rx="22" ry="37" fill="url(#armGrad_a)"
+           transform="rotate(-44,83,258)" />
+  <!-- Left hand/paw -->
+  <ellipse cx="65" cy="284" rx="16" ry="12" fill="url(#armGrad_a)" />
+  <circle cx="59" cy="280" r="5.5" fill="#B98246" />
+  <circle cx="65" cy="277" r="5.5" fill="#B98246" />
+  <circle cx="72" cy="279" r="5.5" fill="#B98246" />
+  <!-- Paw highlight -->
+  <ellipse cx="65" cy="281" rx="8" ry="5" fill="rgba(255,255,255,0.16)"/>
+
+  <!-- 6. RIGHT ARM (bent up - confident/reaching pose) -->
+  <ellipse cx="220" cy="246" rx="22" ry="36" fill="url(#armGrad_a)"
+           transform="rotate(28,220,246)" />
+  <!-- Right hand/paw -->
+  <ellipse cx="238" cy="272" rx="16" ry="12" fill="url(#armGrad_a)" />
+  <circle cx="232" cy="268" r="5.5" fill="#B98246" />
+  <circle cx="239" cy="265" r="5.5" fill="#B98246" />
+  <circle cx="246" cy="268" r="5.5" fill="#B98246" />
+  <ellipse cx="239" cy="269" rx="8" ry="5" fill="rgba(255,255,255,0.16)"/>
+
+  <!-- 7. LEFT LEG + FOOT (slight step left = active stance) -->
+  <ellipse cx="125" cy="312" rx="24" ry="32" fill="url(#legGrad_a)" />
+  <ellipse cx="116" cy="350" rx="29" ry="16" fill="url(#footGrad_a)" />
+  <circle cx="96" cy="347" r="7" fill="#D7A564" opacity="0.70" />
+  <circle cx="107" cy="342" r="7.5" fill="#D7A564" opacity="0.72" />
+  <circle cx="119" cy="340" r="7.5" fill="#D7A564" opacity="0.72" />
+  <circle cx="131" cy="342" r="7" fill="#D7A564" opacity="0.65" />
+  <!-- Ankle crease -->
+  <path d="M 108,330 Q 116,332 124,330" stroke="rgba(100,60,20,0.20)" stroke-width="1.5" fill="none"/>
+
+  <!-- 8. RIGHT LEG + FOOT (centered) -->
+  <ellipse cx="175" cy="312" rx="24" ry="32" fill="url(#legGrad_a)" />
+  <ellipse cx="184" cy="350" rx="29" ry="16" fill="url(#footGrad_a)" />
+  <circle cx="168" cy="342" r="7" fill="#D7A564" opacity="0.65" />
+  <circle cx="179" cy="340" r="7.5" fill="#D7A564" opacity="0.72" />
+  <circle cx="191" cy="342" r="7.5" fill="#D7A564" opacity="0.72" />
+  <circle cx="202" cy="347" r="7" fill="#D7A564" opacity="0.70" />
+  <path d="M 166,330 Q 175,332 184,330" stroke="rgba(100,60,20,0.20)" stroke-width="1.5" fill="none"/>
+
+  <!-- 9. HEAD -->
+  <circle cx="150" cy="137" r="65" fill="url(#headGrad_a)" />
+  <!-- Head-body neck shadow -->
+  <ellipse cx="150" cy="194" rx="32" ry="11"
+           fill="#8C5A28" opacity="0.32" />
+
+  <!-- 10. EARS -->
+    <!-- Ear outer left -->
+    <ellipse cx="96" cy="91" rx="18" ry="22"
+             fill="url(#earGrad_a)" transform="rotate(-12,96,91)" />
+    <!-- Ear ridge -->
+    <ellipse cx="96" cy="92" rx="11" ry="15"
+             fill="none" stroke="rgba(100,50,20,0.18)" stroke-width="1.5"
+             transform="rotate(-12,96,91)" />
+    <!-- Ear inner left -->
+    <ellipse cx="96" cy="93" rx="10" ry="14"
+             fill="url(#earInnerGrad_a)" transform="rotate(-12,96,91)" />
+    <!-- Ear inner highlight -->
+    <ellipse cx="95" cy="90" rx="4" ry="6"
+             fill="rgba(255,220,200,0.38)" transform="rotate(-12,96,91)" />
+    <!-- Ear outer right -->
+    <ellipse cx="202" cy="93" rx="18" ry="22"
+             fill="url(#earGrad_a)" transform="rotate(12,202,93)" />
+    <!-- Ear ridge -->
+    <ellipse cx="202" cy="94" rx="11" ry="15"
+             fill="none" stroke="rgba(100,50,20,0.18)" stroke-width="1.5"
+             transform="rotate(12,202,93)" />
+    <!-- Ear inner right -->
+    <ellipse cx="202" cy="95" rx="10" ry="14"
+             fill="url(#earInnerGrad_a)" transform="rotate(12,202,93)" />
+    <!-- Ear inner highlight -->
+    <ellipse cx="201" cy="92" rx="4" ry="6"
+             fill="rgba(255,220,200,0.38)" transform="rotate(12,202,93)" />
+
+  <!-- 11. MUZZLE -->
+  <ellipse cx="150" cy="159" rx="30" ry="22"
+           fill="url(#muzzleGrad_a)" />
+  <ellipse cx="150" cy="177" rx="26" ry="8"
+           fill="#DCC8A0" opacity="0.28" />
+
+  <!-- 12. EYES -->
+    <!-- Eye shadow -->
+    <ellipse cx="126" cy="128.5" rx="9.775" ry="6.5" fill="rgba(80,40,10,0.20)" />
+    <!-- Sclera -->
+    <ellipse cx="126" cy="127" rx="11.5" ry="10.0" fill="#FAF8F5" />
+    <!-- Sclera vein detail -->
+    <path d="M 128.3,122.0 C 130.6,125.0 132.9,128.0 134.05,131.0"
+          stroke="rgba(200,150,150,0.18)" stroke-width="0.7" fill="none"/>
+    <!-- Iris -->
+    <circle cx="126" cy="127" r="8.0" fill="url(#irisGrad_a)" />
+    <!-- Iris ring detail -->
+    <circle cx="126" cy="127" r="7.04" fill="none" stroke="rgba(40,15,5,0.22)" stroke-width="1.2"/>
+    <!-- Pupil -->
+    <circle cx="126" cy="127" r="4.8" fill="#1A0C05" />
+    <!-- Large highlight -->
+    <circle cx="123.76" cy="124.36" r="3.2" fill="#FFFFFF" opacity="0.92" />
+    <!-- Small blue highlight -->
+    <circle cx="128.0" cy="124.92" r="1.52" fill="#E0EAFF" opacity="0.85" />
+    <!-- Tiny sparkle -->
+    <circle cx="126.8" cy="128.6" r="0.72" fill="#FFFFFF" opacity="0.55" />
+    <!-- Upper eyelid shadow -->
+    <ellipse cx="126" cy="121.6" rx="9.66" ry="3.8" fill="rgba(60,30,10,0.14)" />
+    <!-- Eyelash hint (top edge) -->
+    <ellipse cx="126" cy="117.0" rx="11.5" ry="1.8" fill="rgba(40,15,5,0.35)" />
+    <!-- Eye shadow -->
+    <ellipse cx="174" cy="128.5" rx="9.775" ry="6.5" fill="rgba(80,40,10,0.20)" />
+    <!-- Sclera -->
+    <ellipse cx="174" cy="127" rx="11.5" ry="10.0" fill="#FAF8F5" />
+    <!-- Sclera vein detail -->
+    <path d="M 176.3,122.0 C 178.6,125.0 180.9,128.0 182.05,131.0"
+          stroke="rgba(200,150,150,0.18)" stroke-width="0.7" fill="none"/>
+    <!-- Iris -->
+    <circle cx="174" cy="127" r="8.0" fill="url(#irisGrad_a)" />
+    <!-- Iris ring detail -->
+    <circle cx="174" cy="127" r="7.04" fill="none" stroke="rgba(40,15,5,0.22)" stroke-width="1.2"/>
+    <!-- Pupil -->
+    <circle cx="174" cy="127" r="4.8" fill="#1A0C05" />
+    <!-- Large highlight -->
+    <circle cx="171.76" cy="124.36" r="3.2" fill="#FFFFFF" opacity="0.92" />
+    <!-- Small blue highlight -->
+    <circle cx="176.0" cy="124.92" r="1.52" fill="#E0EAFF" opacity="0.85" />
+    <!-- Tiny sparkle -->
+    <circle cx="174.8" cy="128.6" r="0.72" fill="#FFFFFF" opacity="0.55" />
+    <!-- Upper eyelid shadow -->
+    <ellipse cx="174" cy="121.6" rx="9.66" ry="3.8" fill="rgba(60,30,10,0.14)" />
+    <!-- Eyelash hint (top edge) -->
+    <ellipse cx="174" cy="117.0" rx="11.5" ry="1.8" fill="rgba(40,15,5,0.35)" />
+
+  <!-- 13. NOSE + MOUTH -->
+    <!-- Nose -->
+    <ellipse cx="150" cy="155" rx="5.5" ry="4" fill="#2D1A0C" />
+    <ellipse cx="148.5" cy="153.8" rx="2.2" ry="1.4" fill="#8C6448" opacity="0.55" />
+    <!-- Nose bridge line -->
+    <line x1="150" y1="151" x2="150" y2="145" stroke="rgba(100,50,20,0.18)" stroke-width="1.2" stroke-linecap="round"/>
+    <!-- Mouth -->
+    <path d="M 141,168 Q 150,178 159,168" stroke="#7A3C1E" stroke-width="2.2"
+          fill="none" stroke-linecap="round" />
+    <!-- Mouth corner dots -->
+    <circle cx="141" cy="168" r="1.5" fill="#7A3C1E" opacity="0.65" />
+    <circle cx="159" cy="168" r="1.5" fill="#7A3C1E" opacity="0.65" />
+
+  <!-- 14. CHEEKS (warm orange-pink) -->
+  <circle cx="110" cy="148" r="21"
+          fill="url(#cheekGradA)" />
+  <circle cx="190" cy="148" r="21"
+          fill="url(#cheekGradA)" />
+
+  <!-- 15. CAMERA STRAP - from right neck/shoulder, goes DOWN only, never across face -->
+  <!-- Strap behind neck right side -->
+  <path d="M 178,107 C 196,127 205,157 200,181"
+        stroke="#3A72A8" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.78"/>
+  <!-- Strap from shoulder down to camera body -->
+  <path d="M 200,181 C 212,199 220,221 236,270"
+        stroke="#3A72A8" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.88"/>
+  <!-- Strap hardware clip at shoulder -->
+  <rect x="194" y="177" width="9" height="7" rx="2"
+        fill="#606878" stroke="#484858" stroke-width="0.8"/>
+
+  <!-- 16. HAT (green travel cap) -->
+  <g id="cap">
+    <!-- Cap brim shadow -->
+    <ellipse cx="154" cy="96" rx="62" ry="11"
+             fill="#2A6438" opacity="0.75"/>
+    <!-- Cap brim main -->
+    <ellipse cx="154" cy="94" rx="60" ry="13"
+             fill="#2A6438" />
+    <!-- Cap dome -->
+    <ellipse cx="152" cy="64" rx="52" ry="36"
+             fill="url(#capGrad)" />
+    <!-- Cap crown seam -->
+    <path d="M 124,58 Q 152,28 178,58"
+          stroke="#2A6438" stroke-width="1.8" fill="none" opacity="0.48" />
+    <!-- Side seam lines -->
+    <path d="M 124,58 L 122,86"
+          stroke="#2A6438" stroke-width="1.2" fill="none" opacity="0.30"/>
+    <path d="M 178,58 L 180,86"
+          stroke="#2A6438" stroke-width="1.2" fill="none" opacity="0.30"/>
+    <!-- Brim underside shadow -->
+    <ellipse cx="154" cy="98" rx="57" ry="9"
+             fill="#2A6438" opacity="0.55" />
+    <!-- Cap highlight -->
+    <ellipse cx="138" cy="68" rx="19" ry="17"
+             fill="rgba(255,255,255,0.18)" />
+    <!-- Brim shine -->
+    <ellipse cx="142" cy="92" rx="28" ry="5"
+             fill="rgba(255,255,255,0.18)" />
+
+    <!-- Planet badge -->
+    <circle cx="158" cy="76" r="13" fill="url(#badgeGrad)"
+            stroke="#2A6438" stroke-width="1.2"/>
+    <!-- Badge planet ring -->
+    <ellipse cx="158" cy="76" rx="18" ry="5"
+             fill="none" stroke="#F5D060" stroke-width="2.2" opacity="0.82" />
+    <!-- Planet body -->
+    <circle cx="158" cy="76" r="5.5" fill="#A8D8FF" />
+    <!-- Planet clouds -->
+    <path d="M 154,74 Q 158,72 162,74"
+          stroke="rgba(255,255,255,0.50)" stroke-width="1.5" fill="none"/>
+    <!-- Planet highlight -->
+    <circle cx="156" cy="74" r="2.2" fill="rgba(255,255,255,0.72)" />
+  </g>
+
+  <!-- 17. CAMERA (chest right side) -->
+  <g id="camera" transform="translate(228, 275)">
+    <!-- Camera body -->
+    <rect x="-22" y="-16" width="44" height="34" rx="6" ry="6"
+          fill="url(#camGrad)" stroke="#101018" stroke-width="1.2" />
+    <!-- Top ridge / viewfinder hump -->
+    <rect x="-14" y="-21" width="28" height="8" rx="3" ry="3"
+          fill="#303040" stroke="#101018" stroke-width="1" />
+    <!-- Hot shoe -->
+    <rect x="-5" y="-24" width="12" height="4" rx="1" fill="#484858" />
+    <!-- Viewfinder window -->
+    <rect x="10" y="-19" width="9" height="6" rx="1" fill="#0A1428" stroke="#484858" stroke-width="0.8"/>
+    <!-- Lens outer ring -->
+    <circle cx="-2" cy="1" r="14" fill="#1A1A22" stroke="#080810" stroke-width="1.5" />
+    <!-- Lens barrel -->
+    <circle cx="-2" cy="1" r="11" fill="#141420" />
+    <!-- Lens glass -->
+    <circle cx="-2" cy="1" r="8.5" fill="url(#lensGrad)" />
+    <!-- Lens center -->
+    <circle cx="-2" cy="1" r="3.5" fill="#05050F" />
+    <!-- Lens highlight main -->
+    <circle cx="-5" cy="-2.5" r="3" fill="#8090B4" opacity="0.78" />
+    <!-- Lens highlight small -->
+    <circle cx="2.5" cy="3" r="1.3" fill="#8090B4" opacity="0.48" />
+    <!-- AF sensor ring -->
+    <circle cx="-2" cy="1" r="6" fill="none" stroke="rgba(100,120,180,0.25)" stroke-width="0.8"/>
+    <!-- Shutter button -->
+    <circle cx="16" cy="-18" r="4.5" fill="#505060" />
+    <circle cx="16" cy="-18" r="2.5" fill="#A0A8C0" />
+    <!-- Mode dial -->
+    <circle cx="-16" cy="-18" r="5" fill="#404050" stroke="#303040" stroke-width="0.8"/>
+    <circle cx="-16" cy="-18" r="2" fill="#606070" />
+    <!-- Camera brand stripe -->
+    <rect x="-18" y="10" width="32" height="3" rx="1.5" fill="rgba(255,255,255,0.12)" />
+    <!-- Flash -->
+    <rect x="-16" y="-13" width="11" height="7" rx="2" fill="#E8E0C0" opacity="0.55" />
+    <!-- Flash highlight -->
+    <ellipse cx="-11" cy="-10.5" rx="4" ry="2" fill="rgba(255,255,255,0.35)"/>
+    <!-- Strap lug right side -->
+    <rect x="19" y="-5" width="5" height="10" rx="2" fill="#404050"/>
+    <rect x="20" y="-2" width="3" height="4" rx="1" fill="#282832"/>
+  </g>
+
+  <!-- 18. Body rim light (left side for 3D feel) -->
+  <path d="M 81,193 Q 69,233 79,293" stroke="rgba(255,255,255,0.32)" stroke-width="3"
+        fill="none" stroke-linecap="round" />
+  <path d="M 92,115 Q 80,145 96,175"
+        stroke="rgba(255,255,255,0.28)" stroke-width="2.5" fill="none" stroke-linecap="round" />
+
+  </g><!-- end dropShadow -->
+</svg>

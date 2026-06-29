@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 380" width="300" height="380">
+  <defs>
+    <radialGradient id="bodyGrad_b" cx="40%" cy="35%" r="60%" fx="35%" fy="30%">
+      <stop offset="0%"   stop-color="#E6C38C" />
+      <stop offset="55%"  stop-color="#CDA564" />
+      <stop offset="100%" stop-color="#A57830" />
+    </radialGradient>
+    <radialGradient id="headGrad_b" cx="42%" cy="38%" r="58%" fx="38%" fy="33%">
+      <stop offset="0%"   stop-color="#E6C38C" />
+      <stop offset="50%"  stop-color="#CDA564" />
+      <stop offset="100%" stop-color="#A57830" />
+    </radialGradient>
+    <radialGradient id="bellyGrad_b" cx="50%" cy="45%" r="55%">
+      <stop offset="0%"   stop-color="#FAEBD0" />
+      <stop offset="70%"  stop-color="#F0D7AF" />
+      <stop offset="100%" stop-color="#CDA564" />
+    </radialGradient>
+    <radialGradient id="earGrad_b" cx="45%" cy="38%" r="60%">
+      <stop offset="0%"   stop-color="#E6C38C" />
+      <stop offset="100%" stop-color="#CDA564" />
+    </radialGradient>
+    <radialGradient id="earInnerGrad_b" cx="50%" cy="50%" r="55%">
+      <stop offset="0%"   stop-color="#F5C8B0" />
+      <stop offset="100%" stop-color="#E6AF96" />
+    </radialGradient>
+    <radialGradient id="muzzleGrad_b" cx="50%" cy="42%" r="58%">
+      <stop offset="0%"   stop-color="#FAEEE0" />
+      <stop offset="70%"  stop-color="#F5E1C3" />
+      <stop offset="100%" stop-color="#DCC8A0" />
+    </radialGradient>
+    <radialGradient id="armGrad_b" cx="40%" cy="35%" r="62%">
+      <stop offset="0%"   stop-color="#E6C38C" />
+      <stop offset="60%"  stop-color="#CDA564" />
+      <stop offset="100%" stop-color="#A57830" />
+    </radialGradient>
+    <radialGradient id="legGrad_b" cx="40%" cy="30%" r="65%">
+      <stop offset="0%"   stop-color="#E6C38C" />
+      <stop offset="60%"  stop-color="#CDA564" />
+      <stop offset="100%" stop-color="#A57830" />
+    </radialGradient>
+    <radialGradient id="footGrad_b" cx="40%" cy="35%" r="62%">
+      <stop offset="0%"   stop-color="#E6C38C" />
+      <stop offset="100%" stop-color="#A57830" />
+    </radialGradient>
+    <linearGradient id="capGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#60B478" />
+      <stop offset="50%"  stop-color="#3C8C50" />
+      <stop offset="100%" stop-color="#2A6438" />
+    </linearGradient>
+    <linearGradient id="backpackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#64A8E8" />
+      <stop offset="50%"  stop-color="#4A90D0" />
+      <stop offset="100%" stop-color="#2E6499" />
+    </linearGradient>
+    <linearGradient id="bagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#DEB870" />
+      <stop offset="50%"  stop-color="#C89650" />
+      <stop offset="100%" stop-color="#9A6E30" />
+    </linearGradient>
+    <linearGradient id="scarfGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#F8A0C0" />
+      <stop offset="50%"  stop-color="#E86090" />
+      <stop offset="100%" stop-color="#C04470" />
+    </linearGradient>
+    <linearGradient id="camGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#383848" />
+      <stop offset="100%" stop-color="#282832" />
+    </linearGradient>
+    <radialGradient id="irisGrad_b" cx="45%" cy="40%" r="60%">
+      <stop offset="0%"   stop-color="#7A4A22" />
+      <stop offset="100%" stop-color="#5C3818" />
+    </radialGradient>
+    <radialGradient id="cheekGradA" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="rgba(255,170,120,0.72)" />
+      <stop offset="100%" stop-color="rgba(255,140,90,0.0)" />
+    </radialGradient>
+    <radialGradient id="cheekGradB" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="rgba(255,140,180,0.72)" />
+      <stop offset="100%" stop-color="rgba(255,100,160,0.0)" />
+    </radialGradient>
+    <radialGradient id="badgeGrad" cx="40%" cy="35%" r="60%">
+      <stop offset="0%"   stop-color="#FFE88A" />
+      <stop offset="100%" stop-color="#F5D060" />
+    </radialGradient>
+    <linearGradient id="ticketGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#FFFAE8" />
+      <stop offset="100%" stop-color="#FFF5C0" />
+    </linearGradient>
+    <radialGradient id="lensGrad" cx="35%" cy="30%" r="60%">
+      <stop offset="0%"   stop-color="#3040A0" />
+      <stop offset="40%"  stop-color="#0A0A14" />
+      <stop offset="100%" stop-color="#000008" />
+    </radialGradient>
+    <filter id="dropShadow" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(0,0,0,0.30)" />
+    </filter>
+    <filter id="groundShadow" x="-30%" y="-50%" width="160%" height="200%">
+      <feGaussianBlur stdDeviation="12" />
+    </filter>
+    <pattern id="ticketStripe" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+      <rect width="3" height="6" fill="#B0903A" opacity="0.4"/>
+    </pattern>
+  </defs>
+
+  <!-- ═══ PARTNER CHARACTER ═══ -->
+  <g filter="url(#dropShadow)">
+
+  <!-- 1. Ground shadow -->
+  <ellipse cx="150" cy="370" rx="70" ry="9" fill="rgba(0,0,0,0.20)" filter="url(#groundShadow)" />
+
+  <!-- 2. CROSSBODY BAG (right side, behind body) -->
+  <g id="crossbodyBag">
+    <!-- Shoulder strap from left shoulder to bag -->
+    <path d="M 150,188 C 162,198 174,212 186,225"
+          stroke="#9A6E30" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.70" />
+    <!-- Strap highlight -->
+    <path d="M 150,188 C 162,198 174,212 186,225"
+          stroke="rgba(210,170,80,0.35)" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- Bag body -->
+    <rect x="188" y="222" width="48" height="46" rx="10" ry="10"
+          fill="url(#bagGrad)" stroke="#9A6E30" stroke-width="1.2" />
+    <!-- Bag flap -->
+    <path d="M 188,242 Q 212,232 236,242 L 236,222 Q 212,217 188,222 Z"
+          fill="#DDA860" stroke="#9A6E30" stroke-width="1" />
+    <!-- Flap fold crease -->
+    <path d="M 190,242 Q 212,238 234,242" stroke="#9A6E30" stroke-width="0.8" fill="none" opacity="0.4"/>
+    <!-- Flap clasp -->
+    <rect x="208" y="239" width="16" height="11" rx="3" fill="#9A6E30" />
+    <circle cx="216" cy="244" r="4" fill="#C8A050" />
+    <circle cx="216" cy="244" r="2" fill="#E0B870"/>
+    <!-- Bag highlight -->
+    <rect x="193" y="228" width="10" height="30" rx="4" fill="rgba(255,255,255,0.22)" />
+    <!-- Stitch detail -->
+    <line x1="202" y1="225" x2="202" y2="265" stroke="#9A6E30" stroke-width="1"
+          stroke-dasharray="3,3" opacity="0.45" />
+    <!-- Exterior pocket -->
+    <rect x="196" y="252" width="22" height="13" rx="3" fill="#9A6E30" opacity="0.38" />
+    <!-- Pocket zipper -->
+    <line x1="198" y1="257" x2="217" y2="257" stroke="#DDA860" stroke-width="1" stroke-linecap="round"/>
+  </g>
+
+  <!-- 3. BODY (slightly rounder than A) -->
+  <ellipse cx="150" cy="238" rx="72" ry="83"
+           fill="url(#bodyGrad_b)" />
+  <!-- Body rim highlight -->
+  <path d="M 83,210 C 77,240 81,270 87,292"
+        stroke="rgba(255,255,255,0.20)" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <!-- 4. BELLY PATCH -->
+  <ellipse cx="150" cy="248" rx="47" ry="57"
+           fill="url(#bellyGrad_b)" opacity="0.92" />
+  <ellipse cx="150" cy="248" rx="35" ry="43"
+           fill="none" stroke="#F0D7AF" stroke-width="0.8" opacity="0.38" />
+  <ellipse cx="150" cy="248" rx="23" ry="29"
+           fill="none" stroke="#F0D7AF" stroke-width="0.6" opacity="0.28" />
+
+  <!-- 5. LEFT ARM (raised slightly - holding ticket up) -->
+  <ellipse cx="86" cy="252" rx="20" ry="35" fill="url(#armGrad_b)"
+           transform="rotate(-52,86,252)" />
+  <!-- Left hand holding ticket -->
+  <ellipse cx="68" cy="276" rx="15" ry="11" fill="url(#armGrad_b)" />
+  <circle cx="62" cy="272" r="5" fill="#CDA564" />
+  <circle cx="68" cy="269" r="5" fill="#CDA564" />
+  <circle cx="75" cy="271" r="5" fill="#CDA564" />
+  <ellipse cx="68" cy="273" rx="8" ry="5" fill="rgba(255,255,255,0.15)"/>
+
+  <!-- 6. RIGHT ARM (slightly inward, relaxed) -->
+  <ellipse cx="214" cy="262" rx="20" ry="34" fill="url(#armGrad_b)"
+           transform="rotate(35,214,262)" />
+  <!-- Right hand -->
+  <ellipse cx="230" cy="287" rx="15" ry="11" fill="url(#armGrad_b)" />
+  <circle cx="224" cy="283" r="5" fill="#CDA564" />
+  <circle cx="231" cy="280" r="5" fill="#CDA564" />
+  <circle cx="237" cy="283" r="5" fill="#CDA564" />
+  <ellipse cx="231" cy="284" rx="8" ry="5" fill="rgba(255,255,255,0.15)"/>
+
+  <!-- 7. LEFT LEG + FOOT -->
+  <ellipse cx="129" cy="314" rx="22" ry="30" fill="url(#legGrad_b)" />
+  <ellipse cx="120" cy="352" rx="27" ry="15" fill="url(#footGrad_b)" />
+  <circle cx="101" cy="349" r="6.5" fill="#E6C38C" opacity="0.70" />
+  <circle cx="111" cy="344" r="7" fill="#E6C38C" opacity="0.72" />
+  <circle cx="122" cy="342" r="7" fill="#E6C38C" opacity="0.72" />
+  <circle cx="133" cy="344" r="6.5" fill="#E6C38C" opacity="0.65" />
+  <path d="M 112,332 Q 120,334 129,332" stroke="rgba(120,80,30,0.18)" stroke-width="1.5" fill="none"/>
+
+  <!-- 8. RIGHT LEG + FOOT -->
+  <ellipse cx="171" cy="314" rx="22" ry="30" fill="url(#legGrad_b)" />
+  <ellipse cx="180" cy="352" rx="27" ry="15" fill="url(#footGrad_b)" />
+  <circle cx="167" cy="344" r="6.5" fill="#E6C38C" opacity="0.65" />
+  <circle cx="178" cy="342" r="7" fill="#E6C38C" opacity="0.72" />
+  <circle cx="189" cy="344" r="7" fill="#E6C38C" opacity="0.72" />
+  <circle cx="200" cy="349" r="6.5" fill="#E6C38C" opacity="0.70" />
+  <path d="M 163,332 Q 172,334 181,332" stroke="rgba(120,80,30,0.18)" stroke-width="1.5" fill="none"/>
+
+  <!-- 9. HEAD with slight right tilt -->
+  <g transform="rotate(6, 152, 202)">
+    <circle cx="152" cy="139" r="63" fill="url(#headGrad_b)" />
+    <!-- Head-body neck shadow -->
+    <ellipse cx="152" cy="194" rx="30" ry="11"
+             fill="#A57830" opacity="0.28" />
+
+    <!-- 10. EARS -->
+    <!-- Ear outer left -->
+    <ellipse cx="100" cy="95" rx="18" ry="22"
+             fill="url(#earGrad_b)" transform="rotate(-12,100,95)" />
+    <!-- Ear ridge -->
+    <ellipse cx="100" cy="96" rx="11" ry="15"
+             fill="none" stroke="rgba(100,50,20,0.18)" stroke-width="1.5"
+             transform="rotate(-12,100,95)" />
+    <!-- Ear inner left -->
+    <ellipse cx="100" cy="97" rx="10" ry="14"
+             fill="url(#earInnerGrad_b)" transform="rotate(-12,100,95)" />
+    <!-- Ear inner highlight -->
+    <ellipse cx="99" cy="94" rx="4" ry="6"
+             fill="rgba(255,220,200,0.38)" transform="rotate(-12,100,95)" />
+    <!-- Ear outer right -->
+    <ellipse cx="202" cy="97" rx="18" ry="22"
+             fill="url(#earGrad_b)" transform="rotate(12,202,97)" />
+    <!-- Ear ridge -->
+    <ellipse cx="202" cy="98" rx="11" ry="15"
+             fill="none" stroke="rgba(100,50,20,0.18)" stroke-width="1.5"
+             transform="rotate(12,202,97)" />
+    <!-- Ear inner right -->
+    <ellipse cx="202" cy="99" rx="10" ry="14"
+             fill="url(#earInnerGrad_b)" transform="rotate(12,202,97)" />
+    <!-- Ear inner highlight -->
+    <ellipse cx="201" cy="96" rx="4" ry="6"
+             fill="rgba(255,220,200,0.38)" transform="rotate(12,202,97)" />
+
+    <!-- 11. MUZZLE -->
+    <ellipse cx="152" cy="159" rx="29" ry="21"
+             fill="url(#muzzleGrad_b)" />
+    <ellipse cx="152" cy="176" rx="25" ry="7"
+             fill="#DCC8A0" opacity="0.24" />
+
+    <!-- 12. EYES -->
+    <!-- Eye shadow -->
+    <ellipse cx="129" cy="129.5" rx="9.775" ry="6.5" fill="rgba(80,40,10,0.20)" />
+    <!-- Sclera -->
+    <ellipse cx="129" cy="128" rx="11.5" ry="10.0" fill="#FAF8F5" />
+    <!-- Sclera vein detail -->
+    <path d="M 131.3,123.0 C 133.6,126.0 135.9,129.0 137.05,132.0"
+          stroke="rgba(200,150,150,0.18)" stroke-width="0.7" fill="none"/>
+    <!-- Iris -->
+    <circle cx="129" cy="128" r="8.0" fill="url(#irisGrad_b)" />
+    <!-- Iris ring detail -->
+    <circle cx="129" cy="128" r="7.04" fill="none" stroke="rgba(40,15,5,0.22)" stroke-width="1.2"/>
+    <!-- Pupil -->
+    <circle cx="129" cy="128" r="4.8" fill="#1A0C05" />
+    <!-- Large highlight -->
+    <circle cx="126.76" cy="125.36" r="3.2" fill="#FFFFFF" opacity="0.92" />
+    <!-- Small blue highlight -->
+    <circle cx="131.0" cy="125.92" r="1.52" fill="#E0EAFF" opacity="0.85" />
+    <!-- Tiny sparkle -->
+    <circle cx="129.8" cy="129.6" r="0.72" fill="#FFFFFF" opacity="0.55" />
+    <!-- Upper eyelid shadow -->
+    <ellipse cx="129" cy="122.6" rx="9.66" ry="3.8" fill="rgba(60,30,10,0.14)" />
+    <!-- Eyelash hint (top edge) -->
+    <ellipse cx="129" cy="118.0" rx="11.5" ry="1.8" fill="rgba(40,15,5,0.35)" />
+    <!-- Eye shadow -->
+    <ellipse cx="175" cy="129.5" rx="9.775" ry="6.5" fill="rgba(80,40,10,0.20)" />
+    <!-- Sclera -->
+    <ellipse cx="175" cy="128" rx="11.5" ry="10.0" fill="#FAF8F5" />
+    <!-- Sclera vein detail -->
+    <path d="M 177.3,123.0 C 179.6,126.0 181.9,129.0 183.05,132.0"
+          stroke="rgba(200,150,150,0.18)" stroke-width="0.7" fill="none"/>
+    <!-- Iris -->
+    <circle cx="175" cy="128" r="8.0" fill="url(#irisGrad_b)" />
+    <!-- Iris ring detail -->
+    <circle cx="175" cy="128" r="7.04" fill="none" stroke="rgba(40,15,5,0.22)" stroke-width="1.2"/>
+    <!-- Pupil -->
+    <circle cx="175" cy="128" r="4.8" fill="#1A0C05" />
+    <!-- Large highlight -->
+    <circle cx="172.76" cy="125.36" r="3.2" fill="#FFFFFF" opacity="0.92" />
+    <!-- Small blue highlight -->
+    <circle cx="177.0" cy="125.92" r="1.52" fill="#E0EAFF" opacity="0.85" />
+    <!-- Tiny sparkle -->
+    <circle cx="175.8" cy="129.6" r="0.72" fill="#FFFFFF" opacity="0.55" />
+    <!-- Upper eyelid shadow -->
+    <ellipse cx="175" cy="122.6" rx="9.66" ry="3.8" fill="rgba(60,30,10,0.14)" />
+    <!-- Eyelash hint (top edge) -->
+    <ellipse cx="175" cy="118.0" rx="11.5" ry="1.8" fill="rgba(40,15,5,0.35)" />
+
+    <!-- 13. NOSE + MOUTH -->
+    <!-- Nose -->
+    <ellipse cx="152" cy="154" rx="5.5" ry="4" fill="#2D1A0C" />
+    <ellipse cx="150.5" cy="152.8" rx="2.2" ry="1.4" fill="#8C6448" opacity="0.55" />
+    <!-- Nose bridge line -->
+    <line x1="152" y1="150" x2="152" y2="144" stroke="rgba(100,50,20,0.18)" stroke-width="1.2" stroke-linecap="round"/>
+    <!-- Mouth -->
+    <path d="M 143,167 Q 152,177 161,167" stroke="#7A3C1E" stroke-width="2.2"
+          fill="none" stroke-linecap="round" />
+    <!-- Mouth corner dots -->
+    <circle cx="143" cy="167" r="1.5" fill="#7A3C1E" opacity="0.65" />
+    <circle cx="161" cy="167" r="1.5" fill="#7A3C1E" opacity="0.65" />
+
+    <!-- 14. CHEEKS (cool pink) -->
+    <circle cx="113" cy="150" r="21"
+            fill="url(#cheekGradB)" />
+    <circle cx="191" cy="150" r="21"
+            fill="url(#cheekGradB)" />
+  </g>
+
+  <!-- 15. TICKET in left hand (held forward) -->
+  <g id="ticket" transform="translate(58, 285) rotate(-30)">
+    <!-- Ticket base -->
+    <rect x="-18" y="-28" width="36" height="56" rx="5" fill="url(#ticketGrad)"
+          stroke="#B0903A" stroke-width="1.2" />
+    <!-- Stripe overlay -->
+    <rect x="-18" y="-28" width="36" height="56" rx="5"
+          fill="url(#ticketStripe)" opacity="0.28" />
+    <!-- Perforation -->
+    <line x1="-18" y1="6" x2="18" y2="6" stroke="#B0903A" stroke-width="1"
+          stroke-dasharray="3,2" />
+    <!-- Text lines -->
+    <rect x="-12" y="-20" width="24" height="3.5" rx="1.5" fill="#B0903A" opacity="0.65" />
+    <rect x="-10" y="-13" width="18" height="2.5" rx="1" fill="#B0903A" opacity="0.42" />
+    <rect x="-10" y="-7" width="20" height="2.5" rx="1" fill="#B0903A" opacity="0.42" />
+    <!-- Star -->
+    <text x="0" y="28" text-anchor="middle" font-size="14" fill="#B0903A" opacity="0.70">★</text>
+    <!-- Hole punches -->
+    <circle cx="-12" cy="18" r="3.5" fill="#B0903A" opacity="0.38" />
+    <circle cx="12" cy="18" r="3.5" fill="#B0903A" opacity="0.38" />
+    <!-- Ticket back shadow edge -->
+    <path d="M -18,28 Q 0,32 18,28" stroke="#B0903A" stroke-width="0.8" fill="none" opacity="0.4"/>
+  </g>
+
+  <!-- 16. SCARF - proper wrapped neck scarf with hanging ends (V-drape) -->
+  <!-- Scarf sits at neck_y = 200 -->
+  <g id="scarf">
+    <!-- === SCARF BACK LAYER (behind neck circle) === -->
+    <!-- Scarf band back portion -->
+    <ellipse cx="150" cy="200" rx="34" ry="12" fill="#C04470" opacity="0.70"/>
+
+    <!-- === LEFT HANGING END (front-left, longer) === -->
+    <!-- Outer stroke (dark border) -->
+    <path d="M 142,214 C 136,238 132,264 136,292"
+          stroke="#C04470" stroke-width="18" fill="none" stroke-linecap="round" />
+    <!-- Main color fill -->
+    <path d="M 142,214 C 136,238 132,264 136,292"
+          stroke="#E86090" stroke-width="15" fill="none" stroke-linecap="round" />
+    <!-- Highlight stripe -->
+    <path d="M 141,214 C 138,238 134,264 138,292"
+          stroke="#F8A0C0" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.45"/>
+    <!-- Left end tip rounded cap -->
+    <ellipse cx="136" cy="293" rx="8" ry="6" fill="#C04470"/>
+    <ellipse cx="136" cy="291" rx="6" ry="4" fill="#E86090"/>
+
+    <!-- === RIGHT HANGING END (front-right, shorter) === -->
+    <path d="M 160,212 C 166,234 168,258 164,276"
+          stroke="#C04470" stroke-width="17" fill="none" stroke-linecap="round" />
+    <path d="M 160,212 C 166,234 168,258 164,276"
+          stroke="#E86090" stroke-width="14" fill="none" stroke-linecap="round" />
+    <path d="M 161,212 C 164,234 166,258 162,276"
+          stroke="#F8A0C0" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.40"/>
+    <!-- Right end tip -->
+    <ellipse cx="164" cy="277" rx="7" ry="6" fill="#C04470"/>
+    <ellipse cx="164" cy="275" rx="5.5" ry="4" fill="#E86090"/>
+
+    <!-- === FRONT COLLAR BAND (main visible neck ring) === -->
+    <!-- Shadow -->
+    <ellipse cx="150" cy="203" rx="33" ry="10" fill="rgba(0,0,0,0.18)"/>
+    <!-- Band dark -->
+    <ellipse cx="150" cy="200" rx="33" ry="12" fill="#C04470"/>
+    <!-- Band main color -->
+    <ellipse cx="150" cy="199" rx="31" ry="10" fill="#E86090"/>
+    <!-- Band top highlight -->
+    <ellipse cx="147" cy="194" rx="18" ry="4" fill="#F8A0C0" opacity="0.52"/>
+    <!-- Band texture crease -->
+    <path d="M 125,200 Q 150,196 175,200"
+          stroke="#C04470" stroke-width="1" fill="none" opacity="0.30"/>
+
+    <!-- === FRONT KNOT / CROSS-OVER (where scarf wraps) === -->
+    <!-- Cross-over piece (shows scarf wrapping) -->
+    <ellipse cx="152" cy="208" rx="15" ry="10" fill="#C04470"/>
+    <ellipse cx="151" cy="207" rx="12" ry="8" fill="#E86090"/>
+    <!-- Knot crease lines -->
+    <path d="M 144,204 C 151,210 158,206 160,212"
+          stroke="#C04470" stroke-width="1.2" fill="none" opacity="0.38"/>
+    <!-- Knot highlight -->
+    <ellipse cx="149" cy="205" rx="5" ry="3" fill="#F8A0C0" opacity="0.45"/>
+  </g>
+
+  <!-- 17. Body rim light -->
+  <path d="M 89,204 Q 77,242 87,297" stroke="rgba(255,255,255,0.28)" stroke-width="3"
+        fill="none" stroke-linecap="round" />
+  <path d="M 96,123 Q 86,153 102,181"
+        stroke="rgba(255,255,255,0.22)" stroke-width="2.5" fill="none" stroke-linecap="round" />
+
+  </g><!-- end dropShadow -->
+</svg>
