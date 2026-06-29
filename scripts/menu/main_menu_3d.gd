@@ -18,8 +18,8 @@ func _ready() -> void:
 	cont.disabled = not FileAccess.file_exists("user://save.cfg")
 	$UILayer/Control/VBox/StartBtn.pressed.connect(_on_start)
 	cont.pressed.connect(_on_continue)
-	$UILayer/Control/VBox/QuitBtn.pressed.connect(_on_quit)
-	$UILayer/Control/VBox/SettingsBtn.pressed.connect(func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
+	$UILayer/Control/SmallBtnRow/QuitBtn.pressed.connect(_on_quit)
+	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
 	var _am = get_node_or_null("/root/AudioManager")
 	if _am: _am.play_bgm("menu")
 
