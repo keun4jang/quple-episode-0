@@ -20,7 +20,7 @@ func _ready() -> void:
 	cont.pressed.connect(_on_continue)
 	$UILayer/Control/VBox/QuitBtn.pressed.connect(_on_quit)
 	$UILayer/Control/VBox/SettingsBtn.pressed.connect(func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
-	if AudioManager:
+	if Engine.has_singleton("AudioManager"):
 		AudioManager.play_bgm("menu")
 
 func _process(delta: float) -> void:
@@ -67,14 +67,14 @@ func _on_start() -> void:
 	Episode0State.album_created = false
 	Episode0State.episode0_cleared = false
 	Episode0State.memos_found = []
-	SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn", "hopeful")
+	SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn")
 
 func _on_continue() -> void:
 	SaveManager.load_game()
 	var cfg = ConfigFile.new()
 	cfg.load("user://save.cfg")
 	var scene = cfg.get_value("game", "current_scene", "res://scenes/maps/CompanyFront3D.tscn")
-	SceneTransition.go_to(scene, "normal")
+	SceneTransition.go_to(scene)
 
 func _on_quit() -> void:
 	get_tree().quit()
