@@ -1,0 +1,36 @@
+{
+  "version": "2.0",
+  "mascots": {
+    "leader": {
+      "file": "assets/mascots/quika-leader.png",
+      "name": "퀴카 A (리더)",
+      "role": "여행 리더",
+      "color": "#B98246",
+      "props": [
+        "여행 캡",
+        "백팩",
+        "카메라",
+        "행성 배지"
+      ]
+    },
+    "partner": {
+      "file": "assets/mascots/quika-partner.png",
+      "name": "퀴카 B (파트너)",
+      "role": "여행 기록자",
+      "color": "#CDA564",
+      "props": [
+        "핑크 스카프",
+        "크로스백",
+        "티켓"
+      ]
+    },
+    "couple": {
+      "file": "assets/mascots/quika-couple-hero.png",
+      "description": "커플 합본 히어로 에셋"
+    }
+  },
+  "splash": {
+    "poster": "assets/splash/splash-poster-no-text.png",
+    "fallback_color": "#0F0822"
+  }
+}

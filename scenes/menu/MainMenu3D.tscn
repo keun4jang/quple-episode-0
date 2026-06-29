@@ -24,41 +24,41 @@ glow_bloom = 0.24
 
 [sub_resource type="LabelSettings" id="LogoShadowG5_Settings"]
 font_size = 200
-font_color = Color(0.04, 0.22, 0.02, 0.98)
+font_color = Color(0.28, 0.14, 0.02, 0.98)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG4_Settings"]
 font_size = 200
-font_color = Color(0.06, 0.28, 0.04, 0.92)
+font_color = Color(0.35, 0.20, 0.04, 0.92)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG3_Settings"]
 font_size = 200
-font_color = Color(0.09, 0.34, 0.06, 0.87)
+font_color = Color(0.42, 0.27, 0.06, 0.87)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG2_Settings"]
 font_size = 200
-font_color = Color(0.13, 0.42, 0.09, 0.82)
+font_color = Color(0.55, 0.36, 0.09, 0.82)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG1_Settings"]
 font_size = 200
-font_color = Color(0.18, 0.52, 0.13, 0.76)
+font_color = Color(0.78, 0.52, 0.18, 0.76)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="Logo_Settings"]
 font_size = 200
-font_color = Color(1.0, 0.97, 0.84, 1)
-outline_size = 9
-outline_color = Color(0.14, 0.07, 0.02, 1)
-shadow_size = 10
-shadow_color = Color(1, 1, 1, 0.38)
-shadow_offset = Vector2(-3, -3)
+font_color = Color(1.0, 0.96, 0.82, 1)
+outline_size = 12
+outline_color = Color(0.10, 0.33, 0.07, 1)
+shadow_size = 14
+shadow_color = Color(0.96, 0.82, 0.55, 0.55)
+shadow_offset = Vector2(0, 5)
 
 [sub_resource type="LabelSettings" id="LogoHighlight_Settings"]
 font_size = 200
-font_color = Color(1, 1, 1, 0.42)
+font_color = Color(1, 1, 1, 0.55)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="Sub_1"]
