@@ -20,8 +20,8 @@ func _ready() -> void:
 	cont.pressed.connect(_on_continue)
 	$UILayer/Control/VBox/QuitBtn.pressed.connect(_on_quit)
 	$UILayer/Control/VBox/SettingsBtn.pressed.connect(func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
-	if Engine.has_singleton("AudioManager"):
-		AudioManager.play_bgm("menu")
+	var _am = get_node_or_null("/root/AudioManager")
+	if _am: _am.play_bgm("menu")
 
 func _process(delta: float) -> void:
 	_t += delta
