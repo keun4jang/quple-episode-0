@@ -207,8 +207,7 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 	_set_sphere($BodyPivot/HeadPivot/HeadMesh, 0.35, 0.36, fur)
 	$BodyPivot/HeadPivot/HeadMesh.scale = Vector3(1.05, 0.98, 1.0)
 
-	# ── 머리 털 뭉치 (구 표면에 작은 스피어 분포) ──
-	_add_fur_tufts($BodyPivot/HeadPivot, 0.33, fur, 22, Vector3.ZERO)
+	# 머리 상단 털 뭉치 비활성 (메뉴에서 안테나처럼 보이는 문제 방지)
 
 	# ── 귀 : 머리 위쪽 옆에 붙임 + 분홍 안쪽 ──
 	$BodyPivot/HeadPivot/LeftEarPivot.position = Vector3(-0.19, 0.22, 0.06)

@@ -165,7 +165,7 @@ func _build_meshes() -> void:
 	_set_sphere($BodyPivot/HeadPivot/HeadMesh, 0.33, 0.34, fur)
 	$BodyPivot/HeadPivot/HeadMesh.scale = Vector3(1.05, 0.98, 1.0)
 	# 머리 털 뭉치
-	_add_fur_tufts($BodyPivot/HeadPivot, 0.33, fur, 22, Vector3.ZERO)
+	# 머리 상단 털 뭉치 비활성 (안테나 방지)
 
 	# ── 귀 + 분홍 안쪽 ──
 	$BodyPivot/HeadPivot/LeftEarPivot.position = Vector3(-0.18, 0.21, 0.05)
