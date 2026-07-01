@@ -1,468 +1,515 @@
 #!/usr/bin/env python3
 """
-퀴카 커플 3D 마스코트 렌더러 v5.0
-bpy 5.0.1 Python module 기반  (pip install bpy)
+퀴카 커플 3D 마스코트 렌더러 v6.0 - FACE-FORWARD
+bpy 5.0.1 (pip) / Cycles CPU
+
+좌표계 규약 (엄격):
+  - 캐릭터 정면 = -Y 방향
+  - 카메라 = -Y 쪽(캐릭터 앞)에 위치, Track-To로 얼굴 응시
+  - 모든 얼굴 요소(눈/코/입/볼/muzzle)는 머리의 -Y 표면에 배치
+  - 렌더 후 얼굴 가시성 자동 검수 (흰자/동공/볼터치 픽셀 카운트)
+
 Usage: python3 tools/mascot/render-quica-mascots.py
 """
-import bpy, math, os, sys
+import bpy, math, os
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR    = os.path.normpath(os.path.join(SCRIPT_DIR, "..", "..", "assets", "mascots"))
 os.makedirs(OUT_DIR, exist_ok=True)
-
 def P(n): return os.path.join(OUT_DIR, n)
 
 def h2c(h):
-    h = h.lstrip("#")
-    return tuple(int(h[i:i+2], 16)/255 for i in (0,2,4))
+    h=h.lstrip("#"); return tuple(int(h[i:i+2],16)/255 for i in (0,2,4))
 
 C = dict(
-    A_fur=h2c("#C08040"), A_hi=h2c("#D89858"), A_sh=h2c("#906028"),
-    B_fur=h2c("#D8A85C"), B_hi=h2c("#E8C070"), B_sh=h2c("#B08038"),
+    A_fur=h2c("#B9783C"), A_hi=h2c("#D0925A"), A_sh=h2c("#A86532"),
+    B_fur=h2c("#D8A85C"), B_hi=h2c("#ECC378"), B_sh=h2c("#C9934B"),
     belly=h2c("#FFE8BD"), muzzle=h2c("#FFF0D5"), ear_in=h2c("#F5AFA8"),
-    cheek=h2c("#FF7FA0"),
-    eye_w=h2c("#F8F8F5"), eye_ir=h2c("#5A321D"), eye_pu=h2c("#1A0C05"),
-    eye_h=h2c("#FFFFFF"), eye_h2=h2c("#C8E0FF"),
-    nose=h2c("#201008"), mouth=h2c("#8A4020"), nose_hi=h2c("#7A5040"),
-    cap=h2c("#2A8A48"), cap_dk=h2c("#1C6030"), cap_hi=h2c("#48B468"),
-    badge=h2c("#FFE060"),
-    bp=h2c("#3A7AC8"), bp_dk=h2c("#2A5898"), bp_hi=h2c("#60A0E0"),
-    cam=h2c("#1E2432"), cam_ln=h2c("#080C18"), cam_hi=h2c("#6878A8"),
+    cheek=h2c("#FF8FA3"),
+    eye_w=h2c("#FBFAF7"), eye_ir=h2c("#4A2A16"), eye_pu=h2c("#160A04"),
+    eye_h=h2c("#FFFFFF"), eye_h2=h2c("#CFE6FF"),
+    brow=h2c("#7A4A26"),
+    nose=h2c("#221008"), mouth=h2c("#7A3418"), nose_hi=h2c("#8A5C46"),
+    cap=h2c("#218F4E"), cap_dk=h2c("#166034"), cap_hi=h2c("#49B66C"),
+    cap_band=h2c("#1A7A42"), badge=h2c("#FFE57A"), badge_dk=h2c("#E0B840"),
+    bp=h2c("#3A7AC8"), bp_dk=h2c("#2A5898"), bp_hi=h2c("#66A6E6"),
+    cam=h2c("#1F2636"), cam_ln=h2c("#0D1322"), cam_hi=h2c("#7488B8"),
     strap=h2c("#2A5888"),
-    scarf=h2c("#F05E9B"), scarf_dk=h2c("#C0307A"), scarf_hi=h2c("#FF9EC8"),
-    bag=h2c("#B87840"), bag_dk=h2c("#885820"), bag_hi=h2c("#D89858"),
-    ticket=h2c("#FFF8D8"), tick_l=h2c("#C8A040"), star=h2c("#FFD840"),
+    scarf=h2c("#F05E9B"), scarf_dk=h2c("#C0307A"), scarf_hi=h2c("#FF91C2"),
+    bag=h2c("#B17A3E"), bag_dk=h2c("#845A28"), bag_hi=h2c("#D89858"),
+    buckle=h2c("#E8C868"),
+    ticket=h2c("#FFF8D8"), tick_l=h2c("#D0A848"), star=h2c("#FFD840"),
+    map_c=h2c("#EAD9B0"), map_l=h2c("#B08850"),
 )
 
-# ── scene reset ────────────────────────────────────────────────────────────────
-def reset():
-    bpy.ops.wm.read_factory_settings(use_empty=True)
+def reset(): bpy.ops.wm.read_factory_settings(use_empty=True)
 
-# ── material ───────────────────────────────────────────────────────────────────
-def M(name, col, rough=0.78, spec=0.12, sub=0.0, alpha=1.0):
-    m = bpy.data.materials.new(name)
-    m.use_nodes = True
-    b = m.node_tree.nodes["Principled BSDF"]
-    b.inputs["Base Color"].default_value = (*col, 1.0)
-    b.inputs["Roughness"].default_value  = rough
-    b.inputs["Specular IOR Level"].default_value = spec
-    if sub > 0:
-        b.inputs["Subsurface Weight"].default_value = sub
-        b.inputs["Subsurface Radius"].default_value = (0.10, 0.07, 0.05)
-    if alpha < 1.0:
-        b.inputs["Alpha"].default_value = alpha
-        m.blend_method = "BLEND"
+def M(name,col,rough=0.82,spec=0.10,sub=0.0,alpha=1.0,bump=0.0,emit=0.0):
+    m=bpy.data.materials.new(name); m.use_nodes=True
+    nt=m.node_tree; b=nt.nodes["Principled BSDF"]
+    b.inputs["Base Color"].default_value=(*col,1.0)
+    b.inputs["Roughness"].default_value=rough
+    b.inputs["Specular IOR Level"].default_value=spec
+    if emit>0:
+        b.inputs["Emission Color"].default_value=(*col,1.0)
+        b.inputs["Emission Strength"].default_value=emit
+    if sub>0:
+        b.inputs["Subsurface Weight"].default_value=sub
+        b.inputs["Subsurface Radius"].default_value=(0.10,0.07,0.05)
+    if alpha<1.0:
+        b.inputs["Alpha"].default_value=alpha; m.blend_method="BLEND"
+    if bump>0:  # subtle clay noise bump
+        tex=nt.nodes.new("ShaderNodeTexNoise"); tex.inputs["Scale"].default_value=18.0
+        bmp=nt.nodes.new("ShaderNodeBump"); bmp.inputs["Strength"].default_value=bump
+        nt.links.new(tex.outputs["Fac"], bmp.inputs["Height"])
+        nt.links.new(bmp.outputs["Normal"], b.inputs["Normal"])
     return m
 
-# ── primitives ─────────────────────────────────────────────────────────────────
-def link(o):
-    bpy.context.scene.collection.objects.link(o)
-    return o
-
-def sph(name, loc, sc, mat, seg=48):
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=seg, ring_count=int(seg*2//3))
-    o = bpy.context.active_object
-    o.name = name; o.scale = sc; o.location = loc
-    bpy.ops.object.shade_smooth()
+def _finish(o,mat,smooth=True,subsurf=2):
+    if smooth: bpy.ops.object.shade_smooth()
     o.data.materials.append(mat)
-    s = o.modifiers.new("S","SUBSURF"); s.levels=2; s.render_levels=3
-    return o
+    if subsurf>0:
+        s=o.modifiers.new("S","SUBSURF"); s.levels=subsurf; s.render_levels=subsurf+1
 
-def box(name, loc, sc, mat, bv=0.05):
+def sph(name,loc,sc,mat,seg=48,rot=None):
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0,segments=seg,ring_count=int(seg*2//3))
+    o=bpy.context.active_object; o.name=name; o.scale=sc; o.location=loc
+    if rot: o.rotation_euler=rot
+    _finish(o,mat); return o
+
+def box(name,loc,sc,mat,bv=0.05,rot=None):
     bpy.ops.mesh.primitive_cube_add(location=loc)
-    o = bpy.context.active_object
-    o.name = name; o.scale = sc
-    bpy.ops.object.shade_smooth()
-    o.data.materials.append(mat)
-    b = o.modifiers.new("B","BEVEL"); b.width=bv; b.segments=4
-    s = o.modifiers.new("S","SUBSURF"); s.levels=1; s.render_levels=2
+    o=bpy.context.active_object; o.name=name; o.scale=sc
+    if rot: o.rotation_euler=rot
+    bpy.ops.object.shade_smooth(); o.data.materials.append(mat)
+    b=o.modifiers.new("B","BEVEL"); b.width=bv; b.segments=4
+    s=o.modifiers.new("S","SUBSURF"); s.levels=1; s.render_levels=2
     return o
 
-def tor(name, loc, sc, rot, mat, maj=0.30, mn=0.07):
-    bpy.ops.mesh.primitive_torus_add(location=loc, rotation=rot,
-        major_radius=maj, minor_radius=mn, major_segments=48, minor_segments=16)
-    o = bpy.context.active_object
-    o.name = name; o.scale = sc
-    bpy.ops.object.shade_smooth()
-    o.data.materials.append(mat)
-    return o
+def tor(name,loc,sc,rot,mat,maj=0.30,mn=0.07):
+    bpy.ops.mesh.primitive_torus_add(location=loc,rotation=rot,
+        major_radius=maj,minor_radius=mn,major_segments=48,minor_segments=18)
+    o=bpy.context.active_object; o.name=name; o.scale=sc
+    bpy.ops.object.shade_smooth(); o.data.materials.append(mat); return o
 
-def cyl(name, loc, sc, rot, mat):
-    bpy.ops.mesh.primitive_cylinder_add(vertices=32, location=loc, rotation=rot)
-    o = bpy.context.active_object
-    o.name = name; o.scale = sc
-    bpy.ops.object.shade_smooth()
-    o.data.materials.append(mat)
-    b = o.modifiers.new("B","BEVEL"); b.width=0.03; b.segments=3
-    return o
+def cyl(name,loc,sc,rot,mat):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=32,location=loc,rotation=rot)
+    o=bpy.context.active_object; o.name=name; o.scale=sc
+    bpy.ops.object.shade_smooth(); o.data.materials.append(mat)
+    b=o.modifiers.new("B","BEVEL"); b.width=0.02; b.segments=3; return o
 
-# ── eye set ────────────────────────────────────────────────────────────────────
-def eye_set(pfx, x, z, y_front, s=1.0):
-    """Returns list of eye objects. y_front = depth toward camera (negative = toward cam)"""
-    objs=[]
-    ms = M(f"{pfx}esc",C["eye_w"],rough=0.05,spec=0.9)
-    objs.append(sph(f"{pfx}sc",(x,y_front,z),(0.090,0.058,0.078),ms))
-    mi = M(f"{pfx}ir",C["eye_ir"],rough=0.12,spec=0.7)
-    objs.append(sph(f"{pfx}ir",(x,y_front-0.012,z),(0.068,0.044,0.065),mi))
-    mp = M(f"{pfx}pu",C["eye_pu"],rough=0.05,spec=0.95)
-    objs.append(sph(f"{pfx}pu",(x,y_front-0.025,z),(0.042,0.028,0.040),mp))
-    mh = M(f"{pfx}h1",C["eye_h"],rough=0.0,spec=1.0)
-    objs.append(sph(f"{pfx}h1",(x-0.024*s,y_front-0.032,z+0.022),(0.022,0.015,0.022),mh,seg=24))
-    mh2= M(f"{pfx}h2",C["eye_h2"],rough=0.0,spec=1.0)
-    objs.append(sph(f"{pfx}h2",(x+0.012*s,y_front-0.032,z-0.010),(0.012,0.008,0.012),mh2,seg=16))
-    # cheek blush
-    mck= M(f"{pfx}ck",C["cheek"],rough=0.9,spec=0.0,alpha=0.42)
-    objs.append(sph(f"{pfx}ck",(x*1.38,y_front+0.016,z-0.048),(0.105,0.022,0.078),mck,seg=24))
-    return objs
-
-# ── ear pair ───────────────────────────────────────────────────────────────────
-def ear_pair(pfx, hx, hz, hy, fur_c, ear_c):
-    objs=[]
-    mo = M(f"{pfx}eo",fur_c,rough=0.80,sub=0.04)
-    mi = M(f"{pfx}ei",ear_c,rough=0.75,sub=0.06)
+# ── FACE (front = -Y).  hy = head center Y (0), hz = head center Z ──────────────
+def build_face(pfx, hx, hz, fur_c, is_leader):
+    """모든 요소를 머리 -Y 표면에 배치. 리스트 반환."""
+    o=[]
+    # eye whites - 큰 납작 타원, 강하게 전면 돌출
     for sx,tag in [(-1,"L"),(1,"R")]:
-        ex = hx + sx*0.375
-        eo = sph(f"{pfx}e{tag}o",(ex,hy+0.02,hz+0.30),(0.148,0.075,0.182),mo)
-        objs.append(eo)
-        ei = sph(f"{pfx}e{tag}i",(ex,hy-0.01,hz+0.31),(0.096,0.035,0.125),mi,seg=32)
-        objs.append(ei)
-    return objs
+        ex=hx+sx*0.185
+        ms=M(f"{pfx}esc{tag}",C["eye_w"],rough=0.5,spec=0.2,emit=0.35)
+        o.append(sph(f"{pfx}esc{tag}",(ex,-0.470,hz+0.055),(0.120,0.058,0.145),ms))
+        # iris
+        mi=M(f"{pfx}ir{tag}",C["eye_ir"],rough=0.14,spec=0.7)
+        o.append(sph(f"{pfx}ir{tag}",(ex,-0.505,hz+0.040),(0.086,0.048,0.098),mi,seg=40))
+        # pupil
+        mp=M(f"{pfx}pu{tag}",C["eye_pu"],rough=0.85,spec=0.05)
+        o.append(sph(f"{pfx}pu{tag}",(ex,-0.528,hz+0.030),(0.052,0.032,0.058),mp,seg=32))
+        # big highlight
+        mh=M(f"{pfx}h1{tag}",C["eye_h"],rough=0.0,spec=1.0,emit=0.8)
+        o.append(sph(f"{pfx}h1{tag}",(ex-0.030*sx,-0.552,hz+0.080),(0.036,0.024,0.038),mh,seg=24))
+        # small blue highlight
+        mh2=M(f"{pfx}h2{tag}",C["eye_h2"],rough=0.0,spec=1.0)
+        o.append(sph(f"{pfx}h2{tag}",(ex+0.020*sx,-0.545,hz-0.008),(0.016,0.011,0.016),mh2,seg=16))
+        # upper lid shadow (thin dark arc above eye)
+        mls=M(f"{pfx}lid{tag}",C["brow"],rough=0.8,alpha=0.5)
+        o.append(sph(f"{pfx}lid{tag}",(ex,-0.452,hz+0.150),(0.120,0.030,0.038),mls))
+        # brow
+        mb=M(f"{pfx}brow{tag}",C["brow"],rough=0.85,alpha=0.75)
+        o.append(sph(f"{pfx}brow{tag}",(ex,-0.430,hz+0.210),(0.100,0.028,0.030),mb,
+                     rot=(0,math.radians(sx*8),0)))
+        # cheek blush - 납작 핑크 디스크, 전면 돌출
+        mck=M(f"{pfx}ck{tag}",C["cheek"],rough=0.9,spec=0.0,alpha=0.55)
+        o.append(sph(f"{pfx}ck{tag}",(hx+sx*0.320,-0.410,hz-0.100),(0.078,0.022,0.058),mck,seg=24))
+    # muzzle (크림, 눈보다 아래, 중앙)
+    mmz=M(f"{pfx}mz",C["muzzle"],rough=0.78,sub=0.10)
+    o.append(sph(f"{pfx}mz",(hx,-0.450,hz-0.155),(0.245,0.140,0.180),mmz))
+    # nose
+    mn=M(f"{pfx}no",C["nose"],rough=0.92,spec=0.0)
+    o.append(sph(f"{pfx}no",(hx,-0.640,hz-0.090),(0.092,0.062,0.072),mn,seg=28))
+    mnh=M(f"{pfx}noh",C["nose_hi"],rough=0.2,spec=0.85)
+    o.append(sph(f"{pfx}noh",(hx-0.026,-0.672,hz-0.068),(0.028,0.018,0.020),mnh,seg=18))
+    # mouth - curve (bezier w/ bevel) small smile
+    mm=M(f"{pfx}mo",C["mouth"],rough=0.6)
+    for dx,rz in [(-0.070,0.42),(0.070,-0.42)]:
+        o.append(box(f"{pfx}mo",(hx+dx,-0.600,hz-0.210),(0.020,0.014,0.036),mm,bv=0.012,
+                     rot=(0,0,rz)))
+    # philtrum
+    o.append(box(f"{pfx}ph",(hx,-0.615,hz-0.168),(0.010,0.010,0.026),mm,bv=0.004))
+    return o
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# LEADER (A)
-# ═══════════════════════════════════════════════════════════════════════════════
+def build_ears(pfx,hx,hz,fur_c,ear_c):
+    o=[]
+    mo=M(f"{pfx}eo",fur_c,rough=0.82,sub=0.04)
+    mi=M(f"{pfx}ei",ear_c,rough=0.75,sub=0.06)
+    for sx,tag in [(-1,"L"),(1,"R")]:
+        ex=hx+sx*0.375
+        o.append(sph(f"{pfx}e{tag}o",(ex,0.02,hz+0.315),(0.150,0.080,0.185),mo,
+                     rot=(0,math.radians(sx*10),0)))
+        o.append(sph(f"{pfx}e{tag}i",(ex,-0.05,hz+0.320),(0.096,0.045,0.128),mi,seg=32,
+                     rot=(0,math.radians(sx*10),0)))
+    return o
+
+def build_body(pfx,fur_c,belly_c,ox):
+    """pear-shaped: 넓은 하체 + 좁은 가슴."""
+    o=[]
+    mf=M(f"{pfx}bd",fur_c,rough=0.82,sub=0.07,bump=0.06)
+    mfs=M(f"{pfx}bds",fur_c,rough=0.85,sub=0.05)
+    mb=M(f"{pfx}bl",belly_c,rough=0.75,sub=0.08)
+    # lower (wide)
+    o.append(sph(f"{pfx}bd_low",(ox,0,0.34),(0.58,0.50,0.50),mf))
+    # upper chest (narrow) -> pear
+    o.append(sph(f"{pfx}bd_up",(ox,-0.02,0.72),(0.46,0.42,0.42),mf))
+    # belly gradient patch
+    o.append(sph(f"{pfx}belly",(ox,-0.30,0.44),(0.34,0.20,0.44),mb))
+    return o
+
+def build_limbs(pfx,fur_c,belly_c,ox,left_pose,right_pose):
+    """left_pose/right_pose: 'down'|'up'  (arm)."""
+    o=[]
+    ma=M(f"{pfx}arm",fur_c,rough=0.82,sub=0.05)
+    mfp=M(f"{pfx}fp",belly_c,rough=0.75)
+    ml=M(f"{pfx}leg",fur_c,rough=0.84,sub=0.04)
+    # arms
+    def arm(tag,sx,pose):
+        if pose=="up":
+            o.append(sph(f"{pfx}a{tag}",(ox+sx*0.55,-0.05,0.72),(0.20,0.18,0.33),ma,
+                         rot=(0,0,math.radians(-sx*34))))
+            hz=0.98; hy=-0.10
+            hx=ox+sx*0.62
+        else:
+            o.append(sph(f"{pfx}a{tag}",(ox+sx*0.58,0,0.58),(0.21,0.19,0.35),ma,
+                         rot=(0,0,math.radians(-sx*20))))
+            hz=0.32; hy=-0.02; hx=ox+sx*0.70
+        # hand + fingers
+        o.append(sph(f"{pfx}h{tag}",(hx,hy,hz),(0.155,0.135,0.135),ma,seg=32))
+        for i,fx in enumerate((-0.05,0,0.05)):
+            o.append(sph(f"{pfx}fg{tag}{i}",(hx+fx,hy-0.10,hz-0.02),(0.045,0.045,0.05),ma,seg=16))
+        return (hx,hy,hz)
+    lh=arm("L",-1,left_pose)
+    rh=arm("R", 1,right_pose)
+    # legs+feet+toes
+    for sx in (-0.27,0.27):
+        tag="L" if sx<0 else "R"
+        o.append(sph(f"{pfx}lg{tag}",(ox+sx,0,0.08),(0.22,0.20,0.34),ml))
+        o.append(sph(f"{pfx}ft{tag}",(ox+sx*1.2,-0.16,-0.12),(0.29,0.20,0.17),ml))
+        o.append(sph(f"{pfx}fp{tag}",(ox+sx*1.2,-0.26,-0.15),(0.19,0.09,0.11),mfp,seg=32))
+        for i,tx in enumerate((-0.09,0,0.09)):
+            o.append(sph(f"{pfx}toe{tag}{i}",(ox+sx*1.2+tx,-0.30,-0.14),(0.04,0.04,0.045),mfp,seg=14))
+    # tail
+    o.append(sph(f"{pfx}tail",(ox,0.40,0.30),(0.17,0.14,0.14),ml,seg=24))
+    return o,lh,rh
+
+# ═══ LEADER (A) ═══
 def build_leader(ox=0.0):
-    objs = []
-    fur  = M("Af", C["A_fur"],  rough=0.80, sub=0.07)
-    fur2 = M("Af2",C["A_hi"],   rough=0.78, sub=0.05)
-    bly  = M("Ab", C["belly"],  rough=0.75, sub=0.08)
-    mzl  = M("Am", C["muzzle"], rough=0.75, sub=0.10)
+    o=[]
+    fur=C["A_fur"]
+    o+=build_body("A",fur,C["belly"],ox)
+    o+=build_limbs("A",fur,C["belly"],ox,"down","up")[0]
+    # head (ellipsoid)
+    mh=M("Ahead",fur,rough=0.80,sub=0.08,bump=0.05)
+    o.append(sph("Ahead",(ox,0,1.12),(0.53,0.50,0.51),mh))
+    o+=build_ears("A",ox,1.12,fur,C["ear_in"])
+    o+=build_face("A",ox,1.12,fur,True)
 
-    # body
-    objs.append(sph("Ab",(ox,0,0.40),(0.56,0.50,0.66),fur))
-    objs.append(sph("Abl",(ox,-0.03,0.38),(0.38,0.30,0.50),bly))
-    # head
-    objs.append(sph("Ah",(ox,-0.01,1.12),(0.53,0.50,0.51),fur))
-    # ears
-    objs += ear_pair("A",ox,1.12,-0.01,C["A_fur"],C["ear_in"])
-    # muzzle
-    objs.append(sph("Amz",(ox,-0.445,1.06),(0.270,0.188,0.215),mzl))
-    # nose
-    mn=M("An",C["nose"],rough=0.30,spec=0.6)
-    objs.append(sph("Ano",(ox,-0.528,1.108),(0.070,0.042,0.052),mn,seg=24))
-    mnh=M("Anh",C["nose_hi"],rough=0.2,spec=0.8)
-    objs.append(sph("Anh",(ox-0.022,-0.548,1.126),(0.025,0.016,0.018),mnh,seg=16))
-    # mouth
-    mm=M("Amou",C["mouth"],rough=0.6)
-    for dx,rz in [(-0.084,0.40),(0.084,-0.40)]:
-        mc=box("Amo",(ox+dx,-0.530,1.02),(0.018,0.013,0.034),mm,bv=0.012)
-        mc.rotation_euler.z=rz; objs.append(mc)
-    # eyes
-    objs += eye_set("AL",ox-0.208,1.165,-0.360,s=1.0)
-    objs += eye_set("AR",ox+0.208,1.165,-0.360,s=-1.0)
-    # arms
-    ma=M("Aarm",C["A_fur"],rough=0.80,sub=0.05)
-    # left arm (hanging)
-    la=sph("AaL",(ox-0.590,0,0.620),(0.225,0.205,0.362),ma)
-    la.rotation_euler.z=math.radians(22); objs.append(la)
-    objs.append(sph("AhL",(ox-0.690,0,0.330),(0.162,0.140,0.140),ma,seg=32))
-    # right arm (raised — holding camera side)
-    ra=sph("AaR",(ox+0.570,-0.04,0.660),(0.225,0.200,0.340),ma)
-    ra.rotation_euler.z=math.radians(-28); objs.append(ra)
-    objs.append(sph("AhR",(ox+0.740,-0.04,0.440),(0.155,0.138,0.138),ma,seg=32))
-    # legs+feet
-    ml=M("Aleg",C["A_fur"],rough=0.82,sub=0.04)
-    mfp=M("Afp",C["belly"],rough=0.75)
-    for sx in (-0.270, 0.270):
-        tag="L" if sx<0 else "R"
-        objs.append(sph(f"Alg{tag}",(ox+sx,0,0.100),(0.225,0.205,0.350),ml))
-        objs.append(sph(f"Aft{tag}",(ox+sx*1.22,-0.100,-0.115),(0.290,0.185,0.165),ml))
-        objs.append(sph(f"Afp{tag}",(ox+sx*1.22,-0.155,-0.150),(0.185,0.082,0.105),mfp,seg=32))
-    # tail
-    mt=M("Ata",C["A_fur"],rough=0.85)
-    objs.append(sph("Ata",(ox,0.360,0.290),(0.185,0.152,0.152),mt,seg=24))
+    # ── CAP (crown+brim+band+badge+highlight) ──
+    mcp=M("Acap",C["cap"],rough=0.72,spec=0.10,bump=0.04)
+    mcd=M("Acapd",C["cap_dk"],rough=0.80)
+    mch=M("Acaph",C["cap_hi"],rough=0.68)
+    mbn=M("Acband",C["cap_band"],rough=0.78)
+    # crown
+    o.append(sph("Acrown",(ox+0.02,0.08,1.62),(0.45,0.43,0.30),mcp))
+    # band (torus around base of crown)
+    o.append(tor("Aband",(ox+0.02,0.04,1.42),(1.0,0.92,0.5),
+                 (math.radians(90),0,0),mbn,maj=0.44,mn=0.045))  # band
+    # brim (front, -Y) - flattened forward disc
+    o.append(sph("Abrim",(ox+0.02,-0.40,1.42),(0.40,0.24,0.045),mcd,rot=(math.radians(-12),0,0)))
+    # brim shadow underside
+    o.append(sph("Abrimsh",(ox+0.02,-0.34,1.39),(0.36,0.18,0.03),mcd,rot=(math.radians(-12),0,0)))
+    # highlight streak
+    o.append(sph("Acaphl",(ox-0.16,-0.06,1.66),(0.15,0.22,0.13),mch))
+    # planet badge on crown front
+    mbd=M("Abadge",C["badge"],rough=0.5,spec=0.3)
+    mbdd=M("Abadged",C["badge_dk"],rough=0.55)
+    o.append(sph("Abadge",(ox+0.06,-0.34,1.46),(0.08,0.05,0.085),mbd,seg=32))
+    o.append(tor("Abadger",(ox+0.06,-0.36,1.46),(1,1,0.6),
+                 (math.radians(80),0,0),mbdd,maj=0.10,mn=0.014))
 
-    # ── ACCESSORIES A ────────────────────────────────────────────────────────
-
-    # Backpack
-    mbp=M("Abp",C["bp"],rough=0.72,spec=0.08)
+    # ── BACKPACK (뒤+옆) ──
+    mbp=M("Abp",C["bp"],rough=0.72,spec=0.08,bump=0.05)
     mbpd=M("Abpd",C["bp_dk"],rough=0.76)
-    objs.append(box("Abp",(ox-0.225,0.290,0.540),(0.205,0.148,0.295),mbp,bv=0.045))
-    objs.append(box("Abpf",(ox-0.225,0.290+0.150,0.405),(0.168,0.025,0.130),mbpd,bv=0.022))
-    mstr=M("Ast",C["strap"],rough=0.70)
-    objs.append(box("Ast1",(ox-0.390,0.095,0.800),(0.030,0.030,0.145),mstr,bv=0.010))
-    objs.append(box("Ast2",(ox-0.420,0.080,0.555),(0.030,0.028,0.120),mstr,bv=0.010))
+    mbph=M("Abph",C["bp_hi"],rough=0.68)
+    o.append(box("Abp",(ox-0.22,0.34,0.56),(0.22,0.16,0.30),mbp,bv=0.05))
+    o.append(box("Abpf",(ox-0.22,0.34-0.16,0.42),(0.17,0.03,0.13),mbpd,bv=0.02))  # pocket faces... keep
+    o.append(box("Abphl",(ox-0.34,0.30,0.66),(0.05,0.05,0.14),mbph,bv=0.02))
+    mstr=M("Astr",C["strap"],rough=0.7)
+    o.append(box("Astr1",(ox-0.40,0.10,0.80),(0.032,0.03,0.15),mstr,bv=0.01,rot=(0,0,math.radians(-8))))
+    o.append(box("Astr2",(ox+0.38,0.10,0.80),(0.032,0.03,0.15),mstr,bv=0.01,rot=(0,0,math.radians(8))))
 
-    # Cap
-    mcp=M("Acp",C["cap"],rough=0.75,spec=0.08)
-    mcpd=M("Acpd",C["cap_dk"],rough=0.80)
-    mcph=M("Acph",C["cap_hi"],rough=0.70)
-    # dome
-    dome=sph("Acdome",(ox+0.04,-0.06,1.570),(0.480,0.440,0.315),mcp)
-    objs.append(dome)
-    # brim
-    objs.append(sph("Acbrim",(ox+0.04,-0.09,1.492),(0.600,0.520,0.065),mcpd))
-    objs.append(sph("Acbrim2",(ox+0.04,-0.230,1.472),(0.330,0.250,0.048),mcpd))
-    # cap highlight
-    objs.append(sph("Achl",(ox-0.100,-0.100,1.588),(0.210,0.320,0.168),mcph))
-    # planet badge
-    mbd=M("Abd",C["badge"],rough=0.55,spec=0.30)
-    objs.append(sph("Abd",(ox+0.080,-0.228,1.524),(0.075,0.045,0.075),mbd,seg=32))
-    mbr=M("Abdr",C["badge"],rough=0.45,spec=0.35)
-    objs.append(tor("Abdr",(ox+0.080,-0.228,1.524),(1,1,1),
-                    (math.radians(90),0,0),mbr,maj=0.082,mn=0.013))
-
-    # Camera body (chest right, below shoulder, NOT crossing face)
-    mca=M("Aca",C["cam"],rough=0.45,spec=0.25)
-    mcal=M("Acal",C["cam_ln"],rough=0.05,spec=0.95)
-    mcah=M("Acah",C["cam_hi"],rough=0.05,spec=0.9)
-    objs.append(box("Acam",(ox+0.520,-0.185,0.610),(0.165,0.105,0.115),mca,bv=0.026))
-    objs.append(sph("Aclens",(ox+0.520,-0.286,0.610),(0.075,0.050,0.075),mcal,seg=32))
-    objs.append(sph("Aclnsh",(ox+0.485,-0.302,0.634),(0.026,0.018,0.026),mcah,seg=20))
-    # shutter button
-    msb=M("Asb",C["cam_hi"],rough=0.3,spec=0.5)
-    objs.append(sph("Asb",(ox+0.600,-0.188,0.682),(0.026,0.019,0.021),msb,seg=16))
-    # Camera strap — short segments from right shoulder DOWN to camera, never touching face
+    # ── CAMERA (가슴 앞, 얼굴 안가림 - 낮게) ──
+    mca=M("Acam",C["cam"],rough=0.42,spec=0.28)
+    mcl=M("Acaml",C["cam_ln"],rough=0.06,spec=0.95)
+    mcah=M("Acamh",C["cam_hi"],rough=0.05,spec=0.9)
+    o.append(box("Acam",(ox,-0.42,0.58),(0.19,0.11,0.13),mca,bv=0.03))
+    o.append(sph("Acamlens",(ox,-0.56,0.58),(0.088,0.06,0.088),mcl,seg=36))
+    o.append(tor("Acamring",(ox,-0.55,0.58),(1,1,1),(math.radians(90),0,0),mca,maj=0.10,mn=0.02))
+    o.append(sph("Acamgh",(ox-0.035,-0.60,0.61),(0.028,0.02,0.028),mcah,seg=20))
+    o.append(box("Acamflash",(ox-0.13,-0.50,0.66),(0.035,0.02,0.028),mcah,bv=0.008))
+    o.append(sph("Acamshut",(ox+0.13,-0.46,0.70),(0.028,0.02,0.022),mcah,seg=16))
+    # strap: 어깨→카메라, 얼굴(-Y 상단) 통과 안함 (가슴 옆으로만)
     mcs=M("Acs",C["strap"],rough=0.68)
-    objs.append(box("Acs1",(ox+0.390,-0.052,0.940),(0.030,0.024,0.128),mcs,bv=0.010))
-    objs.append(box("Acs2",(ox+0.468,-0.095,0.788),(0.030,0.024,0.115),mcs,bv=0.010))
-    objs.append(box("Acs3",(ox+0.510,-0.138,0.692),(0.030,0.024,0.072),mcs,bv=0.010))
+    o.append(box("Acs1",(ox+0.30,-0.30,0.86),(0.03,0.024,0.16),mcs,bv=0.01,rot=(0,0,math.radians(22))))
+    o.append(box("Acs2",(ox-0.30,-0.30,0.86),(0.03,0.024,0.16),mcs,bv=0.01,rot=(0,0,math.radians(-22))))
 
-    return objs
+    # ── 지도 (왼손, 아래로) ──
+    mmp=M("Amap",C["map_c"],rough=0.85)
+    mmpl=M("Amapl",C["map_l"],rough=0.8)
+    o.append(box("Amap",(ox-0.70,-0.10,0.30),(0.12,0.02,0.09),mmp,bv=0.01,rot=(math.radians(20),0,math.radians(-10))))
+    return o
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PARTNER (B)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ═══ PARTNER (B) ═══
 def build_partner(ox=0.0):
-    objs = []
-    fur  = M("Bf", C["B_fur"],  rough=0.80, sub=0.07)
-    bly  = M("Bb", C["belly"],  rough=0.75, sub=0.08)
-    mzl  = M("Bm", C["muzzle"], rough=0.75, sub=0.10)
+    o=[]
+    fur=C["B_fur"]
+    o+=build_body("B",fur,C["belly"],ox)
+    o+=build_limbs("B",fur,C["belly"],ox,"up","down")[0]
+    # head (soft Z-tilt only, face stays -Y forward)
+    mh=M("Bhead",fur,rough=0.80,sub=0.08,bump=0.05)
+    head=sph("Bhead",(ox,0,1.11),(0.51,0.48,0.49),mh)
+    head.rotation_euler=(0,0,math.radians(5))  # roll only, face still forward
+    o.append(head)
+    o+=build_ears("B",ox,1.11,fur,C["ear_in"])
+    o+=build_face("B",ox,1.11,fur,False)
 
-    # body
-    objs.append(sph("Bb",(ox,0,0.380),(0.535,0.468,0.635),fur))
-    objs.append(sph("Bbl",(ox,-0.025,0.360),(0.360,0.285,0.480),bly))
-    # head (tilted 6° for softer pose)
-    head=sph("Bh",(ox+0.04,-0.01,1.110),(0.510,0.478,0.490),fur)
-    head.rotation_euler=(0,math.radians(-6),0); objs.append(head)
-    # ears
-    objs += ear_pair("B",ox,1.105,-0.010,C["B_fur"],C["ear_in"])
-    # muzzle
-    objs.append(sph("Bmz",(ox+0.03,-0.428,1.038),(0.258,0.178,0.205),mzl))
-    # nose
-    mn=M("Bn",C["nose"],rough=0.30,spec=0.6)
-    objs.append(sph("Bno",(ox+0.03,-0.510,1.086),(0.068,0.040,0.050),mn,seg=24))
-    mnh=M("Bnh",C["nose_hi"],rough=0.2,spec=0.8)
-    objs.append(sph("Bnh",(ox+0.008,-0.528,1.104),(0.024,0.015,0.017),mnh,seg=16))
-    # mouth
-    mm=M("Bmou",C["mouth"],rough=0.6)
-    for dx,rz in [(-0.078,0.38),(0.098,-0.38)]:
-        mc=box("Bmo",(ox+dx+0.03,-0.518,1.002),(0.017,0.012,0.032),mm,bv=0.011)
-        mc.rotation_euler.z=rz; objs.append(mc)
-    # eyes
-    objs += eye_set("BL",ox-0.195,1.148,-0.348,s=1.0)
-    objs += eye_set("BR",ox+0.218,1.148,-0.348,s=-1.0)
-    # arms
-    ma=M("Barm",C["B_fur"],rough=0.80,sub=0.05)
-    # left arm raised (holding ticket)
-    la=sph("BaL",(ox-0.565,0,0.740),(0.208,0.188,0.322),ma)
-    la.rotation_euler.z=math.radians(38); objs.append(la)
-    objs.append(sph("BhL",(ox-0.618,0,0.980),(0.148,0.128,0.128),ma,seg=32))
-    # right arm (relaxed hang)
-    ra=sph("BaR",(ox+0.548,0,0.580),(0.208,0.188,0.325),ma)
-    ra.rotation_euler.z=math.radians(-20); objs.append(ra)
-    objs.append(sph("BhR",(ox+0.638,0,0.340),(0.148,0.128,0.128),ma,seg=32))
-    # legs+feet
-    ml=M("Bleg",C["B_fur"],rough=0.82,sub=0.04)
-    mfp=M("Bfp",C["belly"],rough=0.75)
-    for sx in (-0.255, 0.255):
-        tag="L" if sx<0 else "R"
-        objs.append(sph(f"Blg{tag}",(ox+sx,0,0.090),(0.215,0.195,0.338),ml))
-        objs.append(sph(f"Bft{tag}",(ox+sx*1.18,-0.092,-0.118),(0.278,0.175,0.158),ml))
-        objs.append(sph(f"Bfp{tag}",(ox+sx*1.18,-0.145,-0.152),(0.178,0.078,0.100),mfp,seg=32))
-    # tail
-    mt=M("Bta",C["B_fur"],rough=0.85)
-    objs.append(sph("Bta",(ox,0.340,0.280),(0.178,0.145,0.145),mt,seg=24))
+    # ── SCARF (목, knot+loop+2 tails, 입 안가림 z<0.90) ──
+    msc=M("Bsc",C["scarf"],rough=0.80,spec=0.06,bump=0.04)
+    mscd=M("Bscd",C["scarf_dk"],rough=0.82)
+    msch=M("Bsch",C["scarf_hi"],rough=0.74)
+    # loop around neck
+    o.append(tor("Bscloop",(ox,-0.02,0.86),(1.0,0.95,0.6),
+                 (math.radians(82),0,0),msc,maj=0.32,mn=0.085))
+    # front knot
+    o.append(sph("Bknot",(ox+0.03,-0.34,0.82),(0.12,0.09,0.11),mscd))
+    o.append(sph("Bknot2",(ox+0.03,-0.38,0.81),(0.085,0.06,0.075),msch))
+    # tail 1 (left, long)
+    for i,(dx,dz,rz) in enumerate([(-0.02,0.72,-8),(-0.06,0.60,-12),(-0.08,0.48,-8)]):
+        o.append(box(f"BtA{i}",(ox+dx,-0.32,dz),(0.065,0.05,0.09),
+                     msc if i%2==0 else mscd,bv=0.028,rot=(math.radians(-10),0,math.radians(rz))))
+    # tail 2 (right, short)
+    for i,(dx,dz,rz) in enumerate([(0.10,0.70,10),(0.12,0.58,12)]):
+        o.append(box(f"BtB{i}",(ox+dx,-0.32,dz),(0.06,0.045,0.08),
+                     msc if i%2==0 else mscd,bv=0.025,rot=(math.radians(-8),0,math.radians(rz))))
 
-    # ── ACCESSORIES B ────────────────────────────────────────────────────────
-
-    # SCARF — V드레이프 (목에 감기고 두 끝이 앞으로 늘어짐, 입 절대 안 가림)
-    msc =M("Bsc", C["scarf"],    rough=0.80, spec=0.05)
-    mscd=M("Bscd",C["scarf_dk"], rough=0.82)
-    msch=M("Bsch",C["scarf_hi"], rough=0.75)
-    # Collar ring (neck level = z≈0.870)
-    objs.append(tor("Bcol",(ox+0.02,0.02,0.870),(1.0,1.0,0.55),
-                    (math.radians(84),0,0),msc,maj=0.305,mn=0.078))
-    # Front cross knot
-    objs.append(sph("Bkn1",(ox+0.02,-0.288,0.858),(0.125,0.072,0.104),mscd))
-    objs.append(sph("Bkn2",(ox+0.02,-0.305,0.852),(0.095,0.052,0.080),msch))
-    # Left tail (longer, diagonal left-down)
-    for i,(dx,dy,dz,rx,rz) in enumerate([
-        (-0.052,-0.295,0.800,-0.14,-0.12),
-        (-0.100,-0.282,0.712,-0.18,-0.14),
-        (-0.128,-0.262,0.618,-0.14,-0.10),
-    ]):
-        s=box(f"BscL{i}",(ox+dx,dy,dz),(0.062,0.048,0.088),
-              msc if i%2==0 else mscd, bv=0.028)
-        s.rotation_euler=(rx,0,rz); objs.append(s)
-    # Right tail (shorter)
-    for i,(dx,dy,dz,rx,rz) in enumerate([
-        ( 0.088,-0.288,0.792,-0.13,0.11),
-        ( 0.105,-0.270,0.695,-0.12,0.13),
-    ]):
-        s=box(f"BscR{i}",(ox+dx,dy,dz),(0.058,0.042,0.078),
-              msc if i%2==0 else mscd, bv=0.025)
-        s.rotation_euler=(rx,0,rz); objs.append(s)
-
-    # Crossbody bag (right side)
-    mbg =M("Bbg", C["bag"],    rough=0.75, spec=0.08)
-    mbgd=M("Bbgd",C["bag_dk"], rough=0.78)
-    mbgh=M("Bbgh",C["bag_hi"], rough=0.55, spec=0.25)
-    objs.append(box("Bbag",(ox+0.540,0.065,0.440),(0.205,0.148,0.228),mbg,bv=0.042))
-    # Flap
-    objs.append(box("Bflap",(ox+0.540,0.065+0.148,0.508),(0.185,0.025,0.130),mbgd,bv=0.022))
-    # Clasp
-    objs.append(sph("Bclasp",(ox+0.540,0.214,0.508),(0.042,0.026,0.032),mbgh,seg=24))
-    # Shoulder strap
-    mss=M("Bss",C["bag_dk"],rough=0.70)
-    for i,(dx,dz) in enumerate([(0.228,0.880),(0.368,0.700),(0.478,0.572)]):
-        s=box(f"Bss{i}",(ox+dx,-0.040,dz),(0.030,0.024,0.105),mss,bv=0.010)
-        s.rotation_euler.z=math.radians(-18+i*4); objs.append(s)
-    # Star keyring
+    # ── CROSSBODY BAG (옆, strap+body+flap+buckle+star) ──
+    mbg=M("Bbg",C["bag"],rough=0.75,spec=0.08,bump=0.05)
+    mbgd=M("Bbgd",C["bag_dk"],rough=0.78)
+    mbk=M("Bbk",C["buckle"],rough=0.4,spec=0.4)
+    o.append(box("Bbag",(ox+0.52,-0.10,0.42),(0.20,0.15,0.22),mbg,bv=0.045))
+    o.append(box("Bflap",(ox+0.52,-0.26,0.50),(0.19,0.03,0.12),mbgd,bv=0.02))
+    o.append(box("Bbuckle",(ox+0.52,-0.30,0.44),(0.05,0.02,0.04),mbk,bv=0.01))
+    # strap crossing chest (앞으로 대각선)
+    mss=M("Bss",C["bag_dk"],rough=0.7)
+    for i,(dx,dz,rz) in enumerate([(-0.20,0.86,28),(0.05,0.72,20),(0.30,0.58,10)]):
+        o.append(box(f"Bss{i}",(ox+dx,-0.30,dz),(0.032,0.026,0.13),mss,bv=0.01,rot=(0,0,math.radians(rz))))
+    # star keyring
     mst=M("Bstar",C["star"],rough=0.45,spec=0.45)
-    objs.append(sph("Bstar",(ox+0.475,0.188,0.322),(0.040,0.024,0.040),mst,seg=24))
+    o.append(sph("Bstar",(ox+0.44,-0.28,0.30),(0.05,0.03,0.05),mst,seg=20))
 
-    # Ticket (left hand, held up)
-    mtk =M("Btk", C["ticket"], rough=0.85, spec=0.04)
-    mtkl=M("Btkl",C["tick_l"], rough=0.80)
-    tk=box("Btk",(ox-0.632,-0.065,1.030),(0.115,0.028,0.172),mtk,bv=0.016)
-    tk.rotation_euler=(0,0,math.radians(-30)); objs.append(tk)
-    for dz in (-0.042, 0.042):
-        tl=box("Btkl",(ox-0.632,-0.086,1.030+dz),(0.088,0.030,0.014),mtkl,bv=0.005)
-        tl.rotation_euler=(0,0,math.radians(-30)); objs.append(tl)
+    # ── TICKET (오른팔이 down이므로... 파트너는 왼팔 up -> 왼손 티켓) ──
+    mtk=M("Btk",C["ticket"],rough=0.85,spec=0.04)
+    mtkl=M("Btkl",C["tick_l"],rough=0.8)
+    tk=box("Btk",(ox-0.62,-0.20,0.98),(0.12,0.03,0.17),mtk,bv=0.016,rot=(0,0,math.radians(-26)))
+    o.append(tk)
+    for dz in (-0.05,0.03):
+        o.append(box(f"Btkl{dz}",(ox-0.62,-0.235,0.98+dz),(0.09,0.032,0.014),mtkl,bv=0.005,
+                     rot=(0,0,math.radians(-26))))
+    return o
 
-    return objs
-
-
-# ── lighting ───────────────────────────────────────────────────────────────────
+# ── lighting ──
 def setup_lights():
     sc=bpy.context.scene
-    def add_area(name, energy, col, loc, rot, size=3.0):
-        ld=bpy.data.lights.new(name,"AREA")
-        ld.energy=energy; ld.color=col; ld.size=size
-        lo=bpy.data.objects.new(name,ld)
-        lo.location=loc; lo.rotation_euler=[math.radians(r) for r in rot]
-        sc.collection.objects.link(lo)
-        return lo
-    add_area("Key",  950, (1.00,0.94,0.82), ( 4,-4, 6), (50,0, 45))
-    add_area("Fill", 320, (0.72,0.82,1.00), (-4,-2, 4), (55,0,-40))
-    add_area("Rim",  520, (1.00,0.96,0.88), ( 0, 6, 3), (30,0,  0))
-    add_area("Bot",  130, (1.00,0.92,0.80), ( 0,-1,-2), (-60,0, 0))
+    def area(n,e,c,loc,rot,size=3.5):
+        ld=bpy.data.lights.new(n,"AREA"); ld.energy=e; ld.color=c; ld.size=size
+        lo=bpy.data.objects.new(n,ld); lo.location=loc
+        lo.rotation_euler=[math.radians(r) for r in rot]
+        sc.collection.objects.link(lo); return lo
+    # Key from front-upper-left (in -Y region so it lights the FACE)
+    area("Key", 1300,(1.00,0.94,0.82),(-3,-6, 5),(58,0,-28))
+    area("Fill", 380,(0.74,0.83,1.00),( 4,-4, 3),(65,0, 40))
+    area("Rim",  620,(1.00,0.96,0.88),( 0, 6, 4),(35,0,  0))
+    area("FaceFill",650,(1.0,0.97,0.92),(0,-7,1.4),(90,0,0),size=4.5)  # direct face fill
 
-# ── camera ─────────────────────────────────────────────────────────────────────
-def add_cam(sc, scale, loc, rot):
+def add_cam(scale,loc,target):
+    sc=bpy.context.scene
     cd=bpy.data.cameras.new("C"); cd.type="ORTHO"; cd.ortho_scale=scale
-    co=bpy.data.objects.new("C",cd)
-    co.location=loc; co.rotation_euler=[math.radians(r) for r in rot]
+    co=bpy.data.objects.new("C",cd); co.location=loc
     sc.collection.objects.link(co); sc.camera=co
-    return co
+    emp=bpy.data.objects.new("Tgt",None); emp.location=target
+    sc.collection.objects.link(emp)
+    tc=co.constraints.new("TRACK_TO"); tc.target=emp
+    tc.track_axis="TRACK_NEGATIVE_Z"; tc.up_axis="UP_Y"
+    return co,emp
 
-def rm_cam(co):
+def rm_cam(co,emp):
     bpy.data.objects.remove(co,do_unlink=True)
+    bpy.data.objects.remove(emp,do_unlink=True)
 
-# ── render settings ────────────────────────────────────────────────────────────
-def rset(sc, w, h, samp=96):
-    sc.render.engine="CYCLES"
-    sc.cycles.device="CPU"
+def rset(w,h,samp=64):
+    sc=bpy.context.scene
+    sc.render.engine="CYCLES"; sc.cycles.device="CPU"; sc.cycles.samples=samp
     sc.render.film_transparent=True
     sc.render.image_settings.file_format="PNG"
     sc.render.image_settings.color_mode="RGBA"
-    sc.render.image_settings.color_depth="8"
     sc.render.resolution_x=w; sc.render.resolution_y=h
     sc.render.resolution_percentage=100
-    sc.cycles.samples=samp
 
 def render(fp):
     bpy.context.scene.render.filepath=fp
     bpy.ops.render.render(write_still=True)
-    sz=os.path.getsize(fp) if os.path.exists(fp) else 0
-    print(f"  → {os.path.basename(fp)}  ({sz:,} bytes)")
+    print(f"  -> {os.path.basename(fp)} ({os.path.getsize(fp):,}B)")
 
-def vis(show, hide):
+def vis(show,hide):
     for o in show: o.hide_render=False; o.hide_viewport=False
-    for o in hide: o.hide_render=True;  o.hide_viewport=True
+    for o in hide: o.hide_render=True; o.hide_viewport=True
 
-def shift(objs, dx=0, dy=0, dz=0):
+def shift(objs,dx=0,dy=0,dz=0):
     for o in objs: o.location.x+=dx; o.location.y+=dy; o.location.z+=dz
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# MAIN
-# ═══════════════════════════════════════════════════════════════════════════════
-def main():
-    print("=== 퀴카 커플 3D 렌더러 v5.0 ===")
-    reset()
-    sc=bpy.context.scene
+def export_glb(objs, fp):
+    try:
+        bpy.ops.object.select_all(action="DESELECT")
+        for o in objs:
+            if o.type=="MESH": o.select_set(True)
+        bpy.context.view_layer.objects.active = objs[0]
+        bpy.ops.export_scene.gltf(filepath=fp, export_format="GLB",
+            use_selection=True, export_apply=True)
+        print(f"  GLB -> {os.path.basename(fp)} ({os.path.getsize(fp):,}B)")
+    except Exception as e:
+        print(f"  GLB 실패: {e}")
 
-    # World (dark for transparent BG contrast)
+# ── FACE VISIBILITY VERIFIER ──
+def verify_face(fp, label):
+    try:
+        from PIL import Image; import numpy as np
+        arr=np.array(Image.open(fp).convert("RGBA"))
+        a=arr[:,:,3]
+        if (a>50).sum()<1000: 
+            print(f"  [검수] {label}: 캐릭터 없음 FAIL"); return False
+        rows=np.any(a>50,axis=1); cols=np.any(a>50,axis=0)
+        rmin,rmax=np.where(rows)[0][[0,-1]]; cmin,cmax=np.where(cols)[0][[0,-1]]
+        h=rmax-rmin
+        face=arr[rmin:rmin+int(h*0.55),cmin:cmax]; fa=face[:,:,3]>100; rgb=face[:,:,:3]
+        white=((rgb[:,:,0]>235)&(rgb[:,:,1]>235)&(rgb[:,:,2]>235)&fa).sum()
+        dark=((rgb[:,:,0]<95)&(rgb[:,:,1]<70)&(rgb[:,:,2]<75)&fa).sum()
+        pink=((rgb[:,:,0]>210)&(rgb[:,:,1]>120)&(rgb[:,:,1]<190)&(rgb[:,:,2]>140)&(rgb[:,:,2]<205)&fa).sum()
+        ok = white>20 and dark>40 and pink>20
+        print(f"  [검수] {label}: 눈highlight={white} 코/동공={dark} 볼={pink} -> {'PASS' if ok else 'FAIL'}")
+        return ok
+    except Exception as e:
+        print(f"  [검수] {label}: 오류 {e}"); return False
+
+def make_previews(src, base):
+    """투명 src -> white/dark bg 프리뷰."""
+    try:
+        from PIL import Image
+        im=Image.open(src).convert("RGBA")
+        for bg,tag in [((248,244,236,255),"white"),((14,12,28,255),"dark")]:
+            c=Image.new("RGBA",im.size,bg); c.paste(im,mask=im)
+            c.convert("RGB").save(P(f"{base}-{tag}bg.png"))
+    except Exception as e:
+        print(f"  preview 실패: {e}")
+
+def main():
+    print("=== 퀴카 커플 v6.0 FACE-FORWARD ===")
+    reset(); sc=bpy.context.scene
     w=bpy.data.worlds.new("W"); w.use_nodes=True; sc.world=w
     bg=w.node_tree.nodes.get("Background")
-    if bg: bg.inputs[0].default_value=(0.04,0.04,0.08,1)
-
-    print("캐릭터 빌드...")
-    la=build_leader(ox=0.0)
-    pa=build_partner(ox=0.0)
+    if bg: bg.inputs[0].default_value=(0.05,0.05,0.09,1)
+    print("빌드...")
+    la=build_leader(0.0); pa=build_partner(0.0)
     setup_lights()
 
-    # ── 1. Leader only ─────────────────────────────────────────────────────────
-    print("\n[1/4] Leader front...")
-    vis(la, pa)
-    rset(sc,2048,2048,samp=128)
-    co=add_cam(sc,3.40,(0,-7,1.22),(83,0,0))
-    render(P("quica-leader-front.png")); rm_cam(co)
+    results={}
+    # 1 leader front
+    print("[1] leader front"); vis(la,pa); rset(1600,1600,64)
+    co,e=add_cam(2.9,(0,-8.5,1.16),(0,0,1.14)); render(P("quica-leader-front.png")); rm_cam(co,e)
+    results["leader-front"]=verify_face(P("quica-leader-front.png"),"leader-front")
+    # 2 partner front
+    print("[2] partner front"); vis(pa,la)
+    co,e=add_cam(2.9,(0,-8.5,1.15),(0,0,1.13)); render(P("quica-partner-front.png")); rm_cam(co,e)
+    results["partner-front"]=verify_face(P("quica-partner-front.png"),"partner-front")
+    # 3 leader 3/4
+    print("[3] leader 3q"); vis(la,pa)
+    co,e=add_cam(3.0,(-3.0,-7.5,1.25),(0,0,1.12)); render(P("quica-leader-3quarter.png")); rm_cam(co,e)
+    # 4 partner 3/4
+    print("[4] partner 3q"); vis(pa,la)
+    co,e=add_cam(3.0,(3.0,-7.5,1.25),(0,0,1.12)); render(P("quica-partner-3quarter.png")); rm_cam(co,e)
+    # 5 face closeup (both)
+    print("[5] face closeup"); vis(la+pa,[]); shift(la,dx=-0.78); shift(pa,dx=0.78)
+    rset(1200,1200,80)
+    co,e=add_cam(2.6,(0,-8.5,1.22),(0,0,1.18)); render(P("quica-face-closeup.png")); rm_cam(co,e)
+    results["closeup"]=verify_face(P("quica-face-closeup.png"),"closeup")
+    shift(la,dx=0.78); shift(pa,dx=-0.78)
+    # 6 couple splash
+    print("[6] couple splash"); vis(la+pa,[]); shift(la,dx=-1.25); shift(pa,dx=1.25)
+    rset(2048,1536,96)
+    co,e=add_cam(5.8,(0,-9.5,1.05),(0,0,0.92)); render(P("quica-couple-splash.png")); rm_cam(co,e)
+    results["couple"]=verify_face(P("quica-couple-splash.png"),"couple")
+    # 7 icon
+    print("[7] icon"); rset(512,512,80)
+    co,e=add_cam(3.2,(0,-8.5,1.20),(0,0,1.12)); render(P("quica-couple-icon.png")); rm_cam(co,e)
+    shift(la,dx=1.25); shift(pa,dx=-1.25)
 
-    # ── 2. Partner only ────────────────────────────────────────────────────────
-    print("\n[2/4] Partner front...")
-    vis(pa, la)
-    co=add_cam(sc,3.40,(0,-7,1.22),(83,0,0))
-    render(P("quica-partner-front.png")); rm_cam(co)
+    # GLB exports
+    print("GLB export..."); vis(la,pa); export_glb(la,P("quica-leader.glb"))
+    vis(pa,la); export_glb(pa,P("quica-partner.glb"))
+    vis(la+pa,[]); export_glb(la+pa,P("quica-couple.glb"))
 
-    # ── 3. Couple splash ────────────────────────────────────────────────────────
-    print("\n[3/4] Couple splash...")
-    vis(la+pa, [])
-    shift(la, dx=-1.22); shift(pa, dx=+1.22)
-    rset(sc,2048,1536,samp=128)
-    co=add_cam(sc,5.90,(0,-8,1.22),(83,0,0))
-    render(P("quica-couple-splash.png")); rm_cam(co)
-    shift(la, dx=+1.22); shift(pa, dx=-1.22)
-
-    # ── 4. Icon (face close-up) ────────────────────────────────────────────────
-    print("\n[4/4] Icon face close-up...")
-    vis(la+pa, [])
-    shift(la, dx=-0.88); shift(pa, dx=+0.88)
-    rset(sc,1024,1024,samp=96)
-    co=add_cam(sc,2.82,(0,-6,1.58),(85,0,0))
-    render(P("quica-couple-icon.png")); rm_cam(co)
-    shift(la, dx=+0.88); shift(pa, dx=-0.88)
-
-    # ── WebP ────────────────────────────────────────────────────────────────────
-    print("\nWebP 변환...")
+    # WebP + previews
+    print("WebP/preview...")
     try:
-        from PIL import Image as PILImage
-        for src,dst in [("quica-couple-splash.png","quica-couple-splash.webp"),
-                         ("quica-couple-icon.png","quica-couple-icon.webp"),
-                         ("quica-leader-front.png","quica-leader-front.webp"),
-                         ("quica-partner-front.png","quica-partner-front.webp")]:
-            im=PILImage.open(P(src)).convert("RGBA")
-            im.save(P(dst),"WEBP",quality=88,lossless=False,method=6)
-            print(f"  {dst}: {os.path.getsize(P(dst)):,} bytes")
-    except Exception as e:
-        print(f"  WebP 실패: {e}")
+        from PIL import Image
+        for s,d in [("quica-couple-splash.png","quica-couple-splash.webp"),
+                    ("quica-leader-front.png","quica-leader-front.webp"),
+                    ("quica-partner-front.png","quica-partner-front.webp")]:
+            Image.open(P(s)).convert("RGBA").save(P(d),"WEBP",quality=90,method=6)
+    except Exception as e: print("webp",e)
+    make_previews(P("quica-couple-splash.png"),"quica-couple-splash")
+    make_previews(P("quica-leader-front.png"),"quica-leader")
 
-    print("\n=== 완료 ===")
-    for fn in ["quica-leader-front.png","quica-partner-front.png",
-               "quica-couple-splash.png","quica-couple-icon.png"]:
-        fp=P(fn)
-        if os.path.exists(fp): print(f"  {fn}: {os.path.getsize(fp):,} bytes")
+    # contact sheet
+    try:
+        from PIL import Image, ImageDraw
+        CELL=520; sheet=Image.new("RGBA",(CELL*3,CELL*2),(244,240,232,255))
+        d=ImageDraw.Draw(sheet)
+        items=[("quica-leader-front.png","Leader"),("quica-partner-front.png","Partner"),
+               ("quica-face-closeup.png","Face"),("quica-leader-3quarter.png","Leader 3Q"),
+               ("quica-partner-3quarter.png","Partner 3Q"),("quica-couple-splash.png","Couple")]
+        for i,(fn,lb) in enumerate(items):
+            c=i%3; r=i//3; p=P(fn)
+            if os.path.exists(p):
+                im=Image.open(p).convert("RGBA")
+                bgc=Image.new("RGBA",im.size,(244,240,232,255)); bgc.paste(im,mask=im)
+                bgc.thumbnail((CELL-16,CELL-16),Image.LANCZOS)
+                sheet.paste(bgc,(c*CELL+(CELL-bgc.width)//2, r*CELL+(CELL-bgc.height)//2))
+            d.rectangle([c*CELL,r*CELL,(c+1)*CELL-1,(r+1)*CELL-1],outline=(200,195,185,255),width=2)
+            d.text((c*CELL+10,r*CELL+8),lb,fill=(80,70,60,255))
+        sheet.save(P("quica-contact-sheet.png"))
+        print(f"  contact-sheet ({os.path.getsize(P('quica-contact-sheet.png')):,}B)")
+    except Exception as e: print("sheet",e)
+
+    print("\n=== 검수 요약 ===")
+    allok=True
+    for k,v in results.items():
+        print(f"  {k}: {'PASS' if v else 'FAIL'}"); allok=allok and v
+    print(f"  전체: {'ALL PASS ✓' if allok else 'SOME FAILED ✗'}")
 
 main()

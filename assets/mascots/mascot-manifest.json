@@ -1,34 +1,56 @@
 {
-  "version": "5.0",
+  "version": "6.0",
   "generated": "2026-07-01",
-  "pipeline": "blender-bpy-cycles",
+  "pipeline": "blender-bpy-cycles-face-forward",
   "engine": "bpy 5.0.1 / Cycles CPU",
+  "coordinate_convention": {
+    "front": "-Y",
+    "camera_side": "-Y",
+    "face_on_surface": "-Y hemisphere",
+    "auto_face_verification": "eyes/nose/cheek pixel count per render"
+  },
+  "qa": {
+    "leader-front": "PASS",
+    "partner-front": "PASS",
+    "closeup": "PASS",
+    "couple": "PASS",
+    "overall": "ALL PASS"
+  },
   "characters": {
     "leader": {
       "name": "퀴카 리더",
-      "color": "#C08040",
+      "color": "#B9783C",
       "accessories": [
         "green_cap",
         "planet_badge",
         "backpack",
-        "camera"
+        "camera",
+        "map"
       ],
       "assets": {
         "front_png": {
           "exists": true,
-          "size_bytes": 1898396
+          "size_bytes": 1444040
         },
         "front_webp": {
           "exists": true,
-          "size_bytes": 48010
+          "size_bytes": 50338
         },
-        "svg_fallback": {
+        "3quarter": {
           "exists": true,
-          "size_bytes": 19566
+          "size_bytes": 1387218
         },
-        "png_fallback": {
+        "glb": {
           "exists": true,
-          "size_bytes": 219558
+          "size_bytes": 2481632
+        },
+        "whitebg": {
+          "exists": true,
+          "size_bytes": 672757
+        },
+        "darkbg": {
+          "exists": true,
+          "size_bytes": 675731
         }
       }
     },
@@ -44,19 +66,19 @@
       "assets": {
         "front_png": {
           "exists": true,
-          "size_bytes": 1779583
+          "size_bytes": 1334909
         },
         "front_webp": {
           "exists": true,
-          "size_bytes": 40186
+          "size_bytes": 41384
         },
-        "svg_fallback": {
+        "3quarter": {
           "exists": true,
-          "size_bytes": 19102
+          "size_bytes": 1284823
         },
-        "png_fallback": {
+        "glb": {
           "exists": true,
-          "size_bytes": 223570
+          "size_bytes": 2200188
         }
       }
     }
@@ -64,34 +86,45 @@
   "couple_assets": {
     "splash_png": {
       "exists": true,
-      "size_bytes": 1382634
+      "size_bytes": 1453755
     },
     "splash_webp": {
       "exists": true,
-      "size_bytes": 45030
+      "size_bytes": 57616
     },
     "icon_png": {
       "exists": true,
-      "size_bytes": 834451
+      "size_bytes": 200259
     },
     "icon_webp": {
       "exists": true,
-      "size_bytes": 35004
+      "size_bytes": 14924
+    },
+    "face_closeup": {
+      "exists": true,
+      "size_bytes": 1196409
     },
     "contact_sheet": {
       "exists": true,
-      "size_bytes": 354755
+      "size_bytes": 606502
     },
-    "hero_svg_fallback": {
+    "glb": {
       "exists": true,
-      "size_bytes": 465777
+      "size_bytes": 4665768
+    },
+    "splash_whitebg": {
+      "exists": true,
+      "size_bytes": 575871
+    },
+    "splash_darkbg": {
+      "exists": true,
+      "size_bytes": 580901
     }
   },
   "godot_integration": {
     "splash_path": "res://assets/mascots/quica-couple-splash.png",
-    "loader": "Image.load_from_file(ProjectSettings.globalize_path(path))",
-    "scene": "scenes/menu/MainMenu3D.tscn",
+    "loader": "Image.load_from_file",
     "script": "scripts/menu/main_menu_3d.gd",
-    "function": "_inject_mascot_couple()"
+    "function": "_inject_mascot_couple() + halo/contact-shadow"
   }
 }

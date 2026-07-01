@@ -95,26 +95,74 @@ func _inject_mascot_couple() -> void:
 	if not img:
 		return
 	var tex = ImageTexture.create_from_image(img)
+
+	# 컨테이너: halo glow + contact shadow + 캐릭터를 함께 배치
+	var wrap = Control.new()
+	wrap.name = "MascotCoupleWrap"
+	wrap.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	wrap.set_offset(SIDE_LEFT,  -560)
+	wrap.set_offset(SIDE_RIGHT,  560)
+	wrap.set_offset(SIDE_TOP,   -820)
+	wrap.set_offset(SIDE_BOTTOM, 30)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# 1) 캐릭터 뒤 은은한 halo (방사형 밝은 원)
+	var halo = TextureRect.new()
+	halo.name = "Halo"
+	halo.texture = _make_radial_glow(256, Color(1.0, 0.95, 0.78, 0.55))
+	halo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	halo.stretch_mode = TextureRect.STRETCH_SCALE
+	halo.set_anchors_preset(Control.PRESET_CENTER)
+	halo.set_offset(SIDE_LEFT,  -420)
+	halo.set_offset(SIDE_RIGHT,  420)
+	halo.set_offset(SIDE_TOP,   -420)
+	halo.set_offset(SIDE_BOTTOM, 300)
+	halo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	halo.modulate.a = 0.85
+	wrap.add_child(halo)
+
+	# 2) 행성 접지 그림자 (하단 타원)
+	var shadow = TextureRect.new()
+	shadow.name = "ContactShadow"
+	shadow.texture = _make_radial_glow(128, Color(0.0, 0.0, 0.02, 0.65))
+	shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shadow.stretch_mode = TextureRect.STRETCH_SCALE
+	shadow.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	shadow.set_offset(SIDE_LEFT,  120)
+	shadow.set_offset(SIDE_RIGHT, -120)
+	shadow.set_offset(SIDE_TOP,   -120)
+	shadow.set_offset(SIDE_BOTTOM, 30)
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.add_child(shadow)
+
+	# 3) 캐릭터 본체
 	var rect = TextureRect.new()
 	rect.name = "MascotCouple3D"
 	rect.texture = tex
-	# Center-bottom 배치: 포스터 위에 캐릭터 오버레이
 	rect.expand_mode = TextureRect.EXPAND_FIT_HEIGHT_PROPORTIONAL
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	rect.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	rect.set_offset(SIDE_LEFT,  -520)
-	rect.set_offset(SIDE_RIGHT,  520)
-	rect.set_offset(SIDE_TOP,   -780)
-	rect.set_offset(SIDE_BOTTOM, 20)
+	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# 살짝 에메랄드 빛 ambient glow 느낌의 모듈레이션
-	rect.modulate = Color(1.0, 0.98, 0.95, 0.96)
-	ctrl.add_child(rect)
-	# VBox 위에 오도록: BG(0), FallbackBG or PosterBG(1), Mascot(2), VBox(계속...)
-	# 버튼보다 뒤에 배치하기 위해 인덱스 1로 이동
+	rect.modulate = Color(1.0, 0.99, 0.97, 1.0)
+	wrap.add_child(rect)
+
+	ctrl.add_child(wrap)
+	# 버튼(VBox)보다 뒤에 배치
 	var vbox = ctrl.get_node_or_null("VBox")
 	if vbox:
-		ctrl.move_child(rect, vbox.get_index())
+		ctrl.move_child(wrap, vbox.get_index())
+
+# 방사형 그라디언트 텍스처 생성 (halo/그림자용)
+func _make_radial_glow(size: int, col: Color) -> ImageTexture:
+	var img = Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var c = size * 0.5
+	for y in range(size):
+		for x in range(size):
+			var d = Vector2(x - c, y - c).length() / c
+			var a = clampf(1.0 - d, 0.0, 1.0)
+			a = a * a  # smooth falloff
+			img.set_pixel(x, y, Color(col.r, col.g, col.b, col.a * a))
+	return ImageTexture.create_from_image(img)
 
 # ─── 스토리 전환 ───
 func _on_start() -> void:
