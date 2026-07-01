@@ -1,36 +1,97 @@
 {
-  "version": "2.0",
-  "mascots": {
+  "version": "5.0",
+  "generated": "2026-07-01",
+  "pipeline": "blender-bpy-cycles",
+  "engine": "bpy 5.0.1 / Cycles CPU",
+  "characters": {
     "leader": {
-      "file": "assets/mascots/quika-leader.png",
-      "name": "퀴카 A (리더)",
-      "role": "여행 리더",
-      "color": "#B98246",
-      "props": [
-        "여행 캡",
-        "백팩",
-        "카메라",
-        "행성 배지"
-      ]
+      "name": "퀴카 리더",
+      "color": "#C08040",
+      "accessories": [
+        "green_cap",
+        "planet_badge",
+        "backpack",
+        "camera"
+      ],
+      "assets": {
+        "front_png": {
+          "exists": true,
+          "size_bytes": 1898396
+        },
+        "front_webp": {
+          "exists": true,
+          "size_bytes": 48010
+        },
+        "svg_fallback": {
+          "exists": true,
+          "size_bytes": 19566
+        },
+        "png_fallback": {
+          "exists": true,
+          "size_bytes": 219558
+        }
+      }
     },
     "partner": {
-      "file": "assets/mascots/quika-partner.png",
-      "name": "퀴카 B (파트너)",
-      "role": "여행 기록자",
-      "color": "#CDA564",
-      "props": [
-        "핑크 스카프",
-        "크로스백",
-        "티켓"
-      ]
-    },
-    "couple": {
-      "file": "assets/mascots/quika-couple-hero.png",
-      "description": "커플 합본 히어로 에셋"
+      "name": "퀴카 파트너",
+      "color": "#D8A85C",
+      "accessories": [
+        "pink_scarf",
+        "crossbody_bag",
+        "ticket",
+        "star_keyring"
+      ],
+      "assets": {
+        "front_png": {
+          "exists": true,
+          "size_bytes": 1779583
+        },
+        "front_webp": {
+          "exists": true,
+          "size_bytes": 40186
+        },
+        "svg_fallback": {
+          "exists": true,
+          "size_bytes": 19102
+        },
+        "png_fallback": {
+          "exists": true,
+          "size_bytes": 223570
+        }
+      }
     }
   },
-  "splash": {
-    "poster": "assets/splash/splash-poster-no-text.png",
-    "fallback_color": "#0F0822"
+  "couple_assets": {
+    "splash_png": {
+      "exists": true,
+      "size_bytes": 1382634
+    },
+    "splash_webp": {
+      "exists": true,
+      "size_bytes": 45030
+    },
+    "icon_png": {
+      "exists": true,
+      "size_bytes": 834451
+    },
+    "icon_webp": {
+      "exists": true,
+      "size_bytes": 35004
+    },
+    "contact_sheet": {
+      "exists": true,
+      "size_bytes": 354755
+    },
+    "hero_svg_fallback": {
+      "exists": true,
+      "size_bytes": 465777
+    }
+  },
+  "godot_integration": {
+    "splash_path": "res://assets/mascots/quica-couple-splash.png",
+    "loader": "Image.load_from_file(ProjectSettings.globalize_path(path))",
+    "scene": "scenes/menu/MainMenu3D.tscn",
+    "script": "scripts/menu/main_menu_3d.gd",
+    "function": "_inject_mascot_couple()"
   }
 }

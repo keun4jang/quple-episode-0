@@ -5,11 +5,13 @@ var _t := 0.0
 var _star_meshes: Array = []
 var _star_phases: Array = []
 
-const POSTER_PATH := "res://assets/splash/splash-poster-no-text.png"
+const POSTER_PATH    := "res://assets/splash/splash-poster-no-text.png"
+const COUPLE_3D_PATH := "res://assets/mascots/quica-couple-splash.png"
 
 func _ready() -> void:
 	_build_bg_stars()
 	_inject_poster_background()
+	_inject_mascot_couple()
 
 	var cont = $UILayer/Control/VBox/ContinueBtn
 	cont.disabled = not FileAccess.file_exists("user://save.cfg")
@@ -80,6 +82,39 @@ func _inject_poster_background() -> void:
 		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ctrl.add_child(hint)
 		ctrl.move_child(hint, 1)
+
+# ─── 3D 마스코트 커플 주입 ───
+func _inject_mascot_couple() -> void:
+	var ctrl = get_node_or_null("UILayer/Control")
+	if not ctrl:
+		return
+	var abs_path = ProjectSettings.globalize_path(COUPLE_3D_PATH)
+	if not FileAccess.file_exists(abs_path):
+		return
+	var img = Image.load_from_file(abs_path)
+	if not img:
+		return
+	var tex = ImageTexture.create_from_image(img)
+	var rect = TextureRect.new()
+	rect.name = "MascotCouple3D"
+	rect.texture = tex
+	# Center-bottom 배치: 포스터 위에 캐릭터 오버레이
+	rect.expand_mode = TextureRect.EXPAND_FIT_HEIGHT_PROPORTIONAL
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	rect.set_offset(SIDE_LEFT,  -520)
+	rect.set_offset(SIDE_RIGHT,  520)
+	rect.set_offset(SIDE_TOP,   -780)
+	rect.set_offset(SIDE_BOTTOM, 20)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 살짝 에메랄드 빛 ambient glow 느낌의 모듈레이션
+	rect.modulate = Color(1.0, 0.98, 0.95, 0.96)
+	ctrl.add_child(rect)
+	# VBox 위에 오도록: BG(0), FallbackBG or PosterBG(1), Mascot(2), VBox(계속...)
+	# 버튼보다 뒤에 배치하기 위해 인덱스 1로 이동
+	var vbox = ctrl.get_node_or_null("VBox")
+	if vbox:
+		ctrl.move_child(rect, vbox.get_index())
 
 # ─── 스토리 전환 ───
 func _on_start() -> void:
