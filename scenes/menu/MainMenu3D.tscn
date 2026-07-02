@@ -24,37 +24,37 @@ glow_bloom = 0.24
 
 [sub_resource type="LabelSettings" id="LogoShadowG5_Settings"]
 font_size = 200
-font_color = Color(0.28, 0.14, 0.02, 0.98)
+font_color = Color(0.14, 0.39, 0.25, 0.98)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG4_Settings"]
 font_size = 200
-font_color = Color(0.35, 0.20, 0.04, 0.92)
+font_color = Color(0.15, 0.42, 0.27, 0.94)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG3_Settings"]
 font_size = 200
-font_color = Color(0.42, 0.27, 0.06, 0.87)
+font_color = Color(0.16, 0.44, 0.28, 0.90)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG2_Settings"]
 font_size = 200
-font_color = Color(0.55, 0.36, 0.09, 0.82)
+font_color = Color(0.17, 0.46, 0.29, 0.86)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG1_Settings"]
 font_size = 200
-font_color = Color(0.78, 0.52, 0.18, 0.76)
+font_color = Color(0.18, 0.48, 0.30, 0.82)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="Logo_Settings"]
 font_size = 200
-font_color = Color(1.0, 0.96, 0.82, 1)
-outline_size = 12
-outline_color = Color(0.10, 0.33, 0.07, 1)
-shadow_size = 14
-shadow_color = Color(0.96, 0.82, 0.55, 0.55)
-shadow_offset = Vector2(0, 5)
+font_color = Color(1.0, 0.949, 0.784, 1)
+outline_size = 16
+outline_color = Color(0.184, 0.478, 0.302, 1)
+shadow_size = 22
+shadow_color = Color(0.16, 0.08, 0.31, 0.55)
+shadow_offset = Vector2(0, 7)
 
 [sub_resource type="LabelSettings" id="LogoHighlight_Settings"]
 font_size = 200
@@ -282,7 +282,7 @@ offset_top = 110.0
 offset_right = 500.0
 offset_bottom = 344.0
 grow_horizontal = 2
-text = "쿼플"
+text = "퀴풀"
 label_settings = SubResource("LogoShadowG5_Settings")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -296,7 +296,7 @@ offset_top = 104.0
 offset_right = 500.0
 offset_bottom = 338.0
 grow_horizontal = 2
-text = "쿼플"
+text = "퀴풀"
 label_settings = SubResource("LogoShadowG4_Settings")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -310,7 +310,7 @@ offset_top = 99.0
 offset_right = 500.0
 offset_bottom = 333.0
 grow_horizontal = 2
-text = "쿼플"
+text = "퀴풀"
 label_settings = SubResource("LogoShadowG3_Settings")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -324,7 +324,7 @@ offset_top = 95.0
 offset_right = 500.0
 offset_bottom = 329.0
 grow_horizontal = 2
-text = "쿼플"
+text = "퀴풀"
 label_settings = SubResource("LogoShadowG2_Settings")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -338,7 +338,7 @@ offset_top = 91.0
 offset_right = 500.0
 offset_bottom = 325.0
 grow_horizontal = 2
-text = "쿼플"
+text = "퀴풀"
 label_settings = SubResource("LogoShadowG1_Settings")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -352,7 +352,7 @@ offset_top = 86.0
 offset_right = 500.0
 offset_bottom = 320.0
 grow_horizontal = 2
-text = "쿼플"
+text = "퀴풀"
 label_settings = SubResource("Logo_Settings")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -366,7 +366,7 @@ offset_top = 82.0
 offset_right = 500.0
 offset_bottom = 316.0
 grow_horizontal = 2
-text = "쿼플"
+text = "퀴풀"
 label_settings = SubResource("LogoHighlight_Settings")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -407,7 +407,7 @@ offset_top = 332.0
 offset_right = 480.0
 offset_bottom = 418.0
 grow_horizontal = 2
-text = "쿼카 커플의 힐링 여행"
+text = "퀴카 커플의 힐링 여행"
 label_settings = SubResource("Sub_1")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -468,12 +468,12 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -440.0
-offset_top = -540.0
-offset_right = 440.0
-offset_bottom = -468.0
+offset_left = -500.0
+offset_top = -600.0
+offset_right = 500.0
+offset_bottom = -466.0
 grow_horizontal = 2
-text = "✦  국내 · 해외 · 우주 여행  ✦"
+text = "국내 · 해외 · 우주 여행 ✦\n아주아주 힐링게임!"
 label_settings = SubResource("CopyLabel_Settings")
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -501,7 +501,7 @@ theme_override_font_sizes/font_size = 56
 theme_override_styles/normal = SubResource("BtnStart")
 theme_override_styles/hover = SubResource("BtnStartHover")
 theme_override_styles/pressed = SubResource("BtnStartHover")
-text = "새 여행 시작  ✈"
+text = "새 여행 시작  ✦"
 
 [node name="ContinueBtn" type="Button" parent="UILayer/Control/VBox"]
 custom_minimum_size = Vector2(620, 112)

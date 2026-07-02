@@ -23,6 +23,9 @@ func _ready() -> void:
 	var _am = get_node_or_null("/root/AudioManager")
 	if _am: _am.play_bgm("menu")
 
+	if OS.get_environment("QUPLE_SHOT") != "":
+		_capture_shot()
+
 	_build_ui_decorations()
 
 func _process(delta: float) -> void:
@@ -96,14 +99,16 @@ func _inject_mascot_couple() -> void:
 		return
 	var tex = ImageTexture.create_from_image(img)
 
-	# 컨테이너: halo glow + contact shadow + 캐릭터를 함께 배치
+	# 컨테이너: 디오라마 위(중앙)에 배치 — 하단 카피/버튼을 가리지 않음
 	var wrap = Control.new()
 	wrap.name = "MascotCoupleWrap"
-	wrap.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	wrap.set_offset(SIDE_LEFT,  -560)
-	wrap.set_offset(SIDE_RIGHT,  560)
-	wrap.set_offset(SIDE_TOP,   -820)
-	wrap.set_offset(SIDE_BOTTOM, 30)
+	wrap.anchor_left = 0.5; wrap.anchor_right = 0.5
+	wrap.anchor_top = 0.5;  wrap.anchor_bottom = 0.5
+	# 화면 중앙(y50%) 기준으로 캐릭터를 y37~66% 영역에 배치
+	wrap.set_offset(SIDE_LEFT,  -400)
+	wrap.set_offset(SIDE_RIGHT,  400)
+	wrap.set_offset(SIDE_TOP,   -250)
+	wrap.set_offset(SIDE_BOTTOM, 310)
 	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# 1) 캐릭터 뒤 은은한 halo (방사형 밝은 원)
@@ -163,6 +168,15 @@ func _make_radial_glow(size: int, col: Color) -> ImageTexture:
 			a = a * a  # smooth falloff
 			img.set_pixel(x, y, Color(col.r, col.g, col.b, col.a * a))
 	return ImageTexture.create_from_image(img)
+
+# ─── 스크린샷 캡처 (QUPLE_SHOT 환경변수) ───
+func _capture_shot() -> void:
+	await get_tree().create_timer(1.4).timeout
+	var img := get_viewport().get_texture().get_image()
+	var path := OS.get_environment("QUPLE_SHOT")
+	img.save_png(path)
+	print("SHOT_SAVED: ", path)
+	get_tree().quit()
 
 # ─── 스토리 전환 ───
 func _on_start() -> void:

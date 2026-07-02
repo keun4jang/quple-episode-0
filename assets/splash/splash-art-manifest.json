@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-07-02",
+  "generator": "tools/splash/generate-splash-assets.py (PIL)",
+  "seed": 20260702,
+  "poster": {
+    "path": "res://assets/splash/splash-poster-no-text.png",
+    "exists": true,
+    "size_bytes": 324948,
+    "width": 1080,
+    "height": 1920,
+    "hasText": false
+  },
+  "posterWebp": {
+    "path": "res://assets/splash/splash-poster-no-text.webp",
+    "exists": true,
+    "size_bytes": 41480
+  },
+  "poster2x": {
+    "path": "res://assets/splash/splash-poster-no-text@2x.webp",
+    "exists": true,
+    "size_bytes": 58924
+  },
+  "poster720": {
+    "path": "res://assets/splash/splash-poster-no-text@720.webp",
+    "exists": true,
+    "size_bytes": 23688
+  },
+  "mascotCouple": {
+    "path": "res://assets/mascots/quica-couple-splash.png",
+    "hasText": false
+  },
+  "safeTopPercent": 25,
+  "safeBottomPercent": 35,
+  "palette": {
+    "space_deep": "#16205A",
+    "space_navy": "#241858",
+    "pastel_sky": "#80D2FF",
+    "pastel_lavender": "#B69BFF",
+    "pastel_pink": "#FFB5C9",
+    "pastel_mint": "#8FF0C2",
+    "cream": "#FFF2C8",
+    "peach": "#FFB28E",
+    "gold_soft": "#FFE4A3",
+    "logo_green": "#78D866",
+    "logo_dark_green": "#2F7A4D",
+    "shadow_purple": "#30205F"
+  },
+  "textRenderedInEngine": {
+    "title": "퀴풀",
+    "subtitle": "퀴카 커플의 힐링 여행",
+    "copy": "국내 · 해외 · 우주 여행 / 아주아주 힐링게임!",
+    "cta": "새 여행 시작 ✦",
+    "secondary": "이어하기"
+  },
+  "godot": {
+    "scene": "res://scenes/menu/MainMenu3D.tscn",
+    "script": "res://scripts/menu/main_menu_3d.gd",
+    "loader": "Image.load_from_file (bypasses .import)"
+  }
+}

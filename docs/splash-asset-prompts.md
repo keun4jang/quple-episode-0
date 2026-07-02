@@ -1,69 +1,29 @@
-# 쿼플 0편 스플래시 포스터 에셋 생성 가이드
+# 스플래시 에셋 생성 프롬프트 (로컬 AI 도구용)
 
-## 파일 경로
-생성한 이미지를 아래 경로에 저장하면 메인 메뉴에 즉시 반영됩니다:
+로컬 ComfyUI(:8188) 또는 SD WebUI/Forge(:7860)가 실행 중일 때 사용.
+없으면 `tools/splash/generate-splash-assets.py`(PIL)로 대체 생성. 대용량 모델 새로 다운로드 금지.
 
-```
-assets/splash/splash-poster-no-text.png
-```
+## A. 메인 포스터 배경 (텍스트 없음)
+**Positive:** Vertical 9:16 premium Korean mobile casual game title splash illustration, no text, no logo,
+empty top for title UI, empty bottom for buttons, tiny floating world diorama planet, green grass islands,
+blue ocean, miniature Korean palace, N Seoul Tower inspired landmark, small rocket, pastel galaxy sky,
+dreamy stars, soft nebula, glowing planets, healing travel mood, high-end 3D clay toy diorama render,
+cinematic warm lighting, pastel blue lavender peach mint cream palette, volumetric glow, magical sparkles
 
-지원 포맷: `.png`, `.webp` (파일명은 반드시 `splash-poster-no-text`)
+**Negative:** text, letters, Korean letters, logo, watermark, UI, button, low quality, blurry, flat vector,
+harsh shadows, horror, gray background, huge simple blue ball, cluttered
 
----
+설정: SDXL 1024x1792, steps 28~40, CFG 5~7, DPM++ 2M Karras, 4장 생성 후 최적 선택 → 1080x1920 업스케일 → WebP
 
-## 필수 사양
-- 해상도: **1080 × 1920px** (세로형 모바일)
-- 배경: 텍스트 없음 (로고, 버튼, 카피는 Godot에서 렌더링)
-- 여백: 상단 300px / 하단 400px 는 반투명 또는 어두운 색으로 남겨 UI가 잘 보이도록
-- 색상 팔레트: 딥 퍼플 (#0F0820) → 미드나잇 블루 → 소프트 핑크/라벤더
+## B. 캐릭터 커플 (투명)
+Two adorable quokka-like bear couple mascots, full body front 3/4, transparent background, warm tan/cream fur,
+round ears, big glossy eyes, rosy cheeks, one green travel cap + backpack + camera, other pink scarf +
+crossbody bag + ticket, 3D clay toy render, premium mascot. (현재는 Blender bpy 렌더로 대체 → `quica-couple-splash.png`)
 
----
+## C. 미니 월드 디오라마 (투명)
+Tiny floating world diorama planet, no characters, no text, blue ocean, green islands, Korean palace,
+tower, rocket, palm trees, pastel 3D clay style. (현재 포스터에 내장 생성)
 
-## Stable Diffusion / Flux 프롬프트
-
-### 메인 프롬프트 (영문)
-```
-mobile game loading screen illustration, vertical poster 1080x1920,
-cute couple of quokka marsupials standing on a tiny miniature planet earth,
-nighttime starry sky, nebula clouds in deep purple and soft pink,
-small cute landmarks on the globe (eiffel tower, korean hanok, pyramid),
-retro japanese travel poster style, warm pastel colors,
-the quokkas are wearing casual travel clothes, one has a camera,
-NO TEXT, no UI elements, illustration art style,
-soft rim lighting, dreamy atmosphere, indie game art,
-color palette: deep navy, lavender, warm peach, mint green,
-high quality, detailed, 2D illustration
-```
-
-### 네거티브 프롬프트
-```
-text, watermark, logo, UI, buttons, realistic photo, 3D render,
-low quality, blurry, dark background only, adult content
-```
-
-### 추가 키워드 (스타일별)
-- **지브리 풍**: `ghibli style, hand painted, watercolor`
-- **플랫 일러스트**: `flat design, vector art, clean lines, bold shapes`
-- **픽셀아트**: `pixel art, 16-bit, retro game sprite`
-
----
-
-## ComfyUI 권장 설정
-- Sampler: DPM++ 2M Karras
-- Steps: 30–40
-- CFG: 7.5
-- Size: 1080×1920 (또는 540×960 후 upscale)
-- Model: dreamshaper_8 / anything-v5 / counterfeit-v3
-
----
-
-## 직접 그리기 (선택)
-Krita, Aseprite, Procreate 등으로 위 컨셉에 맞게 제작 후 PNG 저장.
-
----
-
-## 현재 상태
-`assets/splash/splash-poster-no-text.png` 가 존재하지 않으면:
-- Godot 메인 메뉴가 어두운 배경 + 안내 텍스트를 표시합니다
-- 파일을 추가하면 다음 실행부터 포스터가 배경으로 자동 적용됩니다
-- Godot 에디터에서 열려 있다면 프로젝트 재임포트 필요 없이 바로 반영됩니다
+## D. 파스텔 우주 배경만
+Vertical 9:16 pastel cosmic galaxy background, no text, dreamy blue lavender pink mint nebula, soft stars,
+cute planets, gentle glow, empty safe zones top/bottom.
