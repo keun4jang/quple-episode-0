@@ -1,5 +1,5 @@
 {
-  "version": "6.0",
+  "version": "7.0",
   "generated": "2026-07-01",
   "pipeline": "blender-bpy-cycles-face-forward",
   "engine": "bpy 5.0.1 / Cycles CPU",
@@ -126,5 +126,49 @@
     "loader": "Image.load_from_file",
     "script": "scripts/menu/main_menu_3d.gd",
     "function": "_inject_mascot_couple() + halo/contact-shadow"
+  },
+  "hero_diorama": {
+    "description": "캐릭터+미니월드 행성 통합 히어로 (Blender 단일 씬 렌더)",
+    "png": {
+      "path": "res://assets/mascots/quica-hero-diorama.png",
+      "exists": true,
+      "size_bytes": 2368998
+    },
+    "webp": {
+      "path": "res://assets/mascots/quica-hero-diorama.webp",
+      "exists": true,
+      "size_bytes": 67542
+    },
+    "webp2x": {
+      "path": "res://assets/mascots/quica-hero-diorama@2x.webp",
+      "exists": true,
+      "size_bytes": 143116
+    },
+    "closeup": {
+      "path": "res://assets/mascots/quica-couple-closeup.png",
+      "exists": true,
+      "size_bytes": 1236553
+    },
+    "thumbnail_test": {
+      "path": "res://assets/mascots/quica-thumbnail-test.png",
+      "exists": true,
+      "size_bytes": 63012
+    },
+    "contact_sheet": {
+      "path": "res://assets/mascots/quica-contact-sheet.png",
+      "exists": true,
+      "size_bytes": 418643
+    },
+    "preview_dark": {
+      "path": "res://assets/mascots/quica-hero-diorama-preview-dark.png",
+      "exists": true,
+      "size_bytes": 1354834
+    },
+    "preview_white": {
+      "path": "res://assets/mascots/quica-hero-diorama-preview-white.png",
+      "exists": true,
+      "size_bytes": 1343889
+    },
+    "splash_usage": "res://assets/mascots/quica-hero-diorama.png (main_menu_3d.gd _inject_mascot_couple)"
   }
 }

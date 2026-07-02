@@ -92,61 +92,9 @@ def make_poster(w,h):
             d.ellipse([xx-2,yy-2,xx+2,yy+2],fill=(255,250,235,int(200*(1-t))))
         paste_glow(img,x0,y0,18*scale,(255,250,235),0.6)
 
-    # 5) MINI-WORLD DIORAMA (center-lower ~ y0.63), characters overlay on top
-    dcx, dcy, dr = w*0.5, h*0.58, 235*scale
-    # halo behind
-    paste_glow(img, dcx, dcy, dr*1.8, (255,240,200), 0.35)
-    # planet sphere: ocean gradient
-    sp=Image.new("RGBA",(int(dr*2.2),int(dr*2.2)),(0,0,0,0)); C=dr*1.1; sd=ImageDraw.Draw(sp)
-    for yy in range(int(dr*2)):
-        t=yy/(dr*2); c=lerp((150,225,255),(60,130,210),t)
-        sd.ellipse([C-dr,C-dr+yy,C+dr,C-dr+yy+1],fill=(c[0],c[1],c[2],255))
-    m=Image.new("L",sp.size,0); ImageDraw.Draw(m).ellipse([C-dr,C-dr,C+dr,C+dr],fill=255)
-    sp.putalpha(m)
-    sd=ImageDraw.Draw(sp)
-    # grass caps (green islands)
-    for (gx,gy,gw,gh,col) in [(-0.1,-0.55,1.5,0.7,(120,205,110)),
-                               (-0.7,-0.1,0.9,0.5,(140,215,120)),
-                               (0.55,-0.15,0.8,0.45,(110,195,100))]:
-        sd.ellipse([C+gx*dr-gw*dr/2, C+gy*dr-gh*dr/2, C+gx*dr+gw*dr/2, C+gy*dr+gh*dr/2],
-                   fill=(col[0],col[1],col[2],255))
-    # darker grass shade
-    sd.ellipse([C-0.9*dr, C-0.95*dr, C+0.9*dr, C-0.2*dr], fill=(120,205,110,90))
-    # tiny trees (cones)
-    for (tx,ty) in [(-0.35,-0.62),(-0.15,-0.68),(0.05,-0.64),(-0.55,-0.2),(0.5,-0.25)]:
-        bx=C+tx*dr; by=C+ty*dr
-        sd.polygon([(bx,by-22*scale),(bx-11*scale,by+6*scale),(bx+11*scale,by+6*scale)],fill=(70,160,90,255))
-        sd.polygon([(bx,by-32*scale),(bx-8*scale,by-8*scale),(bx+8*scale,by-8*scale)],fill=(90,180,110,255))
-        sd.rectangle([bx-2*scale,by+4*scale,bx+2*scale,by+12*scale],fill=(120,80,50,255))
-    # Korean palace (roof) center-top of planet
-    px_,py_=C-0.02*dr, C-0.5*dr
-    sd.polygon([(px_-40*scale,py_),(px_+40*scale,py_),(px_+26*scale,py_-22*scale),(px_-26*scale,py_-22*scale)],
-               fill=(190,70,70,255))
-    sd.polygon([(px_-46*scale,py_+2*scale),(px_+46*scale,py_+2*scale),(px_+34*scale,py_-6*scale),(px_-34*scale,py_-6*scale)],
-               fill=(150,50,50,255))
-    sd.rectangle([px_-28*scale,py_,px_+28*scale,py_+26*scale],fill=(225,205,180,255))
-    for cxp in (-18,-6,6,18):
-        sd.rectangle([px_+cxp*scale-2*scale,py_+2*scale,px_+cxp*scale+2*scale,py_+24*scale],fill=(150,110,80,255))
-    # tower (N Seoul inspired) on right island
-    tx_,ty_=C+0.5*dr, C-0.22*dr
-    sd.rectangle([tx_-4*scale,ty_-60*scale,tx_+4*scale,ty_],fill=(200,200,210,255))
-    sd.ellipse([tx_-14*scale,ty_-78*scale,tx_+14*scale,ty_-52*scale],fill=(180,190,210,255))
-    sd.line([tx_,ty_-78*scale,tx_,ty_-104*scale],fill=(220,120,120,255),width=max(1,int(2*scale)))
-    # little rocket left
-    rx_,ry_=C-0.6*dr,C-0.25*dr
-    sd.ellipse([rx_-9*scale,ry_-24*scale,rx_+9*scale,ry_+12*scale],fill=(240,240,245,255))
-    sd.polygon([(rx_-9*scale,ry_+4*scale),(rx_-16*scale,ry_+16*scale),(rx_-3*scale,ry_+10*scale)],fill=(230,110,110,255))
-    sd.polygon([(rx_+9*scale,ry_+4*scale),(rx_+16*scale,ry_+16*scale),(rx_+3*scale,ry_+10*scale)],fill=(230,110,110,255))
-    sd.ellipse([rx_-4*scale,ry_-14*scale,rx_+4*scale,ry_-6*scale],fill=(120,190,230,255))
-    # sphere highlight
-    sd.ellipse([C-0.55*dr,C-0.6*dr,C-0.1*dr,C-0.2*dr],fill=(255,255,255,45))
-    img.alpha_composite(sp,(int(dcx-C),int(dcy-C)))
-    # contact shadow beneath diorama
-    sh=Image.new("RGBA",(int(dr*2.4),int(dr*0.5)),(0,0,0,0))
-    ImageDraw.Draw(sh).ellipse([0,0,dr*2.4,dr*0.5],fill=(0,0,0,90))
-    sh=sh.filter(ImageFilter.GaussianBlur(18))
-    img.alpha_composite(sh,(int(dcx-dr*1.2),int(dcy+dr*0.85)))
-
+    # 5) 중앙 히어로 자리 (실제 캐릭터+행성은 hero-diorama 에셋이 담당) — 은은한 glow만
+    paste_glow(img, w*0.5, h*0.46, 520*scale, (255,238,200), 0.30)
+    paste_glow(img, w*0.5, h*0.52, 360*scale, (180,150,230), 0.20)
     # 6) vignette edges
     vg=Image.new("L",(w,h),0); vd=ImageDraw.Draw(vg)
     vd.ellipse([-w*0.25,-h*0.15,w*1.25,h*1.15],fill=255)

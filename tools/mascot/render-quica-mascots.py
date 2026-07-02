@@ -22,8 +22,8 @@ def h2c(h):
     h=h.lstrip("#"); return tuple(int(h[i:i+2],16)/255 for i in (0,2,4))
 
 C = dict(
-    A_fur=h2c("#B9783C"), A_hi=h2c("#D0925A"), A_sh=h2c("#A86532"),
-    B_fur=h2c("#D8A85C"), B_hi=h2c("#ECC378"), B_sh=h2c("#C9934B"),
+    A_fur=h2c("#B47338"), A_hi=h2c("#CE8C4E"), A_sh=h2c("#8A551F"),
+    B_fur=h2c("#D6A24E"), B_hi=h2c("#E8BE72"), B_sh=h2c("#B07C34"),
     belly=h2c("#FFE8BD"), muzzle=h2c("#FFF0D5"), ear_in=h2c("#F5AFA8"),
     cheek=h2c("#FF8FA3"),
     eye_w=h2c("#FBFAF7"), eye_ir=h2c("#4A2A16"), eye_pu=h2c("#160A04"),
@@ -295,7 +295,7 @@ def build_partner(ox=0.0):
     msch=M("Bsch",C["scarf_hi"],rough=0.74)
     # loop around neck
     o.append(tor("Bscloop",(ox,-0.02,0.86),(1.0,0.95,0.6),
-                 (math.radians(82),0,0),msc,maj=0.32,mn=0.085))
+                 (math.radians(82),0,0),msc,maj=0.34,mn=0.115))
     # front knot
     o.append(sph("Bknot",(ox+0.03,-0.34,0.82),(0.12,0.09,0.11),mscd))
     o.append(sph("Bknot2",(ox+0.03,-0.38,0.81),(0.085,0.06,0.075),msch))
@@ -345,7 +345,7 @@ def setup_lights():
     area("Key", 1300,(1.00,0.94,0.82),(-3,-6, 5),(58,0,-28))
     area("Fill", 380,(0.74,0.83,1.00),( 4,-4, 3),(65,0, 40))
     area("Rim",  620,(1.00,0.96,0.88),( 0, 6, 4),(35,0,  0))
-    area("FaceFill",650,(1.0,0.97,0.92),(0,-7,1.4),(90,0,0),size=4.5)  # direct face fill
+    area("FaceFill",470,(1.0,0.96,0.90),(0,-7,1.4),(90,0,0),size=4.5)  # direct face fill
 
 def add_cam(scale,loc,target):
     sc=bpy.context.scene

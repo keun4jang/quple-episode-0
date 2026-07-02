@@ -6,7 +6,7 @@ var _star_meshes: Array = []
 var _star_phases: Array = []
 
 const POSTER_PATH    := "res://assets/splash/splash-poster-no-text.png"
-const COUPLE_3D_PATH := "res://assets/mascots/quica-couple-splash.png"
+const COUPLE_3D_PATH := "res://assets/mascots/quica-hero-diorama.png"
 
 func _ready() -> void:
 	_build_bg_stars()
@@ -99,16 +99,15 @@ func _inject_mascot_couple() -> void:
 		return
 	var tex = ImageTexture.create_from_image(img)
 
-	# 컨테이너: 디오라마 위(중앙)에 배치 — 하단 카피/버튼을 가리지 않음
+	# 히어로 디오라마: 캐릭터+행성 통합 에셋을 중앙 히어로로 배치 (y13~70%)
 	var wrap = Control.new()
 	wrap.name = "MascotCoupleWrap"
 	wrap.anchor_left = 0.5; wrap.anchor_right = 0.5
-	wrap.anchor_top = 0.5;  wrap.anchor_bottom = 0.5
-	# 화면 중앙(y50%) 기준으로 캐릭터를 y37~66% 영역에 배치
-	wrap.set_offset(SIDE_LEFT,  -400)
-	wrap.set_offset(SIDE_RIGHT,  400)
-	wrap.set_offset(SIDE_TOP,   -250)
-	wrap.set_offset(SIDE_BOTTOM, 310)
+	wrap.anchor_top = 0.105; wrap.anchor_bottom = 0.63
+	wrap.set_offset(SIDE_LEFT,  -440)
+	wrap.set_offset(SIDE_RIGHT,  440)
+	wrap.set_offset(SIDE_TOP,    0)
+	wrap.set_offset(SIDE_BOTTOM, 0)
 	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# 1) 캐릭터 뒤 은은한 halo (방사형 밝은 원)
@@ -126,21 +125,9 @@ func _inject_mascot_couple() -> void:
 	halo.modulate.a = 0.85
 	wrap.add_child(halo)
 
-	# 2) 행성 접지 그림자 (하단 타원)
-	var shadow = TextureRect.new()
-	shadow.name = "ContactShadow"
-	shadow.texture = _make_radial_glow(128, Color(0.0, 0.0, 0.02, 0.65))
-	shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	shadow.stretch_mode = TextureRect.STRETCH_SCALE
-	shadow.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	shadow.set_offset(SIDE_LEFT,  120)
-	shadow.set_offset(SIDE_RIGHT, -120)
-	shadow.set_offset(SIDE_TOP,   -120)
-	shadow.set_offset(SIDE_BOTTOM, 30)
-	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_child(shadow)
+	# (접지 그림자는 히어로 디오라마 에셋에 이미 렌더됨)
 
-	# 3) 캐릭터 본체
+	# 3) 히어로 본체 (캐릭터+행성 통합)
 	var rect = TextureRect.new()
 	rect.name = "MascotCouple3D"
 	rect.texture = tex
