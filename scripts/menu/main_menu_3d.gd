@@ -11,7 +11,10 @@ const COUPLE_3D_PATH := "res://assets/mascots/quica-hero-diorama.png"
 func _ready() -> void:
 	_build_bg_stars()
 	_inject_poster_background()
-	_inject_mascot_couple()
+	# 캐릭터+디오라마는 no-text 포스터 에셋에 포함(구조: 포스터 우선 + 코드 UI).
+	# Blender 히어로 런타임 오버레이는 디버그용으로만 유지.
+	if OS.get_environment("QUPLE_DEBUG_HERO") != "":
+		_inject_mascot_couple()
 
 	var cont = $UILayer/Control/VBox/ContinueBtn
 	cont.disabled = not FileAccess.file_exists("user://save.cfg")

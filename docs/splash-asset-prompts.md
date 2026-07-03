@@ -27,3 +27,36 @@ tower, rocket, palm trees, pastel 3D clay style. (현재 포스터에 내장 생
 ## D. 파스텔 우주 배경만
 Vertical 9:16 pastel cosmic galaxy background, no text, dreamy blue lavender pink mint nebula, soft stars,
 cute planets, gentle glow, empty safe zones top/bottom.
+
+---
+
+## 최종 포스터 프롬프트 (canonical, no-text)
+
+**Positive:**
+```
+Vertical 9:16 premium mobile casual game title splash illustration, no text, no logo, no letters,
+empty space at the top for Korean title UI, empty space at the bottom for game buttons, two adorable
+quokka-like bear couple mascots traveling together, warm caramel and honey cream fur, round ears, big
+glossy eyes, small black noses, soft cream muzzle, rosy cheeks, happy friendly expressions, cute travel
+outfits, small backpacks, camera, scarf, travel pouch, ticket, standing on a tiny floating world diorama
+planet, green grass island, blue ocean, small river, tiny forest, miniature Korean palace building, N
+Seoul Tower inspired landmark, tiny Eiffel-like tower, small beach, palm trees, tiny houses, cute rocket,
+pastel galaxy sky, dreamy stars, glowing planets, magical sparkles, healing travel adventure mood, premium
+casual mobile game splash art, high-end 3D clay render, toy diorama, rounded shapes, cinematic warm
+lighting, soft global illumination, polished commercial game art, detailed but clean composition, cute and
+cozy, colorful pastel blue lavender peach mint cream palette, depth, volumetric glow, magical atmosphere
+```
+
+**Negative:**
+```
+text, letters, Korean letters, logo, watermark, signature, UI, button, menu, unreadable signs, bad
+typography, low quality, blurry, flat vector, cheap 3D, primitive shapes, simple blue ball, plain sphere,
+harsh shadows, horror, scary, creepy, realistic aggressive fur, deformed face, extra limbs, extra fingers,
+bad eyes, crossed eyes, cropped head, cropped body, cluttered composition, muddy colors, gray background,
+alien antenna, insect antenna
+```
+
+**설정:** 9:16, 1024x1792 또는 1080x1920, steps 28~40, CFG 5~7, 후보 4장+, seed 기록, WebP 변환.
+텍스트가 포함된 후보는 폐기. 상단/하단 UI 세이프존 확인.
+
+생성 후 적용: `python3 tools/splash/import-splash-art.py --file <best>.png`

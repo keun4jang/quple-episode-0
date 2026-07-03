@@ -1,25 +1,24 @@
 {
-  "version": "1.0",
-  "generatedAt": "2026-07-02",
-  "generator": "tools/splash/generate-splash-assets.py (PIL)",
+  "version": "2.0",
+  "generatedAt": "2026-07-03",
+  "generator": "compose-splash-poster.py (cosmic PIL + Blender hero)",
   "seed": 20260702,
   "poster": {
     "path": "res://assets/splash/splash-poster-no-text.png",
     "exists": true,
-    "size_bytes": 324948,
+    "size_bytes": 813799,
     "width": 1080,
-    "height": 1920,
-    "hasText": false
+    "height": 1920
   },
   "posterWebp": {
     "path": "res://assets/splash/splash-poster-no-text.webp",
     "exists": true,
-    "size_bytes": 41480
+    "size_bytes": 65042
   },
   "poster2x": {
     "path": "res://assets/splash/splash-poster-no-text@2x.webp",
     "exists": true,
-    "size_bytes": 58924
+    "size_bytes": 92406
   },
   "poster720": {
     "path": "res://assets/splash/splash-poster-no-text@720.webp",
@@ -57,5 +56,25 @@
     "scene": "res://scenes/menu/MainMenu3D.tscn",
     "script": "res://scripts/menu/main_menu_3d.gd",
     "loader": "Image.load_from_file (bypasses .import)"
-  }
+  },
+  "source": "composed-interim",
+  "isInterim": true,
+  "hasText": false,
+  "focalPoint": [
+    0.5,
+    0.42
+  ],
+  "structure": "poster-first: 단일 no-text 포스터 full-cover + 코드 UI(로고/카피/버튼/프레임)",
+  "posterMobile": {
+    "path": "res://assets/splash/splash-poster-mobile.webp",
+    "exists": true,
+    "size_bytes": 37380
+  },
+  "fallback": {
+    "path": "res://assets/splash/fallback-splash-poster.svg",
+    "exists": false,
+    "size_bytes": 0
+  },
+  "productionRecommendation": "현재 포스터는 Blender clay 캐릭터 합성 인터림. 레퍼런스급을 원하면 AI(no-text) 포스터를 assets/splash/splash-poster-no-text.png 로 교체하거나 SPLASH_ART_URL='<url>' python3 tools/splash/import-splash-art.py 실행.",
+  "blenderAssets": "debug/fallback only — assets/mascots/quica-hero-diorama.png (QUPLE_DEBUG_HERO=1 로 런타임 오버레이)"
 }
