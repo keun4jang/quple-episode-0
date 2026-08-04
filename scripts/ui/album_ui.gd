@@ -26,7 +26,7 @@ func _ready() -> void:
 	visible = false
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("key_album"):
+	if event.is_action_pressed("album"):
 		if visible:
 			visible = false
 		else:
@@ -38,10 +38,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	var unlocked = _get_unlocked()
 	if unlocked.size() == 0:
 		return
-	if event.is_action_pressed("ui_left"):
+	if event.is_action_pressed("move_left"):
 		_current_page = max(0, _current_page - 1)
 		_show_page(unlocked)
-	elif event.is_action_pressed("ui_right"):
+	elif event.is_action_pressed("move_right"):
 		_current_page = min(unlocked.size() - 1, _current_page + 1)
 		_show_page(unlocked)
 

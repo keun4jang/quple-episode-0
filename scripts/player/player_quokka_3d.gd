@@ -139,12 +139,12 @@ func _animate_blink(delta: float) -> void:
 
 func _get_input_dir() -> Vector3:
 	var v := Vector3.ZERO
-	v.x = Input.get_action_strength("ui_right") - Input.get_action_strength("ui_left")
-	v.z = Input.get_action_strength("ui_down") - Input.get_action_strength("ui_up")
+	v.x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
+	v.z = Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
 	return v.normalized()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_accept"):
+	if event.is_action_pressed("interact"):
 		_cache_ui()
 		if dialogue_box != null and dialogue_box.is_open():
 			dialogue_box.hide_box()

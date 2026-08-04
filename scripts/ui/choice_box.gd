@@ -39,13 +39,13 @@ func _animate_button(btn: Button, delay: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
-	if event.is_action_pressed("ui_up") or event.is_action_pressed("ui_left"):
+	if event.is_action_pressed("move_up") or event.is_action_pressed("move_left"):
 		_selected = 0
 		_update_highlight()
-	elif event.is_action_pressed("ui_down") or event.is_action_pressed("ui_right"):
+	elif event.is_action_pressed("move_down") or event.is_action_pressed("move_right"):
 		_selected = 1
 		_update_highlight()
-	elif event.is_action_pressed("ui_accept"):
+	elif event.is_action_pressed("interact"):
 		_on_choice(_selected)
 
 func _update_highlight() -> void:

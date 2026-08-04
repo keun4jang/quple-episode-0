@@ -52,7 +52,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
 	# 스페이스/엔터로 타자기 스킵
-	if event.is_action_pressed("ui_accept"):
+	if event.is_action_pressed("interact"):
 		if _typewriter_active:
 			# 전체 텍스트 즉시 표시
 			label.text = _typewriter_text
