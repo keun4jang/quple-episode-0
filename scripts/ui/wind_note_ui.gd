@@ -11,7 +11,14 @@ var _objective: String = "쿼카전자 안으로 들어가기"
 func _ready() -> void:
 	add_to_group("wind_note")
 	full.visible = false
+	# 스토리 상태가 바뀌면 목표를 자동으로 갱신한다
+	if not Episode0State.state_changed.is_connected(_on_state_changed):
+		Episode0State.state_changed.connect(_on_state_changed)
+	_objective = Episode0State.get_objective()
 	_refresh()
+
+func _on_state_changed(_new_state: int) -> void:
+	set_objective(Episode0State.get_objective())
 
 func set_objective(text: String) -> void:
 	_objective = text

@@ -5,20 +5,40 @@ extends Node
 enum State {
 	START = 0,
 	ENTER_COMPANY = 1,
-	TALK_PARTNER = 2,
-	EAVESDROP_BOSS = 3,
+	FIND_PARTNER = 2,
+	TALK_PARTNER = 3,
 	CHOICE_WAIT = 4,
-	COLLECT_TRAVEL_ITEMS = 5,
-	FIND_PARTNER = 6,
-	RETURN_BADGE = 7,
-	RETURN_TO_PARTNER = 8,
+	EAVESDROP_BOSS = 5,
+	RETURN_TO_PARTNER = 6,
+	COLLECT_TRAVEL_ITEMS = 7,
+	RETURN_BADGE = 8,
 	PARTNER_JOINED = 9,
-	LEAVE_COMPANY = 10,
-	FIRST_PHOTO = 11,
-	EPISODE0_CLEARED = 12,
+	FIRST_PHOTO = 10,
+	ALBUM_CREATED = 11,
+	CLEAR = 12,
 }
 
 signal state_changed(new_state: int)
+
+## 상태별 바람 노트 목표
+const OBJECTIVES := {
+	State.START: "쿼카전자 안으로 들어가기",
+	State.ENTER_COMPANY: "쿼카전자 안으로 들어가기",
+	State.FIND_PARTNER: "사무실에서 애인 찾기",
+	State.TALK_PARTNER: "애인과 이야기하기",
+	State.CHOICE_WAIT: "애인과 이야기하기",
+	State.EAVESDROP_BOSS: "대표실 앞에서 들어보기",
+	State.RETURN_TO_PARTNER: "애인에게 돌아가기",
+	State.COLLECT_TRAVEL_ITEMS: "여행 물품 3가지 챙기기",
+	State.RETURN_BADGE: "로비에서 사원증 반납하기",
+	State.PARTNER_JOINED: "둘이 함께 회사 밖으로 나가기",
+	State.FIRST_PHOTO: "회사 앞에서 첫 사진 찍기 (F)",
+	State.ALBUM_CREATED: "앨범 확인하기 (B)",
+	State.CLEAR: "0편 완료",
+}
+
+func get_objective() -> String:
+	return OBJECTIVES.get(current_state, "")
 
 var current_state: int = State.START
 
@@ -39,7 +59,9 @@ func advance_to(new_state: int) -> void:
 	current_state = new_state
 	if new_state >= State.FIRST_PHOTO:
 		first_photo_taken = true
-	if new_state >= State.EPISODE0_CLEARED:
+	if new_state >= State.ALBUM_CREATED:
+		album_created = true
+	if new_state >= State.CLEAR:
 		episode0_cleared = true
 	state_changed.emit(new_state)
 

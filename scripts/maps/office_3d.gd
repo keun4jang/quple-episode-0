@@ -16,6 +16,12 @@ func _ready() -> void:
 	if Episode0State.partner_joined:
 		partner.join_player()
 	$PartnerInteract.interacted.connect(talk_to_partner)
+	$CameraItemInteract.interacted.connect(_pick_camera)
+	$NotebookInteract.interacted.connect(_pick_notebook)
+	$TravelBagInteract.interacted.connect(_pick_bag)
+	$ToBossDoorInteract.interacted.connect(_go_boss_door)
+	$ToLobbyInteract.interacted.connect(_go_lobby)
+	_refresh_item_visibility()
 
 func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET
@@ -90,8 +96,33 @@ func _build_scene() -> void:
 	_box(self, Vector3(4, 1.5, -3.75), Vector3(1.0, 2.8, 0.05), "#3E6278", "BossGlass")
 	_box(self, Vector3(-4, 1.5, -3.9), Vector3(1.2, 3.0, 0.15), "#1E2733", "LobbyDoor")
 	_box(self, Vector3(-4, 1.5, -3.75), Vector3(1.0, 2.8, 0.05), "#3E6278", "LobbyGlass")
+	# 여행 물품 3가지 (아이템 책상 위)
+	_build_travel_items()
 	# 책상 소품 및 실내 디테일 추가
 	_add_desk_props()
+
+## 여행 물품 3가지를 아이템 책상 위에 놓는다
+func _build_travel_items() -> void:
+	# 1. 오래된 카메라
+	var cam := Node3D.new(); cam.name = "CameraItem"; cam.position = Vector3(1.3, 0.95, -2.0)
+	add_child(cam)
+	_box(cam, Vector3.ZERO, Vector3(0.26, 0.17, 0.14), "#1F2636", "CamBody")
+	_cylinder(cam, Vector3(0, 0, 0.09), 0.06, 0.06, "#0D1322", "CamLens")
+	_box(cam, Vector3(-0.08, 0.11, 0), Vector3(0.07, 0.05, 0.06), "#7488B8", "CamFlash")
+
+	# 2. 비어 있는 여행 수첩
+	var nb := Node3D.new(); nb.name = "NotebookItem"; nb.position = Vector3(2.0, 0.92, -2.0)
+	add_child(nb)
+	_box(nb, Vector3.ZERO, Vector3(0.24, 0.05, 0.30), "#C9934B", "NbCover")
+	_box(nb, Vector3(0, 0.03, 0), Vector3(0.21, 0.02, 0.27), "#F8EAC8", "NbPages")
+	_box(nb, Vector3(-0.09, 0.04, 0), Vector3(0.02, 0.03, 0.28), "#8A5C2E", "NbSpine")
+
+	# 3. 작은 여행 가방
+	var bag := Node3D.new(); bag.name = "TravelBagItem"; bag.position = Vector3(2.7, 1.02, -2.0)
+	add_child(bag)
+	_box(bag, Vector3.ZERO, Vector3(0.32, 0.26, 0.18), "#B17A3E", "BagBody")
+	_box(bag, Vector3(0, 0.15, 0), Vector3(0.10, 0.05, 0.04), "#8A5C2E", "BagHandle")
+	_box(bag, Vector3(0, 0.02, 0.10), Vector3(0.30, 0.04, 0.02), "#E8C868", "BagStrap")
 
 func _add_desk_props() -> void:
 	# ─── 커피컵 ───
@@ -202,3 +233,62 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: Strin
 	var mesh = BoxMesh.new(); mesh.size = size; mi.mesh = mesh
 	var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.9
 	mi.material_override = mat; mi.position = pos; parent.add_child(mi); return mi
+
+
+# ── 여행 물품 3가지 ──
+func _pick_camera() -> void:
+	if not _can_collect(): return
+	Episode0State.has_camera = true
+	dialogue_box.show_text("오래된 카메라를 챙겼어요.")
+	_after_collect()
+
+func _pick_notebook() -> void:
+	if not _can_collect(): return
+	Episode0State.has_notebook = true
+	dialogue_box.show_text("비어 있는 여행 수첩을 챙겼어요. 앞으로 채워나가면 돼요.")
+	_after_collect()
+
+func _pick_bag() -> void:
+	if not _can_collect(): return
+	Episode0State.has_travel_bag = true
+	dialogue_box.show_text("작은 여행 가방을 챙겼어요.")
+	_after_collect()
+
+func _can_collect() -> bool:
+	if Episode0State.current_state < Episode0State.State.COLLECT_TRAVEL_ITEMS:
+		dialogue_box.show_text("아직은 챙길 때가 아니에요.")
+		return false
+	return true
+
+func _after_collect() -> void:
+	_refresh_item_visibility()
+	if Episode0State.all_items_collected():
+		await get_tree().create_timer(1.6).timeout
+		dialogue_box.show_text("세 가지를 다 챙겼어요. 애인에게 말을 걸어보세요.")
+
+## 이미 챙긴 물품은 책상에서 사라진다
+func _refresh_item_visibility() -> void:
+	var map := {
+		"CameraItem": Episode0State.has_camera,
+		"NotebookItem": Episode0State.has_notebook,
+		"TravelBagItem": Episode0State.has_travel_bag,
+	}
+	for item_name in map.keys():
+		var mi := get_node_or_null(item_name)
+		if mi: mi.visible = not map[item_name]
+	for area_name in ["CameraItemInteract", "NotebookInteract", "TravelBagInteract"]:
+		var a := get_node_or_null(area_name)
+		if a == null: continue
+		var taken := false
+		match area_name:
+			"CameraItemInteract": taken = Episode0State.has_camera
+			"NotebookInteract": taken = Episode0State.has_notebook
+			"TravelBagInteract": taken = Episode0State.has_travel_bag
+		a.visible = not taken
+		a.monitoring = not taken
+
+func _go_boss_door() -> void:
+	SceneTransition.go_to("res://scenes/maps/BossDoorHallway3D.tscn", "tense")
+
+func _go_lobby() -> void:
+	SceneTransition.go_to("res://scenes/maps/CompanyLobby3D.tscn")

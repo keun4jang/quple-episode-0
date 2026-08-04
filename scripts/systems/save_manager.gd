@@ -4,6 +4,27 @@ extends Node
 
 const SAVE_PATH := "user://save.cfg"
 
+signal game_saved
+
+## 0편 자동 저장. 플레이어 위치까지 함께 남긴다.
+func autosave(current_scene: String, player_pos: Vector3 = Vector3.ZERO) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	cfg.set_value("game", "version", 1)
+	cfg.set_value("game", "saved_at", int(Time.get_unix_time_from_system()))
+	cfg.set_value("game", "current_scene", current_scene)
+	cfg.set_value("game", "player_position", player_pos)
+	cfg.set_value("episode0", "data", Episode0State.to_dict())
+	cfg.set_value("travel", "data", TravelState.to_dict())
+	cfg.save(SAVE_PATH)
+	game_saved.emit()
+
+func get_player_position() -> Vector3:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return Vector3.ZERO
+	return cfg.get_value("game", "player_position", Vector3.ZERO)
+
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 

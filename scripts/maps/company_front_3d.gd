@@ -16,10 +16,17 @@ func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")
 	$EntranceInteract.interacted.connect(_enter_company)
+	$PhotoSpot.interacted.connect(_try_photo)
+	_setup_photo_stage()
 	if Episode0State.current_state == Episode0State.State.START:
 		_show_opening()
 	elif Episode0State.current_state == Episode0State.State.PARTNER_JOINED:
 		Episode0State.advance_to(Episode0State.State.FIRST_PHOTO)
+		_spawn_partner()
+		await get_tree().create_timer(0.8).timeout
+		dialogue_box.show_text("애인: \"오늘이 그 언젠가야.\"")
+		await get_tree().create_timer(2.4).timeout
+		dialogue_box.show_text("빛나는 자리에 서서 F 를 눌러 첫 사진을 찍어요.")
 
 func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET
@@ -31,6 +38,13 @@ func _process(delta: float) -> void:
 	warm_window_light.light_energy = 1.0 + breathe * 0.06
 	if _lit_window and _lit_window.material_override:
 		_lit_window.material_override.emission_energy_multiplier = 2.2 + breathe * 0.25
+	# 사진 지점 반짝임
+	if _photo_ring and _photo_ring.visible:
+		_photo_t += delta
+		_photo_ring.scale = Vector3.ONE * (1.0 + sin(_photo_t * 2.0) * 0.05)
+		for i in range(_photo_sparks.size()):
+			var sp: MeshInstance3D = _photo_sparks[i]
+			if sp: sp.position.y = 0.55 + sin(_photo_t * 2.4 + float(i)) * 0.12
 
 func _show_opening() -> void:
 	await get_tree().create_timer(0.8).timeout
@@ -211,3 +225,100 @@ func _sphere_mi(parent: Node3D, pos: Vector3, radius: float, hex: String, label:
 
 func _enter_company() -> void:
 	SceneTransition.go_to("res://scenes/maps/CompanyLobby3D.tscn")
+
+
+# ── 첫 사진 지점 ──
+var _photo_ring: MeshInstance3D = null
+var _photo_sparks: Array = []
+var _photo_t: float = 0.0
+var _photo_done: bool = false
+
+func _setup_photo_stage() -> void:
+	var active := Episode0State.current_state >= Episode0State.State.FIRST_PHOTO \
+		and not Episode0State.first_photo_taken
+	# 바닥의 노란 원형 빛
+	_photo_ring = _cylinder(self, Vector3(0, 0.02, 1.4), 0.95, 0.02, "#FFD76D", "PhotoRing")
+	var rm := StandardMaterial3D.new()
+	rm.albedo_color = Color(1, 0.843, 0.427, 0.55)
+	rm.emission_enabled = true
+	rm.emission = Color("#FFD76D")
+	rm.emission_energy_multiplier = 1.6
+	rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_photo_ring.material_override = rm
+	# 주변 반짝임
+	for i in range(8):
+		var a := TAU * float(i) / 8.0
+		var sp := _sphere_mi(self, Vector3(cos(a) * 1.15, 0.55, 1.4 + sin(a) * 1.15), 0.055, "#FFE7A8", "PhotoSpark%d" % i)
+		var sm := StandardMaterial3D.new()
+		sm.albedo_color = Color("#FFE7A8")
+		sm.emission_enabled = true
+		sm.emission = Color("#FFE7A8")
+		sm.emission_energy_multiplier = 2.4
+		sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		sp.material_override = sm
+		_photo_sparks.append(sp)
+	_set_photo_stage_visible(active)
+
+func _set_photo_stage_visible(v: bool) -> void:
+	if _photo_ring: _photo_ring.visible = v
+	for sp in _photo_sparks: sp.visible = v
+
+## 합류한 애인을 회사 앞에 세운다
+func _spawn_partner() -> void:
+	if has_node("PartnerQuokka3D"): return
+	var ps := load("res://scenes/characters/PartnerQuokka3D.tscn") as PackedScene
+	if ps == null: return
+	var partner = ps.instantiate()
+	partner.name = "PartnerQuokka3D"
+	partner.position = player.position + Vector3(1.1, 0, 0.3)
+	add_child(partner)
+	if partner.has_method("join_player"): partner.join_player()
+	if partner.has_method("set_emotion"): partner.set_emotion("happy")
+	_set_photo_stage_visible(true)
+
+## F 로 첫 사진 찍기
+func _try_photo() -> void:
+	pass
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("photo"): return
+	if _photo_done: return
+	if Episode0State.current_state < Episode0State.State.FIRST_PHOTO: return
+	if player.global_position.distance_to(Vector3(0, player.global_position.y, 1.4)) > 1.6:
+		dialogue_box.show_text("빛나는 자리로 가서 찍어보세요.")
+		return
+	get_viewport().set_input_as_handled()
+	_take_photo()
+
+func _take_photo() -> void:
+	_photo_done = true
+	Episode0State.first_photo_taken = true
+	# 0.2초 화면 플래시
+	var flash := ColorRect.new()
+	flash.color = Color(1, 1, 1, 0.9)
+	flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var cl := CanvasLayer.new(); cl.layer = 15
+	cl.add_child(flash); add_child(cl)
+	var tw := create_tween()
+	tw.tween_property(flash, "color", Color(1, 1, 1, 0.0), 0.2)
+	dialogue_box.show_text("찰칵!")
+	await get_tree().create_timer(0.9).timeout
+	cl.queue_free()
+	_set_photo_stage_visible(false)
+
+	# 앨범 첫 페이지 + 자동 저장
+	Episode0State.advance_to(Episode0State.State.ALBUM_CREATED)
+	dialogue_box.show_text("앨범의 첫 페이지가 생겼어요.")
+	await get_tree().create_timer(1.6).timeout
+	SaveManager.autosave("res://scenes/maps/CompanyFront3D.tscn", player.global_position)
+	dialogue_box.show_text("여행 기록 저장 완료")
+	await get_tree().create_timer(1.6).timeout
+	dialogue_box.hide_box()
+
+	# 0편 클리어
+	Episode0State.advance_to(Episode0State.State.CLEAR)
+	SaveManager.autosave("res://scenes/maps/CompanyFront3D.tscn", player.global_position)
+	var cs := load("res://scenes/ui/ClearScreen.tscn") as PackedScene
+	if cs: add_child(cs.instantiate())
