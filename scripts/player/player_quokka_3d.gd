@@ -104,7 +104,8 @@ func _animate(delta: float) -> void:
 		_step_accum += delta * _speed
 		if _step_accum >= 0.5:
 			_step_accum = 0.0
-			if AudioManager: AudioManager.footstep()
+			var _am := get_node_or_null("/root/AudioManager")
+			if _am and _am.has_method("footstep"): _am.footstep()
 		_idle_time = 0.0
 	else:
 		_idle_time += delta
