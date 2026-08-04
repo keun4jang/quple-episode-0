@@ -76,14 +76,20 @@
   "productionRecommendation": "AI 생성 no-text 포스터 적용 완료. 교체 시 tools/splash/import-splash-art.py 사용.",
   "blenderAssets": "debug/fallback only — assets/mascots/quica-hero-diorama.png (QUPLE_DEBUG_HERO=1 로 런타임 오버레이)",
   "importedFrom": "assets/splash/candidates/q_d.png",
-  "costCredits": 12,
+  "costCredits": 52,
   "costNote": "2 crd/장 x 6장(곰 2 + 쿼카 4)",
   "candidates": [
-    "ai_cand_1.png(곰-폐기)",
-    "ai_cand_2.png(곰-폐기)",
-    "q_b.png(쿼카,하단여백)",
-    "q_d.png(채택)"
+    "q_b.png(쿼카,하단 흰여백)",
+    "q_d.png(채택)",
+    "quokka_solo.png(3D 변환용 A-포즈)"
   ],
   "chosen": "q_d (쿼카 해부학 교정본, 풀블리드)",
-  "characterSpec": "QUOKKA (작은 캥거루과) — 뾰족한 주둥이, 수염, 작고 낮은 둥근 귀, 쿼카 미소(앞니), 굵은 꼬리, 캥거루 뒷다리. 곰 금지."
+  "characterSpec": "QUOKKA (작은 캥거루과) — 뾰족한 주둥이, 수염, 작고 낮은 둥근 귀, 쿼카 미소(앞니), 굵은 꼬리, 캥거루 뒷다리. 곰 금지.",
+  "rejectedAndDeleted": "ai_cand_1/2.png — 곰으로 생성되어 삭제(12MB 절감). 방지법은 docs/splash-asset-prompts.md 참조",
+  "costBreakdown": {
+    "곰 포스터 2장(폐기)": 4,
+    "쿼카 포스터 4장": 8,
+    "3D용 단독 캐릭터 1장": 2,
+    "3D 리깅+애니 변환 1개": 38
+  }
 }
