@@ -4,7 +4,7 @@
 ```
 Layer1  splash-poster-no-text.webp   ← 단일 고퀄 no-text 포스터 (full-cover)
 Layer2  프레임 / vignette / sparkle   ← 코드
-Layer3  "퀴풀" 3D 젤리 로고            ← 코드
+Layer3  "쿼플" 3D 젤리 로고            ← 코드
 Layer4  서브타이틀 / 하단 카피         ← 코드
 Layer5  버튼 (CTA/이어하기/설정/종료)  ← 코드
 ```

@@ -18,7 +18,7 @@
   },
   "characters": {
     "leader": {
-      "name": "퀴카 리더",
+      "name": "쿼카 리더",
       "color": "#B9783C",
       "accessories": [
         "green_cap",
@@ -55,7 +55,7 @@
       }
     },
     "partner": {
-      "name": "퀴카 파트너",
+      "name": "쿼카 파트너",
       "color": "#D8A85C",
       "accessories": [
         "pink_scarf",

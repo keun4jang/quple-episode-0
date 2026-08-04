@@ -1,0 +1,126 @@
+[gd_scene load_steps=3 format=3 uid="uid://bsettingsui01"]
+
+[ext_resource type="Script" path="res://scripts/ui/settings_ui.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="S1"]
+bg_color = Color(0.10, 0.08, 0.22, 0.97)
+corner_radius_top_left = 40
+corner_radius_top_right = 40
+corner_radius_bottom_right = 40
+corner_radius_bottom_left = 40
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 0.95, 0.80, 0.40)
+content_margin_left = 36.0
+content_margin_top = 36.0
+content_margin_right = 36.0
+content_margin_bottom = 36.0
+
+[node name="SettingsUI" type="CanvasLayer"]
+layer = 5
+script = ExtResource("1")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Shade" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.03, 0.02, 0.10, 0.72)
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -320.0
+offset_right = 400.0
+offset_bottom = 320.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("S1")
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+layout_mode = 2
+
+[node name="Body" type="VBoxContainer" parent="Root/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 26
+
+[node name="Title" type="Label" parent="Root/Panel/Margin/Body"]
+layout_mode = 2
+text = "설정"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 52
+theme_override_colors/font_color = Color(1, 0.95, 0.80, 1)
+
+[node name="BgmRow" type="HBoxContainer" parent="Root/Panel/Margin/Body"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Label" type="Label" parent="Root/Panel/Margin/Body/BgmRow"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "배경음"
+theme_override_font_sizes/font_size = 36
+theme_override_colors/font_color = Color(0.92, 0.90, 1.0, 1)
+
+[node name="Slider" type="HSlider" parent="Root/Panel/Margin/Body/BgmRow"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.05
+value = 0.8
+
+[node name="SfxRow" type="HBoxContainer" parent="Root/Panel/Margin/Body"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Label" type="Label" parent="Root/Panel/Margin/Body/SfxRow"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "효과음"
+theme_override_font_sizes/font_size = 36
+theme_override_colors/font_color = Color(0.92, 0.90, 1.0, 1)
+
+[node name="Slider" type="HSlider" parent="Root/Panel/Margin/Body/SfxRow"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.05
+value = 0.9
+
+[node name="ResetBtn" type="Button" parent="Root/Panel/Margin/Body"]
+custom_minimum_size = Vector2(0, 88)
+layout_mode = 2
+text = "기록 초기화"
+theme_override_font_sizes/font_size = 34
+
+[node name="ResetHint" type="Label" parent="Root/Panel/Margin/Body"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 26
+theme_override_colors/font_color = Color(1, 0.75, 0.75, 1)
+
+[node name="CloseBtn" type="Button" parent="Root/Panel/Margin/Body"]
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+text = "닫기"
+theme_override_font_sizes/font_size = 38

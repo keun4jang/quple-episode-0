@@ -1,4 +1,4 @@
-# 퀴카 3D 모델
+# 쿼카 3D 모델
 
 ## quica-leader-rigged.glb
 

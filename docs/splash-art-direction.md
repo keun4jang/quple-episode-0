@@ -1,11 +1,11 @@
-# 퀴풀 스플래시 아트 디렉션
+# 쿼플 스플래시 아트 디렉션
 
 > **구조 전환(v2): 포스터 우선(Poster-First)** — 캐릭터/디오라마/우주는 단일
 > no-text 포스터 이미지 한 장에 포함하고, 코드는 로고/카피/버튼/프레임 UI만 담당.
 > Blender 렌더는 debug/fallback 소스로 강등. 프로덕션 교체는 tools/splash/import-splash-art.py.
 
 ## 컨셉
-파스텔 우주 은하를 배경으로, 퀴카 커플이 작은 미니월드(디오라마 행성) 위에서 여행을 떠나는
+파스텔 우주 은하를 배경으로, 쿼카 커플이 작은 미니월드(디오라마 행성) 위에서 여행을 떠나는
 힐링 타이틀 화면. 상업용 모바일 캐주얼 게임 포스터 완성도 목표.
 
 ## 레이어 구조 (뒤 → 앞)
@@ -13,7 +13,7 @@
 2. 3D 앰비언트 별 (코드, Node3D)
 3. 3D 캐릭터 커플 (`quica-couple-splash.png`) + halo glow + contact shadow (코드)
 4. 크림/골드 라운드 프레임 3겹 (코드 Panel)
-5. 3D 젤리 한글 로고 "퀴풀" (코드, 7겹 Label)
+5. 3D 젤리 한글 로고 "쿼플" (코드, 7겹 Label)
 6. 서브타이틀 / 하단 카피 (코드 Label)
 7. 프리미엄 버튼 (코드 Button + StyleBoxFlat)
 8. 반짝임/별똥별 장식 (코드)
@@ -34,7 +34,7 @@
 | logo-dark-green | #2F7A4D |
 | shadow-purple | #30205F |
 
-## 로고 "퀴풀" 구조 (코드 렌더)
+## 로고 "쿼플" 구조 (코드 렌더)
 - 뒤: 진한 초록 back-shadow 5겹 (#24643F → #2F7A4D, 아래로 extrusion)
 - 본문: 크림 #FFF2C8, 초록 stroke #2F7A4D (outline 16)
 - 외곽: 보라 soft shadow rgba(40,20,80,0.55)

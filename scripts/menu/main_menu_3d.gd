@@ -17,7 +17,7 @@ func _ready() -> void:
 		_inject_mascot_couple()
 
 	var cont = $UILayer/Control/VBox/ContinueBtn
-	cont.disabled = not FileAccess.file_exists("user://save.cfg")
+	cont.disabled = not SaveManager.has_save()
 	$UILayer/Control/VBox/StartBtn.pressed.connect(_on_start)
 	cont.pressed.connect(_on_continue)
 	$UILayer/Control/SmallBtnRow/QuitBtn.pressed.connect(_on_quit)
@@ -176,13 +176,12 @@ func _on_start() -> void:
 	Episode0State.partner_joined = false; Episode0State.first_photo_taken = false
 	Episode0State.album_created = false; Episode0State.episode0_cleared = false
 	Episode0State.memos_found = []
-	SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn")
+	TravelState.reset()
+	SceneTransition.go_to("res://scenes/travel/TravelHub.tscn")
 
 func _on_continue() -> void:
 	SaveManager.load_game()
-	var cfg = ConfigFile.new(); cfg.load("user://save.cfg")
-	var scene = cfg.get_value("game", "current_scene", "res://scenes/maps/CompanyFront3D.tscn")
-	SceneTransition.go_to(scene)
+	SceneTransition.go_to(SaveManager.get_current_scene())
 
 func _on_quit() -> void:
 	get_tree().quit()
