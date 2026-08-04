@@ -15,6 +15,7 @@ var _lit_window: MeshInstance3D = null
 func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")
+	$EntranceInteract.interacted.connect(_enter_company)
 	if Episode0State.current_state == Episode0State.State.START:
 		_show_opening()
 	elif Episode0State.current_state == Episode0State.State.PARTNER_JOINED:
@@ -207,3 +208,6 @@ func _sphere_mi(parent: Node3D, pos: Vector3, radius: float, hex: String, label:
 	var mesh = SphereMesh.new(); mesh.radius = radius; mesh.height = radius * 2; mi.mesh = mesh
 	var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.9
 	mi.material_override = mat; mi.position = pos; parent.add_child(mi); return mi
+
+func _enter_company() -> void:
+	SceneTransition.go_to("res://scenes/maps/CompanyLobby3D.tscn")

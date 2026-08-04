@@ -1,0 +1,68 @@
+[gd_scene load_steps=8 format=3 uid="uid://bcompanylobby3d"]
+
+[ext_resource type="Script" path="res://scripts/maps/company_lobby_3d.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="3_dialogue"]
+[ext_resource type="Script" path="res://scripts/systems/interactable.gd" id="9_interact"]
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 1
+background_color = Color(0.0588235, 0.0745098, 0.113725, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.725490, 0.654902, 0.909804, 1)
+ambient_light_energy = 0.55
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.35
+glow_bloom = 0.12
+
+[sub_resource type="SphereShape3D" id="IS14"]
+radius = 1.4
+
+[node name="CompanyLobby3D" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 6, 0)
+light_color = Color(0.784314, 0.815686, 0.921569, 1)
+light_energy = 0.45
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.891007, 0.453990, 0, -0.453990, 0.891007, 0, 6.4, 8.6)
+fov = 55.0
+
+[node name="PlayerQuokka3D" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 0.1, 5.2)
+
+[node name="DialogueBox" parent="." instance=ExtResource("3_dialogue")]
+
+[node name="ToOfficeInteract" type="Area3D" parent="." groups=["interactable"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.8, 0, -6.0)
+script = ExtResource("9_interact")
+prompt_text = "엘리베이터 타기"
+indicator_height = 1.9
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ToOfficeInteract"]
+shape = SubResource("IS14")
+
+[node name="ToFrontInteract" type="Area3D" parent="." groups=["interactable"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 0, 6.0)
+script = ExtResource("9_interact")
+prompt_text = "밖으로 나가기"
+indicator_height = 1.7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ToFrontInteract"]
+shape = SubResource("IS14")
+
+[node name="BadgeBoxInteract" type="Area3D" parent="." groups=["interactable"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.9, 0, -1.6)
+script = ExtResource("9_interact")
+prompt_text = "사원증 반납하기"
+indicator_height = 1.5
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BadgeBoxInteract"]
+shape = SubResource("IS14")

@@ -6,8 +6,9 @@ extends Node3D
 @onready var choice_box = $ChoiceBox
 @onready var partner = $PartnerQuokka3D
 
-const CAM_OFFSET = Vector3(0, 6, 6)
+const CAM_OFFSET = Vector3(0, 5.0, 5.4)
 const CAM_LERP = 5.0
+const CAM_LOOK_OFFSET = Vector3(0, 1.0, -1.6)
 
 func _ready() -> void:
 	_build_scene()
@@ -19,7 +20,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET
 	camera.global_position = camera.global_position.lerp(target_pos, CAM_LERP * delta)
-	camera.look_at(player.global_position + Vector3(0, 0.5, 0), Vector3.UP)
+	camera.look_at(player.global_position + CAM_LOOK_OFFSET, Vector3.UP)
 
 func talk_to_partner() -> void:
 	if Episode0State.current_state == Episode0State.State.FIND_PARTNER:
@@ -66,7 +67,6 @@ func _build_scene() -> void:
 	_box(self, Vector3(-5.1, 2.5, 0), Vector3(0.2, 5, 8), "#2D3A4A", "WallLeft")
 	_box(self, Vector3(5.1, 2.5, 0), Vector3(0.2, 5, 8), "#2D3A4A", "WallRight")
 	_box(self, Vector3(0, 2.5, -4.1), Vector3(10, 5, 0.2), "#2D3A4A", "WallBack")
-	_box(self, Vector3(0, 5.1, 0), Vector3(10, 0.2, 8), "#1E2733", "Ceiling")
 	# 파트너 책상
 	_box(self, Vector3(-2, 0.4, -2), Vector3(2, 0.8, 1.2), "#43566A", "PartnerDesk")
 	_box(self, Vector3(-2, 0.85, -2), Vector3(2.2, 0.06, 1.3), "#2D3A4A", "PartnerDeskTop")
