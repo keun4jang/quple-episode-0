@@ -30,6 +30,16 @@ START → ENTER_COMPANY → FIND_PARTNER → TALK_PARTNER → CHOICE_WAIT
 7. 로비에서 사원증 반납 → 애인 합류(자세가 펴지고 밝아짐)
 8. 회사 앞 빛나는 자리에서 **F 로 첫 사진** → 앨범 첫 페이지 → 자동 저장 → 0편 클리어
 
+## 애인 동행
+
+사원증을 반납해 애인이 합류한 뒤에는 **모든 맵에서 함께 다닌다.**
+각 맵의 `_ready` 에서 `PartnerSpawner.ensure(self, player)` 한 줄이면 된다.
+(`scripts/systems/partner_spawner.gd`)
+
+- 2.0m 이상 멀어지면 따라오고, 1.2m 이하면 멈춘다
+- 5.0m 이상 멀어지면 부드럽게 위치를 보정한다
+- 합류 전에는 어깨와 귀가 처진 피곤한 자세, 합류 후에는 자세가 펴진다
+
 ## 맵
 
 | 씬 | 설명 |

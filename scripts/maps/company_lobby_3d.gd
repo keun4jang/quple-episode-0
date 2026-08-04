@@ -15,6 +15,7 @@ func _ready() -> void:
 	$ToOfficeInteract.interacted.connect(_go_office)
 	$ToFrontInteract.interacted.connect(_go_front)
 	$BadgeBoxInteract.interacted.connect(_return_badge)
+	PartnerSpawner.ensure(self, player)
 	if Episode0State.current_state == Episode0State.State.ENTER_COMPANY:
 		Episode0State.advance_to(Episode0State.State.FIND_PARTNER)
 		await get_tree().create_timer(0.5).timeout
@@ -40,7 +41,9 @@ func _return_badge() -> void:
 		return
 	Episode0State.badge_returned = true
 	dialogue_box.show_text("사원증을 반납했어요. 이제 정말 나가는 거예요.")
+	Episode0State.partner_joined = true
 	Episode0State.advance_to(Episode0State.State.PARTNER_JOINED)
+	PartnerSpawner.ensure(self, player)
 
 func _build_scene() -> void:
 	# 바닥 / 벽 / 천장
@@ -80,9 +83,10 @@ func _build_scene() -> void:
 	_box(self, Vector3(3.36, 1.45, -6.66), Vector3(1.0, 2.8, 0.06), "#43566A", "ElevDoorR")
 	_box(self, Vector3(2.8, 3.15, -6.66), Vector3(0.5, 0.16, 0.05), "#FFD76D", "ElevSign")
 
-	# 정문 (밖으로)
-	_box(self, Vector3(-4.6, 1.3, 6.6), Vector3(2.4, 2.6, 0.14), "#182533", "FrontDoor")
-	_box(self, Vector3(-4.6, 1.3, 6.5), Vector3(2.1, 2.3, 0.05), "#3E6278", "FrontGlass")
+	# 정문 (밖으로) — 왼쪽 벽에 두어 카메라 시야를 막지 않게 한다
+	_box(self, Vector3(-7.35, 1.3, 3.2), Vector3(0.16, 2.6, 2.4), "#182533", "FrontDoor")
+	_box(self, Vector3(-7.24, 1.3, 3.2), Vector3(0.05, 2.3, 2.1), "#3E6278", "FrontGlass")
+	_box(self, Vector3(-7.24, 2.85, 3.2), Vector3(0.05, 0.22, 1.0), "#FFD76D", "ExitSign")
 
 	# 사원증 반납함
 	_box(self, Vector3(4.9, 0.55, -2.2), Vector3(0.7, 1.1, 0.5), "#43566A", "BadgeBoxBody")

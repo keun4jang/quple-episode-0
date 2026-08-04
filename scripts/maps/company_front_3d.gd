@@ -17,6 +17,7 @@ func _ready() -> void:
 	player.add_to_group("player")
 	$EntranceInteract.interacted.connect(_enter_company)
 	$PhotoSpot.interacted.connect(_try_photo)
+	PartnerSpawner.ensure(self, player, Vector3(1.1, 0, 0.3))
 	_setup_photo_stage()
 	if Episode0State.current_state == Episode0State.State.START:
 		_show_opening()
@@ -267,15 +268,9 @@ func _set_photo_stage_visible(v: bool) -> void:
 
 ## 합류한 애인을 회사 앞에 세운다
 func _spawn_partner() -> void:
-	if has_node("PartnerQuokka3D"): return
-	var ps := load("res://scenes/characters/PartnerQuokka3D.tscn") as PackedScene
-	if ps == null: return
-	var partner = ps.instantiate()
-	partner.name = "PartnerQuokka3D"
-	partner.position = player.position + Vector3(1.1, 0, 0.3)
-	add_child(partner)
-	if partner.has_method("join_player"): partner.join_player()
-	if partner.has_method("set_emotion"): partner.set_emotion("happy")
+	var partner = PartnerSpawner.ensure(self, player, Vector3(1.1, 0, 0.3))
+	if partner and partner.has_method("set_emotion"):
+		partner.set_emotion("happy")
 	_set_photo_stage_visible(true)
 
 ## F 로 첫 사진 찍기

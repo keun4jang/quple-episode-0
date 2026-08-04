@@ -10,33 +10,72 @@ signal trip_started(dest_id: String)
 signal trip_arrived(souvenir: Dictionary)
 signal souvenir_collected(souvenir: Dictionary)
 
-## 여행지. duration_sec 는 개발 중 짧게, 출시 시 늘린다.
+## 개발 중에는 여행이 금방 끝나야 확인이 쉽다.
+## QUPLE_FAST_TRAVEL=1 이면 초 단위, 아니면 출시용 시간을 쓴다.
+static func _is_fast() -> bool:
+	return OS.get_environment("QUPLE_FAST_TRAVEL") != ""
+
+## 여행지 (해금 조건 포함)
+##   unlock_dest / unlock_count : 그 여행지를 N번 다녀와야 열린다
 const DESTINATIONS: Array[Dictionary] = [
 	{
 		"id": "seoul",
 		"name": "서울",
 		"tagline": "익숙한 골목에서 새로 발견하는 것들",
 		"emoji": "🏯",
-		"duration_sec": 60,
+		"duration_sec": 1800,      # 30분
+		"fast_sec": 20,
 		"tint": Color(0.55, 0.78, 0.55),
+		"unlock_dest": "",
+		"unlock_count": 0,
 	},
 	{
 		"id": "paris",
 		"name": "파리",
 		"tagline": "처음 보는 하늘빛과 빵 냄새",
 		"emoji": "🗼",
-		"duration_sec": 180,
+		"duration_sec": 7200,      # 2시간
+		"fast_sec": 40,
 		"tint": Color(0.85, 0.70, 0.90),
+		"unlock_dest": "seoul",
+		"unlock_count": 3,
 	},
 	{
 		"id": "moon",
 		"name": "달",
 		"tagline": "둘만 아는 조용한 곳",
 		"emoji": "🌙",
-		"duration_sec": 300,
+		"duration_sec": 21600,     # 6시간
+		"fast_sec": 60,
 		"tint": Color(0.65, 0.72, 0.95),
+		"unlock_dest": "paris",
+		"unlock_count": 2,
 	},
 ]
+
+## 실제 적용될 소요 시간
+func duration_of(d: Dictionary) -> int:
+	return int(d.get("fast_sec", 20)) if _is_fast() else int(d.get("duration_sec", 1800))
+
+## 해금 여부
+func is_unlocked(dest_id: String) -> bool:
+	var d := get_destination(dest_id)
+	if d.is_empty():
+		return false
+	var req: String = d.get("unlock_dest", "")
+	if req == "":
+		return true
+	return visit_count(req) >= int(d.get("unlock_count", 0))
+
+## 해금까지 남은 횟수 안내
+func unlock_hint(dest_id: String) -> String:
+	var d := get_destination(dest_id)
+	if d.is_empty() or is_unlocked(dest_id):
+		return ""
+	var req: String = d.get("unlock_dest", "")
+	var need := int(d.get("unlock_count", 0)) - visit_count(req)
+	var req_name: String = get_destination(req).get("name", req)
+	return "%s 여행 %d번 더 다녀오면 열려요" % [req_name, maxi(0, need)]
 
 ## 여행지별 기념품(사진 + 일기). 방문할 때마다 순서대로 하나씩 열린다.
 const SOUVENIRS: Dictionary = {
@@ -120,11 +159,13 @@ func start_trip(dest_id: String) -> bool:
 	var d := get_destination(dest_id)
 	if d.is_empty():
 		return false
+	if not is_unlocked(dest_id):
+		return false
 	var now := _now()
 	trip = {
 		"dest_id": dest_id,
 		"depart_at": now,
-		"arrive_at": now + int(d.duration_sec),
+		"arrive_at": now + duration_of(d),
 	}
 	trip_started.emit(dest_id)
 	SaveManager.save_game()
@@ -140,11 +181,29 @@ func collect_arrival() -> Dictionary:
 	var souvenir := _pick_souvenir(dest_id)
 	souvenir["dest_id"] = dest_id
 	souvenir["collected_at"] = _now()
+	# 0편에서 챙긴 물건에 따라 기록의 내용이 달라진다
+	if not _has_item("camera"):
+		souvenir["photo"] = "📭"
+		souvenir["title"] = "[ 사진 없음 ]"
+	if not _has_item("notebook"):
+		souvenir["diary"] = "적어둘 수첩이 없어서\n기억으로만 남았다."
 	collection.append(souvenir)
 	trip = {}
 	souvenir_collected.emit(souvenir)
 	SaveManager.save_game()
 	return souvenir
+
+## 0편에서 챙긴 물건이 여행 기록에 반영된다.
+##   카메라 없으면 사진이 없고, 수첩 없으면 일기가 없다.
+func _has_item(item: String) -> bool:
+	var st := get_node_or_null("/root/Episode0State")
+	if st == null:
+		return true   # 0편을 건너뛴 경우엔 제한하지 않는다
+	match item:
+		"camera": return st.has_camera
+		"notebook": return st.has_notebook
+		"bag": return st.has_travel_bag
+	return true
 
 func _pick_souvenir(dest_id: String) -> Dictionary:
 	var pool: Array = SOUVENIRS.get(dest_id, [])

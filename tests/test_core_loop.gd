@@ -11,6 +11,10 @@ func ck(name: String, cond: bool, extra := "") -> void:
 func _ready() -> void:
 	print("=== 쿼플 코어 루프 테스트 ===")
 	SaveManager.clear_save()
+	# 0편을 마친 플레이어를 가정한다 (여행 물품 3개 보유)
+	Episode0State.has_camera = true
+	Episode0State.has_notebook = true
+	Episode0State.has_travel_bag = true
 
 	print("\n[1] 초기 상태")
 	ck("여행 중 아님", not TravelState.is_traveling())
@@ -66,14 +70,63 @@ func _ready() -> void:
 	ck("서울 방문 2회", TravelState.visit_count("seoul") == 2)
 
 	print("\n[7] 진행 중 저장 후 복원 (앱 강제 종료 시나리오)")
-	TravelState.start_trip("moon")
+	TravelState.start_trip("seoul")
 	var arrive_at: int = TravelState.trip.get("arrive_at", 0)
 	SaveManager.save_game()
 	TravelState.reset()
 	SaveManager.load_game()
 	ck("여행이 복원됨", TravelState.is_traveling())
 	ck("도착 시각 보존", int(TravelState.trip.get("arrive_at", 0)) == arrive_at)
-	ck("목적지 보존", TravelState.trip.get("dest_id","") == "moon")
+	ck("목적지 보존", TravelState.trip.get("dest_id","") == "seoul")
+
+	print("\n[8] 여행지 해금")
+	SaveManager.clear_save(); TravelState.reset()
+	Episode0State.has_camera = true
+	Episode0State.has_notebook = true
+	Episode0State.has_travel_bag = true
+	ck("서울은 처음부터 열림", TravelState.is_unlocked("seoul"))
+	ck("파리는 잠김", not TravelState.is_unlocked("paris"))
+	ck("달도 잠김", not TravelState.is_unlocked("moon"))
+	ck("잠긴 곳은 출발 불가", not TravelState.start_trip("paris"))
+	ck("해금 안내 문구", TravelState.unlock_hint("paris").contains("서울"),
+		TravelState.unlock_hint("paris"))
+	# 서울 3번 다녀오기
+	for i in range(3):
+		TravelState.start_trip("seoul")
+		TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) - 1
+		TravelState.collect_arrival()
+	ck("서울 3회 → 파리 해금", TravelState.is_unlocked("paris"), "서울 %d회" % TravelState.visit_count("seoul"))
+	ck("달은 아직 잠김", not TravelState.is_unlocked("moon"))
+	# 파리 2번
+	for i in range(2):
+		TravelState.start_trip("paris")
+		TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) - 1
+		TravelState.collect_arrival()
+	ck("파리 2회 → 달 해금", TravelState.is_unlocked("moon"))
+
+	print("\n[9] 0편 물품이 여행 기록에 반영")
+	SaveManager.clear_save(); TravelState.reset()
+	Episode0State.has_camera = false
+	Episode0State.has_notebook = false
+	Episode0State.has_travel_bag = false
+	TravelState.start_trip("seoul")
+	TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) - 1
+	var poor := TravelState.collect_arrival()
+	ck("카메라 없으면 사진 없음", str(poor.get("title","")).contains("사진 없음"), str(poor.get("title","")))
+	ck("수첩 없으면 일기 대체", str(poor.get("diary","")).contains("수첩이 없어서"))
+	# 물품을 갖추면 정상 기록 (clear_save 가 0편 상태도 초기화하므로 그 뒤에 설정)
+	SaveManager.clear_save(); TravelState.reset()
+	Episode0State.has_camera = true
+	Episode0State.has_notebook = true
+	TravelState.start_trip("seoul")
+	TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) - 1
+	var rich := TravelState.collect_arrival()
+	ck("물품 있으면 정상 기록", not str(rich.get("title","")).contains("사진 없음"), str(rich.get("title","")))
+
+	print("\n[10] 개발용 빠른 여행 전환")
+	var seoul := TravelState.get_destination("seoul")
+	var secs := TravelState.duration_of(seoul)
+	ck("소요 시간이 설정됨", secs > 0, "%d초" % secs)
 
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	SaveManager.clear_save()

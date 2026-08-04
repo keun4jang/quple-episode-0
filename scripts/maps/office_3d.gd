@@ -14,6 +14,8 @@ func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")
 	if Episode0State.partner_joined:
+		# 합류했으면 책상이 아니라 플레이어 옆에서 따라온다
+		partner.global_position = player.global_position + Vector3(1.1, 0, 0.7)
 		partner.join_player()
 	elif partner.has_method("set_emotion"):
 		partner.set_emotion("tired")

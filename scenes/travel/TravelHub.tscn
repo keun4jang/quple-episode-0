@@ -13,10 +13,10 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(1, 0.95, 0.80, 0.28)
-content_margin_left = 30.0
-content_margin_top = 30.0
-content_margin_right = 30.0
-content_margin_bottom = 30.0
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
 
 [node name="TravelHub" type="Control"]
 layout_mode = 3
@@ -53,13 +53,13 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 56.0
-offset_top = 90.0
-offset_right = -56.0
-offset_bottom = -70.0
+offset_left = 150.0
+offset_top = 18.0
+offset_right = -150.0
+offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 26
+theme_override_constants/separation = 10
 
 [node name="Header" type="VBoxContainer" parent="Safe"]
 layout_mode = 2
@@ -69,20 +69,20 @@ theme_override_constants/separation = 10
 layout_mode = 2
 text = "어디로 보낼까요?"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 62
+theme_override_font_sizes/font_size = 30
 theme_override_colors/font_color = Color(1, 0.95, 0.80, 1)
 theme_override_colors/font_outline_color = Color(0.16, 0.08, 0.30, 1)
-theme_override_constants/outline_size = 12
+theme_override_constants/outline_size = 6
 
 [node name="Subtitle" type="Label" parent="Safe/Header"]
 layout_mode = 2
 text = "쿼카 커플이 다녀올 곳을 골라주세요"
 horizontal_alignment = 1
 autowrap_mode = 3
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 17
 theme_override_colors/font_color = Color(0.88, 0.85, 1.0, 1)
 theme_override_colors/font_outline_color = Color(0.14, 0.07, 0.26, 1)
-theme_override_constants/outline_size = 8
+theme_override_constants/outline_size = 4
 
 [node name="Spacer" type="Control" parent="Safe"]
 layout_mode = 2
@@ -100,21 +100,21 @@ layout_mode = 2
 [node name="Body" type="VBoxContainer" parent="Safe/Panel/Margin"]
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 22
+theme_override_constants/separation = 8
 
 [node name="Footer" type="HBoxContainer" parent="Safe"]
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 24
+theme_override_constants/separation = 14
 
 [node name="AlbumBtn" type="Button" parent="Safe/Footer"]
-custom_minimum_size = Vector2(300, 96)
+custom_minimum_size = Vector2(190, 44)
 layout_mode = 2
 text = "📖 앨범"
-theme_override_font_sizes/font_size = 36
+theme_override_font_sizes/font_size = 18
 
 [node name="HomeBtn" type="Button" parent="Safe/Footer"]
-custom_minimum_size = Vector2(300, 96)
+custom_minimum_size = Vector2(190, 44)
 layout_mode = 2
 text = "🏠 홈"
-theme_override_font_sizes/font_size = 36
+theme_override_font_sizes/font_size = 18
