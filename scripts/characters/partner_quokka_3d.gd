@@ -44,7 +44,17 @@ func _ready() -> void:
 	add_child(shadow)
 
 func join_player() -> void:
+	if _joined:
+		return
 	_joined = true
+	set_emotion("happy")
+	# 합류 순간: 살짝 통통 튀어오르며 자세를 편다
+	var tw := create_tween()
+	tw.tween_property(body_pivot, "position:y", 0.14, 0.18).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(body_pivot, "position:y", 0.0, 0.22).set_trans(Tween.TRANS_BOUNCE)
+
+func is_joined() -> bool:
+	return _joined
 
 func set_emotion(emotion: String) -> void:
 	_emotion = emotion
@@ -80,9 +90,23 @@ func _physics_process(delta: float) -> void:
 
 func _animate_idle(delta: float) -> void:
 	_idle_time += delta
-	var intensity = 0.015 if _joined else 0.008
-	body_pivot.position.y = sin(_idle_time * (TAU / 1.8)) * intensity
+	# 합류 전에는 느리고 작게(지친 숨), 합류 후에는 조금 더 크고 경쾌하게
+	var intensity := 0.015 if _joined else 0.008
+	var breath_period := 1.8 if _joined else 2.6
+	body_pivot.position.y = sin(_idle_time * (TAU / breath_period)) * intensity
 	head_pivot.rotation.z = sin(_idle_time * (TAU / 2.5)) * deg_to_rad(0.8)
+
+	# 자세: 합류 전엔 어깨와 고개가 앞으로 처지고, 합류 후엔 곧게 펴진다
+	var slouch := 0.0 if _joined else deg_to_rad(11.0)
+	var head_drop := 0.0 if _joined else deg_to_rad(8.0)
+	body_pivot.rotation.x = lerp_angle(body_pivot.rotation.x, slouch, delta * 3.0)
+	head_pivot.rotation.x = lerp_angle(head_pivot.rotation.x, head_drop, delta * 3.0)
+	# 지쳤을 땐 귀도 살짝 내려간다
+	var ear_droop := 0.0 if _joined else deg_to_rad(14.0)
+	if _left_ear:
+		_left_ear.rotation.x = lerp_angle(_left_ear.rotation.x, ear_droop, delta * 3.0)
+	if _right_ear:
+		_right_ear.rotation.x = lerp_angle(_right_ear.rotation.x, ear_droop, delta * 3.0)
 
 	_emotion_time += delta
 	if _emotion_time > 4.0:

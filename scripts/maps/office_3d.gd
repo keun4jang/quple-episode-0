@@ -15,6 +15,8 @@ func _ready() -> void:
 	player.add_to_group("player")
 	if Episode0State.partner_joined:
 		partner.join_player()
+	elif partner.has_method("set_emotion"):
+		partner.set_emotion("tired")
 	$PartnerInteract.interacted.connect(talk_to_partner)
 	$CameraItemInteract.interacted.connect(_pick_camera)
 	$NotebookInteract.interacted.connect(_pick_notebook)
