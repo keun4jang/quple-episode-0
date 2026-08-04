@@ -49,25 +49,30 @@ func talk_to_partner() -> void:
 			Episode0State.advance_to(Episode0State.State.RETURN_BADGE)
 		else:
 			dialogue_box.show_text("애인: \"여행 물품 3가지 챙기는 거 잊지 마.\"")
+	elif Episode0State.current_state >= Episode0State.State.PARTNER_JOINED:
+		dialogue_box.show_text("애인: \"이제 나가자. 밖에서 사진 한 장 찍고.\"")
 	elif Episode0State.current_state == Episode0State.State.RETURN_BADGE:
-		dialogue_box.show_text("애인: \"사원증 반납했어? 그럼 나가자!\"")
+		if not Episode0State.badge_returned:
+			dialogue_box.show_text("애인: \"로비에서 사원증만 반납하고 오면 돼.\"")
+		else:
+			dialogue_box.show_text("애인: \"사원증 반납했구나. 그럼 나가자!\"")
 		if Episode0State.badge_returned:
 			Episode0State.partner_joined = true
 			Episode0State.advance_to(Episode0State.State.PARTNER_JOINED)
 			partner.join_player()
 			SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn")
 
+## 어느 쪽을 골라도 대표실 앞을 지나간다. 그 장면이 0편의 전환점이기 때문이다.
 func _on_choice(index: int) -> void:
+	Episode0State.advance_to(Episode0State.State.CHOICE_WAIT)
 	if index == 0:
-		Episode0State.advance_to(Episode0State.State.COLLECT_TRAVEL_ITEMS)
-		dialogue_box.show_text("\"그래, 여행 물품 먼저 챙기고 같이 나가자.\"")
+		dialogue_box.show_text("애인: \"그래, 가자. ...근데 대표님께 말은 하고 가야 하지 않을까?\"")
 	else:
-		Episode0State.advance_to(Episode0State.State.CHOICE_WAIT)
-		dialogue_box.show_text("\"잠깐, 대표실 쪽에서 뭔가 소리가 나는 것 같아...\"")
-		await get_tree().create_timer(2.0).timeout
-		dialogue_box.hide_box()
-		Episode0State.advance_to(Episode0State.State.EAVESDROP_BOSS)
-		SceneTransition.go_to("res://scenes/maps/BossDoorHallway3D.tscn")
+		dialogue_box.show_text("애인: \"잠깐, 아까부터 대표실 쪽에서 소리가 나는 것 같아...\"")
+	await get_tree().create_timer(2.4).timeout
+	dialogue_box.hide_box()
+	Episode0State.advance_to(Episode0State.State.EAVESDROP_BOSS)
+	SceneTransition.go_to("res://scenes/maps/BossDoorHallway3D.tscn", "tense")
 
 func _build_scene() -> void:
 	# 바닥, 벽, 천장

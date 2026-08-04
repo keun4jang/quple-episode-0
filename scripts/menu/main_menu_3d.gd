@@ -177,7 +177,8 @@ func _on_start() -> void:
 	Episode0State.album_created = false; Episode0State.episode0_cleared = false
 	Episode0State.memos_found = []
 	TravelState.reset()
-	SceneTransition.go_to("res://scenes/travel/TravelHub.tscn")
+	# 0편(프롤로그)부터 시작한다
+	SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn")
 
 func _on_continue() -> void:
 	SaveManager.load_game()

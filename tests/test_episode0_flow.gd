@@ -46,8 +46,11 @@ func _ready() -> void:
 
 	print("\n[5] 사진 → 앨범 → 클리어 플래그")
 	Episode0State.advance_to(S.FIRST_PHOTO)
-	ck("first_photo_taken", Episode0State.first_photo_taken)
+	# FIRST_PHOTO 는 "이제 찍어야 한다"는 단계 — 아직 찍은 게 아니다
+	ck("FIRST_PHOTO 단계에선 아직 안 찍음", not Episode0State.first_photo_taken,
+		"※ 이게 참이면 사진 지점(노란 원)이 안 뜬다")
 	Episode0State.advance_to(S.ALBUM_CREATED)
+	ck("사진 찍음 처리", Episode0State.first_photo_taken)
 	ck("album_created", Episode0State.album_created)
 	Episode0State.advance_to(S.CLEAR)
 	ck("episode0_cleared", Episode0State.episode0_cleared)

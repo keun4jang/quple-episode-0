@@ -57,9 +57,10 @@ func advance_to(new_state: int) -> void:
 	if new_state <= current_state:
 		return
 	current_state = new_state
-	if new_state >= State.FIRST_PHOTO:
-		first_photo_taken = true
+	# FIRST_PHOTO 는 "이제 찍어야 한다"는 단계일 뿐이다.
+	# 실제로 찍었는지는 사진을 찍는 순간(ALBUM_CREATED 이후)에만 참이 된다.
 	if new_state >= State.ALBUM_CREATED:
+		first_photo_taken = true
 		album_created = true
 	if new_state >= State.CLEAR:
 		episode0_cleared = true

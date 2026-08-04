@@ -20,7 +20,8 @@ func _ready() -> void:
 	_setup_photo_stage()
 	if Episode0State.current_state == Episode0State.State.START:
 		_show_opening()
-	elif Episode0State.current_state == Episode0State.State.PARTNER_JOINED:
+	elif Episode0State.current_state >= Episode0State.State.PARTNER_JOINED \
+		and not Episode0State.first_photo_taken:
 		Episode0State.advance_to(Episode0State.State.FIRST_PHOTO)
 		_spawn_partner()
 		await get_tree().create_timer(0.8).timeout

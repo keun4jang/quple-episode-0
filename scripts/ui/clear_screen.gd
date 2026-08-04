@@ -25,7 +25,8 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
-		SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn", "hopeful")
+		# 0편이 끝나면 본편(여행 허브)으로 이어진다
+		SceneTransition.go_to("res://scenes/travel/TravelHub.tscn", "hopeful")
 	elif event.is_action_pressed("cancel"):
 		get_viewport().set_input_as_handled()
 		get_tree().quit()

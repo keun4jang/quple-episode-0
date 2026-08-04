@@ -39,11 +39,27 @@ START → ENTER_COMPANY → FIND_PARTNER → TALK_PARTNER → CHOICE_WAIT
 | `Office3D` | 애인이 야근 중인 사무실. 여행 물품 3개 |
 | `BossDoorHallway3D` | 대표실 앞 복도. 문틈으로 새는 빛 |
 
+## 전체 흐름 연결
+
+```
+MainMenu3D ──[새 여행 시작]──> CompanyFront3D (0편 시작)
+                                     │
+                          ... 0편 진행 (13단계) ...
+                                     │
+                                     ▼
+                              ClearScreen ──[Space]──> TravelHub (본편 여행)
+                                                            │
+                                                    ──[홈]──> MainMenu3D
+```
+
+`이어하기` 는 자동 저장된 지점(`SaveManager.get_current_scene()`)으로 복귀한다.
+
 ## 실행 / 테스트
 
 ```bash
 godot --path .                                        # 게임 실행
-godot --headless --path . res://tests/TestEpisode0Flow.tscn   # 0편 흐름 19개
+godot --headless --path . res://tests/TestPlaythrough.tscn    # 전체 플레이스루 23개
+godot --headless --path . res://tests/TestEpisode0Flow.tscn   # 0편 흐름 20개
 godot --headless --path . res://tests/TestCoreLoop.tscn       # 여행 루프 31개
 ```
 
