@@ -20,6 +20,10 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=1
 
+[gui]
+
+theme/custom="res://assets/themes/quple_bold.tres"
+
 [input]
 key_album={
 "deadzone": 0.5,
