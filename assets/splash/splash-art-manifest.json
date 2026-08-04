@@ -1,12 +1,10 @@
 {
-  "version": "2.0",
-  "generatedAt": "2026-07-03",
-  "generator": "compose-splash-poster.py (cosmic PIL + Blender hero)",
+  "version": "3.1",
+  "generatedAt": "2026-08-04",
+  "generator": "Higgsfield / Nano Banana Pro (nano_banana_2), 2k, 9:16",
   "seed": 20260702,
   "poster": {
     "path": "res://assets/splash/splash-poster-no-text.png",
-    "exists": true,
-    "size_bytes": 813799,
     "width": 1080,
     "height": 1920
   },
@@ -57,12 +55,12 @@
     "script": "res://scripts/menu/main_menu_3d.gd",
     "loader": "Image.load_from_file (bypasses .import)"
   },
-  "source": "composed-interim",
-  "isInterim": true,
-  "hasText": false,
+  "source": "imported",
+  "isInterim": false,
+  "hasText": "UNKNOWN — 반드시 no-text 확인",
   "focalPoint": [
     0.5,
-    0.42
+    0.46
   ],
   "structure": "poster-first: 단일 no-text 포스터 full-cover + 코드 UI(로고/카피/버튼/프레임)",
   "posterMobile": {
@@ -75,6 +73,17 @@
     "exists": false,
     "size_bytes": 0
   },
-  "productionRecommendation": "현재 포스터는 Blender clay 캐릭터 합성 인터림. 레퍼런스급을 원하면 AI(no-text) 포스터를 assets/splash/splash-poster-no-text.png 로 교체하거나 SPLASH_ART_URL='<url>' python3 tools/splash/import-splash-art.py 실행.",
-  "blenderAssets": "debug/fallback only — assets/mascots/quica-hero-diorama.png (QUPLE_DEBUG_HERO=1 로 런타임 오버레이)"
+  "productionRecommendation": "AI 생성 no-text 포스터 적용 완료. 교체 시 tools/splash/import-splash-art.py 사용.",
+  "blenderAssets": "debug/fallback only — assets/mascots/quica-hero-diorama.png (QUPLE_DEBUG_HERO=1 로 런타임 오버레이)",
+  "importedFrom": "assets/splash/candidates/q_d.png",
+  "costCredits": 12,
+  "costNote": "2 crd/장 x 6장(곰 2 + 쿼카 4)",
+  "candidates": [
+    "ai_cand_1.png(곰-폐기)",
+    "ai_cand_2.png(곰-폐기)",
+    "q_b.png(쿼카,하단여백)",
+    "q_d.png(채택)"
+  ],
+  "chosen": "q_d (쿼카 해부학 교정본, 풀블리드)",
+  "characterSpec": "QUOKKA (작은 캥거루과) — 뾰족한 주둥이, 수염, 작고 낮은 둥근 귀, 쿼카 미소(앞니), 굵은 꼬리, 캥거루 뒷다리. 곰 금지."
 }

@@ -60,3 +60,23 @@ alien antenna, insect antenna
 텍스트가 포함된 후보는 폐기. 상단/하단 UI 세이프존 확인.
 
 생성 후 적용: `python3 tools/splash/import-splash-art.py --file <best>.png`
+
+---
+
+## ★ 쿼카 해부학 (곰으로 나오는 것 방지 — 필수)
+
+AI에 "quokka"만 쓰면 십중팔구 **곰**이 나온다. 아래를 프롬프트에 명시할 것:
+
+| 부위 | 반드시 명시 | 나오면 안 되는 것 |
+|---|---|---|
+| 주둥이 | tapered elongated snout, narrows to a tiny black nose | 짧고 납작한 곰 주둥이 |
+| 입 | famous quokka smile, mouth corners curving upward, tiny front teeth | 무표정 |
+| 귀 | small rounded ears set **low and wide on the sides** of the head | 머리 위 큰 곰 귀 |
+| 수염 | fine whiskers | 없음 |
+| 다리 | strong kangaroo-like hind legs, large hind feet, small front paws at chest | 곰 사지 |
+| 꼬리 | thick tapering tail like a small kangaroo | 짧고 둥근 꼬리 |
+| 분류 | "small Australian macropod, like a tiny kangaroo or wallaby — NOT a bear" | — |
+
+**Negative에 반드시 포함:** `bear, teddy bear, round bear ears on top of the head, short flat bear snout, dog, cat, hamster, mouse`
+
+검증된 결과: `assets/splash/candidates/q_d.png` (채택), `q_b.png`
