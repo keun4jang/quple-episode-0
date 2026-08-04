@@ -128,6 +128,51 @@ func _ready() -> void:
 	var secs := TravelState.duration_of(seoul)
 	ck("소요 시간이 설정됨", secs > 0, "%d초" % secs)
 
+	print("\n[11] 여행 중 중간 소식")
+	SaveManager.clear_save(); TravelState.reset()
+	Episode0State.has_camera = true
+	Episode0State.has_notebook = true
+	TravelState.start_trip("seoul")
+	var t0: int = int(TravelState.trip["depart_at"])
+	var t1: int = int(TravelState.trip["arrive_at"])
+	var span: int = t1 - t0
+	ck("출발 직후엔 소식 없음", TravelState.unread_count() == 0)
+	ck("다음 소식까지 시간 안내", TravelState.seconds_to_next_message() > 0,
+		"%d초" % TravelState.seconds_to_next_message())
+
+	# 앱을 꺼둔 사이 시간이 흘렀다고 가정 (40% 지점)
+	TravelState.trip["depart_at"] = t0 - int(span * 0.40)
+	TravelState.trip["arrive_at"] = t1 - int(span * 0.40)
+	ck("40% 지점에 첫 소식 도착", TravelState.unread_count() == 1,
+		"도착 %d개" % TravelState.arrived_messages().size())
+	var m0: Dictionary = TravelState.unread_messages()[0]
+	ck("소식에 내용이 있다", str(m0.get("text","")) != "", str(m0.get("emoji","")))
+
+	# 읽음 처리
+	TravelState.mark_messages_read()
+	ck("읽으면 안 읽은 소식 0", TravelState.unread_count() == 0)
+	ck("읽어도 목록엔 남는다", TravelState.arrived_messages().size() == 1)
+
+	# 75% 지점 → 두 번째 소식
+	TravelState.trip["depart_at"] = t0 - int(span * 0.75)
+	TravelState.trip["arrive_at"] = t1 - int(span * 0.75)
+	ck("75% 지점에 두 번째 소식", TravelState.unread_count() == 1)
+	ck("도착한 소식은 총 2개", TravelState.arrived_messages().size() == 2)
+
+	# 저장/복원 후에도 읽음 상태가 유지된다
+	TravelState.mark_messages_read()
+	SaveManager.save_game()
+	TravelState.reset()
+	SaveManager.load_game()
+	ck("복원 후 읽음 상태 유지", TravelState.unread_count() == 0,
+		"도착 %d개 / 안읽음 %d개" % [TravelState.arrived_messages().size(), TravelState.unread_count()])
+
+	# 새 여행을 시작하면 소식이 초기화된다
+	TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) - 1
+	TravelState.collect_arrival()
+	TravelState.start_trip("seoul")
+	ck("새 여행은 소식 초기화", TravelState.arrived_messages().size() == 0)
+
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	SaveManager.clear_save()
 	get_tree().quit(0 if fail_n == 0 else 1)

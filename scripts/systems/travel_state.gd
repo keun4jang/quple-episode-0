@@ -77,6 +77,24 @@ func unlock_hint(dest_id: String) -> String:
 	var req_name: String = get_destination(req).get("name", req)
 	return "%s 여행 %d번 더 다녀오면 열려요" % [req_name, maxi(0, need)]
 
+## 여행 중 애인이 보내오는 중간 소식.
+##   at = 여행 진행률(0.0~1.0). 그 지점을 지나면 도착한다.
+## 실제 시각 기준이라 앱을 꺼둔 사이에도 도착해 있다.
+const MID_MESSAGES: Dictionary = {
+	"seoul": [
+		{"at": 0.35, "emoji": "🐈", "text": "지금 골목길 지나는 중이야.\n여기 고양이가 엄청 많아!"},
+		{"at": 0.70, "emoji": "🌆", "text": "해가 지고 있어.\n너도 이거 봤으면 좋겠다."},
+	],
+	"paris": [
+		{"at": 0.35, "emoji": "🥐", "text": "빵집 앞을 지났는데\n냄새가 너무 좋아서 한참 서 있었어."},
+		{"at": 0.70, "emoji": "🗼", "text": "탑이 보이기 시작했어.\n생각보다 훨씬 커."},
+	],
+	"moon": [
+		{"at": 0.35, "emoji": "🌌", "text": "중력이 약해서\n자꾸 웃음이 나."},
+		{"at": 0.70, "emoji": "🌍", "text": "저기 파란 점이 지구래.\n우리 집도 저 안에 있대."},
+	],
+}
+
 ## 여행지별 기념품(사진 + 일기). 방문할 때마다 순서대로 하나씩 열린다.
 const SOUVENIRS: Dictionary = {
 	"seoul": [
@@ -138,6 +156,61 @@ func visit_count(dest_id: String) -> int:
 			n += 1
 	return n
 
+# ── 여행 중 중간 소식 ──
+
+## 지금까지 도착한 소식 (진행률 기준)
+func arrived_messages() -> Array:
+	if trip.is_empty():
+		return []
+	var pool: Array = MID_MESSAGES.get(trip.get("dest_id", ""), [])
+	var prog := progress()
+	var out: Array = []
+	for i in range(pool.size()):
+		if prog >= float(pool[i].get("at", 1.0)):
+			var m: Dictionary = (pool[i] as Dictionary).duplicate(true)
+			m["index"] = i
+			out.append(m)
+	return out
+
+## 아직 읽지 않은 소식
+func unread_messages() -> Array:
+	var read: Array = trip.get("read_msgs", [])
+	var out: Array = []
+	for m in arrived_messages():
+		if not read.has(int(m.get("index", -1))):
+			out.append(m)
+	return out
+
+func unread_count() -> int:
+	return unread_messages().size()
+
+## 소식을 읽음 처리한다
+func mark_messages_read() -> void:
+	if trip.is_empty():
+		return
+	var read: Array = trip.get("read_msgs", [])
+	for m in arrived_messages():
+		var i := int(m.get("index", -1))
+		if i >= 0 and not read.has(i):
+			read.append(i)
+	trip["read_msgs"] = read
+	SaveManager.save_game()
+
+## 다음 소식까지 남은 시간(초). 없으면 -1
+func seconds_to_next_message() -> int:
+	if trip.is_empty():
+		return -1
+	var pool: Array = MID_MESSAGES.get(trip.get("dest_id", ""), [])
+	var total := int(trip.get("arrive_at", 0)) - int(trip.get("depart_at", 0))
+	if total <= 0:
+		return -1
+	var prog := progress()
+	for m in pool:
+		var at := float(m.get("at", 1.0))
+		if prog < at:
+			return int((at - prog) * float(total))
+	return -1
+
 func format_time_left() -> String:
 	var s := seconds_left()
 	if s <= 0:
@@ -166,6 +239,7 @@ func start_trip(dest_id: String) -> bool:
 		"dest_id": dest_id,
 		"depart_at": now,
 		"arrive_at": now + duration_of(d),
+		"read_msgs": [],
 	}
 	trip_started.emit(dest_id)
 	SaveManager.save_game()

@@ -33,11 +33,15 @@ func _process(delta: float) -> void:
 	_tick = 0.0
 	if TravelState.has_arrived():
 		_refresh()
-	else:
-		var lbl := body.get_node_or_null("TimeLeft") as Label
-		var bar := body.get_node_or_null("Bar") as ProgressBar
-		if lbl: lbl.text = TravelState.format_time_left()
-		if bar: bar.value = TravelState.progress() * 100.0
+		return
+	var lbl := body.get_node_or_null("TimeLeft") as Label
+	var bar := body.get_node_or_null("Bar") as ProgressBar
+	if lbl: lbl.text = TravelState.format_time_left()
+	if bar: bar.value = TravelState.progress() * 100.0
+	# 보고 있는 중에 새 소식이 도착하면 알림을 띄운다
+	var showing_msg_btn := body.get_node_or_null("MsgBtn") != null
+	if TravelState.unread_count() > 0 and not showing_msg_btn:
+		_refresh()
 
 # ── 화면 전환 ───────────────────────────────────────────────────────────
 
@@ -137,13 +141,94 @@ func _build_traveling() -> void:
 	bar.show_percentage = false
 	body.add_child(bar)
 
+	# 중간 소식 (앱을 꺼둔 사이에도 도착해 있다)
+	body.add_child(_make_message_row())
+
 	var hint := Label.new()
+	hint.name = "Hint"
 	hint.text = "돌아오면 사진과 일기를 보여줄 거예요"
 	hint.add_theme_font_size_override("font_size", 16)
 	hint.add_theme_color_override("font_color", Color(0.85, 0.82, 0.95))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(hint)
+
+## 소식 버튼: 안 읽은 게 있으면 강조, 없으면 다음 소식까지 안내
+func _make_message_row() -> Control:
+	var unread: int = TravelState.unread_count()
+	var arrived: int = TravelState.arrived_messages().size()
+
+	if unread > 0:
+		var b := Button.new()
+		b.name = "MsgBtn"
+		b.custom_minimum_size = Vector2(0, 60)
+		b.text = "💌  새 소식 %d개  ·  눌러서 읽기" % unread
+		b.add_theme_font_size_override("font_size", 20)
+		b.add_theme_color_override("font_color", Color(0.24, 0.12, 0.30))
+		b.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.72, 0.82), false))
+		b.add_theme_stylebox_override("hover", _card_style(Color(1.0, 0.82, 0.90), true))
+		b.pressed.connect(_show_messages)
+		return b
+
+	var l := Label.new()
+	l.name = "MsgHint"
+	if arrived > 0:
+		l.text = "읽은 소식 %d개  ·  다음 소식을 기다리는 중" % arrived
+	else:
+		var nxt: int = TravelState.seconds_to_next_message()
+		l.text = ("곧 첫 소식이 올 거예요" if nxt < 0 else "첫 소식까지 %s" % _format_duration(nxt))
+	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_color_override("font_color", Color(0.78, 0.75, 0.90))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return l
+
+## 도착한 소식들을 순서대로 보여준다
+func _show_messages() -> void:
+	var msgs: Array = TravelState.arrived_messages()
+	TravelState.mark_messages_read()
+	for c in body.get_children():
+		c.queue_free()
+	var d := TravelState.get_destination(TravelState.trip.get("dest_id", ""))
+	title.text = "%s에서 온 소식" % d.get("name", "")
+	subtitle.text = "여행 중인 애인이 보냈어요"
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 240)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 12)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for m in msgs:
+		list.add_child(_make_message_card(m))
+	scroll.add_child(list)
+	body.add_child(scroll)
+
+	var back := Button.new()
+	back.text = "돌아가기"
+	back.custom_minimum_size = Vector2(0, 52)
+	back.add_theme_font_size_override("font_size", 20)
+	back.pressed.connect(_refresh)
+	body.add_child(back)
+
+func _make_message_card(m: Dictionary) -> PanelContainer:
+	var pc := PanelContainer.new()
+	pc.add_theme_stylebox_override("panel", _card_style(Color(0.62, 0.52, 0.80), false))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	var e := Label.new()
+	e.text = str(m.get("emoji", "💌"))
+	e.add_theme_font_size_override("font_size", 34)
+	e.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	h.add_child(e)
+	var t := Label.new()
+	t.text = str(m.get("text", ""))
+	t.add_theme_font_size_override("font_size", 17)
+	t.add_theme_color_override("font_color", Color(1, 0.98, 0.94))
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(t)
+	pc.add_child(h)
+	return pc
 
 ## 3) 도착 — 사진과 일기를 받는다
 func _build_arrived() -> void:
