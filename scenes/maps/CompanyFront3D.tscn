@@ -1,0 +1,81 @@
+[gd_scene load_steps=8 format=3 uid="uid://bcompanyfront3d"]
+
+[ext_resource type="Script" path="res://scripts/maps/company_front_3d.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="3_dialogue"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
+sky_top_color = Color(0.231373, 0.290196, 0.419608, 1)
+sky_horizon_color = Color(0.725490, 0.709804, 0.552941, 1)
+sky_curve = 0.18
+ground_bottom_color = Color(0.176471, 0.223529, 0.313726, 1)
+ground_horizon_color = Color(0.964706, 0.709804, 0.552941, 1)
+sun_angle_max = 40.0
+sun_curve = 0.12
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("SkyMat")
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 2
+sky = SubResource("Sky")
+ambient_light_source = 3
+ambient_light_color = Color(0.725490, 0.654902, 0.909804, 1)
+ambient_light_sky_contribution = 0.55
+ambient_light_energy = 0.85
+tonemap_mode = 2
+tonemap_white = 1.4
+glow_enabled = true
+glow_intensity = 0.55
+glow_bloom = 0.18
+glow_blend_mode = 1
+fog_enabled = true
+fog_light_color = Color(0.725490, 0.654902, 0.909804, 1)
+fog_density = 0.006
+adjustment_enabled = true
+adjustment_saturation = 1.08
+
+[node name="CompanyFront3D" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env")
+
+[node name="SunLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 12, 6)
+light_color = Color(0.964706, 0.709804, 0.552941, 1)
+light_energy = 0.55
+shadow_enabled = true
+shadow_bias = 0.04
+directional_shadow_max_distance = 40.0
+
+[node name="FillLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.707107, 0.353553, -0.612372, 0, 0.866025, 0.5, 0.707107, 0.353553, -0.612372, 0, 8, -4)
+light_color = Color(0.725490, 0.654902, 0.909804, 1)
+light_energy = 0.30
+shadow_enabled = false
+
+[node name="WarmWindowLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, 12, -4.3)
+light_color = Color(1, 0.905882, 0.658824, 1)
+light_energy = 1.0
+omni_range = 7.5
+shadow_enabled = false
+
+[node name="EntranceLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, -4.2)
+light_color = Color(1, 0.945098, 0.847059, 1)
+light_energy = 0.9
+omni_range = 5.0
+shadow_enabled = false
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 8, 8)
+fov = 60.0
+near = 0.1
+far = 120.0
+
+[node name="PlayerQuokka3D" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0.6)
+
+[node name="DialogueBox" parent="." instance=ExtResource("3_dialogue")]

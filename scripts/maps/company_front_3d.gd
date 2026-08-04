@@ -5,10 +5,12 @@ extends Node3D
 @onready var warm_window_light: OmniLight3D = $WarmWindowLight
 @onready var dialogue_box = $DialogueBox
 
-const CAM_OFFSET = Vector3(0, 8, 8)
+const CAM_OFFSET = Vector3(0, 6.0, 12.8)   # 건물과 플레이어가 함께 보이는 디오라마 거리
 const CAM_LERP = 5.0
+const CAM_LOOK_OFFSET = Vector3(0, 4.0, -3.6)  # 시선을 건물 쪽 위로
 
 var _light_time: float = 0.0
+var _lit_window: MeshInstance3D = null
 
 func _ready() -> void:
 	_build_scene()
@@ -21,9 +23,13 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET
 	camera.global_position = camera.global_position.lerp(target_pos, CAM_LERP * delta)
-	camera.look_at(player.global_position + Vector3(0, 0.5, 0), Vector3.UP)
+	camera.look_at(player.global_position + CAM_LOOK_OFFSET, Vector3.UP)
+	# 켜진 창문: 2.5초 주기로 아주 약하게 숨 쉬듯
 	_light_time += delta
-	warm_window_light.light_energy = 1.0 + sin(_light_time * TAU / 2.5) * 0.06
+	var breathe := sin(_light_time * TAU / 2.5)
+	warm_window_light.light_energy = 1.0 + breathe * 0.06
+	if _lit_window and _lit_window.material_override:
+		_lit_window.material_override.emission_energy_multiplier = 2.2 + breathe * 0.25
 
 func _show_opening() -> void:
 	await get_tree().create_timer(0.8).timeout
@@ -32,20 +38,34 @@ func _show_opening() -> void:
 
 func _build_scene() -> void:
 	# 도로, 인도, 횡단보도
-	_box(self, Vector3(0, -0.04, 4), Vector3(24, 0.08, 8), "#3B3E46", "Road")
-	_box(self, Vector3(0, 0, -1), Vector3(24, 0.1, 6), "#7F8790", "Sidewalk")
+	# 바닥 베이스(가장자리 잘림 방지)
+	_box(self, Vector3(0, -0.12, 0), Vector3(60, 0.1, 60), "#2F3242", "GroundBase")
+	_box(self, Vector3(0, -0.04, 6), Vector3(60, 0.08, 16), "#3B3E46", "Road")
+	_box(self, Vector3(0, 0, -1), Vector3(60, 0.1, 6), "#7F8790", "Sidewalk")
 	for i in range(-2, 3):
 		_box(self, Vector3(i * 0.9, 0.01, 3.5), Vector3(0.45, 0.01, 2.5), "#F2EEE2", "Crosswalk%d" % i)
 	# 건물 본체 및 창문
 	_box(self, Vector3(0, 9, -6), Vector3(10, 18, 2), "#2D3A4A", "Building")
 	_box(self, Vector3(-5.1, 9, -6), Vector3(0.2, 18, 2.5), "#1E2733", "BuildingLeft")
 	_box(self, Vector3(5.1, 9, -6), Vector3(0.2, 18, 2.5), "#1E2733", "BuildingRight")
-	for row in range(10):
-		for col in range(5):
-			var wx = -4.0 + col * 1.8
-			var wy = 2.5 + row * 1.5
-			var color = "#17283A" if not (row == 6 and col == 2) else "#FFD76D"
-			_box(self, Vector3(wx, wy, -4.95), Vector3(1.0, 0.8, 0.05), color, "Win_%d_%d" % [row, col])
+	# 창문 6칸 x 11줄. 단 하나만 따뜻하게 켜져 있다 (중간보다 위쪽)
+	for row in range(11):
+		for col in range(6):
+			var wx = -4.25 + col * 1.7
+			var wy = 2.2 + row * 1.4
+			var is_lit = (row == 6 and col == 3)
+			var color = "#FFD76D" if is_lit else "#17283A"
+			var win = _box(self, Vector3(wx, wy, -4.95), Vector3(0.95, 0.75, 0.05), color, "Win_%d_%d" % [row, col])
+			if is_lit:
+				var lm = StandardMaterial3D.new()
+				lm.albedo_color = Color("#FFE7A8")
+				lm.emission_enabled = true
+				lm.emission = Color("#FFD76D")
+				lm.emission_energy_multiplier = 2.2
+				win.material_override = lm
+				_lit_window = win
+				# 켜진 창문 바로 앞에 따뜻한 빛
+				warm_window_light.position = Vector3(wx, wy, -4.3)
 	# 간판, 출입문
 	_box(self, Vector3(0, 18.5, -5.1), Vector3(5, 0.6, 0.3), "#FFD76D", "SignBG")
 	_box(self, Vector3(0, 1.2, -5.0), Vector3(2.2, 2.4, 0.15), "#182533", "EntranceDoor")
@@ -94,6 +114,29 @@ func _add_street_details() -> void:
 		mat.roughness = 0.1
 		mat.metallic = 0.2
 		mi.material_override = mat
+
+	# 신호등 (기둥 + 함체 + 빨강/노랑/초록)
+	_cylinder(self, Vector3(-6.8, 1.3, 1.4), 0.05, 2.6, "#4A5058", "TrafficPole")
+	_box(self, Vector3(-6.8, 2.75, 1.4), Vector3(0.28, 0.72, 0.22), "#2C3138", "TrafficBox")
+	var tl_colors = ["#E8544A", "#FFD76D", "#6FCF7F"]
+	for ti in range(3):
+		var lamp = _sphere_mi(self, Vector3(-6.8, 3.0 - ti * 0.22, 1.29), 0.07, tl_colors[ti], "TrafficLamp%d" % ti)
+		var tm = StandardMaterial3D.new()
+		tm.albedo_color = Color(tl_colors[ti])
+		tm.emission_enabled = true
+		tm.emission = Color(tl_colors[ti])
+		tm.emission_energy_multiplier = 1.6 if ti == 2 else 0.25
+		lamp.material_override = tm
+
+	# CCTV 처럼 보이는 작은 박스 (건물 입구 위)
+	_box(self, Vector3(-1.6, 3.05, -4.8), Vector3(0.1, 0.1, 0.26), "#3A4048", "CctvBody")
+	_box(self, Vector3(-1.6, 3.22, -4.72), Vector3(0.06, 0.16, 0.06), "#3A4048", "CctvMount")
+
+	# 안내 표지판 (기둥 + 판)
+	_cylinder(self, Vector3(2.2, 0.7, 0.9), 0.04, 1.4, "#8A9099", "InfoPole")
+	_box(self, Vector3(2.2, 1.5, 0.9), Vector3(0.62, 0.42, 0.05), "#43566A", "InfoSign")
+	_box(self, Vector3(2.2, 1.58, 0.86), Vector3(0.46, 0.06, 0.02), "#F2EEE2", "InfoLine1")
+	_box(self, Vector3(2.2, 1.44, 0.86), Vector3(0.34, 0.05, 0.02), "#F2EEE2", "InfoLine2")
 
 	# 네온사인 "QUOKKA CORP" (건물 파사드 상단에 발광 박스)
 	var neon_mi = MeshInstance3D.new()
