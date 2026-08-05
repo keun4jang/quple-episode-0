@@ -20,7 +20,7 @@ export ANDROID_HOME
 
 KEYSTORE=${QUPLE_KEYSTORE:-$HOME/.android/quple-release.keystore}
 KEYSTORE_USER=${QUPLE_KEYSTORE_USER:-quple}
-KEYSTORE_PASS=${QUPLE_KEYSTORE_PASS:-quple2026}
+KEYSTORE_PASS=${QUPLE_KEYSTORE_PASS:-quple2026}   # 개발용 임시값. 출시 키는 환경변수로 넘겨라.
 
 TARGET=${1:-all}
 

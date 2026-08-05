@@ -71,7 +71,7 @@ tools/build-android.sh release    # 릴리스만
 | `ANDROID_HOME` | `~/Android/sdk` |
 | `QUPLE_KEYSTORE` | `~/.android/quple-release.keystore` |
 | `QUPLE_KEYSTORE_USER` | `quple` |
-| `QUPLE_KEYSTORE_PASS` | `quple2026` |
+| `QUPLE_KEYSTORE_PASS` | 개발용 임시값 (출시 키는 반드시 이 변수로 넘긴다) |
 
 릴리스 키스토어가 없으면 `debug` 만 빌드하면 된다. 폰 테스트에는 디버그 APK 로 충분하다.
 
@@ -112,7 +112,20 @@ adb install -r build/quple.apk        # USB 디버깅 켠 폰 연결 후
 - 비밀번호도 함께 보관
 - 저장소에 커밋하지 말 것 (`.gitignore` 에 이미 제외)
 
-현재 값 — alias `quple`, 비밀번호 `quple2026`. **실제 출시 전에 반드시 바꿀 것.**
+이 저장소는 공개다. 키스토어 비밀번호를 문서·코드·커밋 메시지 어디에도 적지 말 것.
+
+개발용 임시 키스토어는 `tools/build-android.sh` 의 기본값을 쓰고 있다.
+실제 출시용 키는 새로 만들어 환경변수로 넘긴다:
+
+```bash
+keytool -genkeypair -v -keystore ~/.android/quple-release.keystore \
+  -alias <별칭> -keyalg RSA -keysize 2048 -validity 10000
+
+QUPLE_KEYSTORE=~/.android/quple-release.keystore \
+QUPLE_KEYSTORE_USER=<별칭> \
+QUPLE_KEYSTORE_PASS=<비밀번호> \
+  tools/build-android.sh release
+```
 
 ## 빌드 설정 메모
 

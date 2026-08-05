@@ -58,7 +58,41 @@ func _ready() -> void:
 	if _state.get("boot_pending", false):
 		_state["boot_pending"] = false
 		_write_state()
+	_show_version_badge()
 	_check_for_update()
+	update_ready.connect(_show_update_toast)
+
+
+## 부팅할 때 구석에 지금 버전을 잠깐 띄운다.
+## 갱신이 실제로 폰까지 닿았는지 눈으로 확인할 방법이 이것뿐이다.
+func _show_version_badge() -> void:
+	_toast("쿼플 v" + current_version, 2.2, Color(1, 1, 1, 0.5))
+
+
+func _show_update_toast(v: String) -> void:
+	_toast("새 이야기 v%s 를 받았어요\n앱을 다시 켜면 적용돼요" % v, 4.5, Color(1, 0.88, 0.62))
+
+
+func _toast(text: String, secs: float, col: Color) -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 100
+	add_child(cl)
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 26)
+	l.add_theme_color_override("font_color", col)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.65))
+	l.add_theme_constant_override("outline_size", 6)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	l.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	l.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	l.position = Vector2(-28, 22)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cl.add_child(l)
+	var tw := create_tween()
+	tw.tween_interval(secs)
+	tw.tween_property(l, "modulate:a", 0.0, 0.8)
+	tw.tween_callback(cl.queue_free)
 
 
 # ── 부팅 시 적용 ────────────────────────────────────────────────────────
