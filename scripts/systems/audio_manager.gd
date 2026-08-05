@@ -3,7 +3,8 @@ extends Node
 ## 짧은 파형을 AudioStreamWAV 로 직접 만들어 재생한다.
 
 const SAMPLE_RATE := 22050
-const BGM_RATE := 16000        # 배경음은 부드러운 음색이라 낮은 레이트로 충분하다
+const BGM_RATE := 22050        # 음이 매끄럽게 이어지도록 넉넉하게
+const LP_ALPHA := 0.42         # 저역통과 세기 (작을수록 부드러움)
 const BUS_SFX := "master"
 
 var _players: Array[AudioStreamPlayer] = []
@@ -219,17 +220,17 @@ const BGM_TRACKS := {
 		"notes_per_bar": 3, "decay": 2.1,
 	},
 	# 퍼블릭 도메인 편곡 (선율은 PD_MELODIES 에서 가져온다)
-	"matilda": {
-		"root": 261.63, "dur": 33.16,
-		"chords": [[0, 4, 7, 12], [7, 11, 14, 19], [5, 9, 12, 17], [0, 4, 7, 12]],
+	"gohyang": {
+		"root": 261.63, "dur": 34.84,
+		"chords": [[0, 4, 7, 12], [5, 9, 12, 17], [0, 4, 7, 12], [7, 11, 14, 19]],
 		"scale": [0, 2, 4, 7, 9, 12], "mel_gain": 0.46, "pad_gain": 0.22, "octave": 2,
-		"notes_per_bar": 2, "decay": 1.8, "melody": "matilda",
+		"notes_per_bar": 2, "decay": 1.7, "melody": "gohyang",
 	},
-	"shears": {
-		"root": 293.66, "dur": 20.87,
-		"chords": [[0, 4, 7, 12], [5, 9, 12, 17], [7, 11, 14, 19], [0, 4, 7, 12]],
+	"gaeguri": {
+		"root": 293.66, "dur": 19.2,
+		"chords": [[0, 4, 7, 12], [7, 11, 14, 19], [5, 9, 12, 17], [0, 4, 7, 12]],
 		"scale": [0, 2, 4, 7, 9, 12], "mel_gain": 0.44, "pad_gain": 0.22, "octave": 2,
-		"notes_per_bar": 2, "decay": 2.2, "melody": "shears",
+		"notes_per_bar": 2, "decay": 2.3, "melody": "gaeguri",
 	},
 	"room": {
 		"root": 220.00, "dur": 20.0,
@@ -252,43 +253,44 @@ const BGM_TRACKS := {
 const REST := -99
 
 const PD_MELODIES := {
-	# 왈칭 마틸다 — 호주의 상징적인 민요.
-	#   작사 Banjo Paterson(1864~1941, 1991 만료), 작곡 Christina Macpherson(1864~1936, 1986 만료)
-	#   둘 다 저작권을 주장한 적이 없고 현재 누구의 소유도 아니다.
-	#   떠돌이(swagman)의 여행 이야기라 이 게임과 잘 맞는다. 가사 없이 선율만 기악으로 쓴다.
-	"matilda": {
-		"title": "Waltzing Matilda (호주 민요 · 퍼블릭 도메인)",
-		"bpm": 76.0,
+	# 홍난파(1898~1941) 작곡. 1962년 이전 사망이라 사후 50년이 적용되어 1991년 만료.
+	# 가사는 별개 저작물이므로 쓰지 않고, 선율만 기악으로 편곡한다.
+	#   (고향의 봄 가사는 이원수 †1981 → 2051년까지 보호. 그래서 노래로 부르지 않는다)
+	"gohyang": {
+		"title": "고향의 봄 (홍난파, 1927 · 1991 만료)",
+		"bpm": 62.0,
 		"notes": [
-			# Once a jol-ly swag-man camped by a bil-la-bong
-			[7, 0.5], [7, 0.5],
-			[12, 0.5], [12, 0.5], [12, 0.5], [11, 0.5], [9, 0.5], [7, 0.5],
-			[7, 0.5], [9, 0.5], [11, 0.5], [12, 1.5], [REST, 0.5],
-			# Un-der the shade of a coo-li-bah tree
-			[9, 0.5], [9, 0.5], [9, 0.5], [11, 0.5], [12, 0.5], [9, 0.5],
-			[7, 0.5], [4, 0.5], [7, 1.5], [REST, 0.5],
-			# And he sang as he watched and wait-ed till his bil-ly boiled
-			[7, 0.5], [7, 0.5],
-			[12, 0.5], [12, 0.5], [12, 0.5], [11, 0.5], [9, 0.5], [7, 0.5],
-			[7, 0.5], [9, 0.5], [11, 0.5], [12, 1.5], [REST, 0.5],
-			# You'll come a-Waltz-ing Ma-til-da with me
-			[16, 0.5], [14, 0.5], [12, 0.5], [11, 0.5], [9, 0.5], [7, 0.5],
-			[9, 0.5], [11, 0.5], [12, 2.0], [REST, 0.5],
+			# 나 의  살 던  고 향 은
+			[7, 0.5], [7, 0.5], [12, 0.5], [12, 0.5], [9, 0.5], [9, 0.5], [7, 1.0],
+			# 꽃 피 는  산 골
+			[9, 0.5], [7, 0.5], [4, 0.5], [0, 1.5], [REST, 0.5],
+			# 복 숭 아 꽃  살 구 꽃
+			[4, 0.5], [4, 0.5], [7, 0.5], [7, 0.5], [9, 0.5], [9, 0.5], [7, 1.0],
+			# 아 기  진 달 래
+			[4, 0.5], [2, 0.5], [0, 1.5], [REST, 0.5],
+			# 그 속 에 서  놀 던 때 가
+			[4, 0.5], [7, 0.5], [9, 0.5], [12, 0.5], [9, 0.5], [7, 0.5], [4, 1.0],
+			# 그 립 습 니 다
+			[2, 0.5], [2, 0.5], [0, 2.0], [REST, 0.5],
 		],
 	},
-	# 클릭 고 더 셰어스 — 호주 전래 부시 발라드(작자 미상). 밝고 경쾌하다.
-	"shears": {
-		"title": "Click Go the Shears (호주 전래 · 퍼블릭 도메인)",
-		"bpm": 92.0,
+	"gaeguri": {
+		"title": "개구리 (홍난파 · 1991 만료)",
+		"bpm": 100.0,
 		"notes": [
-			[0, 0.5], [4, 0.5], [7, 0.5], [7, 0.5], [9, 0.5], [7, 0.5], [4, 1.0],
-			[2, 0.5], [4, 0.5], [5, 0.5], [4, 0.5], [2, 1.5], [REST, 0.5],
-			[0, 0.5], [4, 0.5], [7, 0.5], [7, 0.5], [9, 0.5], [12, 0.5], [11, 1.0],
-			[9, 0.5], [7, 0.5], [4, 0.5], [2, 0.5], [0, 1.5], [REST, 0.5],
+			# 개 굴 개 굴  개 구 리
+			[0, 0.5], [0, 0.5], [2, 0.5], [2, 0.5], [4, 0.5], [4, 0.5], [0, 1.0],
+			# 노 래 를  한 다
+			[2, 0.5], [2, 0.5], [4, 0.5], [0, 1.5], [REST, 0.5],
+			# 아 들 손 자  며 느 리
+			[4, 0.5], [4, 0.5], [5, 0.5], [5, 0.5], [7, 0.5], [7, 0.5], [4, 1.0],
+			# 다  모 여 서
+			[5, 0.5], [4, 0.5], [2, 0.5], [0, 1.5], [REST, 0.5],
 		],
 	},
 }
 
+## 반음 → 배음비
 ## 반음 → 배음비
 ## 반음 → 배음비
 func _semi(root: float, n: float) -> float:
@@ -348,7 +350,9 @@ func _layout_melody(mel: Dictionary, root: float, oct: int, dur: float) -> Array
 		if semi != REST:
 			if t + length <= dur - 0.2:
 				var f := _loopable(_semi(root * float(oct), float(semi)), dur)
-				out.append({"t": t, "len": minf(length * 1.35, 2.2), "f": f, "amp": 0.95})
+				# 감쇠가 거의 끝날 때까지 여유를 준다
+				var hold := clampf(length * 1.6, 0.55, 2.8)
+				out.append({"t": t, "len": minf(hold, dur - 0.2 - t), "f": f, "amp": 0.95})
 		t += length
 	return out
 
@@ -377,6 +381,7 @@ func _render(n: int, dur: float, bar: float, chords: Array, pad_voices: Array,
 		notes: Array, pad_gain: float, mel_gain: float, decay: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	data.resize(n * 2)
+	var lp := 0.0
 	for i in range(n):
 		var t := float(i) / float(BGM_RATE)
 		var v := 0.0
@@ -397,17 +402,20 @@ func _render(n: int, dur: float, bar: float, chords: Array, pad_voices: Array,
 			var lt: float = t - float(note.t)
 			if lt < 0.0 or lt > float(note.len):
 				continue
-			var atk: float = minf(1.0, lt / 0.16)
-			var rel: float = exp(-lt * decay)
+			var env := _note_env(lt, float(note.len), decay)
+			if env <= 0.0001:
+				continue
 			var f: float = note.f
 			v += (sin(TAU * f * t) * 0.72 + sin(TAU * f * 2.0 * t) * 0.22 \
 				+ sin(TAU * f * 3.0 * t) * 0.09) \
-				* atk * rel * float(note.amp) * mel_gain
+				* env * float(note.amp) * mel_gain
 
 		v = clampf(v, -1.0, 1.0)
 		# 부드럽게 눌러 과포화 방지
 		v = v - (v * v * v) / 3.0
-		var sv := int(v * 26000.0)
+		# 1차 저역통과: 날카로운 고역을 깎아 오르골처럼 부드럽게 만든다
+		lp += (v - lp) * LP_ALPHA
+		var sv := int(lp * 26000.0)
 		data[i * 2] = sv & 0xFF
 		data[i * 2 + 1] = (sv >> 8) & 0xFF
 
@@ -420,6 +428,17 @@ func _render(n: int, dur: float, bar: float, chords: Array, pad_voices: Array,
 	st.loop_begin = 0
 	st.loop_end = n
 	return st
+
+## 음 하나의 음량 곡선. lt=0 과 lt=len 에서 반드시 0 이라 "툭" 소리가 나지 않는다.
+##   attack  : 부드럽게 올라옴
+##   decay   : 자연스럽게 사그라듦
+##   release : 끝에서 0 으로 확실히 닫음  ← 이게 없어서 툭툭 튀었다
+func _note_env(lt: float, length: float, decay: float) -> float:
+	if lt < 0.0 or lt > length:
+		return 0.0
+	var atk := smoothstep(0.0, minf(0.045, length * 0.25), lt)
+	var rel := smoothstep(0.0, minf(0.13, length * 0.4), length - lt)
+	return atk * rel * exp(-lt * decay)
 
 func _pad_sum(voices: Array, t: float) -> float:
 	var v := 0.0

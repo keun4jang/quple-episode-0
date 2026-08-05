@@ -38,6 +38,7 @@ func _ready() -> void:
 		var gap: int = absi(tail - head)
 		ck("  루프 이음매 매끄러움", gap < 2500, "|끝-시작| = %d" % gap)
 
+
 		# 무음 구간이 지나치게 길지 않은가
 		var silent_run := 0
 		var max_silent := 0
@@ -48,6 +49,21 @@ func _ready() -> void:
 				silent_run = 0
 		var silent_sec := float(max_silent * 40) / float(AudioManager.BGM_RATE)
 		ck("  긴 무음 없음", silent_sec < 1.5, "최장 %.2f초" % silent_sec)
+
+	# 음 하나의 포락선이 양끝에서 0 인지 = "툭" 소리의 근본 원인 검사
+	print("\n[음 포락선] 시작과 끝이 0 이어야 클릭이 없다")
+	for length in [0.3, 0.8, 1.6, 2.8]:
+		for decay in [1.7, 2.4]:
+			var at_start: float = AudioManager._note_env(0.0, length, decay)
+			var at_end: float = AudioManager._note_env(length, length, decay)
+			ck("len=%.1f decay=%.1f 시작 0" % [length, decay], at_start < 0.001, "%.5f" % at_start)
+			ck("len=%.1f decay=%.1f 끝 0" % [length, decay], at_end < 0.001, "%.5f" % at_end)
+	# 중간에는 소리가 나야 한다
+	var mid: float = AudioManager._note_env(0.12, 1.6, 1.7)
+	ck("중간엔 소리 남", mid > 0.4, "%.3f" % mid)
+	# 끝 직전에도 이미 충분히 작아야 한다 (급감 방지)
+	var near_end: float = AudioManager._note_env(1.55, 1.6, 1.7)
+	ck("끝 직전 이미 작음", near_end < 0.08, "%.4f" % near_end)
 
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(0 if fail_n == 0 else 1)

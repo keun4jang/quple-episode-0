@@ -23,7 +23,7 @@ func _ready() -> void:
 	$UILayer/Control/SmallBtnRow/QuitBtn.pressed.connect(_on_quit)
 	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(
 		func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
-	AudioManager.play_bgm("matilda")
+	AudioManager.play_bgm("gohyang")
 
 	if OS.get_environment("QUPLE_SHOT") != "":
 		_capture_shot()
