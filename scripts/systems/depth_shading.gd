@@ -83,6 +83,12 @@ void fragment() {
 var _shader: Shader
 var _cache: Dictionary = {}          # 원본 재질 → 만들어 둔 셰이더 재질
 
+## 반구조명 색. 위 셰이더의 기본값과 같은 값으로 시작한다.
+## CinematicLook 이 지금 무드의 hemi_sky_tint / hemi_ground_tint 로 갈아준다.
+## 씬의 하늘색과 여기가 따로 놀면 물체만 다른 시간대에 서 있는 것처럼 보인다.
+var _sky_tint := Color(0.62, 0.70, 0.92)
+var _ground_tint := Color(0.58, 0.48, 0.56)
+
 
 func _ready() -> void:
 	add_to_group("depth_shading")
@@ -91,7 +97,39 @@ func _ready() -> void:
 	# 씬이 다 세워진 뒤에 훑는다. 스크립트가 _ready 에서 만드는 메시도 잡아야 한다.
 	await get_tree().process_frame
 	var n := _apply_to(get_tree().current_scene)
+	# 재질을 다 갈아끼운 "뒤에" 무드 색을 입힌다. 순서가 중요하다 —
+	# 교체 전에 발라 봐야 새로 만든 재질이 기본값으로 덮어쓴다.
+	# CinematicLook 이 밀어 주는 게 아니라 이쪽에서 가져온다. 위에서 한 프레임을
+	# 기다렸으니 씬의 _ready 는 전부 끝나 있고, 그러면 누가 먼저 도는지 따질 필요가 없다.
+	_pull_mood()
 	print("[DepthShading] 재질 %d 개 교체" % n)
+
+
+## 반구조명 색을 갈아끼운다. 이미 만들어 둔 재질과 앞으로 만들 재질 모두에 적용된다.
+func apply_hemi_tints(sky: Color, ground: Color) -> void:
+	_sky_tint = sky
+	_ground_tint = ground
+	for src in _cache:
+		var m: ShaderMaterial = _cache[src]
+		_write_hemi(m)
+
+
+func _pull_mood() -> void:
+	var look := get_tree().get_first_node_in_group("cinematic_look")
+	if look == null or not look.has_method("mood_data"):
+		return
+	var m: Dictionary = look.mood_data()
+	if m.is_empty():
+		return
+	apply_hemi_tints(m.get("hemi_sky_tint", _sky_tint), m.get("hemi_ground_tint", _ground_tint))
+
+
+## source_color 힌트가 붙어 있어도 Vector3 로 넣는다.
+## Color 로 넣으면 엔진이 sRGB→선형 변환을 한 번 더 걸어서, 셰이더에 적힌 기본값과
+## 다른(훨씬 어둡고 진한) 색이 된다. 지금 화면은 그 기본값 기준으로 맞춰져 있다.
+func _write_hemi(m: ShaderMaterial) -> void:
+	m.set_shader_parameter("sky_tint", Vector3(_sky_tint.r, _sky_tint.g, _sky_tint.b))
+	m.set_shader_parameter("ground_tint", Vector3(_ground_tint.r, _ground_tint.g, _ground_tint.b))
 
 
 func _apply_to(node: Node) -> int:
@@ -142,5 +180,6 @@ func _shade(src: StandardMaterial3D) -> Material:
 	m.set_shader_parameter("ao_height", ao_height)
 	m.set_shader_parameter("ao_amount", ao_amount)
 	m.set_shader_parameter("rim_amount", rim_amount)
+	_write_hemi(m)                   # 스캔이 끝난 뒤 만들어지는 재질도 같은 무드를 따르게
 	_cache[src] = m
 	return m

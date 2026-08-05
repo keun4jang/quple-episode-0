@@ -16,6 +16,11 @@ var _door_light: OmniLight3D = null
 var _t: float = 0.0
 var _listening: bool = false
 
+## 밤 야근 각본이라 시간대를 따라가면 안 된다. 실내 밤으로 고정한다.
+## _ready 가 아니라 _enter_tree 인 이유는 company_front_3d.gd 주석 참고.
+func _enter_tree() -> void:
+	$CinematicLook.mood = "night_office_indoor"
+
 func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")

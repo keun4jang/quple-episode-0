@@ -30,6 +30,14 @@ var _progress: float = 0.0
 var _tod: float = 0.0
 var _aurora: Array[MeshInstance3D] = []
 
+## 여기는 CinematicLook 에 고정 무드를 주지 않는다 — 일부러 비워 둔다.
+## 에피소드 0 의 네 씬은 밤으로 못박혀 있지만, 여행 쪽은 실제 시각을 따라간다.
+## 앱을 끄고 켜면 시간이 흘러 있는 게 이 게임의 코어 루프라서, 켠 시각이 방의
+## 공기색으로 보여야 앞뒤가 맞는다. 실내라 해는 움직이지 않고 배경색·환경광만
+## 바깥 시간 쪽으로 조금 섞인다 (cinematic_look.gd 의 _paint_indoor 참고).
+##
+## 아래 _progress / _tod 는 그것과 다른 축이다. 저건 "여행을 얼마나 왔는지"를
+## 창밖 그림으로 보여주는 값이고, 무드는 "지금 몇 시인지"다. 섞지 말 것.
 func _ready() -> void:
 	_progress = _compute_progress()
 	_tod = _time_of_day_for(_progress)

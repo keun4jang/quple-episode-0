@@ -10,6 +10,28 @@ class_name CinematicLook
 ##   2. 화면 위에 겹치는 레이어 — 비네트 / 따뜻한 색조 / 아주 옅은 필름 그레인
 ##
 ## 씬마다 값을 따로 만지지 않는다. 톤이 씬마다 흔들리면 그게 제일 싸구려로 보인다.
+## 그래서 "무슨 색으로 칠할지"는 MoodPalette 한 곳에서 정하고, 여기서는 그 값을
+## 화면에 바르기만 한다.
+##
+## [무드]
+##   mood 가 비어 있으면 실제 시각을 따라간다. 이 게임의 코어 루프가 unix time
+##   기준이라, 켠 시각이 화면 색에 나오는 게 맞다 (기념품 방 같은 여행 쪽 화면).
+##   mood 에 이름이 있으면 그 고정 무드를 쓴다. 에피소드 0 의 네 씬은 "늦은 밤
+##   야근" 으로 각본이 짜여 있어서 아침이 되면 이야기가 깨진다.
+##
+##   고정 무드는 씬 스크립트가 _enter_tree 에서 지정한다. _ready 는 늦다 —
+##   자식인 이 노드의 _ready 가 씬 루트의 _ready 보다 먼저 돌기 때문이다.
+##   (그래도 늦게 넣는 실수까지 덮으려고 setter 에서 다시 바르게 해 뒀다.)
+##
+## [바르는 범위]
+##   하늘이 보이는 씬(background_mode = BG_SKY) — 바깥 빛이 그림의 전부다.
+##     하늘·해·환경광·안개를 전부 무드가 정한다.
+##   하늘이 없는 실내 씬 — 배경색과 환경광은 그 방의 조명 설계다. 해는 아예
+##     건드리지 않고, 실시간 무드일 때만 배경색·환경광에 바깥 시간을 조금 섞는다.
+##     고정 무드 실내 씬(로비·사무실·복도)은 이미 그 밤에 맞춰 손으로 칠해져
+##     있으므로 그대로 둔다. 사무실의 차가운 파랑, 복도의 긴장감은 연출이다.
+
+const MoodPalette := preload("res://scripts/systems/mood_palette.gd")
 
 ## 화면 네 귀퉁이를 눌러 시선을 가운데로 모은다
 const VIGNETTE := """
@@ -28,26 +50,97 @@ void fragment() {
 }
 """
 
+## 비네트는 그 시각의 공기색(안개색)을 쓰되 채도를 눌러서 쓴다.
+## 귀퉁이가 색으로 물들면 화면이 촌스러워진다.
+## 밤 사무실 무드에 넣으면 지금 하드코딩돼 있던 (0.72, 0.66, 0.82) 과 거의 같은 값이 나온다.
+const VIGNETTE_DESATURATE := 0.35
+
+## 실내에 바깥 시간이 스며드는 정도. 방의 조명 설계를 지우지 않을 만큼만 섞는다.
+## 창도 없는 방이 한낮에 새파래지면 그건 시간 표현이 아니라 사고다.
+const INDOOR_SKY_MIX := 0.35        # 배경색에 바깥 하늘이 섞이는 정도
+const INDOOR_AMBIENT_MIX := 0.50    # 환경광 색·밝기에 바깥 빛이 섞이는 정도
+## 실내 씬들이 전제하고 있는 바깥 밝기 (= night_office 의 ambient_energy).
+## 실내 밝기는 무드 값으로 갈아치우지 않고 이 값 대비 비율로만 흔든다.
+## 한낮 무드의 ambient_energy 를 그대로 넣으면 방이 하얗게 뜬다.
+const INDOOR_AMBIENT_REF := 0.85
+
+## 씬이 원래 갖고 있던 값을 적어 두는 메타 키.
+## Environment 는 .tscn 의 sub_resource 라 씬을 다시 들어와도 같은 객체가 재활용된다.
+## 원본을 안 적어 두면 방문할 때마다 lerp 이 누적돼서 방이 점점 밝아진다.
+const META_BG := "quple_mood_base_bg"
+const META_AMBIENT := "quple_mood_base_ambient"
+const META_AMBIENT_ENERGY := "quple_mood_base_ambient_energy"
+
+var _applied := false               # mood setter 가 이걸 보고 다시 바를지 정한다
+
 @export var vignette_strength := 0.42
+
+## 고정 무드 이름. 비워 두면 실제 시각을 따라간다.
+## 아는 이름은 MoodPalette.fixed_names() — 지금은 "night_office" / "night_office_indoor".
+@export var mood: String = "": set = set_mood
+
+var current_mood: Dictionary = {}   # 지금 화면에 발려 있는 무드
+var current_mood_name := ""         # 고정 무드 이름이거나, 실시간이면 "dawn"/"night" 같은 구간 이름
+
+var _vignette_mat: ShaderMaterial = null
+
 
 func _ready() -> void:
 	add_to_group("cinematic_look")
 	layer = 5                       # 3D 위, UI(8) 아래
-	_tune_environment()
 	_add_overlay(VIGNETTE, {"strength": vignette_strength})
+	apply_mood(resolve_mood())
+
+
+## mood 를 늦게(씬 루트의 _ready 등) 넣어도 화면에 반영되게 한다.
+func set_mood(value: String) -> void:
+	mood = value
+	if _applied:
+		apply_mood(resolve_mood())
+
+
+## 지금 써야 할 무드를 고른다. 이름이 있으면 고정, 없으면 실제 시각.
+func resolve_mood() -> Dictionary:
+	if mood.is_empty():
+		var h := MoodPalette.now_hours()
+		current_mood_name = MoodPalette.name_at(h)
+		return MoodPalette.at(h)
+	current_mood_name = mood
+	return MoodPalette.fixed(mood)     # 모르는 이름이면 경고 후 night_office 로 떨어진다
+
+
+## 무드를 화면에 바른다. 밖에서 다시 불러도 안전하다.
+func apply_mood(m: Dictionary) -> void:
+	if m.is_empty():
+		return
+	current_mood = m
+	var outdoor := _apply_environment(m)
+	if outdoor:
+		_apply_sun(m)
+	_apply_vignette(m)
+	_push_to_depth_shading(m)
+	_applied = true
+
+
+## 지금 무드의 복사본. DepthShading·SceneTransition 처럼 같은 색을 써야 하는 쪽이 가져간다.
+## 복사본을 주는 이유는 mood_palette.gd 와 같다 — 받은 쪽이 고쳐도 여기가 오염되면 안 된다.
+func mood_data() -> Dictionary:
+	return current_mood.duplicate()
 
 
 ## compatibility 렌더러에서 실제로 동작하는 항목만 손댄다.
-func _tune_environment() -> void:
+## 돌려주는 값은 "하늘이 보이는 씬인가" — 해를 움직일지 여기서 갈린다.
+func _apply_environment(m: Dictionary) -> bool:
 	var we := _find_world_environment(get_tree().current_scene)
 	if we == null or we.environment == null:
-		return
+		return false
 	var e: Environment = we.environment
+	var outdoor := e.background_mode == Environment.BG_SKY
 
 	# 톤매핑 — 하이라이트가 하얗게 타지 않고 부드럽게 말린다
 	e.tonemap_mode = Environment.TONE_MAPPER_ACES
 	e.tonemap_white = 4.0
-	e.tonemap_exposure = 1.05
+	e.tonemap_exposure = float(m["exposure"])
 
 	# 글로우 — 창문 불빛과 가로등이 번지면서 밤 공기가 생긴다
 	e.glow_enabled = true
@@ -60,13 +153,114 @@ func _tune_environment() -> void:
 	# 색보정 — 파스텔이 흐리멍덩해지지 않게 대비와 채도를 올린다
 	e.adjustment_enabled = true
 	e.adjustment_brightness = 1.02
-	e.adjustment_contrast = 1.14
-	e.adjustment_saturation = 1.24
+	e.adjustment_contrast = float(m["contrast"])
+	e.adjustment_saturation = float(m["saturation"])
 
 	# 안개 — 뒤로 갈수록 옅어지면서 깊이가 생긴다. 디오라마 느낌의 핵심.
+	# 색까지 무드에서 가져와야 새벽 안개와 밤 안개가 달라진다.
 	e.fog_enabled = true
-	e.fog_density = 0.0055
+	e.fog_light_color = m["fog_color"]
+	e.fog_density = float(m["fog_density"])
 	e.fog_sky_affect = 0.0
+
+	if outdoor:
+		_paint_sky(e, m)
+		e.ambient_light_color = m["ambient_color"]
+		e.ambient_light_energy = float(m["ambient_energy"])
+	else:
+		_paint_indoor(e, m)
+	return outdoor
+
+
+## 하늘. ProceduralSkyMaterial 의 색 네 개만 갈아끼운다.
+## sky_curve / sun_angle_max / sun_curve 는 그 씬의 하늘 모양이라 그대로 둔다.
+func _paint_sky(e: Environment, m: Dictionary) -> void:
+	if e.sky == null:
+		return
+	var sm := e.sky.sky_material as ProceduralSkyMaterial
+	if sm == null:
+		return
+	sm.sky_top_color = m["sky_top"]
+	sm.sky_horizon_color = m["sky_horizon"]
+	sm.ground_horizon_color = m["ground_horizon"]
+	sm.ground_bottom_color = m["ground_bottom"]
+
+
+## 실내. 하늘이 안 보이니 배경색과 환경광에만 바깥 시간을 섞는다.
+## 고정 무드 실내 씬은 이미 그 시각으로 칠해져 있다는 뜻이라 손대지 않는다.
+func _paint_indoor(e: Environment, m: Dictionary) -> void:
+	var base_bg: Color = _base_color(e, META_BG, e.background_color)
+	var base_amb: Color = _base_color(e, META_AMBIENT, e.ambient_light_color)
+	var base_energy := _base_float(e, META_AMBIENT_ENERGY, e.ambient_light_energy)
+
+	if not mood.is_empty():
+		# 고정 무드 실내 씬. 씬이 손으로 맞춰 둔 값을 그대로 쓴다.
+		# (혹시 실시간으로 한 번 발린 뒤에 무드가 늦게 들어왔다면 여기서 되돌아간다.)
+		e.background_color = base_bg
+		e.ambient_light_color = base_amb
+		e.ambient_light_energy = base_energy
+		return
+
+	e.background_color = base_bg.lerp(m["sky_top"], INDOOR_SKY_MIX)
+	e.ambient_light_color = base_amb.lerp(m["ambient_color"], INDOOR_AMBIENT_MIX)
+	var ratio := float(m["ambient_energy"]) / INDOOR_AMBIENT_REF
+	e.ambient_light_energy = base_energy * lerpf(1.0, ratio, INDOOR_AMBIENT_MIX)
+
+
+## 해(또는 달). 실외에서만 부른다 — 창도 없는 방에서 해가 밝아지면 이상하다.
+func _apply_sun(m: Dictionary) -> void:
+	var sun := _find_sun(get_tree().current_scene)
+	if sun == null:
+		return
+	sun.light_color = m["sun_color"]
+	sun.light_energy = float(m["sun_energy"])
+	# 고도(pitch)만 바꾼다. 방위(yaw)는 그 씬이 정한 그림자 방향이라 그대로 둔다.
+	# 회전 전체를 다시 만들면 그림자가 엉뚱한 쪽으로 눕는다.
+	sun.rotation.x = deg_to_rad(float(m["sun_angle_deg"]))
+
+
+func _apply_vignette(m: Dictionary) -> void:
+	if _vignette_mat == null:
+		return
+	_vignette_mat.set_shader_parameter("strength", vignette_strength)
+	_vignette_mat.set_shader_parameter("tint", _to_vec3(_vignette_tint(m)))
+
+
+func _vignette_tint(m: Dictionary) -> Color:
+	var c: Color = m["fog_color"]
+	var l := c.get_luminance()
+	return c.lerp(Color(l, l, l), VIGNETTE_DESATURATE)
+
+
+## 반구조명 색을 DepthShading 에 넘긴다.
+## 다만 평소 경로는 이쪽이 아니다. DepthShading 은 _ready 에서 한 프레임 기다렸다가
+## 재질을 통째로 갈아끼우기 때문에, 그 전에 발라 두면 새 재질이 덮어써 버린다.
+## 그래서 DepthShading 이 교체를 끝낸 뒤에 스스로 여기서 가져간다(mood_data).
+## 이 push 는 무드를 나중에 다시 바를 때(예: setter)를 위한 것이다.
+func _push_to_depth_shading(m: Dictionary) -> void:
+	var ds := get_tree().get_first_node_in_group("depth_shading")
+	if ds != null and ds.has_method("apply_hemi_tints"):
+		ds.apply_hemi_tints(m["hemi_sky_tint"], m["hemi_ground_tint"])
+
+
+## 씬이 원래 갖고 있던 색. 처음 한 번만 적어 두고 그 뒤로는 적어 둔 값을 쓴다.
+func _base_color(e: Environment, key: String, current: Color) -> Color:
+	if not e.has_meta(key):
+		e.set_meta(key, current)
+	var v: Color = e.get_meta(key)
+	return v
+
+
+func _base_float(e: Environment, key: String, current: float) -> float:
+	if not e.has_meta(key):
+		e.set_meta(key, current)
+	return float(e.get_meta(key))
+
+
+## source_color 힌트가 없는 vec3 uniform 에는 Vector3 로 넣는다.
+## Color 로 넣으면 엔진이 sRGB→선형 변환을 걸어서 셰이더에 적힌 기본값과 다른 색이 된다.
+func _to_vec3(c: Color) -> Vector3:
+	return Vector3(c.r, c.g, c.b)
 
 
 func _find_world_environment(n: Node) -> WorldEnvironment:
@@ -76,6 +270,28 @@ func _find_world_environment(n: Node) -> WorldEnvironment:
 		return n
 	for c in n.get_children():
 		var r := _find_world_environment(c)
+		if r != null:
+			return r
+	return null
+
+
+## 씬의 주광. 그림자를 지는 첫 DirectionalLight3D 를 해로 본다.
+## CompanyFront3D 처럼 보조광(FillLight)이 같이 있는 씬에서 엉뚱한 쪽을 잡지 않으려는 것.
+func _find_sun(n: Node) -> DirectionalLight3D:
+	var shadowed := _find_directional(n, true)
+	if shadowed != null:
+		return shadowed
+	return _find_directional(n, false)
+
+
+func _find_directional(n: Node, need_shadow: bool) -> DirectionalLight3D:
+	if n == null:
+		return null
+	var d := n as DirectionalLight3D
+	if d != null and (not need_shadow or d.shadow_enabled):
+		return d
+	for c in n.get_children():
+		var r := _find_directional(c, need_shadow)
 		if r != null:
 			return r
 	return null
@@ -94,3 +310,4 @@ func _add_overlay(code: String, params: Dictionary) -> void:
 	r.set_anchors_preset(Control.PRESET_FULL_RECT)
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(r)
+	_vignette_mat = mat

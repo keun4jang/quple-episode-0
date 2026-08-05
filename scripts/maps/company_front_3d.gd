@@ -15,6 +15,15 @@ const CAM_LOOK_OFFSET = Vector3(0, 2.2, -2.0)  # 쿼카와 건물 입구가 같�
 var _light_time: float = 0.0
 var _lit_window: MeshInstance3D = null
 
+## 화면 무드는 실제 시각을 따라가지만 이 씬만은 아니다.
+## 에피소드 0 은 "늦은 밤 야근" 으로 각본이 짜여 있다. 아침에 켰다고 회사 앞이
+## 환해지면 대사도 조명도 전부 어긋난다. 그래서 밤으로 고정한다.
+##
+## _ready 가 아니라 _enter_tree 인 이유: _ready 는 자식이 먼저 돌아서
+## CinematicLook 이 이미 실시간 무드를 발라 버린 뒤다. _enter_tree 는 부모가 먼저다.
+func _enter_tree() -> void:
+	$CinematicLook.mood = "night_office"
+
 func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")

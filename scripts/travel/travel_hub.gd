@@ -6,6 +6,21 @@ extends Control
 
 const POSTER := "res://assets/splash/splash-poster-no-text.png"
 
+## 시간대 무드 / 여행지 팔레트. 둘 다 preload 로 잡는다 —
+## 전역 클래스 이름은 에디터 스캔에서만 갱신되는 캐시에 의존해서 새 클론에서 죽는다.
+const MoodPalette := preload("res://scripts/systems/mood_palette.gd")
+const Palette := preload("res://scripts/travel/palette.gd")
+
+## 무드는 몇 초에 한 번만 다시 계산한다. 매 프레임 계산할 값이 아니다.
+const MOOD_CHECK_SEC := 5.0
+## 새 무드로 갈아타는 데 걸리는 시간. 앱이 오래 꺼져 있다가 켜지거나
+## 17:59 → 18:01 처럼 구간이 넘어갈 때 색이 툭 바뀌지 않게 한다.
+const MOOD_FADE_SEC := 2.5
+## "한낮" 기준 밝기. 무드 하늘의 밝기를 이 값으로 나눠 조명 세기를 만든다.
+const DAY_REF := 0.90
+## 배경 포스터가 밤에 어두워지는 하한. 이보다 더 내려가면 글씨가 안 보인다.
+const BG_MIN_BRIGHT := 0.62
+
 @onready var bg: TextureRect        = $Bg
 @onready var dim: ColorRect         = $Dim
 @onready var title: Label           = $Safe/Header/Title
@@ -23,8 +38,18 @@ var _tick := 0.0
 var _filter := "all"
 var _region_filter := ""   # 빈 값이면 모든 대륙
 
+## 지금 쓰는 시간대 무드 (_mood_prev → _mood_next 로 _mood_t 만큼 넘어가는 중)
+var _mood_prev: Dictionary = {}
+var _mood_next: Dictionary = {}
+var _mood_t := 1.0        # 1.0 이면 갈아타기 끝
+var _mood_timer := 0.0    # 마지막으로 시계를 본 뒤 흐른 시간
+
 func _ready() -> void:
 	_load_poster()
+	_mood_next = MoodPalette.now()
+	_mood_prev = _mood_next
+	_mood_t = 1.0
+	_apply_mood()
 	AudioManager.play_bgm("doraji")
 	_update_ambient()
 	album_btn.pressed.connect(_show_album)
@@ -34,6 +59,8 @@ func _ready() -> void:
 	_refresh()
 
 func _process(delta: float) -> void:
+	# 시간대는 여행 중이 아니어도 흐른다. 화면을 켜 둔 채 저녁이 되는 경우가 있다.
+	_tick_mood(delta)
 	# 여행 중에는 남은 시간을 1초마다 갱신하고, 도착하면 화면을 바꾼다
 	if not TravelState.is_traveling():
 		return
@@ -297,34 +324,31 @@ func _build_traveling() -> void:
 	peek.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(peek)
 
-## 진행도를 하늘로 그린다. 0=새벽, 1=노을.
+## 하늘 한 조각으로 세 가지를 한꺼번에 말한다.
+##   색     — 여행지 팔레트(어디에 있는가) 를 지금 시각의 빛(몇 시인가) 으로 조명한다
+##   해/달  — 위치는 진행도, 색은 시간대. 밤이면 저절로 푸른 달빛이 된다
+##   진행도 — 막 떠났을 땐 여기 하늘색에 가깝고, 도착이 가까울수록 그곳 색이 또렷해진다
+## 남은 시간을 숫자로 보여주지 않는 화면이라, 해의 위치가 여전히 진행도를 말해준다.
 func _paint_sky(rect: ColorRect, prog: float) -> void:
+	var p := clampf(prog, 0.0, 1.0)
+	var m := _mood()
+	var d := TravelState.get_destination(str(TravelState.trip.get("dest_id", "")))
+	var pal: Dictionary = Palette.for_destination(d)
+	var tint := _light_tint(m)
+	var place_top: Color = pal.get("sky_top", Color(0.40, 0.54, 0.76))
+	var place_bot: Color = pal.get("sky_bottom", Color(0.82, 0.86, 0.90))
+	# 대기(무드 색에 잠기는 정도). 지평선은 언제나 대기가 더 두껍다.
+	var top := _lit(place_top, m["sky_top"], tint, lerpf(0.55, 0.20, p))
+	var bot := _lit(place_bot, m["sky_horizon"], tint, lerpf(0.62, 0.28, p))
 	var img := Image.create(64, 96, false, Image.FORMAT_RGBA8)
-	# 시간대별 하늘 색
-	var top_dawn := Color(0.16, 0.20, 0.42)
-	var bot_dawn := Color(0.42, 0.44, 0.62)
-	var top_noon := Color(0.42, 0.66, 0.90)
-	var bot_noon := Color(0.78, 0.88, 0.96)
-	var top_dusk := Color(0.30, 0.26, 0.52)
-	var bot_dusk := Color(0.98, 0.68, 0.52)
-	var top: Color
-	var bot: Color
-	if prog < 0.5:
-		var t := prog / 0.5
-		top = top_dawn.lerp(top_noon, t)
-		bot = bot_dawn.lerp(bot_noon, t)
-	else:
-		var t := (prog - 0.5) / 0.5
-		top = top_noon.lerp(top_dusk, t)
-		bot = bot_noon.lerp(bot_dusk, t)
 	for y in range(96):
 		var c := top.lerp(bot, float(y) / 95.0)
 		for x in range(64):
 			img.set_pixel(x, y, c)
-	# 해: 진행도에 따라 왼쪽에서 오른쪽으로, 가운데서 가장 높이
-	var sx := int(6.0 + prog * 52.0)
-	var sy := int(70.0 - sin(prog * PI) * 46.0)
-	var sun := Color(1.0, 0.95, 0.72) if prog < 0.75 else Color(1.0, 0.78, 0.52)
+	# 해/달: 진행도에 따라 왼쪽에서 오른쪽으로, 가운데서 가장 높이
+	var sx := int(6.0 + p * 52.0)
+	var sy := int(70.0 - sin(p * PI) * 46.0)
+	var sun: Color = m["sun_color"]
 	for dy in range(-4, 5):
 		for dx in range(-4, 5):
 			if dx * dx + dy * dy > 16:
@@ -345,6 +369,102 @@ func _paint_sky(rect: ColorRect, prog: float) -> void:
 		rect.add_child(tr)
 	tr.texture = tex
 	rect.color = Color(0, 0, 0, 0)
+
+# ── 시간대 무드 ─────────────────────────────────────────────────────────
+# 이 게임은 실제 시각(unix time)으로 굴러간다. 앱을 껐다 켜면 시간이 흘러 있고
+# 쿼카 커플은 그 사이에 여행을 다녀온다. 그러니 "지금 몇 시인가" 가 화면에 보여야
+# 앞뒤가 맞는다. 시계를 보는 건 여행 쪽뿐이다 — 0편의 회사 씬은 "늦은 밤" 고정이다.
+#
+# [여행지 색 + 시간대] 를 어떻게 합치는가:
+#   여행지 팔레트는 "무엇이 보이는가"(색조) 를,
+#   시간대 무드는 "어떤 빛을 받는가"(밝기·색온도) 를 맡는다.
+# 그래서 아프리카는 밤에도 아프리카 하늘이고, 다만 밤이라 어둡고 푸르다.
+# 단순히 두 색을 절반씩 섞으면 밤 하늘이 대낮처럼 밝아져서 시간대가 죽는다.
+
+## 지금 쓸 무드. 갈아타는 중이면 중간값을 준다.
+func _mood() -> Dictionary:
+	if _mood_next.is_empty():
+		_mood_next = MoodPalette.now()
+		_mood_prev = _mood_next
+		_mood_t = 1.0
+	if _mood_t >= 1.0:
+		return _mood_next
+	# 선형이면 시작/끝에서 색이 꺾이는 게 보인다.
+	var s := _mood_t * _mood_t * (3.0 - 2.0 * _mood_t)
+	return MoodPalette.blend(_mood_prev, _mood_next, s)
+
+## 몇 초에 한 번만 시계를 본다. 매 프레임 무드를 다시 계산하는 건 낭비다.
+## 바뀌었으면 MOOD_FADE_SEC 에 걸쳐 천천히 갈아탄다.
+func _tick_mood(delta: float) -> void:
+	var moved := false
+	if _mood_t < 1.0:
+		_mood_t = minf(1.0, _mood_t + delta / MOOD_FADE_SEC)
+		moved = true
+	_mood_timer += delta
+	if _mood_timer >= MOOD_CHECK_SEC:
+		_mood_timer = 0.0
+		var fresh := MoodPalette.now()
+		if not _mood_close(fresh, _mood_next):
+			# 지금 보이는 색에서 출발한다. 갈아타는 도중에 또 바뀌어도 끊기지 않는다.
+			_mood_prev = _mood()
+			_mood_next = fresh
+			_mood_t = 0.0
+			moved = true
+	if moved:
+		_apply_mood()
+
+## 눈에 안 보일 만큼의 차이는 무시한다.
+## 5초 사이의 변화는 원래 아주 작아서, 대개 여기서 걸러지고 아무 일도 일어나지 않는다.
+## 실제로 값이 튀는 건 앱이 오래 멈췄다가 돌아왔을 때다.
+func _mood_close(a: Dictionary, b: Dictionary) -> bool:
+	if a.is_empty() or b.is_empty():
+		return false
+	for k in ["sky_top", "sky_horizon", "ambient_color", "fog_color", "sun_color"]:
+		var ca: Color = a.get(k, Color.BLACK)
+		var cb: Color = b.get(k, Color.WHITE)
+		if absf(ca.r - cb.r) > 0.004 or absf(ca.g - cb.g) > 0.004 or absf(ca.b - cb.b) > 0.004:
+			return false
+	return true
+
+## 화면 전체에 지금 시각의 빛을 얹는다.
+## 포스터를 원본보다 밝게 만들지는 않는다 — 밝히면 흰 글씨가 묻힌다.
+## 어둡게 하거나 색을 기울이는 쪽으로만 쓴다.
+func _apply_mood() -> void:
+	if bg == null or dim == null:
+		return
+	var m := _mood()
+	var tint := _light_tint(m)
+	var b := clampf(_bright(m["sky_horizon"]), BG_MIN_BRIGHT, 1.0)
+	bg.modulate = Color(tint.r * b, tint.g * b, tint.b * b, 1.0)
+	# Dim 은 어둡기(0.14)와 두께(0.28)를 그대로 두고 색조만 시간대로 옮긴다.
+	var f: Color = m["fog_color"]
+	var k := 0.14 / maxf(_vmax(f), 0.001)
+	dim.color = Color(f.r * k, f.g * k, f.b * k, 0.28)
+
+## 그 시각의 빛 색. 세기는 빼고 색조만 남긴다 (가장 밝은 채널이 1.0 이 되게).
+func _light_tint(m: Dictionary) -> Color:
+	var c: Color = m.get("ambient_color", Color(1, 1, 1))
+	var v := _vmax(c)
+	if v < 0.001:
+		return Color(1, 1, 1)
+	return Color(c.r / v, c.g / v, c.b / v)
+
+func _vmax(c: Color) -> float:
+	return maxf(maxf(c.r, c.g), c.b)
+
+## 무드 하늘의 밝기를 조명 세기로 옮긴다. 한낮이 1.0, 밤이 0.3 언저리가 된다.
+func _bright(c: Color) -> float:
+	return minf(1.0, _vmax(c) / DAY_REF)
+
+## 여행지 색을 그 시각의 빛으로 조명하고, 대기(무드 색)에 담근다.
+## atmos 가 클수록 시간대 색에 잠기고, 작을수록 여행지 색이 또렷해진다.
+func _lit(place: Color, light: Color, tint: Color, atmos: float) -> Color:
+	var b := _bright(light)
+	var out := Color(
+		clampf(place.r * tint.r * b, 0.0, 1.0),
+		clampf(place.g * tint.g * b, 0.0, 1.0),
+		clampf(place.b * tint.b * b, 0.0, 1.0))
+	return out.lerp(light, clampf(atmos, 0.0, 1.0))
 
 ## 소식 버튼: 안 읽은 게 있으면 강조, 없으면 다음 소식까지 안내
 func _make_message_row() -> Control:
