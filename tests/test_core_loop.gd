@@ -20,7 +20,7 @@ func _ready() -> void:
 	ck("여행 중 아님", not TravelState.is_traveling())
 	ck("도착 아님", not TravelState.has_arrived())
 	ck("앨범 비어있음", TravelState.collection.is_empty())
-	ck("여행지 12곳", TravelState.DESTINATIONS.size() == 12,
+	ck("여행지 200곳 이상", TravelState.DESTINATIONS.size() >= 200,
 		"%d곳" % TravelState.DESTINATIONS.size())
 
 	print("\n[2] 여행 보내기")
@@ -85,18 +85,18 @@ func _ready() -> void:
 	Episode0State.has_notebook = true
 	Episode0State.has_travel_bag = true
 	ck("국내는 처음부터 열림", TravelState.is_unlocked("seoul") and TravelState.is_unlocked("jeju"))
-	ck("해외는 잠김", not TravelState.is_unlocked("paris"))
-	ck("잠긴 곳은 출발 불가", not TravelState.start_trip("paris"))
-	ck("해금 안내 문구", TravelState.unlock_hint("paris").contains("국내"),
-		TravelState.unlock_hint("paris"))
-	# 국내 3곳을 다녀오면 해외가 열린다
-	for d in ["seoul", "busan", "jeju"]:
+	ck("해외는 잠김", not TravelState.is_unlocked("france"))
+	ck("잠긴 곳은 출발 불가", not TravelState.start_trip("france"))
+	ck("해금 안내 문구", TravelState.unlock_hint("france").contains("국내"),
+		TravelState.unlock_hint("france"))
+	# 국내 5곳을 다녀오면 해외가 열린다
+	for d in ["seoul", "busan", "jeju", "incheon", "daegu"]:
 		TravelState.start_trip(d)
 		TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) - 1
 		TravelState.collect_arrival()
-	ck("국내 3곳 → 해외 해금", TravelState.is_unlocked("paris"),
+	ck("국내 5곳 → 해외 해금", TravelState.is_unlocked("france"),
 		"국내 %d곳" % TravelState.chapter_cleared("korea"))
-	ck("우주는 아직 잠김", not TravelState.is_unlocked("moon"))
+	ck("우주는 아직 잠김", not TravelState.is_unlocked("neptune"))
 
 	print("\n[9] 0편 물품이 여행 기록에 반영")
 	SaveManager.clear_save(); TravelState.reset()

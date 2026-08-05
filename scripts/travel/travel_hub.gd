@@ -80,9 +80,27 @@ func _build_idle() -> void:
 		list.add_child(_make_chapter_header(ch, open, done, total))
 		if not open:
 			continue
-		for d in TravelState.DESTINATIONS:
-			if str(d.get("chapter", "")) == str(ch.id):
-				list.add_child(_make_dest_card(d))
+		if str(ch.id) == "world":
+			# 해외는 197곳이라 대륙으로 다시 묶는다
+			for rg in TravelState.REGIONS:
+				var cards: Array = []
+				for d in TravelState.DESTINATIONS:
+					if str(d.get("region", "")) == str(rg.id):
+						cards.append(d)
+				if cards.is_empty():
+					continue
+				var rl := Label.new()
+				rl.text = "%s (%d곳)" % [rg.name, cards.size()]
+				rl.add_theme_font_size_override("font_size", 13)
+				rl.add_theme_color_override("font_color", Color(0.80, 0.78, 0.92))
+				rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				list.add_child(rl)
+				for d in cards:
+					list.add_child(_make_dest_card(d))
+		else:
+			for d in TravelState.DESTINATIONS:
+				if str(d.get("chapter", "")) == str(ch.id):
+					list.add_child(_make_dest_card(d))
 	scroll.add_child(list)
 	body.add_child(scroll)
 	body.add_child(_make_items_row())
@@ -103,9 +121,32 @@ func _make_chapter_header(ch: Dictionary, open: bool, done: int, total: int) -> 
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
 
+## 여행지 색. 여행지마다 tint 를 다 적을 수 없으므로 막·대륙으로 정한다.
+const CHAPTER_TINT := {
+	"korea":  Color(0.55, 0.78, 0.55),
+	"space":  Color(0.65, 0.72, 0.95),
+	"beyond": Color(1.00, 0.86, 0.62),
+}
+const REGION_TINT := {
+	"asia":    Color(0.90, 0.66, 0.62),
+	"europe":  Color(0.72, 0.72, 0.92),
+	"africa":  Color(0.92, 0.80, 0.55),
+	"america": Color(0.62, 0.82, 0.72),
+	"oceania": Color(0.55, 0.78, 0.88),
+}
+
+func _dest_tint(d: Dictionary) -> Color:
+	if d.has("tint"):
+		return d.tint
+	var rg := str(d.get("region", ""))
+	if REGION_TINT.has(rg):
+		return REGION_TINT[rg]
+	return CHAPTER_TINT.get(str(d.get("chapter", "")), Color(0.72, 0.75, 0.88))
+
 func _make_dest_card(d: Dictionary) -> Button:
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(0, 58)
+	var tint: Color = _dest_tint(d)
 	var visits: int = TravelState.visit_count(d.id)
 	var unlocked: bool = TravelState.is_unlocked(d.id)
 	var secs: int = TravelState.duration_of(d)
@@ -122,9 +163,9 @@ func _make_dest_card(d: Dictionary) -> Button:
 	b.add_theme_color_override("font_color", Color(0.20, 0.14, 0.10))
 	b.add_theme_color_override("font_hover_color", Color(0.10, 0.07, 0.05))
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	b.add_theme_stylebox_override("normal", _card_style(d.tint, false))
-	b.add_theme_stylebox_override("hover",  _card_style(d.tint, true))
-	b.add_theme_stylebox_override("pressed",_card_style(d.tint, true))
+	b.add_theme_stylebox_override("normal", _card_style(tint, false))
+	b.add_theme_stylebox_override("hover",  _card_style(tint, true))
+	b.add_theme_stylebox_override("pressed",_card_style(tint, true))
 	b.pressed.connect(func():
 		if TravelState.start_trip(d.id):
 			AudioManager.ui_confirm()
