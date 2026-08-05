@@ -6,6 +6,21 @@ const SAVE_PATH := "user://save.cfg"
 
 signal game_saved
 
+const PROFILE_PATH := "user://profile.cfg"
+
+## 0편을 한 번이라도 클리어했는가 (새 게임을 시작해도 유지되는 기록)
+func has_cleared_episode0() -> bool:
+	var c := ConfigFile.new()
+	if c.load(PROFILE_PATH) != OK:
+		return false
+	return bool(c.get_value("progress", "episode0_cleared", false))
+
+func mark_episode0_cleared() -> void:
+	var c := ConfigFile.new()
+	c.load(PROFILE_PATH)
+	c.set_value("progress", "episode0_cleared", true)
+	c.save(PROFILE_PATH)
+
 ## 0편 자동 저장. 플레이어 위치까지 함께 남긴다.
 func autosave(current_scene: String, player_pos: Vector3 = Vector3.ZERO) -> void:
 	var cfg := ConfigFile.new()

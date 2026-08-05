@@ -1,0 +1,56 @@
+[gd_scene load_steps=9 format=3 uid="uid://bsouvenirroom3d"]
+
+[ext_resource type="Script" path="res://scripts/travel/souvenir_room_3d.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="3_dialogue"]
+[ext_resource type="Script" path="res://scripts/systems/interactable.gd" id="9_interact"]
+[ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="10_keyguide"]
+[ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="12_album"]
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 1
+background_color = Color(0.0784314, 0.0666667, 0.109804, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.827451, 0.72549, 0.607843, 1)
+ambient_light_energy = 0.45
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.45
+glow_bloom = 0.16
+
+[sub_resource type="SphereShape3D" id="IS12"]
+radius = 1.2
+
+[node name="SouvenirRoom3D" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 5, 0)
+light_color = Color(1, 0.898039, 0.780392, 1)
+light_energy = 0.35
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.891007, 0.45399, 0, -0.45399, 0.891007, 0, 4.6, 6.2)
+fov = 55.0
+
+[node name="PlayerQuokka3D" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 1.4)
+
+[node name="DialogueBox" parent="." instance=ExtResource("3_dialogue")]
+
+[node name="KeyGuideUI" parent="." instance=ExtResource("10_keyguide")]
+
+[node name="AlbumUI" parent="." instance=ExtResource("12_album")]
+
+[node name="ExitInteract" type="Area3D" parent="." groups=["interactable"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3.6)
+script = ExtResource("9_interact")
+prompt_text = "여행 허브로 나가기"
+indicator_height = 1.6
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ExitInteract"]
+shape = SubResource("IS12")

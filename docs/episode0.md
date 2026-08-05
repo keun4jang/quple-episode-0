@@ -64,13 +64,25 @@ MainMenu3D ──[새 여행 시작]──> CompanyFront3D (0편 시작)
 
 `이어하기` 는 자동 저장된 지점(`SaveManager.get_current_scene()`)으로 복귀한다.
 
+## 0편 건너뛰기
+
+한 번 클리어하면 `user://profile.cfg` 에 기록이 남는다.
+다음에 `새 여행 시작` 을 누르면 선택지가 뜬다.
+
+- **건너뛰고 여행 시작** — 카메라·수첩·가방을 갖춘 채 바로 여행 허브로
+- **0편부터 다시 보기** — 프롤로그를 처음부터
+
+기록은 `SaveManager.has_cleared_episode0()` 로 확인한다.
+새 게임을 시작해도 이 기록은 지워지지 않는다.
+
 ## 실행 / 테스트
 
 ```bash
 godot --path .                                        # 게임 실행
 godot --headless --path . res://tests/TestPlaythrough.tscn    # 전체 플레이스루 23개
 godot --headless --path . res://tests/TestEpisode0Flow.tscn   # 0편 흐름 20개
-godot --headless --path . res://tests/TestCoreLoop.tscn       # 여행 루프 31개
+godot --headless --path . res://tests/TestCoreLoop.tscn       # 여행 루프 53개
+godot --headless --path . res://tests/TestAudio.tscn          # 효과음 13개
 ```
 
 ## 제작 원칙

@@ -23,8 +23,7 @@ func _ready() -> void:
 	$UILayer/Control/SmallBtnRow/QuitBtn.pressed.connect(_on_quit)
 	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(
 		func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
-	var _am = get_node_or_null("/root/AudioManager")
-	if _am: _am.play_bgm("menu")
+	# 배경음은 아직 없다. 효과음은 AudioManager 가 코드로 합성한다.
 
 	if OS.get_environment("QUPLE_SHOT") != "":
 		_capture_shot()
@@ -170,6 +169,65 @@ func _capture_shot() -> void:
 
 # ─── 스토리 전환 ───
 func _on_start() -> void:
+	# 0편을 이미 클리어했다면 건너뛸지 물어본다
+	if SaveManager.has_cleared_episode0():
+		_ask_skip_prologue()
+		return
+	_start_new(false)
+
+## 프롤로그를 건너뛸지 선택
+func _ask_skip_prologue() -> void:
+	var ctrl = get_node_or_null("UILayer/Control")
+	if ctrl == null:
+		_start_new(false); return
+	if ctrl.has_node("SkipAsk"):
+		return
+	var wrap := PanelContainer.new()
+	wrap.name = "SkipAsk"
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.09, 0.07, 0.20, 0.96)
+	sb.set_corner_radius_all(28)
+	sb.set_border_width_all(3)
+	sb.border_color = Color(1, 0.85, 0.43, 0.5)
+	sb.set_content_margin_all(34)
+	wrap.add_theme_stylebox_override("panel", sb)
+	wrap.set_anchors_preset(Control.PRESET_CENTER)
+	wrap.set_offset(SIDE_LEFT, -400); wrap.set_offset(SIDE_RIGHT, 400)
+	wrap.set_offset(SIDE_TOP, -220);  wrap.set_offset(SIDE_BOTTOM, 220)
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 24)
+	var t := Label.new()
+	t.text = "0편을 이미 보셨어요"
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.add_theme_font_size_override("font_size", 46)
+	t.add_theme_color_override("font_color", Color(1, 0.95, 0.80))
+	v.add_child(t)
+	var d := Label.new()
+	d.text = "프롤로그를 건너뛰고\n바로 여행을 떠날까요?"
+	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	d.add_theme_font_size_override("font_size", 32)
+	d.add_theme_color_override("font_color", Color(0.88, 0.85, 1.0))
+	v.add_child(d)
+
+	var skip := Button.new()
+	skip.text = "건너뛰고 여행 시작"
+	skip.custom_minimum_size = Vector2(0, 104)
+	skip.add_theme_font_size_override("font_size", 38)
+	skip.pressed.connect(func(): AudioManager.ui_confirm(); _start_new(true))
+	v.add_child(skip)
+
+	var play := Button.new()
+	play.text = "0편부터 다시 보기"
+	play.custom_minimum_size = Vector2(0, 92)
+	play.add_theme_font_size_override("font_size", 34)
+	play.pressed.connect(func(): AudioManager.ui_click(); _start_new(false))
+	v.add_child(play)
+
+	wrap.add_child(v)
+	ctrl.add_child(wrap)
+
+func _start_new(skip_prologue: bool) -> void:
 	Episode0State.current_state = Episode0State.State.START
 	Episode0State.has_camera = false; Episode0State.has_notebook = false
 	Episode0State.has_travel_bag = false; Episode0State.badge_returned = false
@@ -177,8 +235,18 @@ func _on_start() -> void:
 	Episode0State.album_created = false; Episode0State.episode0_cleared = false
 	Episode0State.memos_found = []
 	TravelState.reset()
-	# 0편(프롤로그)부터 시작한다
-	SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn")
+	if skip_prologue:
+		# 프롤로그를 건너뛰면 0편에서 얻는 것들을 미리 갖춘 채 여행을 시작한다
+		Episode0State.has_camera = true
+		Episode0State.has_notebook = true
+		Episode0State.has_travel_bag = true
+		Episode0State.badge_returned = true
+		Episode0State.partner_joined = true
+		Episode0State.advance_to(Episode0State.State.CLEAR)
+		SaveManager.autosave("res://scenes/travel/TravelHub.tscn")
+		SceneTransition.go_to("res://scenes/travel/TravelHub.tscn", "hopeful")
+	else:
+		SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn")
 
 func _on_continue() -> void:
 	SaveManager.load_game()

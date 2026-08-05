@@ -20,6 +20,7 @@ var _tick := 0.0
 func _ready() -> void:
 	_load_poster()
 	album_btn.pressed.connect(_show_album)
+	room_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/travel/SouvenirRoom3D.tscn", "hopeful"))
 	home_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/menu/MainMenu3D.tscn"))
 	_refresh()
 
@@ -41,6 +42,7 @@ func _process(delta: float) -> void:
 	# 보고 있는 중에 새 소식이 도착하면 알림을 띄운다
 	var showing_msg_btn := body.get_node_or_null("MsgBtn") != null
 	if TravelState.unread_count() > 0 and not showing_msg_btn:
+		AudioManager.message_arrive()
 		_refresh()
 
 # ── 화면 전환 ───────────────────────────────────────────────────────────
@@ -87,6 +89,7 @@ func _make_dest_card(d: Dictionary) -> Button:
 	b.add_theme_stylebox_override("pressed",_card_style(d.tint, true))
 	b.pressed.connect(func():
 		if TravelState.start_trip(d.id):
+			AudioManager.ui_confirm()
 			_refresh())
 	return b
 
@@ -167,7 +170,7 @@ func _make_message_row() -> Control:
 		b.add_theme_color_override("font_color", Color(0.24, 0.12, 0.30))
 		b.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.72, 0.82), false))
 		b.add_theme_stylebox_override("hover", _card_style(Color(1.0, 0.82, 0.90), true))
-		b.pressed.connect(_show_messages)
+		b.pressed.connect(func(): AudioManager.ui_click(); _show_messages())
 		return b
 
 	var l := Label.new()
@@ -246,6 +249,7 @@ func _build_arrived() -> void:
 	open_btn.pressed.connect(func():
 		var s := TravelState.collect_arrival()
 		if not s.is_empty():
+			AudioManager.souvenir_get()
 			_show_souvenir(s))
 	body.add_child(open_btn)
 

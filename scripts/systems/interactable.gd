@@ -46,6 +46,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact"):
 		_used = true
+		AudioManager.ui_confirm()
 		interacted.emit()
 		get_viewport().set_input_as_handled()
 

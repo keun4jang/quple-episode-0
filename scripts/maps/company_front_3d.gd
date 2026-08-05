@@ -290,6 +290,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _take_photo() -> void:
 	_photo_done = true
 	Episode0State.first_photo_taken = true
+	AudioManager.shutter()
 	# 0.2초 화면 플래시
 	var flash := ColorRect.new()
 	flash.color = Color(1, 1, 1, 0.9)
@@ -315,6 +316,7 @@ func _take_photo() -> void:
 
 	# 0편 클리어
 	Episode0State.advance_to(Episode0State.State.CLEAR)
+	SaveManager.mark_episode0_cleared()
 	SaveManager.autosave("res://scenes/maps/CompanyFront3D.tscn", player.global_position)
 	var cs := load("res://scenes/ui/ClearScreen.tscn") as PackedScene
 	if cs: add_child(cs.instantiate())
