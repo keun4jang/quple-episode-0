@@ -13,6 +13,7 @@ const POSTER := "res://assets/splash/splash-poster-no-text.png"
 @onready var panel: PanelContainer  = $Safe/Panel
 @onready var body: VBoxContainer    = $Safe/Panel/Margin/Body
 @onready var album_btn: Button      = $Safe/Footer/AlbumBtn
+@onready var room_btn: Button       = $Safe/Footer/RoomBtn
 @onready var home_btn: Button       = $Safe/Footer/HomeBtn
 
 var _tick := 0.0
@@ -62,13 +63,49 @@ func _refresh() -> void:
 func _build_idle() -> void:
 	title.text = "어디로 보낼까요?"
 	subtitle.text = "쿼카 커플이 다녀올 곳을 골라주세요"
-	for d in TravelState.DESTINATIONS:
-		body.add_child(_make_dest_card(d))
+	# 여행지가 12곳이라 막별로 묶고 스크롤한다
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 300)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 8)
+	for ch in TravelState.CHAPTERS:
+		var open: bool = TravelState.is_chapter_unlocked(str(ch.id))
+		var done: int = TravelState.chapter_cleared(str(ch.id))
+		var total := 0
+		for d in TravelState.DESTINATIONS:
+			if str(d.get("chapter", "")) == str(ch.id):
+				total += 1
+		list.add_child(_make_chapter_header(ch, open, done, total))
+		if not open:
+			continue
+		for d in TravelState.DESTINATIONS:
+			if str(d.get("chapter", "")) == str(ch.id):
+				list.add_child(_make_dest_card(d))
+	scroll.add_child(list)
+	body.add_child(scroll)
 	body.add_child(_make_items_row())
+
+## 막 제목 줄
+func _make_chapter_header(ch: Dictionary, open: bool, done: int, total: int) -> Label:
+	var l := Label.new()
+	if open:
+		l.text = "──  %s   %d/%d  ──" % [ch.name, done, total]
+		l.add_theme_color_override("font_color", Color(1, 0.90, 0.62))
+	else:
+		var idx: int = TravelState.chapter_index(str(ch.id))
+		var prev: Dictionary = TravelState.CHAPTERS[maxi(0, idx - 1)]
+		var need: int = int(ch.get("need_prev", 3)) - TravelState.chapter_cleared(str(prev.id))
+		l.text = "──  🔒 %s   (%s %d곳 더)  ──" % [ch.name, prev.name, maxi(0, need)]
+		l.add_theme_color_override("font_color", Color(0.62, 0.60, 0.75))
+	l.add_theme_font_size_override("font_size", 15)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return l
 
 func _make_dest_card(d: Dictionary) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(0, 78)
+	b.custom_minimum_size = Vector2(0, 58)
 	var visits: int = TravelState.visit_count(d.id)
 	var unlocked: bool = TravelState.is_unlocked(d.id)
 	var secs: int = TravelState.duration_of(d)
@@ -79,9 +116,9 @@ func _make_dest_card(d: Dictionary) -> Button:
 			("   ·   %d번 다녀옴" % visits) if visits > 0 else "",
 		]
 	else:
-		b.text = "🔒  ???\n%s" % TravelState.unlock_hint(d.id)
+		b.text = "🔒  %s" % TravelState.unlock_hint(d.id)
 		b.disabled = true
-	b.add_theme_font_size_override("font_size", 17)
+	b.add_theme_font_size_override("font_size", 15)
 	b.add_theme_color_override("font_color", Color(0.20, 0.14, 0.10))
 	b.add_theme_color_override("font_hover_color", Color(0.10, 0.07, 0.05))
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

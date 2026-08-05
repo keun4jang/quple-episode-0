@@ -20,8 +20,8 @@ func _ready() -> void:
 	ck("여행 중 아님", not TravelState.is_traveling())
 	ck("도착 아님", not TravelState.has_arrived())
 	ck("앨범 비어있음", TravelState.collection.is_empty())
-	ck("여행지 3곳", TravelState.DESTINATIONS.size() == 3,
-		str(TravelState.DESTINATIONS.map(func(d): return d.name)))
+	ck("여행지 12곳", TravelState.DESTINATIONS.size() == 12,
+		"%d곳" % TravelState.DESTINATIONS.size())
 
 	print("\n[2] 여행 보내기")
 	ck("서울행 출발 성공", TravelState.start_trip("seoul"))
@@ -79,30 +79,24 @@ func _ready() -> void:
 	ck("도착 시각 보존", int(TravelState.trip.get("arrive_at", 0)) == arrive_at)
 	ck("목적지 보존", TravelState.trip.get("dest_id","") == "seoul")
 
-	print("\n[8] 여행지 해금")
+	print("\n[8] 여행지 해금 (자세한 검증은 TestChapters)")
 	SaveManager.clear_save(); TravelState.reset()
 	Episode0State.has_camera = true
 	Episode0State.has_notebook = true
 	Episode0State.has_travel_bag = true
-	ck("서울은 처음부터 열림", TravelState.is_unlocked("seoul"))
-	ck("파리는 잠김", not TravelState.is_unlocked("paris"))
-	ck("달도 잠김", not TravelState.is_unlocked("moon"))
+	ck("국내는 처음부터 열림", TravelState.is_unlocked("seoul") and TravelState.is_unlocked("jeju"))
+	ck("해외는 잠김", not TravelState.is_unlocked("paris"))
 	ck("잠긴 곳은 출발 불가", not TravelState.start_trip("paris"))
-	ck("해금 안내 문구", TravelState.unlock_hint("paris").contains("서울"),
+	ck("해금 안내 문구", TravelState.unlock_hint("paris").contains("국내"),
 		TravelState.unlock_hint("paris"))
-	# 서울 3번 다녀오기
-	for i in range(3):
-		TravelState.start_trip("seoul")
+	# 국내 3곳을 다녀오면 해외가 열린다
+	for d in ["seoul", "busan", "jeju"]:
+		TravelState.start_trip(d)
 		TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) - 1
 		TravelState.collect_arrival()
-	ck("서울 3회 → 파리 해금", TravelState.is_unlocked("paris"), "서울 %d회" % TravelState.visit_count("seoul"))
-	ck("달은 아직 잠김", not TravelState.is_unlocked("moon"))
-	# 파리 2번
-	for i in range(2):
-		TravelState.start_trip("paris")
-		TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) - 1
-		TravelState.collect_arrival()
-	ck("파리 2회 → 달 해금", TravelState.is_unlocked("moon"))
+	ck("국내 3곳 → 해외 해금", TravelState.is_unlocked("paris"),
+		"국내 %d곳" % TravelState.chapter_cleared("korea"))
+	ck("우주는 아직 잠김", not TravelState.is_unlocked("moon"))
 
 	print("\n[9] 0편 물품이 여행 기록에 반영")
 	SaveManager.clear_save(); TravelState.reset()
