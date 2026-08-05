@@ -6,8 +6,8 @@
 
 | 파일 | 크기 | 용도 |
 |---|---|---|
-| `build/quple.apk` | 94 MB | 디버그. 폰에 바로 설치해 테스트 |
-| `build/quple-release.apk` | 92 MB | 배포용 서명 |
+| `build/quple.apk` | 51 MB | 디버그. 폰에 바로 설치해 테스트 |
+| `build/quple-release.apk` | 49 MB | 배포용 서명 |
 
 - 패키지: `com.quple.episode0` / 앱 이름 **쿼플** / 버전 0.1.0
 - 최소 안드로이드 5.0 (SDK 21), 타겟 SDK 34
@@ -115,6 +115,32 @@ adb install -r build/quple.apk        # USB 디버깅 켠 폰 연결 후
 현재 값 — alias `quple`, 비밀번호 `quple2026`. **실제 출시 전에 반드시 바꿀 것.**
 
 ## 빌드 설정 메모
+
+### APK 용량
+
+처음엔 95 MB 였다. 게임이 실제로 로드하는 에셋은 5 개(7 MB)뿐인데
+Blender 렌더 원본, 스플래시 후보안, GLB, 미사용 마스코트 PNG 등 54 MB 가
+전부 따라 들어가고 있었다. `exclude_filter` 로 빼서 **51 MB / 49 MB** 가 됐다.
+
+파일은 저장소에 그대로 있다 — APK 에만 안 들어간다. IP 원본이라 지우지 않았다.
+
+게임이 실제로 쓰는 것:
+
+| 파일 | 쓰는 곳 |
+|---|---|
+| `assets/splash/splash-poster-no-text.png` | `main_menu_3d.gd`, `travel_hub.gd` |
+| `assets/mascots/quica-hero-diorama.png` | `main_menu_3d.gd` |
+| `assets/fonts/Jua.ttf` | `quple_bold.tres` |
+| `assets/themes/quple_bold.tres` | `project.godot` |
+| `assets/icon/icon-512.png` | `project.godot` |
+
+나중에 제외된 에셋을 쓰기 시작하면 **에디터에서는 멀쩡하고 APK 에서만 깨진다.**
+`tools/check-export-assets.py` 가 그걸 잡는다 (빌드 스크립트가 자동 실행).
+
+남은 용량은 거의 전부 Godot 엔진 네이티브 라이브러리다.
+arm64-v8a 만 남기면 더 줄일 수 있지만 에뮬레이터(x86_64) 테스트를 못 하게 된다.
+
+### 기타
 
 - `exclude_filter="tests/*"` — 테스트 스크립트는 APK 에 안 들어간다
 - `screen/immersive_mode=true` — 전체화면 (상단바 숨김)

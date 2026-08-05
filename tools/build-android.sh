@@ -38,6 +38,11 @@ if [ "$TARGET" != "debug" ]; then
 	[ -f "$KEYSTORE" ] || die "릴리스 키스토어가 없다 ($KEYSTORE). QUPLE_KEYSTORE 로 지정하거나 debug 만 빌드해라."
 fi
 
+# --- 제외 에셋 검사 --------------------------------------------------------
+# exclude_filter 가 게임이 실제로 쓰는 에셋을 빼 버리면
+# 에디터에서는 멀쩡하고 APK 에서만 깨진다. 빌드 전에 잡는다.
+python3 tools/check-export-assets.py || die "제외 필터가 필요한 에셋을 빼고 있다."
+
 # --- export_presets.cfg 생성 ----------------------------------------------
 # 비밀번호가 들어가는 파일이라 저장소에 없다. 템플릿에서 만들어 낸다.
 if [ ! -f export_presets.cfg ]; then
