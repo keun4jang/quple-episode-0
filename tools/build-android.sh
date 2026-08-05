@@ -85,19 +85,22 @@ fi
 mkdir -p build
 
 # --- 빌드 ------------------------------------------------------------------
+# 프리셋이 둘이다:
+#   "Android"       — arm64-v8a + x86_64. 디버그용. x86_64 는 에뮬레이터 테스트에 필요.
+#   "Android arm64" — arm64-v8a 만. 배포용. 실제 폰은 전부 arm64 라 x86_64 는 낭비다.
 build_one() {
-	local mode=$1 out=$2
-	echo "→ $mode 빌드 → $out"
-	"$GODOT" --headless --path . "--export-$mode" "Android" "$out"
+	local mode=$1 preset=$2 out=$3
+	echo "→ $mode 빌드 ($preset) → $out"
+	"$GODOT" --headless --path . "--export-$mode" "$preset" "$out"
 	[ -f "$out" ] || die "$mode 빌드 실패 — $out 이 만들어지지 않았다."
 	echo "✓ $out  ($(du -h "$out" | cut -f1))"
 }
 
 case "$TARGET" in
-	debug)   build_one debug   "$ROOT/build/quple.apk" ;;
-	release) build_one release "$ROOT/build/quple-release.apk" ;;
-	all)     build_one debug   "$ROOT/build/quple.apk"
-	         build_one release "$ROOT/build/quple-release.apk" ;;
+	debug)   build_one debug   "Android"       "$ROOT/build/quple.apk" ;;
+	release) build_one release "Android arm64" "$ROOT/build/quple-release.apk" ;;
+	all)     build_one debug   "Android"       "$ROOT/build/quple.apk"
+	         build_one release "Android arm64" "$ROOT/build/quple-release.apk" ;;
 	*)       die "알 수 없는 대상: $TARGET (debug | release | all)" ;;
 esac
 
