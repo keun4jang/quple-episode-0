@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://bbossdoorhall3d"]
+[gd_scene load_steps=12 format=3 uid="uid://bbossdoorhall3d"]
 
 [ext_resource type="Script" path="res://scripts/maps/boss_door_hallway_3d.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2_player"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="10_keyguide"]
 [ext_resource type="PackedScene" path="res://scenes/ui/WindNoteUI.tscn" id="11_windnote"]
 [ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="12_album"]
+[ext_resource type="PackedScene" path="res://scenes/ui/TouchControls.tscn" id="90_touch"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1
@@ -66,3 +67,5 @@ shape = SubResource("IS14")
 [node name="WindNoteUI" parent="." instance=ExtResource("11_windnote")]
 
 [node name="AlbumUI" parent="." instance=ExtResource("12_album")]
+
+[node name="TouchControls" parent="." instance=ExtResource("90_touch")]

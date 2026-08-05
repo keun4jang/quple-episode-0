@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://bsouvenirroom3d"]
+[gd_scene load_steps=10 format=3 uid="uid://bsouvenirroom3d"]
 
 [ext_resource type="Script" path="res://scripts/travel/souvenir_room_3d.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2_player"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/systems/interactable.gd" id="9_interact"]
 [ext_resource type="PackedScene" path="res://scenes/ui/KeyGuideUI.tscn" id="10_keyguide"]
 [ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="12_album"]
+[ext_resource type="PackedScene" path="res://scenes/ui/TouchControls.tscn" id="90_touch"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1
@@ -54,3 +55,5 @@ indicator_height = 1.6
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ExitInteract"]
 shape = SubResource("IS12")
+
+[node name="TouchControls" parent="." instance=ExtResource("90_touch")]
