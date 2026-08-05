@@ -4,7 +4,7 @@ extends Node
 
 const SAMPLE_RATE := 22050
 const BGM_RATE := 22050        # 음이 매끄럽게 이어지도록 넉넉하게
-const LP_ALPHA := 0.42         # 저역통과 세기 (작을수록 부드러움)
+const LP_ALPHA := 0.26         # 저역통과 세기 (작을수록 부드럽고 덜 날카롭다)
 const BUS_SFX := "master"
 
 var _players: Array[AudioStreamPlayer] = []
@@ -259,34 +259,34 @@ const PD_MELODIES := {
 ## 지속되는 배경음(패드)은 사람이 낼 수 없으므로 쓰지 않는다.
 const BGM_TRACKS := {
 	"arirang": {
-		"melody": "arirang", "root": 261.63, "dur": 31.76, "octave": 2,
+		"melody": "arirang", "root": 261.63, "dur": 31.76, "octave": 1,
 		"chords": [[0, 4, 7], [7, 11, 14], [5, 9, 12], [0, 4, 7]],
 		"lh": "ballad", "rubato": 0.020,
 	},
 	"doraji": {
-		"melody": "doraji", "root": 293.66, "dur": 28.42, "octave": 2,
+		"melody": "doraji", "root": 261.63, "dur": 28.42, "octave": 1,
 		"chords": [[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]],
 		"lh": "ballad", "rubato": 0.018,
 	},
 	"gohyang": {
-		"melody": "gohyang", "root": 261.63, "dur": 34.84, "octave": 2,
+		"melody": "gohyang", "root": 233.08, "dur": 34.84, "octave": 1,
 		"chords": [[0, 4, 7], [5, 9, 12], [0, 4, 7], [7, 11, 14]],
 		"lh": "waltz", "rubato": 0.024,
 	},
 	"gaeguri": {
-		"melody": "gaeguri", "root": 293.66, "dur": 18.46, "octave": 2,
+		"melody": "gaeguri", "root": 261.63, "dur": 18.46, "octave": 1,
 		"chords": [[0, 4, 7], [7, 11, 14], [5, 9, 12], [0, 4, 7]],
 		"lh": "ballad", "rubato": 0.012,
 	},
 	# 선율이 없는 곡 — 즉흥으로 조용히 친다
 	"episode0": {
-		"melody": "", "root": 233.08, "dur": 26.0, "octave": 2,
+		"melody": "", "root": 220.00, "dur": 26.0, "octave": 1,
 		"chords": [[0, 4, 7], [9, 12, 16], [5, 9, 12], [7, 11, 14]],
 		"lh": "sparse", "rubato": 0.028,
 		"scale": [0, 2, 4, 7, 9, 12], "notes_per_bar": 2,
 	},
 	"room": {
-		"melody": "", "root": 220.00, "dur": 20.0, "octave": 3,
+		"melody": "", "root": 220.00, "dur": 20.0, "octave": 1,
 		"chords": [[0, 4, 7], [5, 9, 12], [0, 4, 7], [7, 11, 14]],
 		"lh": "waltz", "rubato": 0.022,
 		"scale": [0, 2, 4, 7, 9, 12], "notes_per_bar": 2,
@@ -321,8 +321,9 @@ func _piano(buf: PackedFloat32Array, start: int, f: float, len_i: int,
 	elif role == "arp":
 		base_decay = 2.2
 	# 배음 구성: 세기와 감쇠 속도
-	var amps  := [1.00, 0.46, 0.26, 0.15, 0.09, 0.055, 0.03]
-	var decays := [1.00, 1.45, 2.10, 3.00, 4.20, 5.80, 7.60]
+	# 고배음을 줄여 귀에 찌르지 않게 한다
+	var amps  := [1.00, 0.34, 0.15, 0.07, 0.035]
+	var decays := [1.00, 1.60, 2.60, 4.00, 6.00]
 	var inharm := 0.00042      # 배음이 살짝 높아지는 정도
 
 	# 망치 소리(어택)를 위해 아주 짧은 잡음을 섞는다
@@ -338,12 +339,12 @@ func _piano(buf: PackedFloat32Array, start: int, f: float, len_i: int,
 		for k in range(amps.size()):
 			var kn := float(k + 1)
 			var fk: float = f * kn * (1.0 + inharm * kn * kn)
-			if fk > float(BGM_RATE) * 0.45:
+			if fk > 3600.0:
 				break
 			v += sin(TAU * fk * t) * float(amps[k]) * exp(-t * base_decay * float(decays[k]))
 		# 망치 타격음 (2ms)
 		if t < 0.002:
-			v += rng.randf_range(-1.0, 1.0) * 0.18 * (1.0 - t / 0.002)
+			v += rng.randf_range(-1.0, 1.0) * 0.07 * (1.0 - t / 0.002)
 		# 아주 짧은 어택으로 클릭 방지
 		var atk := minf(1.0, t / 0.0025)
 		buf[pos] += v * atk * _tail_fade(i, len_i) * gain * 0.55
@@ -426,15 +427,15 @@ func _left_hand(buf: PackedFloat32Array, cfg: Dictionary, chords: Array,
 			var hold: float = bar * (0.9 if kind == "root" else 0.45)
 			match kind:
 				"root":
-					var f := _loopable(_semi(root * 0.5, float(c[0])), dur)
+					var f := _loopable(_semi(root * 0.25, float(c[0])), dur)
 					_voice(buf, int(at * float(BGM_RATE)), f, hold, vel, "bass")
 				"fifth":
-					var f2 := _loopable(_semi(root * 0.5, float(c[mini(2, c.size() - 1)])), dur)
+					var f2 := _loopable(_semi(root * 0.25, float(c[mini(2, c.size() - 1)])), dur)
 					_voice(buf, int(at * float(BGM_RATE)), f2, hold, vel, "bass")
 				"chord":
 					# 화음은 두세 음을 거의 동시에 (사람 손처럼 아주 살짝 어긋나게)
 					for k in range(1, c.size()):
-						var f3 := _loopable(_semi(root, float(c[k])), dur)
+						var f3 := _loopable(_semi(root * 0.5, float(c[k])), dur)
 						var spread := float(k) * 0.008
 						_voice(buf, int((at + spread) * float(BGM_RATE)), f3,
 							hold, vel * 0.8, "arp")

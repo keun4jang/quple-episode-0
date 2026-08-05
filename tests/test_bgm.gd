@@ -62,5 +62,21 @@ func _ready() -> void:
 		ck("%s 끝이 0" % role, last < 0.01, "%.5f" % last)
 		ck("%s 소리 남" % role, mid > 0.01, "%.4f" % mid)
 
+	# 음역 검사: 너무 높으면 귀가 아프다
+	print("\n[음역] 편안한 범위인지")
+	for track in ["arirang", "gohyang", "doraji", "gaeguri"]:
+		var cfg: Dictionary = AudioManager.BGM_TRACKS[track]
+		var mel: Dictionary = AudioManager.PD_MELODIES[cfg.melody]
+		var lo := 99999.0
+		var hi := 0.0
+		for pair in mel.notes:
+			var semi: int = int(pair[0])
+			if semi == AudioManager.REST: continue
+			var f: float = AudioManager._semi(float(cfg.root) * float(cfg.octave), float(semi))
+			lo = minf(lo, f); hi = maxf(hi, f)
+		# 사람이 편하게 듣는 선율 음역: 대략 200~750Hz (C4 ~ F#5)
+		ck("%s 최고음 안 높음" % track, hi < 780.0, "%.0fHz (한계 780)" % hi)
+		ck("%s 최저음 안 낮음" % track, lo > 150.0, "%.0fHz" % lo)
+
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(0 if fail_n == 0 else 1)
