@@ -16,6 +16,7 @@ var _listening: bool = false
 func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")
+	AudioManager.play_bgm("episode0")
 	$BossDoorInteract.interacted.connect(_eavesdrop)
 	$BackInteract.interacted.connect(_go_back)
 	PartnerSpawner.ensure(self, player)

@@ -13,6 +13,7 @@ const CAM_LOOK_OFFSET = Vector3(0, 1.0, -1.6)
 func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")
+	AudioManager.play_bgm("episode0")
 	if Episode0State.partner_joined:
 		# 합류했으면 책상이 아니라 플레이어 옆에서 따라온다
 		partner.global_position = player.global_position + Vector3(1.1, 0, 0.7)

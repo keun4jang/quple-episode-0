@@ -19,6 +19,7 @@ var _tick := 0.0
 
 func _ready() -> void:
 	_load_poster()
+	AudioManager.play_bgm("travel")
 	album_btn.pressed.connect(_show_album)
 	room_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/travel/SouvenirRoom3D.tscn", "hopeful"))
 	home_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/menu/MainMenu3D.tscn"))

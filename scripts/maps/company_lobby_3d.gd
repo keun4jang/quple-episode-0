@@ -12,6 +12,7 @@ const CAM_LERP = 5.0
 func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")
+	AudioManager.play_bgm("episode0")
 	$ToOfficeInteract.interacted.connect(_go_office)
 	$ToFrontInteract.interacted.connect(_go_front)
 	$BadgeBoxInteract.interacted.connect(_return_badge)

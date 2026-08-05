@@ -23,7 +23,7 @@ func _ready() -> void:
 	$UILayer/Control/SmallBtnRow/QuitBtn.pressed.connect(_on_quit)
 	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(
 		func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
-	# 배경음은 아직 없다. 효과음은 AudioManager 가 코드로 합성한다.
+	AudioManager.play_bgm("menu")
 
 	if OS.get_environment("QUPLE_SHOT") != "":
 		_capture_shot()

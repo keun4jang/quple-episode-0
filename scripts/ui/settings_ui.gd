@@ -15,7 +15,7 @@ func _ready() -> void:
 	add_to_group("settings_ui")
 	visible = false
 	_load()
-	bgm.value_changed.connect(func(v): _apply("BGM", v); _save())
+	bgm.value_changed.connect(func(v): _apply("BGM", v); AudioManager.set_bgm_volume(v); _save())
 	sfx.value_changed.connect(func(v): _apply("SFX", v); AudioManager.set_sfx_volume(v); _save())
 	close_btn.pressed.connect(close)
 	reset_btn.pressed.connect(_on_reset)
@@ -65,6 +65,7 @@ func _load() -> void:
 	bgm.value = c.get_value("audio", "bgm", 0.8)
 	sfx.value = c.get_value("audio", "sfx", 0.9)
 	_apply("BGM", bgm.value)
+	AudioManager.set_bgm_volume(bgm.value)
 	_apply("SFX", sfx.value)
 	AudioManager.set_sfx_volume(sfx.value)
 

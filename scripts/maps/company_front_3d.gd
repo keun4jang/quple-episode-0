@@ -15,6 +15,7 @@ var _lit_window: MeshInstance3D = null
 func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")
+	AudioManager.play_bgm("episode0")
 	$EntranceInteract.interacted.connect(_enter_company)
 	$PhotoSpot.interacted.connect(_try_photo)
 	PartnerSpawner.ensure(self, player, Vector3(1.1, 0, 0.3))
