@@ -218,6 +218,19 @@ const BGM_TRACKS := {
 		"scale": [0, 2, 4, 7, 9, 12, 14, 16], "mel_gain": 0.42, "pad_gain": 0.26, "octave": 2,
 		"notes_per_bar": 3, "decay": 2.1,
 	},
+	# 퍼블릭 도메인 편곡 (선율은 PD_MELODIES 에서 가져온다)
+	"matilda": {
+		"root": 261.63, "dur": 33.16,
+		"chords": [[0, 4, 7, 12], [7, 11, 14, 19], [5, 9, 12, 17], [0, 4, 7, 12]],
+		"scale": [0, 2, 4, 7, 9, 12], "mel_gain": 0.46, "pad_gain": 0.22, "octave": 2,
+		"notes_per_bar": 2, "decay": 1.8, "melody": "matilda",
+	},
+	"shears": {
+		"root": 293.66, "dur": 20.87,
+		"chords": [[0, 4, 7, 12], [5, 9, 12, 17], [7, 11, 14, 19], [0, 4, 7, 12]],
+		"scale": [0, 2, 4, 7, 9, 12], "mel_gain": 0.44, "pad_gain": 0.22, "octave": 2,
+		"notes_per_bar": 2, "decay": 2.2, "melody": "shears",
+	},
 	"room": {
 		"root": 220.00, "dur": 20.0,
 		# I - IV - I - V  오르골처럼 포근하게
@@ -227,6 +240,56 @@ const BGM_TRACKS := {
 	},
 }
 
+# ── 퍼블릭 도메인 멜로디 ────────────────────────────────────────────────
+#
+# 저작권이 만료된 곡만 편곡해서 쓴다. 멜로디는 데이터라 고치기 쉽다.
+#   [반음, 박] 쌍의 배열. 반음은 으뜸음 기준, 박은 4분음표 = 1.0
+#   반음이 -99 면 쉼표.
+#
+# 아리랑  : 전래민요(작곡자 미상) — 확정 퍼블릭 도메인
+# 고향의 봄 / 봉선화 : 홍난파(1898~1941) 작곡, 1991년 저작재산권 만료
+#   * 가사는 별개 저작물이므로 쓰지 않는다. 선율만 기악으로 편곡한다.
+const REST := -99
+
+const PD_MELODIES := {
+	# 왈칭 마틸다 — 호주의 상징적인 민요.
+	#   작사 Banjo Paterson(1864~1941, 1991 만료), 작곡 Christina Macpherson(1864~1936, 1986 만료)
+	#   둘 다 저작권을 주장한 적이 없고 현재 누구의 소유도 아니다.
+	#   떠돌이(swagman)의 여행 이야기라 이 게임과 잘 맞는다. 가사 없이 선율만 기악으로 쓴다.
+	"matilda": {
+		"title": "Waltzing Matilda (호주 민요 · 퍼블릭 도메인)",
+		"bpm": 76.0,
+		"notes": [
+			# Once a jol-ly swag-man camped by a bil-la-bong
+			[7, 0.5], [7, 0.5],
+			[12, 0.5], [12, 0.5], [12, 0.5], [11, 0.5], [9, 0.5], [7, 0.5],
+			[7, 0.5], [9, 0.5], [11, 0.5], [12, 1.5], [REST, 0.5],
+			# Un-der the shade of a coo-li-bah tree
+			[9, 0.5], [9, 0.5], [9, 0.5], [11, 0.5], [12, 0.5], [9, 0.5],
+			[7, 0.5], [4, 0.5], [7, 1.5], [REST, 0.5],
+			# And he sang as he watched and wait-ed till his bil-ly boiled
+			[7, 0.5], [7, 0.5],
+			[12, 0.5], [12, 0.5], [12, 0.5], [11, 0.5], [9, 0.5], [7, 0.5],
+			[7, 0.5], [9, 0.5], [11, 0.5], [12, 1.5], [REST, 0.5],
+			# You'll come a-Waltz-ing Ma-til-da with me
+			[16, 0.5], [14, 0.5], [12, 0.5], [11, 0.5], [9, 0.5], [7, 0.5],
+			[9, 0.5], [11, 0.5], [12, 2.0], [REST, 0.5],
+		],
+	},
+	# 클릭 고 더 셰어스 — 호주 전래 부시 발라드(작자 미상). 밝고 경쾌하다.
+	"shears": {
+		"title": "Click Go the Shears (호주 전래 · 퍼블릭 도메인)",
+		"bpm": 92.0,
+		"notes": [
+			[0, 0.5], [4, 0.5], [7, 0.5], [7, 0.5], [9, 0.5], [7, 0.5], [4, 1.0],
+			[2, 0.5], [4, 0.5], [5, 0.5], [4, 0.5], [2, 1.5], [REST, 0.5],
+			[0, 0.5], [4, 0.5], [7, 0.5], [7, 0.5], [9, 0.5], [12, 0.5], [11, 1.0],
+			[9, 0.5], [7, 0.5], [4, 0.5], [2, 0.5], [0, 1.5], [REST, 0.5],
+		],
+	},
+}
+
+## 반음 → 배음비
 ## 반음 → 배음비
 func _semi(root: float, n: float) -> float:
 	return root * pow(2.0, n / 12.0)
@@ -256,10 +319,42 @@ func _build_bgm(track: String) -> AudioStreamWAV:
 			voices.append(_loopable(f * 2.0, dur))   # 옥타브 배음
 		pad_voices.append(voices)
 
-	# 2) 멜로디 음표 배치 (마디마다 1~2개, 루프 경계를 넘지 않게)
+	# 2) 멜로디 배치
 	var notes: Array = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(track)
+	var oct: int = int(cfg.octave)
+	# 퍼블릭 도메인 선율이 지정돼 있으면 그것을 연주한다
+	var mel_id: String = str(cfg.get("melody", ""))
+	if mel_id != "" and PD_MELODIES.has(mel_id):
+		notes = _layout_melody(PD_MELODIES[mel_id], root, int(cfg.octave), dur)
+	else:
+		notes = _random_melody(cfg, chords, scale, root, dur, bar, rng)
+
+	var decay: float = float(cfg.get("decay", 1.9))
+	var mel_gain: float = cfg.mel_gain
+	var pad_gain: float = cfg.pad_gain
+	return _render(n, dur, bar, chords, pad_voices, notes, pad_gain, mel_gain, decay)
+
+## 정해진 선율을 시간축에 배치한다 (반복 재생되도록 루프 길이에 맞춤)
+func _layout_melody(mel: Dictionary, root: float, oct: int, dur: float) -> Array:
+	var out: Array = []
+	var spb := 60.0 / float(mel.get("bpm", 60.0))   # 1박 길이(초)
+	var t := 0.0
+	for pair in mel.notes:
+		var semi: int = int(pair[0])
+		var beats: float = float(pair[1])
+		var length := beats * spb
+		if semi != REST:
+			if t + length <= dur - 0.2:
+				var f := _loopable(_semi(root * float(oct), float(semi)), dur)
+				out.append({"t": t, "len": minf(length * 1.35, 2.2), "f": f, "amp": 0.95})
+		t += length
+	return out
+
+func _random_melody(cfg: Dictionary, chords: Array, scale: Array, root: float,
+		dur: float, bar: float, rng: RandomNumberGenerator) -> Array:
+	var notes: Array = []
 	var oct: int = int(cfg.octave)
 	var npb: int = int(cfg.get("notes_per_bar", 2))
 	for ci in range(chords.size()):
@@ -276,11 +371,10 @@ func _build_bgm(track: String) -> AudioStreamWAV:
 			var deg: int = scale[si]
 			var f := _loopable(_semi(root * float(oct), float(deg)), dur)
 			notes.append({"t": start, "len": length, "f": f, "amp": rng.randf_range(0.7, 1.0)})
+	return notes
 
-	var decay: float = float(cfg.get("decay", 1.9))
-	var mel_gain: float = cfg.mel_gain
-	var pad_gain: float = cfg.pad_gain
-
+func _render(n: int, dur: float, bar: float, chords: Array, pad_voices: Array,
+		notes: Array, pad_gain: float, mel_gain: float, decay: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	data.resize(n * 2)
 	for i in range(n):
