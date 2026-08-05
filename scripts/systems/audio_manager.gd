@@ -260,22 +260,22 @@ const PD_MELODIES := {
 const BGM_TRACKS := {
 	"arirang": {
 		"melody": "arirang", "root": 261.63, "dur": 31.76, "octave": 1,
-		"chords": [[0, 4, 7], [7, 11, 14], [5, 9, 12], [0, 4, 7]],
+		"bars": 8, "chords": [[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7]],
 		"lh": "ballad", "rubato": 0.020,
 	},
 	"doraji": {
 		"melody": "doraji", "root": 261.63, "dur": 28.42, "octave": 1,
-		"chords": [[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]],
+		"bars": 8, "chords": [[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7]],
 		"lh": "ballad", "rubato": 0.018,
 	},
 	"gohyang": {
 		"melody": "gohyang", "root": 233.08, "dur": 34.84, "octave": 1,
-		"chords": [[0, 4, 7], [5, 9, 12], [0, 4, 7], [7, 11, 14]],
+		"bars": 8, "chords": [[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7]],
 		"lh": "waltz", "rubato": 0.024,
 	},
 	"gaeguri": {
 		"melody": "gaeguri", "root": 261.63, "dur": 18.46, "octave": 1,
-		"chords": [[0, 4, 7], [7, 11, 14], [5, 9, 12], [0, 4, 7]],
+		"bars": 6, "chords": [[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7]],
 		"lh": "ballad", "rubato": 0.012,
 	},
 	# 선율이 없는 곡 — 즉흥으로 조용히 친다
@@ -292,6 +292,84 @@ const BGM_TRACKS := {
 		"scale": [0, 2, 4, 7, 9, 12], "notes_per_bar": 2,
 	},
 }
+
+## 장조에서 쓸 수 있는 화음들 (으뜸음 기준 반음)
+const CHORD_CANDIDATES := [
+	{"name": "I",   "tones": [0, 4, 7]},
+	{"name": "ii",  "tones": [2, 5, 9]},
+	{"name": "iii", "tones": [4, 7, 11]},
+	{"name": "IV",  "tones": [5, 9, 12]},
+	{"name": "V",   "tones": [7, 11, 14]},
+	{"name": "vi",  "tones": [9, 12, 16]},
+]
+
+## 선율을 듣고 마디마다 가장 잘 맞는 화음을 고른다.
+## 임의로 정한 화음은 선율과 부딪히기 때문에, 실제로 울리는 음에서 역산한다.
+func _auto_chords(notes: Array, dur: float, bar_count: int, root: float) -> Array:
+	var bar := dur / float(bar_count)
+	var out: Array = []
+	for bi in range(bar_count):
+		var t0 := float(bi) * bar
+		var t1 := t0 + bar
+		# 이 마디에서 울리는 선율 음을 음이름(12음)별로 모은다. 오래 울릴수록 무겁게 센다.
+		var weight := {}
+		for note in notes:
+			var ns: float = float(note.t)
+			var ne: float = ns + float(note.len)
+			var overlap: float = minf(ne, t1) - maxf(ns, t0)
+			if overlap <= 0.0:
+				continue
+			# 주파수 → 으뜸음 기준 반음 → 음이름
+			var semi: int = int(round(12.0 * log(float(note.f) / root) / log(2.0)))
+			var pc: int = ((semi % 12) + 12) % 12
+			# 마디 앞쪽 음이 화음을 더 강하게 결정한다
+			var w: float = overlap * (1.4 if ns < t0 + bar * 0.5 else 1.0)
+			weight[pc] = float(weight.get(pc, 0.0)) + w
+
+		var best := 0
+		var best_score := -9999.0
+		var prev: int = int(out.size() > 0 and out[out.size() - 1] != null)
+		# 직전 두 마디에 어떤 화음을 썼는지 (같은 화음만 이어지면 단조롭다)
+		var prev1 := -1
+		var prev2 := -1
+		if out.size() >= 1: prev1 = _chord_index(out[out.size() - 1])
+		if out.size() >= 2: prev2 = _chord_index(out[out.size() - 2])
+		for i in range(CHORD_CANDIDATES.size()):
+			var tones: Array = CHORD_CANDIDATES[i].tones
+			var pcs := []
+			for tn in tones:
+				pcs.append(((int(tn) % 12) + 12) % 12)
+			var score := 0.0
+			for pc in weight.keys():
+				var w: float = float(weight[pc])
+				if pcs.has(pc):
+					score += w * 2.2          # 화음에 든 음이면 크게 가산
+				elif pcs.has((int(pc) + 9) % 12) or pcs.has((int(pc) + 3) % 12):
+					score += w * 0.3          # 6도·3도 어울림은 약하게 인정
+				else:
+					score -= w * 1.6          # 부딪히는 음은 감점
+			# 첫 마디와 마지막 마디는 으뜸화음으로 안정되게
+			if (bi == 0 or bi == bar_count - 1) and i == 0:
+				score += 1.2
+			# 같은 화음이 계속 이어지면 지루하다 — 조금씩 감점
+			if i == prev1:
+				score -= 0.9
+				if i == prev2:
+					score -= 1.4
+			# 마지막 직전 마디는 V 로 가면 마무리가 자연스럽다
+			if bi == bar_count - 2 and i == 4:
+				score += 0.8
+			if score > best_score:
+				best_score = score
+				best = i
+		out.append(CHORD_CANDIDATES[best].tones.duplicate())
+	return out
+
+func _chord_index(tones: Array) -> int:
+	for i in range(CHORD_CANDIDATES.size()):
+		if CHORD_CANDIDATES[i].tones == tones:
+			return i
+	return -1
 
 func _semi(root: float, n: float) -> float:
 	return root * pow(2.0, n / 12.0)
@@ -380,6 +458,8 @@ func _build_bgm(track: String) -> AudioStreamWAV:
 	var notes: Array = []
 	if mel_id != "" and PD_MELODIES.has(mel_id):
 		notes = _layout_melody(PD_MELODIES[mel_id], root, int(cfg.octave), dur)
+		# 화음을 선율에서 역산한다. 임의로 정하면 부딪힌다.
+		chords = _auto_chords(notes, dur, chords.size(), root)
 	else:
 		notes = _random_melody(cfg, chords, root, dur, bar, rng)
 	for note in notes:

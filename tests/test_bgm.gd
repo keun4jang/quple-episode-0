@@ -78,5 +78,42 @@ func _ready() -> void:
 		ck("%s 최고음 안 높음" % track, hi < 780.0, "%.0fHz (한계 780)" % hi)
 		ck("%s 최저음 안 낮음" % track, lo > 150.0, "%.0fHz" % lo)
 
+	# 화음이 선율과 맞는지 = 불협 방지
+	print("\n[화음] 선율과 어울리는가")
+	for track in ["arirang", "gohyang", "doraji", "gaeguri"]:
+		var cfg: Dictionary = AudioManager.BGM_TRACKS[track]
+		var mel: Dictionary = AudioManager.PD_MELODIES[cfg.melody]
+		var dur: float = cfg.dur
+		var notes := AudioManager._layout_melody(mel, float(cfg.root), int(cfg.octave), dur)
+		var bars: int = int(cfg.get("bars", cfg.chords.size()))
+		var ch := AudioManager._auto_chords(notes, dur, bars, float(cfg.root))
+		var bar := dur / float(bars)
+
+		# 각 마디에서 오래 울리는 선율 음이 화음에 들어 있는가
+		var fit := 0
+		var total := 0
+		for bi in range(bars):
+			var t0 := float(bi) * bar
+			var pcs := []
+			for tn in ch[bi]:
+				pcs.append(((int(tn) % 12) + 12) % 12)
+			for note in notes:
+				var ns: float = float(note.t)
+				if ns < t0 or ns >= t0 + bar: continue
+				var semi: int = int(round(12.0 * log(float(note.f) / float(cfg.root)) / log(2.0)))
+				var pc: int = ((semi % 12) + 12) % 12
+				total += 1
+				if pcs.has(pc): fit += 1
+		var ratio := float(fit) / maxf(1.0, float(total))
+		ck("%s 화음 적합도" % track, ratio >= 0.55, "%.0f%% (%d/%d)" % [ratio * 100.0, fit, total])
+
+		# 같은 화음만 반복되지 않는가
+		var uniq := {}
+		for c in ch: uniq[str(c)] = true
+		ck("%s 화음 변화 있음" % track, uniq.size() >= 2, "%d종" % uniq.size())
+
+		# 마지막이 으뜸화음으로 끝나는가
+		ck("%s 으뜸화음 종지" % track, ch[bars - 1] == [0, 4, 7])
+
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(0 if fail_n == 0 else 1)
