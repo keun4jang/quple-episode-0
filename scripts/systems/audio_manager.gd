@@ -253,45 +253,42 @@ const PD_MELODIES := {
 	},
 }
 
-## 곡 편성: 어떤 선율을 어떤 악기로, 어떤 반주를 붙일지
+## 곡 편성 — 한 사람이 피아노 앞에 앉아 치는 것으로 본다.
+##   오른손: 선율
+##   왼손  : 화음 반주 (마디마다 근음 → 화음 → 화음)
+## 지속되는 배경음(패드)은 사람이 낼 수 없으므로 쓰지 않는다.
 const BGM_TRACKS := {
-	"gohyang": {
-		"melody": "gohyang", "root": 261.63, "dur": 34.84, "octave": 2,
-		"lead": "musicbox", "counter": "pluck", "bass": true, "pad": 0.20,
-		"chords": [[0, 4, 7], [5, 9, 12], [0, 4, 7], [7, 11, 14]],
-		"arp": [0, 4, 7, 12, 7, 4], "arp_rate": 0.5, "arp_gain": 0.16,
-	},
 	"arirang": {
 		"melody": "arirang", "root": 261.63, "dur": 31.76, "octave": 2,
-		"lead": "pluck", "counter": "flute", "bass": true, "pad": 0.22,
 		"chords": [[0, 4, 7], [7, 11, 14], [5, 9, 12], [0, 4, 7]],
-		"arp": [0, 7, 12, 16], "arp_rate": 0.75, "arp_gain": 0.14,
+		"lh": "ballad", "rubato": 0.020,
 	},
 	"doraji": {
 		"melody": "doraji", "root": 293.66, "dur": 28.42, "octave": 2,
-		"lead": "pluck", "counter": "marimba", "bass": true, "pad": 0.18,
 		"chords": [[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]],
-		"arp": [0, 4, 7, 12], "arp_rate": 0.5, "arp_gain": 0.18,
+		"lh": "ballad", "rubato": 0.018,
+	},
+	"gohyang": {
+		"melody": "gohyang", "root": 261.63, "dur": 34.84, "octave": 2,
+		"chords": [[0, 4, 7], [5, 9, 12], [0, 4, 7], [7, 11, 14]],
+		"lh": "waltz", "rubato": 0.024,
 	},
 	"gaeguri": {
 		"melody": "gaeguri", "root": 293.66, "dur": 18.46, "octave": 2,
-		"lead": "marimba", "counter": "musicbox", "bass": true, "pad": 0.16,
 		"chords": [[0, 4, 7], [7, 11, 14], [5, 9, 12], [0, 4, 7]],
-		"arp": [0, 4, 7, 4], "arp_rate": 0.375, "arp_gain": 0.20,
+		"lh": "ballad", "rubato": 0.012,
 	},
-	# 선율이 없는 분위기 곡 (0편 · 기념품 방)
+	# 선율이 없는 곡 — 즉흥으로 조용히 친다
 	"episode0": {
 		"melody": "", "root": 233.08, "dur": 26.0, "octave": 2,
-		"lead": "flute", "counter": "musicbox", "bass": true, "pad": 0.24,
 		"chords": [[0, 4, 7], [9, 12, 16], [5, 9, 12], [7, 11, 14]],
-		"arp": [0, 7, 12], "arp_rate": 1.0, "arp_gain": 0.11,
+		"lh": "sparse", "rubato": 0.028,
 		"scale": [0, 2, 4, 7, 9, 12], "notes_per_bar": 2,
 	},
 	"room": {
 		"melody": "", "root": 220.00, "dur": 20.0, "octave": 3,
-		"lead": "musicbox", "counter": "pluck", "bass": true, "pad": 0.22,
 		"chords": [[0, 4, 7], [5, 9, 12], [0, 4, 7], [7, 11, 14]],
-		"arp": [0, 4, 7, 12], "arp_rate": 0.5, "arp_gain": 0.15,
+		"lh": "waltz", "rubato": 0.022,
 		"scale": [0, 2, 4, 7, 9, 12], "notes_per_bar": 2,
 	},
 }
@@ -375,8 +372,9 @@ func _build_bgm(track: String) -> AudioStreamWAV:
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(track)
+	var rubato: float = float(cfg.get("rubato", 0.02))
 
-	# 1) 선율
+	# ── 오른손: 선율 ──
 	var mel_id: String = str(cfg.get("melody", ""))
 	var notes: Array = []
 	if mel_id != "" and PD_MELODIES.has(mel_id):
@@ -384,67 +382,62 @@ func _build_bgm(track: String) -> AudioStreamWAV:
 	else:
 		notes = _random_melody(cfg, chords, root, dur, bar, rng)
 	for note in notes:
-		_voice(buf, int(float(note.t) * float(BGM_RATE)), float(note.f),
-			float(note.len), 0.40 * float(note.amp), "melody")
+		# 사람이 치는 것처럼 박과 세기를 아주 조금씩 흔든다
+		var jitter := rng.randf_range(-rubato, rubato)
+		var at := maxf(0.0, float(note.t) + jitter)
+		var vel := float(note.amp) * rng.randf_range(0.88, 1.0)
+		_voice(buf, int(at * float(BGM_RATE)), float(note.f),
+			float(note.len), 0.42 * vel, "melody")
 
-	# 2) 아르페지오 (대선율) — 화음을 잘게 굴려 심심하지 않게
-	var arp: Array = cfg.get("arp", [])
-	var arp_rate: float = float(cfg.get("arp_rate", 0.5))
-	var arp_gain: float = float(cfg.get("arp_gain", 0.15))
-	if arp.size() > 0 and arp_gain > 0.0:
-		var k := 0
-		var t := 0.0
-		while t < dur - 0.4:
-			var ci := int(t / bar) % chords.size()
-			var base: int = int(chords[ci][0])
-			var semi: int = base + int(arp[k % arp.size()])
-			var f := _loopable(_semi(root * 2.0, float(semi)), dur)
-			_voice(buf, int(t * float(BGM_RATE)), f, arp_rate * 2.2, arp_gain, "arp")
-			t += arp_rate
-			k += 1
+	# ── 왼손: 화음 반주 ──
+	_left_hand(buf, cfg, chords, root, dur, bar, rng, rubato)
 
-	# 3) 베이스 — 마디마다 근음
-	if bool(cfg.get("bass", true)):
-		for ci in range(chords.size()):
-			var semi: int = int(chords[ci][0])
-			var f := _loopable(_semi(root * 0.5, float(semi)), dur)
-			_voice(buf, int(float(ci) * bar * float(BGM_RATE)), f, bar * 1.05, 0.34, "bass")
-
-	# 4) 화음 패드 — 전체를 감싸는 배경
-	var pad_gain: float = float(cfg.get("pad", 0.22))
-	if pad_gain > 0.0:
-		_render_pad(buf, chords, root, dur, bar, pad_gain)
-
-	# 5) 마무리: 저역통과 → 부드럽게 압축 → 16bit
 	return _finalize(buf, n)
 
-## 지속되는 화음 배경 (마디 경계에서 부드럽게 교차)
-func _render_pad(buf: PackedFloat32Array, chords: Array, root: float,
-		dur: float, bar: float, gain: float) -> void:
-	var n := buf.size()
-	var voices: Array = []
-	for c in chords:
-		var vs: Array = []
-		for semi in c:
-			vs.append(_loopable(_semi(root, float(semi)), dur))
-			vs.append(_loopable(_semi(root, float(semi)) * 2.0, dur))
-		voices.append(vs)
-	for i in range(n):
-		var t := float(i) / float(BGM_RATE)
-		var bi := int(t / bar) % chords.size()
-		var bt := fmod(t, bar) / bar
-		var cross := smoothstep(0.80, 1.0, bt)
-		var ni := (bi + 1) % chords.size()
-		var v := _pad_sum(voices[bi], t) * (1.0 - cross) + _pad_sum(voices[ni], t) * cross
-		# 아주 느린 숨결
-		v *= 0.82 + sin(TAU * t / dur) * 0.18
-		buf[i] += v * gain
-
-func _pad_sum(voices: Array, t: float) -> float:
-	var v := 0.0
-	for j in range(voices.size()):
-		v += sin(TAU * float(voices[j]) * t) * (1.0 if j % 2 == 0 else 0.30)
-	return v / float(voices.size())
+## 왼손 반주. 사람 손이 닿는 범위에서 마디마다 3~4번만 친다.
+func _left_hand(buf: PackedFloat32Array, cfg: Dictionary, chords: Array,
+		root: float, dur: float, bar: float, rng: RandomNumberGenerator,
+		rubato: float) -> void:
+	var style: String = str(cfg.get("lh", "ballad"))
+	for ci in range(chords.size()):
+		var c: Array = chords[ci]
+		var t0: float = float(ci) * bar
+		# 각 스타일의 [시각(마디 비율), 어떤 음, 세기]
+		var pattern: Array = []
+		match style:
+			"waltz":
+				# 쿵 - 짝 - 짝 (3박자 느낌)
+				pattern = [[0.00, "root", 0.34], [0.33, "chord", 0.20], [0.66, "chord", 0.18]]
+			"sparse":
+				# 아주 조용히, 마디에 두 번만
+				pattern = [[0.00, "root", 0.28], [0.35, "chord", 0.14],
+						   [0.68, "fifth", 0.18]]
+			_:
+				# ballad: 근음 - 화음 - 5도 - 화음
+				pattern = [[0.00, "root", 0.32], [0.25, "chord", 0.18],
+						   [0.50, "fifth", 0.24], [0.75, "chord", 0.17]]
+		for step in pattern:
+			var frac: float = float(step[0])
+			var kind: String = str(step[1])
+			var vel: float = float(step[2]) * rng.randf_range(0.88, 1.06)
+			var at: float = t0 + frac * bar + rng.randf_range(-rubato, rubato)
+			if at < 0.0 or at > dur - 0.4:
+				continue
+			var hold: float = bar * (0.9 if kind == "root" else 0.45)
+			match kind:
+				"root":
+					var f := _loopable(_semi(root * 0.5, float(c[0])), dur)
+					_voice(buf, int(at * float(BGM_RATE)), f, hold, vel, "bass")
+				"fifth":
+					var f2 := _loopable(_semi(root * 0.5, float(c[mini(2, c.size() - 1)])), dur)
+					_voice(buf, int(at * float(BGM_RATE)), f2, hold, vel, "bass")
+				"chord":
+					# 화음은 두세 음을 거의 동시에 (사람 손처럼 아주 살짝 어긋나게)
+					for k in range(1, c.size()):
+						var f3 := _loopable(_semi(root, float(c[k])), dur)
+						var spread := float(k) * 0.008
+						_voice(buf, int((at + spread) * float(BGM_RATE)), f3,
+							hold, vel * 0.8, "arp")
 
 ## 정해진 선율을 시간축에 배치
 func _layout_melody(mel: Dictionary, root: float, oct: int, dur: float) -> Array:
@@ -457,7 +450,8 @@ func _layout_melody(mel: Dictionary, root: float, oct: int, dur: float) -> Array
 		var length := beats * spb
 		if semi != REST and t + length <= dur - 0.3:
 			var f := _loopable(_semi(root * float(oct), float(semi)), dur)
-			out.append({"t": t, "len": clampf(length * 1.5, 0.5, 2.6), "f": f, "amp": 1.0})
+			# 페달을 밟은 것처럼 음이 서로 겹쳐 울리게 넉넉히 준다
+			out.append({"t": t, "len": clampf(length * 2.4, 0.9, 3.4), "f": f, "amp": 1.0})
 		t += length
 	return out
 
@@ -471,7 +465,7 @@ func _random_melody(cfg: Dictionary, chords: Array, root: float,
 	for ci in range(chords.size()):
 		for k in range(npb + (rng.randi() % 2)):
 			var start: float = float(ci) * bar + rng.randf_range(0.1, 0.8) * bar
-			var length: float = rng.randf_range(0.9, 1.6)
+			var length: float = rng.randf_range(1.6, 2.6)
 			if start + length > dur - 0.3:
 				continue
 			var si: int = rng.randi() % scale.size()
