@@ -384,6 +384,11 @@ func _build_arrived() -> void:
 	open_btn.pressed.connect(func():
 		var was_final: bool = bool(TravelState.get_destination(
 			str(TravelState.trip.get("dest_id", ""))).get("final", false))
+		# 이 여행으로 새 막이 열리는지 미리 본다
+		var before_open: Array[String] = []
+		for c in TravelState.CHAPTERS:
+			if TravelState.is_chapter_unlocked(str(c.id)):
+				before_open.append(str(c.id))
 		var s := TravelState.collect_arrival()
 		if s.is_empty():
 			return
@@ -395,7 +400,72 @@ func _build_arrived() -> void:
 			if es:
 				add_child(es.instantiate())
 				return
-		_show_souvenir(s))
+		# 새로 열린 막이 있으면 알려준다
+		var newly := ""
+		for c in TravelState.CHAPTERS:
+			if TravelState.is_chapter_unlocked(str(c.id)) and not before_open.has(str(c.id)):
+				newly = str(c.id)
+				break
+		if newly != "":
+			_show_chapter_unlocked(newly, s)
+		else:
+			_show_souvenir(s))
+
+## 새 막이 열렸을 때의 연출
+func _show_chapter_unlocked(chapter_id: String, souvenir: Dictionary) -> void:
+	var ch := TravelState.get_chapter(chapter_id)
+	for c in body.get_children():
+		c.queue_free()
+	title.text = "%s 여행이 열렸어요" % ch.get("name", "")
+	subtitle.text = "더 멀리 갈 수 있게 됐어요"
+	AudioManager.souvenir_get()
+
+	# 그 막의 대표 여행지 몇 곳을 보여준다
+	var samples: Array = []
+	for d in TravelState.DESTINATIONS:
+		if str(d.get("chapter", "")) == chapter_id:
+			samples.append(d)
+		if samples.size() >= 6:
+			break
+
+	var emo := Label.new()
+	var line := ""
+	for d in samples:
+		line += str(d.get("emoji", "")) + "  "
+	emo.text = line
+	emo.add_theme_font_size_override("font_size", 44)
+	emo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(emo)
+
+	var msg := Label.new()
+	var total := 0
+	for d in TravelState.DESTINATIONS:
+		if str(d.get("chapter", "")) == chapter_id:
+			total += 1
+	msg.text = "%s  %d곳이 기다리고 있어요" % [ch.get("name", ""), total]
+	msg.add_theme_font_size_override("font_size", 20)
+	msg.add_theme_color_override("font_color", Color(1, 0.90, 0.62))
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(msg)
+
+	var next_btn := Button.new()
+	next_btn.text = "이번 여행 기록 보기"
+	next_btn.custom_minimum_size = Vector2(0, 60)
+	next_btn.add_theme_font_size_override("font_size", 20)
+	next_btn.add_theme_color_override("font_color", Color(0.22, 0.10, 0.03))
+	next_btn.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.78, 0.52), false))
+	next_btn.add_theme_stylebox_override("hover", _card_style(Color(1.0, 0.86, 0.62), true))
+	next_btn.pressed.connect(func():
+		AudioManager.ui_click()
+		_show_souvenir(souvenir))
+	body.add_child(next_btn)
+
+	# 이모지가 커지며 등장
+	emo.scale = Vector2(0.5, 0.5)
+	emo.pivot_offset = emo.size / 2.0
+	var tw := create_tween()
+	tw.tween_property(emo, "scale", Vector2.ONE, 0.5) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	body.add_child(open_btn)
 
 ## 받은 사진 + 일기 공개

@@ -3,6 +3,11 @@ extends Node
 ## 여행은 실제 시각 기준이라, 앱을 껐다 켜도 그동안 흐른 시간이 그대로 반영된다.
 
 const SAVE_PATH := "user://save.cfg"
+const TEMP_PATH := "user://save.cfg.tmp"      # 먼저 여기에 쓴다
+const BACKUP_PATH := "user://save.bak"        # 직전 저장본
+const SAVE_VERSION := 2
+
+var _restoring := false
 
 signal game_saved
 
@@ -31,7 +36,14 @@ func autosave(current_scene: String, player_pos: Vector3 = Vector3.ZERO) -> void
 	cfg.set_value("game", "player_position", player_pos)
 	cfg.set_value("episode0", "data", Episode0State.to_dict())
 	cfg.set_value("travel", "data", TravelState.to_dict())
-	cfg.save(SAVE_PATH)
+	if cfg.save(TEMP_PATH) == OK and _is_valid(TEMP_PATH):
+		var da := DirAccess.open("user://")
+		if da:
+			if FileAccess.file_exists(SAVE_PATH) and not _restoring and _is_valid(SAVE_PATH):
+				da.remove(BACKUP_PATH.get_file())
+				da.copy(SAVE_PATH, BACKUP_PATH)
+			da.remove(SAVE_PATH.get_file())
+			da.rename(TEMP_PATH.get_file(), SAVE_PATH.get_file())
 	game_saved.emit()
 
 func get_player_position() -> Vector3:
@@ -43,11 +55,12 @@ func get_player_position() -> Vector3:
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
+## 저장. 도중에 앱이 꺼져도 기록이 깨지지 않게 3단계로 쓴다.
+##   ① 임시 파일에 쓴다  ② 제대로 써졌는지 읽어서 확인  ③ 기존 것을 백업하고 교체
 func save_game(current_scene: String = "") -> void:
 	var cfg := ConfigFile.new()
-	# 기존 값 보존 후 덮어쓰기
-	cfg.load(SAVE_PATH)
-	cfg.set_value("game", "version", 1)
+	cfg.load(SAVE_PATH)   # 기존 값 보존
+	cfg.set_value("game", "version", SAVE_VERSION)
 	cfg.set_value("game", "saved_at", int(Time.get_unix_time_from_system()))
 	if current_scene != "":
 		cfg.set_value("game", "current_scene", current_scene)
@@ -55,17 +68,66 @@ func save_game(current_scene: String = "") -> void:
 		cfg.set_value("game", "current_scene", "res://scenes/travel/TravelHub.tscn")
 	cfg.set_value("episode0", "data", Episode0State.to_dict())
 	cfg.set_value("travel", "data", TravelState.to_dict())
-	var err := cfg.save(SAVE_PATH)
-	if err != OK:
-		push_warning("save_game 실패: %d" % err)
 
+	# ① 임시 파일에 먼저
+	if cfg.save(TEMP_PATH) != OK:
+		push_warning("저장 실패: 임시 파일을 쓸 수 없음")
+		return
+	# ② 읽어서 검증 (반쯤 쓰인 파일을 진짜 저장본으로 만들지 않는다)
+	if not _is_valid(TEMP_PATH):
+		push_warning("저장 실패: 임시 파일이 온전하지 않음")
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_PATH))
+		return
+	# ③ 기존 저장본을 백업으로 옮기고 교체
+	var da := DirAccess.open("user://")
+	if da:
+		# 복구 중이거나 기존 저장본이 깨졌으면 백업을 갱신하지 않는다
+		if FileAccess.file_exists(SAVE_PATH) and not _restoring and _is_valid(SAVE_PATH):
+			da.remove(BACKUP_PATH.get_file())
+			da.copy(SAVE_PATH, BACKUP_PATH)
+		da.remove(SAVE_PATH.get_file())
+		da.rename(TEMP_PATH.get_file(), SAVE_PATH.get_file())
+	game_saved.emit()
+
+## 저장 파일이 온전한가
+func _is_valid(path: String) -> bool:
+	var c := ConfigFile.new()
+	if c.load(path) != OK:
+		return false
+	if not c.has_section_key("game", "version"):
+		return false
+	if not c.has_section_key("episode0", "data"):
+		return false
+	if not c.has_section_key("travel", "data"):
+		return false
+	var td = c.get_value("travel", "data", null)
+	return td is Dictionary
+
+## 불러오기. 저장본이 깨졌으면 직전 백업으로 되살린다.
 func load_game() -> bool:
+	var path := SAVE_PATH
+	if not _is_valid(path):
+		if _is_valid(BACKUP_PATH):
+			push_warning("저장본이 손상되어 백업에서 복구합니다")
+			path = BACKUP_PATH
+		else:
+			return false
 	var cfg := ConfigFile.new()
-	if cfg.load(SAVE_PATH) != OK:
+	if cfg.load(path) != OK:
 		return false
 	Episode0State.from_dict(cfg.get_value("episode0", "data", {}))
 	TravelState.from_dict(cfg.get_value("travel", "data", {}))
+	# 백업에서 살렸으면 정상 저장본으로 다시 써둔다.
+	# 이때 백업을 덮으면 안 된다 — 깨진 파일이 백업이 되어버린다.
+	if path == BACKUP_PATH:
+		_restoring = true
+		save_game()
+		_restoring = false
 	return true
+
+## 백업이 있는가 (설정 화면에서 안내용)
+func has_backup() -> bool:
+	return _is_valid(BACKUP_PATH)
 
 func get_current_scene(fallback: String = "res://scenes/travel/TravelHub.tscn") -> String:
 	var cfg := ConfigFile.new()
@@ -74,7 +136,8 @@ func get_current_scene(fallback: String = "res://scenes/travel/TravelHub.tscn") 
 	return cfg.get_value("game", "current_scene", fallback)
 
 func clear_save() -> void:
-	if FileAccess.file_exists(SAVE_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	for f in [SAVE_PATH, BACKUP_PATH, TEMP_PATH]:
+		if FileAccess.file_exists(f):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
 	Episode0State.reset()
 	TravelState.reset()
