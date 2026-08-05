@@ -16,6 +16,7 @@ func _ready() -> void:
 	_build_scene()
 	player.add_to_group("player")
 	AudioManager.play_bgm("episode0")
+	AudioManager.play_ambient("wind")
 	$EntranceInteract.interacted.connect(_enter_company)
 	$PhotoSpot.interacted.connect(_try_photo)
 	PartnerSpawner.ensure(self, player, Vector3(1.1, 0, 0.3))

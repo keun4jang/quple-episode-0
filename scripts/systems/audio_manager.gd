@@ -19,6 +19,13 @@ var _bgm_tween: Tween = null
 var _bgm_building: Dictionary = {}
 var _quitting: bool = false
 var _bgm_tasks: Array[int] = []
+# 앰비언트(환경음)는 BGM 과 완전히 독립된 플레이어를 쓴다.
+# 여행지가 바뀔 때 배경음악을 건드리지 않고 분위기만 갈아끼우기 위해서다.
+var _amb_player: AudioStreamPlayer = null
+var _amb_current: String = ""
+var _amb_cache: Dictionary = {}
+var _amb_building: Dictionary = {}
+var _amb_volume: float = 0.8
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
@@ -657,4 +664,248 @@ func _make(duration: float, wave: Callable) -> AudioStreamWAV:
 	st.mix_rate = SAMPLE_RATE
 	st.stereo = false
 	st.data = data
+	return st
+
+# ── 여행지 앰비언트(환경음) ─────────────────────────────────────────────
+#
+# 여행지마다 깔리는 배경 환경음. 전부 필터를 먹인 화이트 노이즈로 만든다.
+# 외부 음원이 없으므로 "파도/바람/비" 같은 소리는 잡음의 주파수 대역과
+# 아주 느린 진폭 변화만으로 흉내낸다. 사람 귀는 이 둘로 대부분을 구분한다.
+#
+# 루프 이음매 처리:
+#   1) 필요한 길이보다 크로스페이드 구간만큼 더 길게 잡음을 만든 뒤
+#      꼬리를 머리에 겹쳐 섞는다(정상 잡음이라 티가 나지 않는다).
+#   2) 그 뒤에 곱하는 진폭 LFO 는 루프 길이 안에서 정확히 정수 번 돌게 맞춘다.
+#   → 시작과 끝의 진폭·파형 통계가 같아져 "툭" 소리가 나지 않는다.
+
+const AMB_RATE := 22050
+const AMB_XFADE := 0.6          # 이음매 크로스페이드 길이(초)
+const AMB_BASE_DB := -24.0      # BGM 보다 훨씬 작게 깔린다
+
+## kind → [길이(초), 최종 진폭]
+const AMB_KINDS := {
+	"wave":  [10.0, 0.72],
+	"wind":  [9.0,  0.60],
+	"rain":  [8.0,  0.62],
+	"space": [12.0, 0.66],
+	"room":  [8.0,  0.30],   # 거의 무음에 가까운 방 소리
+}
+
+func set_ambient_volume(v: float) -> void:
+	_amb_volume = clampf(v, 0.0, 1.0)
+	if _amb_player and _amb_player.playing:
+		_amb_player.volume_db = _amb_db()
+
+func _amb_db() -> float:
+	if _amb_volume <= 0.001:
+		return -80.0
+	return AMB_BASE_DB + linear_to_db(_amb_volume)
+
+## 환경음을 튼다. 같은 종류면 아무것도 하지 않는다.
+##   "wave" / "wind" / "rain" / "space" / "room"
+func play_ambient(kind: String) -> void:
+	if kind == _amb_current and _amb_player and _amb_player.playing:
+		return
+	_amb_current = kind
+	if not AMB_KINDS.has(kind):
+		return
+	var cached: AudioStreamWAV = _amb_cache.get(kind, null)
+	if cached != null:
+		_start_ambient(kind, cached)
+		return
+	if _amb_building.has(kind):
+		return   # 이미 만드는 중
+	# 10초짜리 파형 합성은 프레임을 잡아먹으므로 백그라운드로 돌린다.
+	# 태스크 id 는 BGM 과 같은 배열에 넣어 _shutdown() 이 한 번에 기다리게 한다.
+	_amb_building[kind] = true
+	_bgm_tasks.append(WorkerThreadPool.add_task(_build_ambient_async.bind(kind)))
+
+func stop_ambient(fade := 0.8) -> void:
+	_amb_current = ""
+	if _amb_player == null or not _amb_player.playing:
+		return
+	var tw := create_tween()
+	tw.tween_property(_amb_player, "volume_db", -80.0, fade)
+	await get_tree().create_timer(fade).timeout
+	# 기다리는 사이 다른 환경음이 시작됐다면 끄지 않는다
+	if _amb_player and _amb_current == "":
+		_amb_player.stop()
+
+func _build_ambient_async(kind: String) -> void:
+	if _quitting or not is_instance_valid(self):
+		return
+	var stream := _build_ambient(kind)
+	if _quitting or not is_instance_valid(self):
+		return
+	call_deferred("_on_ambient_built", kind, stream)
+
+func _on_ambient_built(kind: String, stream: AudioStreamWAV) -> void:
+	_amb_building.erase(kind)
+	if stream == null:
+		return
+	_amb_cache[kind] = stream
+	if kind == _amb_current:
+		_start_ambient(kind, stream)
+
+func _start_ambient(kind: String, stream: AudioStreamWAV) -> void:
+	if _amb_player == null:
+		_amb_player = AudioStreamPlayer.new()
+		_amb_player.bus = BUS_SFX
+		add_child(_amb_player)
+	_amb_player.stream = stream
+	_amb_player.volume_db = -80.0
+	_amb_player.play()
+	var tw := create_tween()
+	tw.tween_property(_amb_player, "volume_db", _amb_db(), 1.4)
+
+# ── 앰비언트 합성 ───────────────────────────────────────────────────────
+
+## 루프 길이 안에서 정수 번 도는 LFO 주파수로 맞춘다 (이음매 제거)
+func _amb_lfo_freq(f: float, dur: float) -> float:
+	return maxf(1.0, round(f * dur)) / dur
+
+func _build_ambient(kind: String) -> AudioStreamWAV:
+	if not AMB_KINDS.has(kind):
+		return null
+	var spec: Array = AMB_KINDS[kind]
+	var dur: float = float(spec[0])
+	var gain: float = float(spec[1])
+	var n := int(AMB_RATE * dur)
+	if kind == "space":
+		return _amb_finalize(_amb_space(n, dur), n, gain)
+
+	var xf := int(AMB_RATE * AMB_XFADE)
+	var raw := _amb_noise_layer(kind, n + xf)
+	# 꼬리를 머리에 겹쳐 섞어 이음매를 없앤다
+	for i in range(xf):
+		var w := float(i) / float(xf)
+		raw[i] = raw[i] * w + raw[n + i] * (1.0 - w)
+	raw.resize(n)
+	_amb_modulate(kind, raw, n, dur)
+	return _amb_finalize(raw, n, gain)
+
+## 종류별로 필터를 먹인 잡음층을 만든다.
+func _amb_noise_layer(kind: String, total: int) -> PackedFloat32Array:
+	var buf := PackedFloat32Array()
+	buf.resize(total)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(kind) + 7
+	# 한 극 저역통과 상태값들. 두 번 걸어 더 완만한 기울기를 만든다.
+	var lp1 := 0.0
+	var lp2 := 0.0
+	var lp_slow := 0.0
+	# 비 소리의 알갱이(빗방울) — 남은 감쇠량
+	var grain := 0.0
+	var grain_dec := 0.0
+	for i in range(total):
+		var w := rng.randf_range(-1.0, 1.0)
+		var v := 0.0
+		match kind:
+			"wave":
+				# 저역통과를 두 번 걸어 낮게 웅웅대는 물소리를 만든다
+				lp1 += (w - lp1) * 0.030
+				lp2 += (lp1 - lp2) * 0.030
+				v = lp2 * 9.0
+			"wind":
+				# 대역통과 = 완만한 저역통과에서 더 낮은 성분을 뺀다
+				lp1 += (w - lp1) * 0.090
+				lp_slow += (lp1 - lp_slow) * 0.010
+				v = (lp1 - lp_slow) * 3.4
+			"rain":
+				# 고역 쪽만 남긴다 (원음 - 저역) → 쉭 하는 빗소리
+				lp1 += (w - lp1) * 0.35
+				v = (w - lp1) * 0.85
+				# 알갱이감: 가끔 톡 하고 튀는 물방울을 얹는다
+				if rng.randf() < 0.0016:
+					grain = rng.randf_range(0.25, 0.6)
+					grain_dec = rng.randf_range(0.004, 0.012)
+				if grain > 0.0001:
+					v += grain * rng.randf_range(-1.0, 1.0)
+					grain -= grain * grain_dec
+				else:
+					grain = 0.0
+			"room":
+				# 거의 들리지 않는 저역 방 잡음
+				lp1 += (w - lp1) * 0.020
+				lp2 += (lp1 - lp2) * 0.020
+				v = lp2 * 7.0
+		buf[i] = v
+	return buf
+
+## 잡음층에 아주 느린 진폭 변화를 곱한다. LFO 는 루프 안에서 정수 번 돈다.
+func _amb_modulate(kind: String, buf: PackedFloat32Array, n: int, dur: float) -> void:
+	match kind:
+		"wave":
+			# 0.1~0.2Hz 로 아주 느리게 밀려왔다 빠지는 출렁임
+			var f1 := _amb_lfo_freq(0.13, dur)
+			var f2 := _amb_lfo_freq(0.19, dur)
+			for i in range(n):
+				var t := float(i) / float(AMB_RATE)
+				var s := 0.55 + 0.32 * sin(TAU * f1 * t) + 0.16 * sin(TAU * f2 * t + 1.3)
+				buf[i] *= maxf(0.06, s)
+		"wind":
+			# 여러 주기를 겹쳐 규칙이 잡히지 않는 세기 변화를 만든다
+			var g1 := _amb_lfo_freq(0.11, dur)
+			var g2 := _amb_lfo_freq(0.29, dur)
+			var g3 := _amb_lfo_freq(0.67, dur)
+			for i in range(n):
+				var t := float(i) / float(AMB_RATE)
+				var s := 0.48 + 0.28 * sin(TAU * g1 * t) \
+					+ 0.16 * sin(TAU * g2 * t + 2.1) \
+					+ 0.08 * sin(TAU * g3 * t + 0.7)
+				buf[i] *= maxf(0.05, s)
+		"rain":
+			# 비는 세기가 거의 일정하다. 아주 옅은 흔들림만 준다.
+			var r1 := _amb_lfo_freq(0.17, dur)
+			for i in range(n):
+				var t := float(i) / float(AMB_RATE)
+				buf[i] *= 0.88 + 0.12 * sin(TAU * r1 * t)
+		"room":
+			var m1 := _amb_lfo_freq(0.07, dur)
+			for i in range(n):
+				var t := float(i) / float(AMB_RATE)
+				buf[i] *= 0.85 + 0.15 * sin(TAU * m1 * t)
+
+## 우주 험 — 40~70Hz 사인을 살짝 어긋나게 겹친다.
+## 주파수가 조금씩 다르면 맥놀이가 생겨 "살아 있는" 저주파가 된다.
+func _amb_space(n: int, dur: float) -> PackedFloat32Array:
+	var buf := PackedFloat32Array()
+	buf.resize(n)
+	# 모두 루프 길이의 정수배 주기로 맞춰 이음매를 없앤다
+	var parts := [
+		[_amb_lfo_freq(41.0, dur), 1.00, 0.0],
+		[_amb_lfo_freq(41.7, dur), 0.70, 1.1],   # 0.7Hz 차이 → 아주 느린 맥놀이
+		[_amb_lfo_freq(55.0, dur), 0.45, 2.4],
+		[_amb_lfo_freq(55.9, dur), 0.32, 0.6],
+		[_amb_lfo_freq(68.0, dur), 0.22, 3.0],
+	]
+	var sw := _amb_lfo_freq(0.09, dur)   # 전체 세기의 아주 느린 숨
+	for i in range(n):
+		var t := float(i) / float(AMB_RATE)
+		var v := 0.0
+		for p in parts:
+			v += sin(TAU * float(p[0]) * t + float(p[2])) * float(p[1])
+		buf[i] = v * (0.80 + 0.20 * sin(TAU * sw * t))
+	return buf
+
+## 정규화 후 16bit PCM 루프 스트림으로 변환
+func _amb_finalize(buf: PackedFloat32Array, n: int, gain: float) -> AudioStreamWAV:
+	var peak := 0.0
+	for i in range(n):
+		peak = maxf(peak, absf(buf[i]))
+	var norm := 0.0 if peak < 0.00001 else gain / peak
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	for i in range(n):
+		var s := int(clampf(buf[i] * norm, -1.0, 1.0) * 32000.0)
+		data[i * 2] = s & 0xFF
+		data[i * 2 + 1] = (s >> 8) & 0xFF
+	var st := AudioStreamWAV.new()
+	st.format = AudioStreamWAV.FORMAT_16_BITS
+	st.mix_rate = AMB_RATE
+	st.stereo = false
+	st.data = data
+	st.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	st.loop_begin = 0
+	st.loop_end = n
 	return st

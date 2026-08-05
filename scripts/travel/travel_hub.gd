@@ -25,6 +25,7 @@ var _region_filter := ""   # 빈 값이면 모든 대륙
 func _ready() -> void:
 	_load_poster()
 	AudioManager.play_bgm("doraji")
+	_update_ambient()
 	album_btn.pressed.connect(_show_album)
 	room_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/travel/SouvenirRoom3D.tscn", "hopeful"))
 	home_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/menu/MainMenu3D.tscn"))
@@ -41,10 +42,12 @@ func _process(delta: float) -> void:
 	if TravelState.has_arrived():
 		_refresh()
 		return
+	var sky := body.get_node_or_null("Sky") as ColorRect
+	if sky: _paint_sky(sky, TravelState.progress())
+	# 남은 시간은 평소엔 감춘다. D 를 누르고 있는 동안만 보여준다.
 	var lbl := body.get_node_or_null("TimeLeft") as Label
-	var bar := body.get_node_or_null("Bar") as ProgressBar
-	if lbl: lbl.text = TravelState.format_time_left()
-	if bar: bar.value = TravelState.progress() * 100.0
+	if lbl:
+		lbl.text = TravelState.format_time_left() if Input.is_action_pressed("wind_note") else ""
 	# 보고 있는 중에 새 소식이 도착하면 알림을 띄운다
 	var showing_msg_btn := body.get_node_or_null("MsgBtn") != null
 	if TravelState.unread_count() > 0 and not showing_msg_btn:
@@ -252,44 +255,94 @@ func _make_items_row() -> Label:
 	return l
 
 ## 2) 여행 중 — 앱을 꺼도 진행된다
+## 남은 시간을 숫자로 보여주지 않는다. 하늘빛과 해의 위치가 진행도를 말해준다.
 func _build_traveling() -> void:
 	var d := TravelState.get_destination(TravelState.trip.get("dest_id", ""))
 	title.text = "%s 여행 중" % d.get("name", "")
-	subtitle.text = "앱을 꺼도 괜찮아요. 둘이서 잘 다니고 있어요"
+	subtitle.text = "앱을 꺼도 괜찮아요"
+
+	# 하늘: 출발(새벽) → 도착(노을)
+	var sky := ColorRect.new()
+	sky.name = "Sky"
+	sky.custom_minimum_size = Vector2(0, 120)
+	body.add_child(sky)
+	_paint_sky(sky, TravelState.progress())
 
 	var emoji := Label.new()
 	emoji.text = d.get("emoji", "✈")
-	emoji.add_theme_font_size_override("font_size", 60)
+	emoji.add_theme_font_size_override("font_size", 54)
 	emoji.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(emoji)
 
-	var lbl := Label.new()
-	lbl.name = "TimeLeft"
-	lbl.text = TravelState.format_time_left()
-	lbl.add_theme_font_size_override("font_size", 32)
-	lbl.add_theme_color_override("font_color", Color(1, 0.94, 0.78))
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(lbl)
-
-	var bar := ProgressBar.new()
-	bar.name = "Bar"
-	bar.custom_minimum_size = Vector2(0, 26)
-	bar.max_value = 100.0
-	bar.value = TravelState.progress() * 100.0
-	bar.show_percentage = false
-	body.add_child(bar)
-
-	# 중간 소식 (앱을 꺼둔 사이에도 도착해 있다)
+	# 중간 소식
 	body.add_child(_make_message_row())
 
 	var hint := Label.new()
 	hint.name = "Hint"
 	hint.text = "돌아오면 사진과 일기를 보여줄 거예요"
-	hint.add_theme_font_size_override("font_size", 16)
+	hint.add_theme_font_size_override("font_size", 15)
 	hint.add_theme_color_override("font_color", Color(0.85, 0.82, 0.95))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(hint)
+
+	# 숫자가 궁금하면 D 를 눌러 잠깐 볼 수 있다
+	var peek := Label.new()
+	peek.name = "TimeLeft"
+	peek.text = ""
+	peek.add_theme_font_size_override("font_size", 13)
+	peek.add_theme_color_override("font_color", Color(0.70, 0.68, 0.85))
+	peek.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(peek)
+
+## 진행도를 하늘로 그린다. 0=새벽, 1=노을.
+func _paint_sky(rect: ColorRect, prog: float) -> void:
+	var img := Image.create(64, 96, false, Image.FORMAT_RGBA8)
+	# 시간대별 하늘 색
+	var top_dawn := Color(0.16, 0.20, 0.42)
+	var bot_dawn := Color(0.42, 0.44, 0.62)
+	var top_noon := Color(0.42, 0.66, 0.90)
+	var bot_noon := Color(0.78, 0.88, 0.96)
+	var top_dusk := Color(0.30, 0.26, 0.52)
+	var bot_dusk := Color(0.98, 0.68, 0.52)
+	var top: Color
+	var bot: Color
+	if prog < 0.5:
+		var t := prog / 0.5
+		top = top_dawn.lerp(top_noon, t)
+		bot = bot_dawn.lerp(bot_noon, t)
+	else:
+		var t := (prog - 0.5) / 0.5
+		top = top_noon.lerp(top_dusk, t)
+		bot = bot_noon.lerp(bot_dusk, t)
+	for y in range(96):
+		var c := top.lerp(bot, float(y) / 95.0)
+		for x in range(64):
+			img.set_pixel(x, y, c)
+	# 해: 진행도에 따라 왼쪽에서 오른쪽으로, 가운데서 가장 높이
+	var sx := int(6.0 + prog * 52.0)
+	var sy := int(70.0 - sin(prog * PI) * 46.0)
+	var sun := Color(1.0, 0.95, 0.72) if prog < 0.75 else Color(1.0, 0.78, 0.52)
+	for dy in range(-4, 5):
+		for dx in range(-4, 5):
+			if dx * dx + dy * dy > 16:
+				continue
+			var px := sx + dx
+			var py := sy + dy
+			if px >= 0 and px < 64 and py >= 0 and py < 96:
+				img.set_pixel(px, py, sun)
+	var tex := ImageTexture.create_from_image(img)
+	var tr := rect.get_node_or_null("Tex") as TextureRect
+	if tr == null:
+		tr = TextureRect.new()
+		tr.name = "Tex"
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		rect.add_child(tr)
+	tr.texture = tex
+	rect.color = Color(0, 0, 0, 0)
 
 ## 소식 버튼: 안 읽은 게 있으면 강조, 없으면 다음 소식까지 안내
 func _make_message_row() -> Control:
@@ -468,50 +521,123 @@ func _show_chapter_unlocked(chapter_id: String, souvenir: Dictionary) -> void:
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	body.add_child(open_btn)
 
-## 받은 사진 + 일기 공개
-func _show_souvenir(s: Dictionary) -> void:
+## 받은 사진 + 일기 공개 — 엽서가 도착한 것처럼
+func _show_souvenir(sv: Dictionary) -> void:
 	for c in body.get_children():
 		c.queue_free()
-	title.text = "새로운 기록"
+	var quiet: bool = bool(sv.get("quiet", false))
+	title.text = "조용한 하루" if quiet else "엽서가 도착했어요"
 	subtitle.text = "앨범에 저장했어요"
 
-	var photo := Label.new()
-	photo.text = s.get("photo", "📷")
-	photo.add_theme_font_size_override("font_size", 76)
-	photo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(photo)
+	# 폴라로이드 액자
+	var card := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.97, 0.95, 0.90, 0.97)
+	sb.set_corner_radius_all(6)
+	sb.set_content_margin_all(10)
+	sb.shadow_color = Color(0.05, 0.03, 0.15, 0.5)
+	sb.shadow_size = 12
+	sb.shadow_offset = Vector2(0, 5)
+	card.add_theme_stylebox_override("panel", sb)
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 6)
+
+	# 사진 — 여행지 색으로 그린다
+	var photo := TextureRect.new()
+	photo.custom_minimum_size = Vector2(300, 150)
+	photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	photo.stretch_mode = TextureRect.STRETCH_SCALE
+	photo.texture = _make_photo(sv, quiet)
+	inner.add_child(photo)
+
+	# 손글씨 자리 — 제목
 	var t := Label.new()
-	t.text = s.get("title", "")
-	t.add_theme_font_size_override("font_size", 24)
-	t.add_theme_color_override("font_color", Color(1, 0.90, 0.62))
+	t.text = str(sv.get("title", ""))
+	t.add_theme_font_size_override("font_size", 17)
+	t.add_theme_color_override("font_color", Color(0.32, 0.24, 0.14))
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(t)
+	inner.add_child(t)
 
 	var diary := Label.new()
-	diary.text = s.get("diary", "")
-	diary.add_theme_font_size_override("font_size", 19)
-	diary.add_theme_color_override("font_color", Color(1, 0.98, 0.94))
+	diary.text = str(sv.get("diary", ""))
+	diary.add_theme_font_size_override("font_size", 15)
+	diary.add_theme_color_override("font_color", Color(0.28, 0.22, 0.16))
 	diary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	diary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_child(diary)
+	diary.custom_minimum_size = Vector2(300, 0)
+	inner.add_child(diary)
+
+	card.add_child(inner)
+	body.add_child(card)
 
 	var again := Button.new()
 	again.text = "다시 보내기"
-	again.custom_minimum_size = Vector2(0, 60)
-	again.add_theme_font_size_override("font_size", 22)
+	again.custom_minimum_size = Vector2(0, 52)
+	again.add_theme_font_size_override("font_size", 19)
 	again.add_theme_color_override("font_color", Color(0.22, 0.10, 0.03))
 	again.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.78, 0.52), false))
-	again.add_theme_stylebox_override("hover",  _card_style(Color(1.0, 0.86, 0.62), true))
-	again.pressed.connect(_refresh)
+	again.add_theme_stylebox_override("hover", _card_style(Color(1.0, 0.86, 0.62), true))
+	again.pressed.connect(func(): AudioManager.ui_click(); _refresh())
 	body.add_child(again)
 
-	# 사진이 커지며 나타나는 연출
-	photo.scale = Vector2(0.6, 0.6)
-	photo.pivot_offset = photo.size / 2.0
+	# 엽서가 살짝 기울어져 내려앉는다
+	card.pivot_offset = Vector2(160, 100)
+	card.rotation = deg_to_rad(-4.0)
+	card.modulate = Color(1, 1, 1, 0)
 	var tw := create_tween()
-	tw.tween_property(photo, "scale", Vector2.ONE, 0.35) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.set_parallel(true)
+	tw.tween_property(card, "modulate", Color(1, 1, 1, 1), 0.5)
+	tw.tween_property(card, "rotation", deg_to_rad(-1.2), 0.7).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+## 여행지 색으로 사진을 그린다 (외부 이미지 없이)
+func _make_photo(sv: Dictionary, quiet: bool) -> ImageTexture:
+	var d := TravelState.get_destination(str(sv.get("dest_id", "")))
+	var tint: Color = _dest_tint(d) if not d.is_empty() else Color(0.7, 0.72, 0.82)
+	if quiet:
+		tint = tint.lerp(Color(0.72, 0.72, 0.76), 0.55)   # 조용한 날은 색이 옅다
+	var W := 120
+	var H := 60
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	var sky_top := tint.lerp(Color(0.16, 0.18, 0.34), 0.42)
+	var sky_bot := tint.lerp(Color(1, 0.90, 0.74), 0.45)
+	var ground := tint.darkened(0.32)
+	var horizon := int(H * 0.62)
+	for y in range(H):
+		for x in range(W):
+			if y < horizon:
+				img.set_pixel(x, y, sky_top.lerp(sky_bot, float(y) / float(horizon)))
+			else:
+				var t := float(y - horizon) / float(H - horizon)
+				img.set_pixel(x, y, ground.lerp(ground.darkened(0.25), t))
+	# 지평선 위 실루엣 (여행지 id 로 모양이 달라진다)
+	var h: int = abs(hash(str(sv.get("dest_id", "x"))))
+	for i in range(3):
+		var cx := 14 + ((h >> (i * 5)) % (W - 28))
+		var hgt := 6 + ((h >> (i * 3)) % 14)
+		var wid := 3 + ((h >> (i * 7)) % 7)
+		for x in range(maxi(0, cx - wid), mini(W, cx + wid)):
+			for y in range(maxi(0, horizon - hgt), horizon):
+				img.set_pixel(x, y, ground.darkened(0.35))
+	# 해 또는 달
+	if not quiet:
+		var sx := 20 + (h % (W - 40))
+		var sy := int(horizon * 0.35)
+		for dy in range(-4, 5):
+			for dx in range(-4, 5):
+				if dx * dx + dy * dy > 15: continue
+				var px := sx + dx
+				var py := sy + dy
+				if px >= 0 and px < W and py >= 0 and py < H:
+					img.set_pixel(px, py, Color(1, 0.94, 0.76))
+	# 두 쿼카 실루엣 (항상 둘)
+	for k in range(2):
+		var bx := W / 2 - 5 + k * 8
+		for x in range(bx, mini(W, bx + 5)):
+			for y in range(horizon - 7, horizon):
+				img.set_pixel(x, y, Color(0.18, 0.13, 0.10))
+	return ImageTexture.create_from_image(img)
 
 ## 모은 기념품 목록
 func _show_album() -> void:
@@ -596,3 +722,21 @@ func _load_poster() -> void:
 	var img := Image.load_from_file(abs)
 	if img:
 		bg.texture = ImageTexture.create_from_image(img)
+
+
+## 지금 여행 중인 곳에 어울리는 주변 소리를 튼다
+func _update_ambient() -> void:
+	if not TravelState.is_traveling():
+		AudioManager.play_ambient("room")
+		return
+	var d := TravelState.get_destination(str(TravelState.trip.get("dest_id", "")))
+	var ch := str(d.get("chapter", ""))
+	var rg := str(d.get("region", ""))
+	if ch == "space" or ch == "beyond":
+		AudioManager.play_ambient("space")
+	elif rg == "oceania" or str(d.get("id", "")) in ["busan", "jeju", "jeonnam", "gangneung"]:
+		AudioManager.play_ambient("wave")
+	elif ch == "korea":
+		AudioManager.play_ambient("wind")
+	else:
+		AudioManager.play_ambient("wind")

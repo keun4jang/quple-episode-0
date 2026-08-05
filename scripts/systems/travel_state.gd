@@ -846,6 +846,29 @@ const AUTO_MSGS := [
 	"%s 앞에서 좀 쉬는 중이야.\n곧 또 소식 보낼게.",
 ]
 
+## 아무 일도 없던 날. 매번 사진이 나오면 사진이 특별하지 않다.
+## 약 22% 확률로 조용한 하루가 온다. 그래야 다음 사진이 반갑다.
+const QUIET_DAYS := [
+	"오늘은 그냥 걸었다.",
+	"특별한 건 없었지만\n나쁘지 않은 하루였다.",
+	"사진을 찍는 걸 잊었다.\n그만큼 좋았다는 뜻이겠지.",
+	"아무 말 없이\n오래 앉아 있었다.",
+	"오늘은 아무것도 하지 않기로 했다.",
+	"길을 잃었는데\n둘 다 웃었다.",
+]
+
+func _is_quiet_day(dest_id: String, idx: int) -> bool:
+	return abs(hash(dest_id + "quiet" + str(idx))) % 100 < 22
+
+func _quiet_souvenir(d: Dictionary, idx: int) -> Dictionary:
+	var h: int = abs(hash(str(d.get("id", "")) + "q" + str(idx)))
+	return {
+		"title": "[ 조용한 하루 ]",
+		"diary": QUIET_DAYS[h % QUIET_DAYS.size()],
+		"photo": "·",
+		"quiet": true,
+	}
+
 func _auto_souvenir(d: Dictionary, idx: int) -> Dictionary:
 	var kw: String = str(d.get("keyword", d.get("tagline", "이곳")))
 	var h: int = abs(hash(str(d.get("id", "")) + str(idx)))
@@ -873,9 +896,16 @@ func _pick_souvenir(dest_id: String) -> Dictionary:
 		var d: Dictionary = get_destination(dest_id)
 		if d.is_empty():
 			return {"title": "[ 기록 ]", "diary": "무언가를 보고 왔다.", "photo": "📷"}
-		return _auto_souvenir(d, visit_count(dest_id))
+		var vi := visit_count(dest_id)
+		if _is_quiet_day(dest_id, vi):
+			return _quiet_souvenir(d, vi)
+		return _auto_souvenir(d, vi)
+	var vcount := visit_count(dest_id)
+	# 손으로 쓴 곳도 가끔은 아무 일 없는 날
+	if vcount >= pool.size() and _is_quiet_day(dest_id, vcount):
+		return _quiet_souvenir(get_destination(dest_id), vcount)
 	# 방문 횟수만큼 다음 것을 열고, 다 보면 순환한다
-	var idx: int = visit_count(dest_id) % pool.size()
+	var idx: int = vcount % pool.size()
 	return (pool[idx] as Dictionary).duplicate(true)
 
 # ── 저장 ────────────────────────────────────────────────────────────────
@@ -893,3 +923,51 @@ func from_dict(d: Dictionary) -> void:
 
 func _now() -> int:
 	return int(Time.get_unix_time_from_system())
+
+# ── 함께 배우는 것 ───────────────────────────────────────────────────────
+# 수치(레벨·스탯)로 말하지 않기 위해, 여행하며 둘이 몸에 익히는 습관으로 표현한다.
+# effect_hint 는 "무엇이 몇 % 오른다" 대신 체감으로만 알려준다.
+const TRAVEL_HABITS: Array = [
+	{"id": "slow_walk", "name": "천천히 걷기",
+	 "desc": "서두르지 않아도 도착은 한다",
+	 "effect_hint": "여행이 조금 짧게 느껴져요"},
+	{"id": "get_lost", "name": "길 잃어도 괜찮기",
+	 "desc": "예정에 없던 곳이 제일 기억에 남는다",
+	 "effect_hint": "뜻밖의 소식이 자주 와요"},
+	{"id": "photo_each_other", "name": "서로 사진 찍어주기",
+	 "desc": "풍경보다 사람이 남는다",
+	 "effect_hint": "둘이 함께 찍힌 사진이 늘어요"},
+	{"id": "empty_day", "name": "아무 계획 없는 하루",
+	 "desc": "비워둔 날이 여행을 살린다",
+	 "effect_hint": "조용한 하루가 더 자주 와요"},
+	{"id": "share_umbrella", "name": "우산 하나로 걷기",
+	 "desc": "비 오는 날은 어깨가 조금 젖는다",
+	 "effect_hint": "흐린 날에도 소식이 끊기지 않아요"},
+	{"id": "morning_market", "name": "아침 시장 구경하기",
+	 "desc": "사는 것보다 보는 게 더 재미있다",
+	 "effect_hint": "작고 사소한 기념품이 늘어요"},
+	{"id": "long_letter", "name": "긴 편지 쓰기",
+	 "desc": "돌아가서 할 말을 미리 적어둔다",
+	 "effect_hint": "일기가 조금 길어져요"},
+	{"id": "come_back", "name": "좋았던 곳에 다시 가기",
+	 "desc": "같은 곳도 두 번째는 다르게 보인다",
+	 "effect_hint": "다시 간 곳에서 새 기록이 나와요"},
+]
+
+# 다녀온 곳 수에 맞춰 하나씩 열린다 (TRAVEL_HABITS 순서와 짝)
+const HABIT_UNLOCK_AT: Array = [3, 6, 10, 15, 25, 40, 70, 120]
+
+func habit_unlocked(habit_id: String) -> bool:
+	for i in TRAVEL_HABITS.size():
+		if str((TRAVEL_HABITS[i] as Dictionary).get("id", "")) == habit_id:
+			if i >= HABIT_UNLOCK_AT.size():
+				return false
+			return collection.size() >= int(HABIT_UNLOCK_AT[i])
+	return false
+
+func unlocked_habits() -> Array:
+	var out: Array = []
+	for i in TRAVEL_HABITS.size():
+		if i < HABIT_UNLOCK_AT.size() and collection.size() >= int(HABIT_UNLOCK_AT[i]):
+			out.append((TRAVEL_HABITS[i] as Dictionary).duplicate(true))
+	return out

@@ -25,6 +25,7 @@ func _ready() -> void:
 	_build_souvenirs()
 	player.add_to_group("player")
 	AudioManager.play_bgm("room")
+	AudioManager.play_ambient("room")
 	PartnerSpawner.ensure(self, player, Vector3(1.0, 0, 0.7))
 	$ExitInteract.interacted.connect(_go_hub)
 	await get_tree().create_timer(0.4).timeout
