@@ -1,5 +1,8 @@
 extends Node3D
 
+## 프롭 라이브러리. class_name 대신 preload 로 잡는다 — 이유는 prop_kit.gd 머리말 참고.
+const PropKit := preload("res://scripts/systems/prop_kit.gd")
+
 @onready var player = $PlayerQuokka3D
 @onready var camera: Camera3D = $Camera3D
 @onready var warm_window_light: OmniLight3D = $WarmWindowLight
@@ -101,6 +104,8 @@ func _build_scene() -> void:
 	_tree(self, Vector3(8, 0, 0))
 	# 거리 소품 추가
 	_add_street_details()
+	# 밤거리 실루엣·소품 보강 (옥상 / 외벽 / 스카이라인 / 인도)
+	_add_night_props()
 
 func _add_street_details() -> void:
 	# 쓰레기통 2개 (원기둥 형태)
@@ -172,6 +177,67 @@ func _add_street_details() -> void:
 	neon_mi.material_override = neon_mat
 	neon_mi.position = Vector3(0, 3.5, -4.9)
 	self.add_child(neon_mi)
+
+## 밤거리 실루엣·소품 보강.
+## 회사 건물이 창문 격자만 붙은 18m 상자라, 하늘과 만나는 선에 아무 정보가 없었다.
+## 옥상에 물건을 얹고, 외벽에 배관과 세로 간판을 붙이고, 좌우로 낮은 건물을 세운다.
+##
+## 규칙 하나만 지킨다 — 밝은 것을 늘리지 않는다.
+## 이 씬의 주인공은 6층에 딱 하나 켜진 창이다. 새 조명(OmniLight)은 하나도 넣지 않고,
+## 발광은 PropKit 이 원래 갖고 있는 작은 것들(간판 글자칸, 자판기 유리, 항공장애등)만 쓴다.
+func _add_night_props() -> void:
+	# ── 옥상 (건물 지붕면이 y=18) ──
+	# 난간은 z 로 조금 물린다. 기존 간판 SignBG(z=-5.25) 와 부딪히지 않게.
+	PropKit.parapet(self, Vector3(0, 18.0, -6.18), Vector2(10.0, 1.6), 0.5, "#3A4658")
+	# 옥상 폭이 2m 뿐이라 기계실·물탱크는 작게 줄여 난간 안쪽에 앉힌다.
+	PropKit.rooftop_unit(self, Vector3(-2.3, 18.0, -6.2), "#4E5A6E", 0.75)
+	PropKit.water_tank(self, Vector3(2.7, 18.0, -6.16), "#8E9AA8", 0.7)
+	# 안테나는 왼쪽 끝. 하늘로 그어진 선 하나가 건물 키를 알려 준다.
+	PropKit.antenna(self, Vector3(-4.0, 18.0, -6.2), 3.0, "#96A0AE")
+
+	# ── 외벽 ──
+	# 정면은 창문 격자로 꽉 차 있다. 그래서 배관은 창을 피해
+	# 왼쪽 코너 기둥(BuildingLeft, x=-5.1 / 앞면 z=-4.75) 을 타고 오른다.
+	PropKit.pipe_run(self, Vector3(-5.1, 0.0, -4.72), 7.0, "#7E8898")
+	# 오른쪽 코너에 세로 간판. 판은 은은하고 글자칸만 밝아서 켜진 창을 덮지 않는다.
+	PropKit.vertical_sign(self, Vector3(5.15, 9.0, -4.76), 2.8, "#FFD76D")
+	# 실외기는 왼쪽 옆 건물 벽면(z=-5.2)에. 띠창 사이 높이라 창을 가리지 않는다.
+	PropKit.ac_units(self, Vector3(-9.6, 5.2, -5.19), 3, Vector2(2.8, 1.0), "#AEB7C3")
+
+	# ── 좌우 스카이라인 ──
+	# 회사 건물(x -5~5) 바깥으로만 물려 세운다. 높이를 다르게 줘야 톱니처럼 읽힌다.
+	# 높이를 본관(18m)의 절반 아래로 낮추고 뒤로 물린다.
+	# 처음엔 11~13m 로 세웠더니 좌우 하늘을 다 막아서, 이 씬의 감정을 만드는
+	# 노을 그라데이션이 사라졌다. 실루엣은 살리되 하늘을 돌려준다.
+	_skyline_block("A", -11.6, -9.4, Vector3(8.4, 7.2, 5.2), "#334053", "#2A3542")
+	_skyline_block("B", -19.4, -10.4, Vector3(7.0, 4.8, 5.6), "#2B3648", "#232D3A")
+	_skyline_block("C", 12.4, -9.6, Vector3(9.0, 8.4, 5.4), "#37435A", "#2C3645")
+
+	# ── 인도 소품 ──
+	# 자판기는 왼쪽 옆 건물 벽에 붙인다. 유리창이 약하게만 빛나는 물건이다.
+	PropKit.vending_machine(self, Vector3(-7.6, 0.0, -4.83), "#C98BA0")
+	PropKit.trash_bin(self, Vector3(-6.55, 0.0, -4.6), "#5E6A78")
+	# 기존 거치대(x=-4) 와 겹치지 않게 한 벌 더 왼쪽에.
+	PropKit.bicycle_rack(self, Vector3(-9.3, 0.0, 0.15), 2, "#96A0AC")
+	# 기존 정류장 폴(x=5) 옆에 노선 표지판을 하나 더. 머리띠만 살짝 빛난다.
+	PropKit.bus_sign(self, Vector3(6.9, 0.0, 0.55), "#8FA9C9")
+	# 가로수는 종류를 섞는다. 기존 둥근 나무(x=±8) 바깥쪽으로 침엽수와 활엽수 하나씩.
+	PropKit.tree_tall(self, Vector3(-11.2, 0.0, -0.4), "#5F9E86", "#6B4A34", 1.1)
+	PropKit.tree_round(self, Vector3(10.8, 0.0, -0.6), "#72B48D", "#6B4A34", 1.05)
+
+## 옆 건물 실루엣 한 채. 단순 박스 + 갓돌 + 띠창 3줄.
+## 창은 전부 꺼진 색으로 둔다 — 이 거리에서 켜진 창은 회사 6층 하나뿐이어야 한다.
+func _skyline_block(tag: String, cx: float, cz: float, size: Vector3, hex: String, cap_hex: String) -> void:
+	var front := cz + size.z * 0.5
+	_box(self, Vector3(cx, size.y * 0.5, cz), size, hex, "Skyline%s" % tag)
+	# 갓돌 한 줄. 위가 그냥 잘려 있으면 종이를 오려 붙인 것처럼 보인다.
+	_box(self, Vector3(cx, size.y + 0.16, cz), Vector3(size.x + 0.34, 0.32, size.z + 0.34),
+		cap_hex, "Skyline%sCap" % tag)
+	# 층을 알려 주는 띠창. 창을 한 칸씩 찍으면 메시가 금방 불어난다.
+	for i in range(3):
+		var wy := size.y * (0.34 + float(i) * 0.2)
+		_box(self, Vector3(cx, wy, front + 0.04), Vector3(size.x * 0.74, 0.4, 0.06),
+			"#1B2A3C", "Skyline%sWin%d" % [tag, i])
 
 func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, hex: String, label: String = "") -> MeshInstance3D:
 	# 원기둥 메시 헬퍼

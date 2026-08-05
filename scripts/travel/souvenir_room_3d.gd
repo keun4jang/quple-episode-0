@@ -2,6 +2,9 @@ extends Node3D
 ## 기념품 방. 여행에서 모아온 사진이 선반에 하나씩 쌓인다.
 ## 방문할수록 방이 채워지는 게 눈에 보이는 것이 이 화면의 목적이다.
 
+## 프롭 라이브러리. class_name 대신 preload 로 잡는다 — 이유는 prop_kit.gd 머리말 참고.
+const PropKit := preload("res://scripts/systems/prop_kit.gd")
+
 @onready var player = $PlayerQuokka3D
 @onready var camera: Camera3D = $Camera3D
 @onready var dialogue_box = $DialogueBox
@@ -195,6 +198,9 @@ func _build_room() -> void:
 	amb.position = Vector3(0, 3.4, 0)
 	add_child(amb)
 
+	# 여기까지가 원래의 방이다. 꾸미기는 전부 아래 한 함수에 모아 뒀다.
+	_build_room_details()
+
 ## 마지막 여행지(rift)를 다녀오면 창밖에 겹쳐지는 은은한 오로라.
 ## 색을 여러 개 쓰되 채도를 낮춰, 스카프의 산호색과 경쟁하지 않게 한다.
 func _build_aurora() -> void:
@@ -211,6 +217,219 @@ func _build_aurora() -> void:
 		m.emission_energy_multiplier = 1.6
 		band.material_override = m
 		_aurora.append(band)
+
+# ── 방 꾸미기 ───────────────────────────────────────────────────────────
+#
+# 여기서부터는 전부 장식이다. 슬롯 계산과 진행도 연출에는 손대지 않는다.
+#
+# 이 방은 벽 세 면과 선반 하나가 전부라 어디를 봐도 같은 면이 이어졌다.
+# 방은 물건이 쌓인 만큼 "사는 사람이 있는 방"이 되므로, 벽마다 높이가 다른 물건을
+# 하나씩 걸어 가로선을 끊는다. 바닥 한가운데(플레이어가 걷는 길)는 비워 두고
+# 벽을 따라서만 채운다. 카메라가 늘 -Z 쪽을 보므로 뒷벽과 옆벽에만 놓는다.
+
+func _build_room_details() -> void:
+	_build_trim()
+	_build_curtain()
+	_build_windowsill()
+	_build_string_lights()
+	_build_wall_shelf()
+	_build_plants()
+	_build_floor_lamp()
+	_build_tea_corner()
+	_build_rug_detail()
+	_build_wall_art()
+
+## 몰딩과 걸레받이. 벽이 바닥·천장과 만나는 선이 그냥 끊기면 벽이 판때기로 보인다.
+## 가로선이 한 줄 들어가면 같은 벽도 "지어진 방"이 된다.
+func _build_trim() -> void:
+	_box(self, Vector3(0, 3.72, -4.20), Vector3(9, 0.16, 0.16), "#56697F", "CrownBack")
+	_box(self, Vector3(-4.20, 3.72, 0), Vector3(0.16, 0.16, 9), "#4E607A", "CrownLeft")
+	_box(self, Vector3(4.20, 3.72, 0), Vector3(0.16, 0.16, 9), "#4E607A", "CrownRight")
+	# 걸레받이는 뒷벽에만 있었다. 옆벽에도 둘러야 바닥이 벽 밑으로 이어져 보인다.
+	_box(self, Vector3(-4.22, 0.12, 0), Vector3(0.10, 0.24, 9), "#3A4A5E", "BaseboardLeft")
+	_box(self, Vector3(4.22, 0.12, 0), Vector3(0.10, 0.24, 9), "#3A4A5E", "BaseboardRight")
+
+## 창문 커튼. 창은 이 방에서 제일 말을 많이 하는 물건이다 — 진행도가 창밖 색으로 보인다.
+## 그래서 커튼은 창틀 바깥에만 건다. 유리와 별은 그대로 두고 테두리만 만든다.
+func _build_curtain() -> void:
+	var cx := 2.9
+	var rod_y := 3.06
+	# 커튼봉 + 마감 구슬. 봉이 벽에서 조금 떨어져야 커튼이 벽에 발린 것처럼 보이지 않는다.
+	var rod := _cylinder(self, Vector3(cx, rod_y, -4.14), 0.035, 2.36, "#6E5238", "CurtainRod")
+	rod.rotation_degrees.z = 90.0
+	for i in range(2):
+		var s := float(i) * 2.0 - 1.0
+		_blob(self, Vector3(cx + s * 1.18, rod_y, -4.14), 0.06, "#5E4A38", "CurtainFinial%d" % i)
+		_box(self, Vector3(cx + s * 1.04, rod_y, -4.21), Vector3(0.05, 0.05, 0.18), "#5E4A38", "CurtainBracket%d" % i)
+	# 윗단 천. 봉과 커튼 사이가 비면 커튼이 공중에 걸린 것처럼 보인다.
+	_box(self, Vector3(cx, 2.94, -4.13), Vector3(2.42, 0.20, 0.09), "#D8C0AE", "CurtainValance")
+	for i in range(2):
+		var side := float(i) * 2.0 - 1.0
+		var px := cx + side * 0.92
+		var panel := _box(self, Vector3(px, 2.08, -4.10), Vector3(0.42, 1.78, 0.07), "#E3CDBE", "CurtainPanel%d" % i)
+		panel.rotation_degrees.z = -side * 1.5
+		# 주름 두 줄. 단색 판만 세워 두면 천이 아니라 문짝으로 읽힌다.
+		for f in range(2):
+			var fold := _box(self, Vector3(px + (float(f) - 0.5) * 0.17, 2.08, -4.055),
+				Vector3(0.06, 1.70, 0.03), "#D2B9A8", "CurtainFold%d_%d" % [i, f])
+			fold.rotation_degrees.z = -side * 1.5
+		# 묶은 띠. 쿠션과 같은 색을 써서 방 안의 색이 한 가족으로 묶이게 한다.
+		_box(self, Vector3(px, 1.62, -4.09), Vector3(0.46, 0.08, 0.11), "#C98BA0", "CurtainTie%d" % i)
+
+## 창턱. 창 아래가 그냥 벽이라 창이 벽에 뚫린 구멍처럼 보였다.
+## 턱이 하나 생기면 물건을 올려 둘 수 있고, 그 물건이 유리를 배경으로 실루엣이 된다.
+func _build_windowsill() -> void:
+	_box(self, Vector3(2.9, 1.37, -4.16), Vector3(2.24, 0.09, 0.30), "#6E5238", "WindowSill")
+	_taper(self, Vector3(2.36, 1.50, -4.14), 0.11, 0.085, 0.18, "#A9705A", "SillPot")
+	_blob(self, Vector3(2.36, 1.66, -4.14), 0.13, "#6FA98A", "PotLeafSill0")
+	_blob(self, Vector3(2.27, 1.59, -4.09), 0.09, "#7FBF97", "PotLeafSill1")
+	# 머그 두 개. 하나가 아니라 둘이라는 것만으로 "둘의 방"이 된다.
+	_cylinder(self, Vector3(3.30, 1.47, -4.12), 0.055, 0.11, "#C98BA0", "SillMug0")
+	_cylinder(self, Vector3(3.44, 1.47, -4.16), 0.055, 0.11, "#8FA9C9", "SillMug1")
+
+## 선반 위 벽에 걸친 전구 줄. 그 높이가 통째로 비어 있어서 눈이 갈 곳이 없었다.
+## 처진 줄 하나가 가로로 지나가면 그 위쪽이 "천장 밑"으로 읽힌다.
+## 밤일수록 밝다 — 여행 초반의 깜깜한 방에서는 이 줄이 유일하게 따뜻한 선이 된다.
+func _build_string_lights() -> void:
+	var x0 := -4.10
+	var x1 := 1.60
+	var y0 := 3.34
+	var sag := 0.34
+	var pts: Array[Vector3] = []
+	for i in range(6):
+		var t := float(i) / 5.0
+		pts.append(Vector3(lerpf(x0, x1, t), y0 - sag * 4.0 * t * (1.0 - t), -4.19))
+	for i in range(pts.size() - 1):
+		_link(self, pts[i], pts[i + 1], 0.025, "#5E6774", "StringCord%d" % i)
+	# 전구는 줄의 마디가 아니라 마디 사이에 매단다. 마디에 두면 꺾인 자리가 그대로 보인다.
+	# 전구는 알이 작아서 세게 주면 알맹이가 통째로 순백으로 탄다.
+	# 글로우가 번져 주니 이 정도만 줘도 밤에는 충분히 따뜻하게 읽힌다.
+	var glow := lerpf(1.9, 0.9, clampf(_progress, 0.0, 1.0))
+	for i in range(6):
+		var t := (float(i) + 0.5) / 6.0
+		var p := Vector3(lerpf(x0, x1, t), y0 - sag * 4.0 * t * (1.0 - t) - 0.08, -4.19)
+		var bulb := _blob(self, p, 0.055, "#FFE7A8", "StringBulb%d" % i)
+		_emissive(bulb, "#FFE7A8", glow)
+
+## 뒷벽 왼쪽의 작은 선반. 기념품 선반은 슬롯이 정해져 있어 손대지 않는다.
+## 대신 그 옆 빈 벽에 하나를 더 달아, 슬롯이 아직 비어 있어도 벽이 허전하지 않게 한다.
+func _build_wall_shelf() -> void:
+	_box(self, Vector3(-3.55, 2.15, -4.16), Vector3(1.20, 0.06, 0.30), "#9A7B5A", "WallShelfBoard")
+	for bx in [-4.05, -3.10]:
+		_box(self, Vector3(bx, 2.03, -4.19), Vector3(0.05, 0.18, 0.22), "#7E6248", "WallShelfBracket")
+	# 액자 둘을 기대어 세운다. 줄 맞춰 세우면 진열장이고, 기울여 놓으면 누가 놔둔 것이 된다.
+	var f0 := _box(self, Vector3(-3.95, 2.32, -4.13), Vector3(0.24, 0.28, 0.03), "#5E4A38", "ShelfPhoto0")
+	f0.rotation_degrees.z = 3.0
+	var f1 := _box(self, Vector3(-3.72, 2.29, -4.10), Vector3(0.20, 0.22, 0.03), "#6E5238", "ShelfPhoto1")
+	f1.rotation_degrees.z = -5.0
+	_taper(self, Vector3(-3.24, 2.26, -4.14), 0.10, 0.08, 0.16, "#A9705A", "ShelfPot")
+	_blob(self, Vector3(-3.24, 2.40, -4.14), 0.13, "#6FA98A", "PotLeafShelf")
+
+## 화분 셋. 잎 이름은 전부 Plant / PotLeaf 로 시작한다 — LivingScene 이 이름만 보고
+## 바람에 흔들어 주기 때문이다. 이름을 바꾸면 방 안의 초록이 전부 멈춘다.
+func _build_plants() -> void:
+	# 뒷벽 왼쪽 구석의 큰 화분. 구석이 비어 있으면 방이 상자로 보인다.
+	var base := Vector3(-3.72, 0, -3.70)
+	_taper(self, base + Vector3(0, 0.24, 0), 0.32, 0.24, 0.48, "#A9705A", "CornerPotBody")
+	_taper(self, base + Vector3(0, 0.50, 0), 0.35, 0.34, 0.07, "#96604C", "CornerPotRim")
+	_taper(self, base + Vector3(0, 0.47, 0), 0.29, 0.29, 0.04, "#4E3A2C", "CornerPotSoil")
+	_cylinder(self, base + Vector3(0, 0.95, 0), 0.045, 0.9, "#7A6A4E", "CornerStem")
+	_blob(self, base + Vector3(0, 1.34, 0), 0.42, "#6FA98A", "PlantLeafBig")
+	_blob(self, base + Vector3(0.30, 1.12, 0.12), 0.30, "#7FBF97", "PlantLeafSide")
+	_blob(self, base + Vector3(-0.26, 1.50, -0.10), 0.28, "#649D80", "PlantLeafBack")
+	_blob(self, base + Vector3(0.10, 1.64, -0.18), 0.22, "#7AB894", "PlantLeafTop")
+
+	# 왼쪽 벽에 매단 화분. 눈높이보다 위에 초록이 하나 있으면 시선이 거기까지 올라간다.
+	_box(self, Vector3(-4.14, 3.30, -2.60), Vector3(0.26, 0.05, 0.05), "#6E7684", "HangBracket")
+	_box(self, Vector3(-4.03, 3.08, -2.60), Vector3(0.02, 0.44, 0.02), "#5E6774", "HangCord")
+	_taper(self, Vector3(-4.03, 2.78, -2.60), 0.20, 0.14, 0.24, "#A9705A", "HangPot")
+	_taper(self, Vector3(-4.03, 2.92, -2.60), 0.22, 0.21, 0.05, "#96604C", "HangPotRim")
+	_blob(self, Vector3(-4.03, 2.72, -2.60), 0.24, "#6FA98A", "PlantHang0")
+	_blob(self, Vector3(-3.90, 2.54, -2.66), 0.17, "#7FBF97", "PlantHang1")
+	_blob(self, Vector3(-4.08, 2.49, -2.50), 0.15, "#649D80", "PlantHang2")
+
+	# 원래 있던 오른쪽 화분은 잎이 공 하나뿐이라 사탕처럼 보였다. 두 덩이만 곁들인다.
+	_blob(self, Vector3(3.22, 0.66, -2.05), 0.24, "#7FBF97", "PotLeafSideA")
+	_blob(self, Vector3(3.74, 0.74, -2.34), 0.20, "#649D80", "PotLeafSideB")
+
+## 오른쪽 뒷구석의 스탠드. 왼쪽에는 탁자 램프가 있는데 오른쪽에는 빛이 없어서
+## 방이 한쪽으로 기울어 보였다. 창 옆에 세로로 선 물건이 하나 생기는 효과도 있다.
+## 램프와 같은 규칙으로, 밤일수록 밝고 창이 밝아질수록 존재감을 줄인다.
+func _build_floor_lamp() -> void:
+	var p := Vector3(4.02, 0, -3.72)
+	_taper(self, p + Vector3(0, 0.03, 0), 0.20, 0.24, 0.06, "#7E858F", "FloorLampBase")
+	_cylinder(self, p + Vector3(0, 0.80, 0), 0.035, 1.50, "#8A9099", "FloorLampStem")
+	var shade := _taper(self, p + Vector3(0, 1.66, 0), 0.17, 0.26, 0.30, "#FFD76D", "FloorLampShade")
+	_emissive(shade, "#FFE7A8", 1.2)
+	# 갓 아래로 새는 빛. 갓만 빛나면 어디를 비추는지가 안 보인다.
+	# 세기는 갓보다 낮게 둔다. 여기를 1.0 넘게 주면 크림색이 순백으로 타서
+	# 파스텔이 깨지고, 나중에 이 방에 뭘 더 얹을 때 제일 먼저 터지는 자리가 된다.
+	var disc := _taper(self, p + Vector3(0, 1.52, 0), 0.24, 0.24, 0.02, "#FFE7A8", "FloorLampGlow")
+	_emissive(disc, "#FFE0AE", 0.8)
+	var lamp2 := OmniLight3D.new()
+	lamp2.name = "FloorLampLight"
+	lamp2.light_color = Color("#FFD3A0")
+	lamp2.light_energy = lerpf(0.9, 0.4, clampf(_progress, 0.0, 1.0))
+	lamp2.omni_range = 5.5
+	lamp2.position = p + Vector3(0, 1.58, 0)
+	add_child(lamp2)
+
+## 오른쪽 벽 앞의 작은 자리. 쿠션 두 개만 덩그러니 있던 바닥에
+## 앉을 이유(찻잔 둘)와 살림(바구니)을 놔 준다. 통로가 아니라 벽 쪽에만 붙인다.
+func _build_tea_corner() -> void:
+	var s := Vector3(3.62, 0, 0.30)
+	_taper(self, s + Vector3(0, 0.44, 0), 0.30, 0.28, 0.07, "#9A7B5A", "StoolTop")
+	for i in range(3):
+		var a := TAU * float(i) / 3.0 + 0.4
+		_cylinder(self, s + Vector3(cos(a) * 0.20, 0.21, sin(a) * 0.20), 0.035, 0.42, "#7E6248", "StoolLeg%d" % i)
+	_cylinder(self, s + Vector3(-0.10, 0.53, -0.06), 0.055, 0.11, "#C98BA0", "TeaCup0")
+	_cylinder(self, s + Vector3(0.10, 0.53, 0.06), 0.055, 0.11, "#8FA9C9", "TeaCup1")
+
+	var b := Vector3(3.92, 0, 1.58)
+	_taper(self, b + Vector3(0, 0.19, 0), 0.28, 0.22, 0.38, "#B39B78", "BasketBody")
+	_taper(self, b + Vector3(0, 0.39, 0), 0.30, 0.29, 0.05, "#9C8563", "BasketRim")
+	# 돌돌 만 담요. 바구니 입구에서 삐져나와야 담아 둔 것으로 보인다.
+	var roll := _cylinder(self, b + Vector3(0, 0.46, 0), 0.13, 0.36, "#D9B7C4", "BlanketRoll")
+	roll.rotation_degrees.x = 90.0
+
+## 러그. 큰 갈색 판 하나여서 바닥에 칠만 해 둔 것처럼 보였다.
+## 테두리와 안쪽 면을 겹쳐 놓으면 같은 넓이도 짜인 천으로 읽힌다.
+func _build_rug_detail() -> void:
+	for e in [Vector3(0, 0.027, -1.42), Vector3(0, 0.027, 2.62)]:
+		_box(self, e, Vector3(5.0, 0.012, 0.22), "#7A5F4B", "RugEdge")
+	for e in [Vector3(-2.42, 0.027, 0.6), Vector3(2.42, 0.027, 0.6)]:
+		_box(self, e, Vector3(0.22, 0.012, 3.6), "#7A5F4B", "RugEdge")
+	_box(self, Vector3(0, 0.030, 0.6), Vector3(3.4, 0.012, 2.6), "#9A7E66", "RugInner")
+	_box(self, Vector3(0, 0.033, 0.6), Vector3(1.5, 0.012, 1.1), "#A98C70", "RugCore")
+	# 램프 탁자 밑 깔개. 가구가 맨바닥에 놓이면 떠 있는 것처럼 보인다.
+	_taper(self, Vector3(-3.28, 0.024, -2.42), 0.73, 0.73, 0.012, "#9A7E66", "MatRound")
+	_taper(self, Vector3(-3.28, 0.017, -2.42), 0.80, 0.80, 0.010, "#7A5F4B", "MatRing")
+
+## 옆벽 장식. 뒷벽은 선반과 창이 다 차지했지만 옆벽은 완전히 비어 있었고,
+## 카메라가 -Z 를 보므로 옆벽은 화면 좌우 끝을 계속 채우는 면이다.
+func _build_wall_art() -> void:
+	# 포스터는 PropKit 이 액자와 색면까지 만들어 준다. 높이를 서로 어긋나게 걸어야
+	# 게시판처럼 줄 맞춘 인상이 안 난다. 왼쪽 벽은 yaw 90, 오른쪽 벽은 -90 이다.
+	PropKit.poster_panel(self, Vector3(-4.26, 2.50, -1.50), "#F2EEE2", 90.0)
+	PropKit.poster_panel(self, Vector3(-4.26, 2.05, 0.35), "#EDE6D8", 90.0)
+	PropKit.poster_panel(self, Vector3(4.26, 2.35, -0.60), "#F2EEE2", -90.0)
+
+	# 벽시계. 방에 시간이 흐른다는 표시가 하나쯤 있으면 여행에서 돌아온 방이 된다.
+	var cc := Vector3(4.185, 2.78, -1.66)
+	var body := _taper(self, Vector3(4.24, cc.y, cc.z), 0.19, 0.19, 0.06, "#8A9099", "ClockBody")
+	body.rotation_degrees.z = 90.0
+	var face := _taper(self, Vector3(4.20, cc.y, cc.z), 0.155, 0.155, 0.02, "#F2EEE2", "ClockFace")
+	face.rotation_degrees.z = 90.0
+	# 바늘은 X 축으로 돌려서 시계 면(YZ 평면) 안에 눕힌다. 중심에서 길이의 절반만큼 밀어야
+	# 바늘이 축 반대쪽으로 튀어나오지 않는다.
+	var la := deg_to_rad(25.0)
+	var lh := _box(self, cc + Vector3(0, cos(la) * 0.08, sin(la) * 0.08),
+		Vector3(0.018, 0.16, 0.018), "#5E6774", "ClockHandLong")
+	lh.rotation_degrees.x = 25.0
+	var sa := deg_to_rad(-110.0)
+	var sh := _box(self, cc + Vector3(0, cos(sa) * 0.055, sin(sa) * 0.055),
+		Vector3(0.018, 0.11, 0.018), "#5E6774", "ClockHandShort")
+	sh.rotation_degrees.x = -110.0
 
 # ── 기념품 배치 ─────────────────────────────────────────────────────────
 func _build_souvenirs() -> void:
@@ -329,4 +548,40 @@ func _sphere(parent: Node3D, pos: Vector3, radius: float, hex: String, label := 
 	var mat := StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.9
 	mi.material_override = mat
 	parent.add_child(mi)
+	return mi
+
+## 위아래 반지름이 다른 통. 화분·갓·스툴처럼 살짝 벌어진 것에 쓴다.
+## 분할은 12로 낮춘다. CylinderMesh 기본이 64라 화분 몇 개만 놔도 폴리곤이 쓸데없이 는다.
+func _taper(parent: Node3D, pos: Vector3, r_top: float, r_bottom: float, height: float, hex: String, label := "") -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var m := CylinderMesh.new()
+	m.top_radius = r_top; m.bottom_radius = r_bottom; m.height = height
+	m.radial_segments = 12; m.rings = 0
+	mi.mesh = m; mi.position = pos
+	if label != "": mi.name = label
+	var mat := StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.9
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+## 저분할 구. 잎사귀처럼 여러 개 겹쳐 놓는 것에 쓴다.
+## 기본 SphereMesh 는 64x32 라 이 크기에서 보이지도 않는 폴리곤을 잔뜩 만든다.
+func _blob(parent: Node3D, pos: Vector3, radius: float, hex: String, label := "") -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var m := SphereMesh.new()
+	m.radius = radius; m.height = radius * 2.0
+	m.radial_segments = 16; m.rings = 8
+	mi.mesh = m; mi.position = pos
+	if label != "": mi.name = label
+	var mat := StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.9
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+## 두 점을 잇는 얇은 막대. 처진 줄을 여러 토막으로 그릴 때 쓴다.
+## 같은 평면(z 고정) 위의 두 점만 다룬다 — 전구 줄은 벽에 붙어 있어서 그걸로 충분하다.
+func _link(parent: Node3D, a: Vector3, b: Vector3, thick: float, hex: String, label := "") -> MeshInstance3D:
+	var d := b - a
+	var mi := _box(parent, (a + b) * 0.5, Vector3(d.length(), thick, thick), hex, label)
+	mi.rotation_degrees.z = rad_to_deg(atan2(d.y, d.x))
 	return mi
