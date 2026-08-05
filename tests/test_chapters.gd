@@ -111,6 +111,20 @@ func _ready() -> void:
 	ck("엔딩 상태 유지", TravelState.ending_reached())
 	ck("막 진행도 유지", TravelState.chapter_cleared("space") == 8)
 
+	print("\n[8] 엔딩 화면")
+	var es := load("res://scenes/ui/EndingScreen.tscn") as PackedScene
+	ck("엔딩 씬 로드", es != null)
+	if es:
+		var inst = es.instantiate()
+		add_child(inst)
+		await get_tree().process_frame
+		ck("엔딩 그룹 등록", inst.is_in_group("ending_screen"))
+		var stats_label: Label = inst.get_node_or_null("Root/Center/Body/StatsLabel")
+		ck("여행 통계 표시", stats_label != null and stats_label.text.contains("다녀온 곳"),
+			stats_label.text.split("\n")[0] if stats_label else "없음")
+		inst.queue_free()
+		await get_tree().process_frame
+
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	SaveManager.clear_save()
 	get_tree().quit(0 if fail_n == 0 else 1)

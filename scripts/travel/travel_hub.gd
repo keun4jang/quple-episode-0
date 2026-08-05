@@ -17,6 +17,10 @@ const POSTER := "res://assets/splash/splash-poster-no-text.png"
 @onready var home_btn: Button       = $Safe/Footer/HomeBtn
 
 var _tick := 0.0
+## 목록 필터 — 197개국을 다 스크롤할 수 없으니 걸러서 본다
+##   all=전체 / unvisited=안 가본 곳 / visited=가본 곳
+var _filter := "all"
+var _region_filter := ""   # 빈 값이면 모든 대륙
 
 func _ready() -> void:
 	_load_poster()
@@ -63,9 +67,9 @@ func _refresh() -> void:
 func _build_idle() -> void:
 	title.text = "어디로 보낼까요?"
 	subtitle.text = "쿼카 커플이 다녀올 곳을 골라주세요"
-	# 여행지가 12곳이라 막별로 묶고 스크롤한다
+	body.add_child(_make_filter_row())
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 300)
+	scroll.custom_minimum_size = Vector2(0, 250)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -83,9 +87,11 @@ func _build_idle() -> void:
 		if str(ch.id) == "world":
 			# 해외는 197곳이라 대륙으로 다시 묶는다
 			for rg in TravelState.REGIONS:
+				if _region_filter != "" and str(rg.id) != _region_filter:
+					continue
 				var cards: Array = []
 				for d in TravelState.DESTINATIONS:
-					if str(d.get("region", "")) == str(rg.id):
+					if str(d.get("region", "")) == str(rg.id) and _passes_filter(d):
 						cards.append(d)
 				if cards.is_empty():
 					continue
@@ -99,11 +105,61 @@ func _build_idle() -> void:
 					list.add_child(_make_dest_card(d))
 		else:
 			for d in TravelState.DESTINATIONS:
-				if str(d.get("chapter", "")) == str(ch.id):
+				if str(d.get("chapter", "")) == str(ch.id) and _passes_filter(d):
 					list.add_child(_make_dest_card(d))
 	scroll.add_child(list)
 	body.add_child(scroll)
 	body.add_child(_make_items_row())
+
+## 필터 줄: 전체 / 안 가본 곳 / 가본 곳 + 대륙
+func _make_filter_row() -> Control:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 5)
+
+	var h := HBoxContainer.new()
+	h.alignment = BoxContainer.ALIGNMENT_CENTER
+	h.add_theme_constant_override("separation", 6)
+	for opt in [["all", "전체"], ["unvisited", "안 가본 곳"], ["visited", "가본 곳"]]:
+		h.add_child(_filter_btn(str(opt[0]), str(opt[1]), _filter == str(opt[0]),
+			func(id): _filter = id))
+	v.add_child(h)
+
+	var h2 := HBoxContainer.new()
+	h2.alignment = BoxContainer.ALIGNMENT_CENTER
+	h2.add_theme_constant_override("separation", 5)
+	h2.add_child(_filter_btn("", "모든 대륙", _region_filter == "", func(id): _region_filter = id))
+	for rg in TravelState.REGIONS:
+		h2.add_child(_filter_btn(str(rg.id), str(rg.name), _region_filter == str(rg.id),
+			func(id): _region_filter = id))
+	v.add_child(h2)
+	return v
+
+func _filter_btn(id: String, label: String, on: bool, setter: Callable) -> Button:
+	var b := Button.new()
+	b.text = label
+	b.custom_minimum_size = Vector2(0, 30)
+	b.add_theme_font_size_override("font_size", 13)
+	var col := Color(1.0, 0.86, 0.55) if on else Color(0.42, 0.40, 0.55)
+	b.add_theme_stylebox_override("normal", _card_style(col, on))
+	b.add_theme_stylebox_override("hover", _card_style(col, true))
+	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08) if on else Color(0.88, 0.86, 0.95))
+	b.pressed.connect(func():
+		AudioManager.ui_click()
+		setter.call(id)
+		_refresh())
+	return b
+
+## 이 여행지를 지금 필터에서 보여줄 것인가
+func _passes_filter(d: Dictionary) -> bool:
+	if _region_filter != "" and str(d.get("region", "")) != _region_filter:
+		# 대륙 필터는 해외에만 적용한다
+		if str(d.get("chapter", "")) == "world":
+			return false
+	var visited: bool = TravelState.visit_count(str(d.id)) > 0
+	match _filter:
+		"unvisited": return not visited
+		"visited": return visited
+	return true
 
 ## 막 제목 줄
 func _make_chapter_header(ch: Dictionary, open: bool, done: int, total: int) -> Label:
@@ -326,10 +382,20 @@ func _build_arrived() -> void:
 	open_btn.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.78, 0.52), false))
 	open_btn.add_theme_stylebox_override("hover",  _card_style(Color(1.0, 0.86, 0.62), true))
 	open_btn.pressed.connect(func():
+		var was_final: bool = bool(TravelState.get_destination(
+			str(TravelState.trip.get("dest_id", ""))).get("final", false))
 		var s := TravelState.collect_arrival()
-		if not s.is_empty():
-			AudioManager.souvenir_get()
-			_show_souvenir(s))
+		if s.is_empty():
+			return
+		AudioManager.souvenir_get()
+		if was_final:
+			# 다른 차원에서 돌아왔다 — 엔딩
+			SaveManager.save_game()
+			var es := load("res://scenes/ui/EndingScreen.tscn") as PackedScene
+			if es:
+				add_child(es.instantiate())
+				return
+		_show_souvenir(s))
 	body.add_child(open_btn)
 
 ## 받은 사진 + 일기 공개
@@ -394,7 +460,7 @@ func _show_album() -> void:
 		body.add_child(empty)
 	else:
 		var scroll := ScrollContainer.new()
-		scroll.custom_minimum_size = Vector2(0, 300)
+		scroll.custom_minimum_size = Vector2(0, 250)
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		var list := VBoxContainer.new()
 		list.add_theme_constant_override("separation", 16)

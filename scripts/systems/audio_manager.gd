@@ -17,8 +17,27 @@ var _bgm_current: String = ""
 var _bgm_cache: Dictionary = {}
 var _bgm_tween: Tween = null
 var _bgm_building: Dictionary = {}
+var _quitting: bool = false
+var _bgm_tasks: Array[int] = []
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
+		_shutdown()
+
+## 종료 전에 배경음 합성 스레드가 끝나기를 기다린다.
+## 기다리지 않으면 이미 해제된 객체를 스레드가 건드려 오류가 난다.
+func _shutdown() -> void:
+	if _quitting:
+		return
+	_quitting = true
+	for id in _bgm_tasks:
+		if WorkerThreadPool.is_task_completed(id):
+			continue
+		WorkerThreadPool.wait_for_task_completion(id)
+	_bgm_tasks.clear()
 
 func _ready() -> void:
+	tree_exiting.connect(_shutdown)
 	# 동시에 여러 소리가 나도 끊기지 않게 풀을 만든다
 	for i in range(8):
 		var p := AudioStreamPlayer.new()
@@ -57,10 +76,15 @@ func play_bgm(track: String) -> void:
 		return   # 이미 만드는 중
 	# 합성에 1~2초가 걸리므로 백그라운드에서 만든다 (게임이 끊기지 않게)
 	_bgm_building[track] = true
-	WorkerThreadPool.add_task(_build_bgm_async.bind(track))
+	_bgm_tasks.append(WorkerThreadPool.add_task(_build_bgm_async.bind(track)))
 
 func _build_bgm_async(track: String) -> void:
+	# 앱이 종료되는 중이면 이미 해제된 객체를 건드리게 되므로 그만둔다
+	if _quitting or not is_instance_valid(self):
+		return
 	var stream := _build_bgm(track)
+	if _quitting or not is_instance_valid(self):
+		return
 	call_deferred("_on_bgm_built", track, stream)
 
 func _on_bgm_built(track: String, stream: AudioStreamWAV) -> void:
