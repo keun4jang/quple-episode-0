@@ -441,17 +441,35 @@ func _build_bgm(track: String) -> AudioStreamWAV:
 	var cfg: Dictionary = BGM_TRACKS.get(track, {})
 	if cfg.is_empty():
 		return null
-	var dur: float = cfg.dur
 	var root: float = cfg.root
 	var chords: Array = cfg.chords
-	var n := int(BGM_RATE * dur)
-	var bar := dur / float(chords.size())
-	var buf := PackedFloat32Array()
-	buf.resize(n)
-
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(track)
 	var rubato: float = float(cfg.get("rubato", 0.02))
+
+	# ── 박자 격자 ──
+	# 왼손과 오른손이 같은 격자를 써야 박이 맞는다.
+	# 마디 길이는 곡의 빠르기에서 나온다. 전체 길이는 마디의 정수배로 맞춘다.
+	var mel_id0: String = str(cfg.get("melody", ""))
+	var beats_per_bar: int = 3 if str(cfg.get("lh", "ballad")) == "waltz" else 4
+	var dur: float = float(cfg.get("dur", 24.0))
+	var bar: float = dur / float(chords.size())
+	if mel_id0 != "" and PD_MELODIES.has(mel_id0):
+		var m0: Dictionary = PD_MELODIES[mel_id0]
+		var spb: float = 60.0 / float(m0.get("bpm", 60.0))
+		var total_beats := 0.0
+		for pair in m0.notes:
+			total_beats += float(pair[1])
+		var bars: int = int(ceil(total_beats / float(beats_per_bar)))
+		bars = maxi(bars, 2)
+		bar = float(beats_per_bar) * spb
+		dur = float(bars) * bar
+		chords = []
+		for i in range(bars):
+			chords.append([0, 4, 7])
+	var n := int(BGM_RATE * dur)
+	var buf := PackedFloat32Array()
+	buf.resize(n)
 
 	# ── 오른손: 선율 ──
 	var mel_id: String = str(cfg.get("melody", ""))
@@ -463,10 +481,9 @@ func _build_bgm(track: String) -> AudioStreamWAV:
 	else:
 		notes = _random_melody(cfg, chords, root, dur, bar, rng)
 	for note in notes:
-		# 사람이 치는 것처럼 박과 세기를 아주 조금씩 흔든다
-		var jitter := rng.randf_range(-rubato, rubato)
-		var at := maxf(0.0, float(note.t) + jitter)
-		var vel := float(note.amp) * rng.randf_range(0.88, 1.0)
+		# 두 손이 같은 흔들림(템포 드리프트)을 따른다. 각자 흔들면 박이 안 맞는다.
+		var at := maxf(0.0, float(note.t) + _tempo_drift(float(note.t), rubato))
+		var vel := float(note.amp) * rng.randf_range(0.9, 1.0)
 		_voice(buf, int(at * float(BGM_RATE)), float(note.f),
 			float(note.len), 0.42 * vel, "melody")
 
@@ -474,6 +491,10 @@ func _build_bgm(track: String) -> AudioStreamWAV:
 	_left_hand(buf, cfg, chords, root, dur, bar, rng, rubato)
 
 	return _finalize(buf, n)
+
+## 사람이 치면 빠르기가 미세하게 출렁인다. 두 손이 이 곡선을 함께 따라야 박이 맞는다.
+func _tempo_drift(t: float, amount: float) -> float:
+	return (sin(t * 0.83) * 0.6 + sin(t * 1.97 + 1.1) * 0.4) * amount
 
 ## 왼손 반주. 사람 손이 닿는 범위에서 마디마다 3~4번만 친다.
 func _left_hand(buf: PackedFloat32Array, cfg: Dictionary, chords: Array,
@@ -484,24 +505,27 @@ func _left_hand(buf: PackedFloat32Array, cfg: Dictionary, chords: Array,
 		var c: Array = chords[ci]
 		var t0: float = float(ci) * bar
 		# 각 스타일의 [시각(마디 비율), 어떤 음, 세기]
+		# 박 단위로 친다. 오른손과 같은 격자라 박이 어긋나지 않는다.
+		var bpb: int = 3 if style == "waltz" else 4
+		var beat: float = bar / float(bpb)
 		var pattern: Array = []
 		match style:
 			"waltz":
-				# 쿵 - 짝 - 짝 (3박자 느낌)
-				pattern = [[0.00, "root", 0.34], [0.33, "chord", 0.20], [0.66, "chord", 0.18]]
+				# 쿵 - 짝 - 짝 (1박, 2박, 3박)
+				pattern = [[0, "root", 0.34], [1, "chord", 0.20], [2, "chord", 0.18]]
 			"sparse":
-				# 아주 조용히, 마디에 두 번만
-				pattern = [[0.00, "root", 0.28], [0.35, "chord", 0.14],
-						   [0.68, "fifth", 0.18]]
+				# 아주 조용히 (1박, 3박)
+				pattern = [[0, "root", 0.28], [2, "fifth", 0.16]]
 			_:
-				# ballad: 근음 - 화음 - 5도 - 화음
-				pattern = [[0.00, "root", 0.32], [0.25, "chord", 0.18],
-						   [0.50, "fifth", 0.24], [0.75, "chord", 0.17]]
+				# ballad: 근음 - 화음 - 5도 - 화음 (1·2·3·4박)
+				pattern = [[0, "root", 0.32], [1, "chord", 0.18],
+						   [2, "fifth", 0.24], [3, "chord", 0.17]]
 		for step in pattern:
-			var frac: float = float(step[0])
+			var beat_i: int = int(step[0])
 			var kind: String = str(step[1])
-			var vel: float = float(step[2]) * rng.randf_range(0.88, 1.06)
-			var at: float = t0 + frac * bar + rng.randf_range(-rubato, rubato)
+			var vel: float = float(step[2]) * rng.randf_range(0.9, 1.05)
+			# 두 손이 같은 흔들림을 공유한다 (각자 흔들면 어긋나 들린다)
+			var at: float = t0 + float(beat_i) * beat + _tempo_drift(t0 + float(beat_i) * beat, rubato)
 			if at < 0.0 or at > dur - 0.4:
 				continue
 			var hold: float = bar * (0.9 if kind == "root" else 0.45)

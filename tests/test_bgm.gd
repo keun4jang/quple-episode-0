@@ -115,5 +115,42 @@ func _ready() -> void:
 		# 마지막이 으뜸화음으로 끝나는가
 		ck("%s 으뜸화음 종지" % track, ch[bars - 1] == [0, 4, 7])
 
+	# 두 손이 같은 박 격자 위에 있는가
+	print("\n[박자] 왼손·오른손 격자 일치")
+	for track in ["arirang", "gohyang", "doraji", "gaeguri"]:
+		var cfg: Dictionary = AudioManager.BGM_TRACKS[track]
+		var mel: Dictionary = AudioManager.PD_MELODIES[cfg.melody]
+		var spb: float = 60.0 / float(mel.bpm)
+		var bpb: int = 3 if str(cfg.get("lh", "ballad")) == "waltz" else 4
+		var total_beats := 0.0
+		for pair in mel.notes:
+			total_beats += float(pair[1])
+		var bars: int = int(ceil(total_beats / float(bpb)))
+		var bar: float = float(bpb) * spb
+		var dur: float = float(bars) * bar
+
+		# 마디가 박의 정수배인가 (왼손이 박 위에 떨어지려면 필수)
+		var beats_in_bar := bar / spb
+		ck("%s 마디=박의 정수배" % track,
+			absf(beats_in_bar - round(beats_in_bar)) < 0.0001, "%.3f박" % beats_in_bar)
+
+		# 전체 길이가 마디의 정수배인가 (루프해도 박이 안 밀린다)
+		var bars_in_dur := dur / bar
+		ck("%s 전체=마디의 정수배" % track,
+			absf(bars_in_dur - round(bars_in_dur)) < 0.0001, "%.3f마디" % bars_in_dur)
+
+		# 선율 음이 반박 격자에 올라가 있는가
+		var t := 0.0
+		var on_grid := 0
+		var total := 0
+		for pair in mel.notes:
+			if int(pair[0]) != AudioManager.REST:
+				total += 1
+				var bp: float = t / spb
+				if absf(bp - round(bp * 2.0) / 2.0) < 0.001:
+					on_grid += 1
+			t += float(pair[1]) * spb
+		ck("%s 선율이 박 위에" % track, on_grid == total, "%d/%d" % [on_grid, total])
+
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(0 if fail_n == 0 else 1)
