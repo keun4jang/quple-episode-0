@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://boffice3d001"]
+[gd_scene load_steps=15 format=3 uid="uid://boffice3d001"]
 
 [ext_resource type="Script" path="res://scripts/maps/office_3d.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2_player"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="12_album"]
 [ext_resource type="PackedScene" path="res://scenes/ui/TouchControls.tscn" id="90_touch"]
 [ext_resource type="Script" path="res://scripts/systems/cinematic_look.gd" id="cine_look"]
+[ext_resource type="Script" path="res://scripts/systems/depth_shading.gd" id="depth_sh"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1
@@ -120,3 +121,6 @@ shape = SubResource("IS12")
 
 [node name="CinematicLook" type="CanvasLayer" parent="."]
 script = ExtResource("cine_look")
+
+[node name="DepthShading" type="Node" parent="."]
+script = ExtResource("depth_sh")

@@ -103,9 +103,15 @@ func _apply_pending_pack() -> void:
 
 	# 지난 부팅이 끝까지 못 갔다 = 이 팩이 앱을 죽였다. 되돌린다.
 	# 이게 없으면 잘못된 패치 하나로 앱이 영영 안 켜지고 손쓸 방법이 없다.
+	# 개발용 예외보다 먼저 본다. 안전장치를 편의 때문에 끄면 안 된다.
 	if _state.get("boot_pending", false):
 		push_warning("[AutoUpdate] 지난 실행이 팩 적용 중 죽었다. 되돌린다.")
 		_rollback()
+		return
+
+	# 개발 중에는 얹지 않는다. 받아둔 팩이 방금 고친 파일을 덮어써서
+	# "코드를 고쳤는데 화면이 안 바뀐다" 는 상황이 벌어진다.
+	if OS.has_feature("editor") and OS.get_environment("QUPLE_UPDATE") == "":
 		return
 
 	_state["boot_pending"] = true
