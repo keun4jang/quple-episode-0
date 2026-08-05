@@ -48,7 +48,34 @@ keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android \
   -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
 ```
 
-## Godot 에디터 설정
+## 빌드 (권장)
+
+```bash
+tools/build-android.sh            # 디버그 + 릴리스
+tools/build-android.sh debug      # 디버그만
+tools/build-android.sh release    # 릴리스만
+```
+
+스크립트가 알아서 해 주는 것:
+
+- `export_presets.cfg` 생성 (`export_presets.template.cfg` 에서 — 비밀번호가 들어가는 파일이라 저장소에 없다)
+- 에디터 설정(`editor_settings-4.3.tres`)에 Android SDK 경로 기록
+- 디버그 키스토어가 없으면 생성
+- 빌드 후 `apksigner verify` 로 서명 검증
+
+환경변수로 덮어쓸 수 있다:
+
+| 변수 | 기본값 |
+|---|---|
+| `GODOT` | `godot` (PATH 에 없으면 반드시 지정) |
+| `ANDROID_HOME` | `~/Android/sdk` |
+| `QUPLE_KEYSTORE` | `~/.android/quple-release.keystore` |
+| `QUPLE_KEYSTORE_USER` | `quple` |
+| `QUPLE_KEYSTORE_PASS` | `quple2026` |
+
+릴리스 키스토어가 없으면 `debug` 만 빌드하면 된다. 폰 테스트에는 디버그 APK 로 충분하다.
+
+## Godot 에디터 설정 (스크립트를 안 쓸 때)
 
 `~/.config/godot/editor_settings-4.3.tres` 에 SDK 경로를 알려줘야 한다.
 이게 없으면 "Android SDK path not set" 으로 실패한다.
@@ -61,7 +88,7 @@ export/android/debug_keystore_pass = "android"
 export/android/java_sdk_path = "/usr/lib/jvm/java-21-openjdk-amd64"
 ```
 
-## 빌드
+## 빌드 (스크립트를 안 쓸 때)
 
 ```bash
 export ANDROID_HOME=$HOME/Android/sdk

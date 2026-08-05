@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# 쿼플 안드로이드 APK 빌드 — 전부 무료 도구.
+#
+#   tools/build-android.sh            # 디버그 + 릴리스 둘 다
+#   tools/build-android.sh debug      # 디버그만
+#   tools/build-android.sh release    # 릴리스만
+#
+# 준비물 설치는 docs/android-build.md 참고.
+#
+# 키스토어는 환경변수로 덮어쓸 수 있다:
+#   QUPLE_KEYSTORE / QUPLE_KEYSTORE_USER / QUPLE_KEYSTORE_PASS
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+ROOT=$(pwd)
+
+GODOT=${GODOT:-godot}
+ANDROID_HOME=${ANDROID_HOME:-$HOME/Android/sdk}
+export ANDROID_HOME
+
+KEYSTORE=${QUPLE_KEYSTORE:-$HOME/.android/quple-release.keystore}
+KEYSTORE_USER=${QUPLE_KEYSTORE_USER:-quple}
+KEYSTORE_PASS=${QUPLE_KEYSTORE_PASS:-quple2026}
+
+TARGET=${1:-all}
+
+die() { echo "✗ $*" >&2; exit 1; }
+
+# --- 사전 점검 -------------------------------------------------------------
+command -v "$GODOT" >/dev/null || die "godot 을 찾을 수 없다. GODOT=/경로/godot 로 지정해라."
+
+TPL_DIR="$HOME/.local/share/godot/export_templates/4.3.stable"
+[ -d "$TPL_DIR" ] || die "export template 이 없다 ($TPL_DIR). docs/android-build.md 의 설치 절차를 먼저 해라."
+
+[ -d "$ANDROID_HOME" ] || die "Android SDK 가 없다 ($ANDROID_HOME). docs/android-build.md 참고."
+
+if [ "$TARGET" != "debug" ]; then
+	[ -f "$KEYSTORE" ] || die "릴리스 키스토어가 없다 ($KEYSTORE). QUPLE_KEYSTORE 로 지정하거나 debug 만 빌드해라."
+fi
+
+# --- export_presets.cfg 생성 ----------------------------------------------
+# 비밀번호가 들어가는 파일이라 저장소에 없다. 템플릿에서 만들어 낸다.
+if [ ! -f export_presets.cfg ]; then
+	echo "→ 템플릿에서 export_presets.cfg 생성"
+	sed -e '/^;/d' \
+	    -e "s|__KEYSTORE__|$KEYSTORE|" \
+	    -e "s|__KEYSTORE_USER__|$KEYSTORE_USER|" \
+	    -e "s|__KEYSTORE_PASS__|$KEYSTORE_PASS|" \
+	    export_presets.template.cfg > export_presets.cfg
+fi
+
+# --- 에디터 설정 (SDK 경로) -----------------------------------------------
+# 이게 없으면 "Android SDK path not set" 으로 실패한다.
+ES="$HOME/.config/godot/editor_settings-4.3.tres"
+if [ ! -f "$ES" ]; then
+	echo "→ 에디터 설정 생성 ($ES)"
+	mkdir -p "$(dirname "$ES")"
+	JAVA_HOME_GUESS=${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64}
+	cat > "$ES" <<EOF
+[gd_resource type="EditorSettings" format=3]
+
+[resource]
+export/android/android_sdk_path = "$ANDROID_HOME"
+export/android/debug_keystore = "$HOME/.android/debug.keystore"
+export/android/debug_keystore_user = "androiddebugkey"
+export/android/debug_keystore_pass = "android"
+export/android/java_sdk_path = "$JAVA_HOME_GUESS"
+EOF
+fi
+
+# 디버그 키스토어가 없으면 만든다 (디버그 빌드에 필요).
+if [ ! -f "$HOME/.android/debug.keystore" ]; then
+	echo "→ 디버그 키스토어 생성"
+	mkdir -p "$HOME/.android"
+	keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android \
+		-keystore "$HOME/.android/debug.keystore" -storepass android \
+		-dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+fi
+
+mkdir -p build
+
+# --- 빌드 ------------------------------------------------------------------
+build_one() {
+	local mode=$1 out=$2
+	echo "→ $mode 빌드 → $out"
+	"$GODOT" --headless --path . "--export-$mode" "Android" "$out"
+	[ -f "$out" ] || die "$mode 빌드 실패 — $out 이 만들어지지 않았다."
+	echo "✓ $out  ($(du -h "$out" | cut -f1))"
+}
+
+case "$TARGET" in
+	debug)   build_one debug   "$ROOT/build/quple.apk" ;;
+	release) build_one release "$ROOT/build/quple-release.apk" ;;
+	all)     build_one debug   "$ROOT/build/quple.apk"
+	         build_one release "$ROOT/build/quple-release.apk" ;;
+	*)       die "알 수 없는 대상: $TARGET (debug | release | all)" ;;
+esac
+
+# --- 서명 검증 -------------------------------------------------------------
+APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | head -1 || true)
+if [ -n "$APKSIGNER" ]; then
+	for f in build/quple.apk build/quple-release.apk; do
+		[ -f "$f" ] || continue
+		echo "→ 서명 검증: $f"
+		"$APKSIGNER" verify --verbose "$f" | grep -E "^Verified using" || true
+	done
+fi
+
+echo
+echo "완료. 폰에 설치: adb install -r build/quple.apk"
