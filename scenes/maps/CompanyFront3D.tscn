@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://bcompanyfront3d"]
+[gd_scene load_steps=15 format=3 uid="uid://bcompanyfront3d"]
 
 [ext_resource type="Script" path="res://scripts/maps/company_front_3d.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2_player"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/WindNoteUI.tscn" id="11_windnote"]
 [ext_resource type="PackedScene" path="res://scenes/ui/AlbumUI.tscn" id="12_album"]
 [ext_resource type="PackedScene" path="res://scenes/ui/TouchControls.tscn" id="90_touch"]
+[ext_resource type="Script" path="res://scripts/systems/cinematic_look.gd" id="cine_look"]
 
 [sub_resource type="SphereShape3D" id="IS15"]
 radius = 1.5
@@ -42,6 +43,7 @@ fog_light_color = Color(0.725490, 0.654902, 0.909804, 1)
 fog_density = 0.006
 adjustment_enabled = true
 adjustment_saturation = 1.08
+
 
 [node name="CompanyFront3D" type="Node3D"]
 script = ExtResource("1_script")
@@ -114,3 +116,6 @@ shape = SubResource("IS15")
 [node name="AlbumUI" parent="." instance=ExtResource("12_album")]
 
 [node name="TouchControls" parent="." instance=ExtResource("90_touch")]
+
+[node name="CinematicLook" type="CanvasLayer" parent="."]
+script = ExtResource("cine_look")

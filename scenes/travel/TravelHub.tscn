@@ -79,7 +79,7 @@ layout_mode = 2
 text = "쿼카 커플이 다녀올 곳을 골라주세요"
 horizontal_alignment = 1
 autowrap_mode = 3
-theme_override_font_sizes/font_size = 17
+theme_override_font_sizes/font_size = 26
 theme_override_colors/font_color = Color(0.88, 0.85, 1.0, 1)
 theme_override_colors/font_outline_color = Color(0.14, 0.07, 0.26, 1)
 theme_override_constants/outline_size = 4
@@ -111,22 +111,22 @@ theme_override_constants/separation = 14
 custom_minimum_size = Vector2(190, 44)
 layout_mode = 2
 text = "📖 앨범"
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 26
 
 [node name="StatsBtn" type="Button" parent="Safe/Footer"]
 custom_minimum_size = Vector2(190, 44)
 layout_mode = 2
 text = "📊 여행 기록"
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 26
 
 [node name="RoomBtn" type="Button" parent="Safe/Footer"]
 custom_minimum_size = Vector2(190, 44)
 layout_mode = 2
 text = "🏡 기념품 방"
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 26
 
 [node name="HomeBtn" type="Button" parent="Safe/Footer"]
 custom_minimum_size = Vector2(190, 44)
 layout_mode = 2
 text = "🏠 홈"
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 26

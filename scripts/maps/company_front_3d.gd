@@ -5,9 +5,9 @@ extends Node3D
 @onready var warm_window_light: OmniLight3D = $WarmWindowLight
 @onready var dialogue_box = $DialogueBox
 
-const CAM_OFFSET = Vector3(0, 6.0, 12.8)   # 건물과 플레이어가 함께 보이는 디오라마 거리
+const CAM_OFFSET = Vector3(0, 4.0, 8.2)    # 쿼카가 화면에서 읽히는 거리까지 당긴다
 const CAM_LERP = 5.0
-const CAM_LOOK_OFFSET = Vector3(0, 4.0, -3.6)  # 시선을 건물 쪽 위로
+const CAM_LOOK_OFFSET = Vector3(0, 2.2, -2.0)  # 쿼카와 건물 입구가 같이 잡히는 높이
 
 var _light_time: float = 0.0
 var _lit_window: MeshInstance3D = null

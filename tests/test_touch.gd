@@ -1,4 +1,14 @@
 extends Node
+
+## 입력 이벤트가 실제로 흘러오는지 엿듣는다.
+class _EventSpy extends Node:
+	var got: Array[String] = []
+	func _ready() -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+	func _input(event: InputEvent) -> void:
+		for a in ["interact", "move_right", "photo", "album"]:
+			if event.is_action_pressed(a) and not got.has(a):
+				got.append(a)
 ## 터치 조작이 기존 입력 액션으로 제대로 변환되는가
 
 var pass_n := 0
@@ -75,6 +85,43 @@ func _ready() -> void:
 	for a in ["move_left","move_right","move_up","move_down","interact"]:
 		if Input.is_action_pressed(a): leaked.append(a)
 	ck("남은 입력 없음", leaked.is_empty(), str(leaked))
+
+	print("\n[8] 진짜 터치 이벤트 경로 (폰에서 실제로 도는 길)")
+	# 여기까지의 테스트는 내부 변수를 직접 만져서 _input() 을 건너뛰었다.
+	# 폰에서 못 움직이는 버그가 딱 그 틈에서 났다. 이제 이벤트로 넣는다.
+	var t := InputEventScreenTouch.new()
+	t.index = 3; t.pressed = true; t.position = Vector2(150, 500)
+	tc._input(t)
+	ck("왼쪽 터치 → 조이스틱 잡힘", tc._stick_touch == 3, "id %d" % tc._stick_touch)
+	var dr := InputEventScreenDrag.new()
+	dr.index = 3; dr.position = Vector2(240, 500)
+	tc._input(dr)
+	ck("드래그 → move_right", Input.is_action_pressed("move_right"))
+	t = InputEventScreenTouch.new()
+	t.index = 3; t.pressed = false; t.position = Vector2(240, 500)
+	tc._input(t)
+	ck("떼면 멈춤", not Input.is_action_pressed("move_right"))
+
+	print("\n[9] 터치가 InputEvent 를 만드는가 (대화상자가 닫히려면 필요)")
+	# Input.action_press() 는 내부 상태만 바꾸고 이벤트를 만들지 않는다.
+	# 그래서 event.is_action_pressed() 로 받는 대화상자·선택지·앨범이 죽었다.
+	var spy := _EventSpy.new()
+	add_child(spy)
+	await get_tree().process_frame
+	ib.emit_signal("button_down")
+	await get_tree().process_frame
+	ck("조사 버튼이 interact 이벤트를 만든다", spy.got.has("interact"), str(spy.got))
+	ib.emit_signal("button_up")
+	await get_tree().process_frame
+
+	spy.got.clear()
+	tc._stick_origin = Vector2(200, 500)
+	tc._stick_touch = 0
+	tc._update_stick(Vector2(300, 500))
+	await get_tree().process_frame
+	ck("조이스틱이 move_right 이벤트를 만든다", spy.got.has("move_right"), str(spy.got))
+	tc._release_stick()
+	spy.queue_free()
 
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(0 if fail_n == 0 else 1)

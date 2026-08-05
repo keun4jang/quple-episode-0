@@ -8,8 +8,8 @@ extends CanvasLayer
 ## 왼손: 가상 조이스틱 (아날로그 — 살살 밀면 천천히 걷는다)
 ## 오른손: 동작 버튼
 
-const STICK_RADIUS := 92.0        # 조이스틱 바깥 원 반지름
-const KNOB_RADIUS := 40.0
+const STICK_RADIUS := 118.0        # 조이스틱 바깥 원 반지름
+const KNOB_RADIUS := 56.0
 const DEAD_ZONE := 0.16           # 이 안에서는 안 움직인다 (손 떨림 방지)
 const MOVE_ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
 
@@ -21,6 +21,40 @@ const MOVE_ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
 var _stick_touch := -1            # 조이스틱을 잡고 있는 손가락 id
 var _stick_origin := Vector2.ZERO
 var _held_actions: Array[String] = []
+var _pressed: Dictionary = {}     # 지금 우리가 누르고 있다고 보고한 액션들
+
+
+## 액션을 "진짜 입력 이벤트" 로 흘려보낸다.
+##
+## Input.action_press() 만 쓰면 안 된다. 그건 내부 상태만 바꿀 뿐
+## InputEvent 를 만들지 않아서, event.is_action_pressed() 로 입력을 받는 코드
+## (대화상자 닫기, 선택지 이동, 앨범 넘기기) 가 전부 반응하지 않는다.
+## 실제로 폰에서 대화상자가 안 닫혀 아무것도 못 하는 버그가 여기서 났다.
+static func _emit(action: String, pressed: bool, strength := 1.0) -> void:
+	var ev := InputEventAction.new()
+	ev.action = action
+	ev.pressed = pressed
+	ev.strength = strength if pressed else 0.0
+	Input.parse_input_event(ev)
+
+
+## 상태와 이벤트를 둘 다 챙긴다.
+##
+## parse_input_event() 는 다음 프레임에 처리돼서 is_action_pressed() 가 한 박자
+## 늦는다. 그래서 상태는 action_press/release 로 그 자리에서 바꾸고,
+## 눌림/뗌이 바뀌는 순간에만 이벤트를 따로 보낸다.
+func _set_action(action: String, strength: float) -> void:
+	var was: bool = _pressed.get(action, false)
+	var now := strength > 0.0
+	if now:
+		Input.action_press(action, strength)
+		if not was:
+			_pressed[action] = true
+			_emit(action, true, strength)
+	elif was:
+		_pressed.erase(action)
+		Input.action_release(action)
+		_emit(action, false)
 
 func _ready() -> void:
 	add_to_group("touch_controls")
@@ -29,6 +63,8 @@ func _ready() -> void:
 	_build_buttons()
 	visible = _should_show()
 	_sync_key_guide()
+	# 대화상자 등이 우리보다 늦게 준비될 수 있어 한 프레임 뒤 한 번 더 맞춘다
+	get_tree().process_frame.connect(_sync_key_guide, CONNECT_ONE_SHOT)
 	# 터치가 한 번이라도 들어오면 그때부터 보여준다 (PC 에서는 계속 숨김)
 	set_process_input(true)
 
@@ -85,16 +121,9 @@ func _feed_move(v: Vector2) -> void:
 	_set_action("move_up",    maxf(0.0, -v.y))
 	_set_action("move_down",  maxf(0.0,  v.y))
 
-func _set_action(action: String, strength: float) -> void:
-	if strength > 0.0:
-		Input.action_press(action, strength)
-	elif Input.is_action_pressed(action):
-		Input.action_release(action)
-
 func _release_move() -> void:
 	for a in MOVE_ACTIONS:
-		if Input.is_action_pressed(a):
-			Input.action_release(a)
+		_set_action(a, 0.0)
 
 func _release_stick() -> void:
 	_stick_touch = -1
@@ -104,10 +133,13 @@ func _release_stick() -> void:
 
 func _exit_tree() -> void:
 	# 씬이 바뀔 때 눌린 채로 남지 않게 정리한다
+	# 씬이 바뀔 때 조이스틱을 잡은 채로 남으면 다음 씬에서 못 움직인다
+	_stick_touch = -1
 	_release_move()
 	for a in _held_actions:
-		if Input.is_action_pressed(a):
-			Input.action_release(a)
+		Input.action_release(a)
+		_emit(a, false)
+	_held_actions.clear()
 
 # ── 겉모습 ──────────────────────────────────────────────────────────────
 
@@ -123,10 +155,10 @@ func _build_buttons() -> void:
 	for c in buttons.get_children():
 		c.queue_free()
 	var defs := [
-		["interact", "조사", Color(1.0, 0.78, 0.52), 84],
-		["photo", "📷", Color(0.72, 0.86, 0.96), 64],
-		["wind_note", "🍃", Color(0.70, 0.90, 0.74), 64],
-		["album", "📖", Color(0.86, 0.78, 0.96), 64],
+		["interact", "조사", Color(1.0, 0.78, 0.52), 132],
+		["photo", "📷", Color(0.72, 0.86, 0.96), 104],
+		["wind_note", "🍃", Color(0.70, 0.90, 0.74), 104],
+		["album", "📖", Color(0.86, 0.78, 0.96), 104],
 	]
 	for d in defs:
 		buttons.add_child(_action_button(str(d[0]), str(d[1]), d[2], int(d[3])))
@@ -135,7 +167,8 @@ func _action_button(action: String, label: String, tint: Color, size_px: int) ->
 	var b := Button.new()
 	b.text = label
 	b.custom_minimum_size = Vector2(size_px, size_px)
-	b.add_theme_font_size_override("font_size", 20 if size_px > 70 else 24)
+	b.focus_mode = Control.FOCUS_NONE   # 포커스를 뺏어 키 입력을 먹지 않게
+	b.add_theme_font_size_override("font_size", 30 if size_px > 110 else 38)
 	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08))
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(tint.r, tint.g, tint.b, 0.80)
@@ -150,11 +183,12 @@ func _action_button(action: String, label: String, tint: Color, size_px: int) ->
 	# 버튼을 누르고 있는 동안 그 키가 눌린 것으로 만든다
 	b.button_down.connect(func():
 		Input.action_press(action)
+		_emit(action, true)
 		if not _held_actions.has(action):
 			_held_actions.append(action))
 	b.button_up.connect(func():
-		if Input.is_action_pressed(action):
-			Input.action_release(action)
+		Input.action_release(action)
+		_emit(action, false)
 		_held_actions.erase(action))
 	return b
 
@@ -186,7 +220,13 @@ func _disc(size: int, col: Color) -> ImageTexture:
 
 
 ## 터치로 조작할 때는 키 안내를 감춘다. 모바일에는 키보드가 없다.
+##
+## 화면 구석의 조작 안내판(key_guide)뿐 아니라 대화상자의 "Space" 처럼
+## 문구 안에 박힌 힌트(key_hint)도 같이 감춘다.
 func _sync_key_guide() -> void:
 	var kg := get_tree().get_first_node_in_group("key_guide")
 	if kg and kg is CanvasLayer:
 		kg.visible = not visible
+	for h in get_tree().get_nodes_in_group("key_hint"):
+		if h is CanvasItem:
+			h.visible = not visible
