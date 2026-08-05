@@ -10,3 +10,5 @@ Thumbs.db
 *.tmp
 *.bak
 .claude/
+build/
+*.keystore
