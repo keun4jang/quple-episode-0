@@ -35,10 +35,20 @@ uniform vec3  rim_tint : source_color = vec3(1.0, 0.86, 0.72);
 uniform float rim_amount : hint_range(0.0, 2.0) = 0.62;
 uniform float rim_power : hint_range(0.5, 8.0) = 3.2;
 
+// 바람에 흔들리는 잎. LivingScene 이 나뭇잎 재질에만 켜 준다.
+uniform float sway_amount = 0.0;
+uniform float sway_speed = 1.1;
+
 varying float world_y;
 varying vec3 world_normal;
 
 void vertex() {
+	if (sway_amount > 0.0) {
+		// 나무마다 다른 위상을 줘서 전부 같이 흔들리지 않게 한다
+		float ph = MODEL_MATRIX[3].x * 1.7 + MODEL_MATRIX[3].z * 2.3;
+		VERTEX.x += sin(TIME * sway_speed + ph) * sway_amount;
+		VERTEX.z += cos(TIME * sway_speed * 0.77 + ph) * sway_amount * 0.6;
+	}
 	world_y = (MODEL_MATRIX * vec4(VERTEX, 1.0)).y;
 	world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
