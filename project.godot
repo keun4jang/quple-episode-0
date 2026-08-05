@@ -15,9 +15,11 @@ config/description="쿼카 커플의 힐링 여행"
 run/main_scene="res://scenes/maps/CompanyFront3D.tscn"
 config/features=PackedStringArray("4.3")
 config/icon="res://assets/icon/icon-512.png"
+config/version="0.1.1"
 
 [autoload]
 
+AutoUpdate="*res://scripts/systems/auto_update.gd"
 Episode0State="*res://scripts/systems/episode0_state.gd"
 TravelState="*res://scripts/systems/travel_state.gd"
 SaveManager="*res://scripts/systems/save_manager.gd"
