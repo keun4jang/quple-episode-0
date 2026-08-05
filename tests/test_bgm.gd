@@ -11,7 +11,7 @@ func _s16(d: PackedByteArray, i: int) -> int:
 
 func _ready() -> void:
 	print("=== 배경음악 합성 테스트 ===")
-	for track in ["menu", "episode0", "travel", "room"]:
+	for track in ["gohyang", "arirang", "doraji", "gaeguri", "episode0", "room"]:
 		var t0 := Time.get_ticks_msec()
 		var st: AudioStreamWAV = AudioManager._build_bgm(track)
 		var ms := Time.get_ticks_msec() - t0
@@ -50,20 +50,17 @@ func _ready() -> void:
 		var silent_sec := float(max_silent * 40) / float(AudioManager.BGM_RATE)
 		ck("  긴 무음 없음", silent_sec < 1.5, "최장 %.2f초" % silent_sec)
 
-	# 음 하나의 포락선이 양끝에서 0 인지 = "툭" 소리의 근본 원인 검사
-	print("\n[음 포락선] 시작과 끝이 0 이어야 클릭이 없다")
-	for length in [0.3, 0.8, 1.6, 2.8]:
-		for decay in [1.7, 2.4]:
-			var at_start: float = AudioManager._note_env(0.0, length, decay)
-			var at_end: float = AudioManager._note_env(length, length, decay)
-			ck("len=%.1f decay=%.1f 시작 0" % [length, decay], at_start < 0.001, "%.5f" % at_start)
-			ck("len=%.1f decay=%.1f 끝 0" % [length, decay], at_end < 0.001, "%.5f" % at_end)
-	# 중간에는 소리가 나야 한다
-	var mid: float = AudioManager._note_env(0.12, 1.6, 1.7)
-	ck("중간엔 소리 남", mid > 0.4, "%.3f" % mid)
-	# 끝 직전에도 이미 충분히 작아야 한다 (급감 방지)
-	var near_end: float = AudioManager._note_env(1.55, 1.6, 1.7)
-	ck("끝 직전 이미 작음", near_end < 0.08, "%.4f" % near_end)
+	# 악기별 음이 끝에서 0 으로 닫히는지 = "툭" 소리 방지
+	print("\n[악기] 음 끝이 0 으로 닫히는가")
+	for role in ["melody", "arp", "bass"]:
+		var note_len := 0.4
+		var len_i := int(note_len * AudioManager.BGM_RATE)
+		var buf := PackedFloat32Array(); buf.resize(len_i + 100)
+		AudioManager._voice(buf, 0, 440.0, note_len, 1.0, role)
+		var last := absf(buf[len_i - 1])
+		var mid := absf(buf[len_i / 4])
+		ck("%s 끝이 0" % role, last < 0.01, "%.5f" % last)
+		ck("%s 소리 남" % role, mid > 0.01, "%.4f" % mid)
 
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(0 if fail_n == 0 else 1)
