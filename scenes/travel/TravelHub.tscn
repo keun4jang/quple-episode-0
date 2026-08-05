@@ -113,6 +113,12 @@ layout_mode = 2
 text = "📖 앨범"
 theme_override_font_sizes/font_size = 18
 
+[node name="StatsBtn" type="Button" parent="Safe/Footer"]
+custom_minimum_size = Vector2(190, 44)
+layout_mode = 2
+text = "📊 여행 기록"
+theme_override_font_sizes/font_size = 18
+
 [node name="RoomBtn" type="Button" parent="Safe/Footer"]
 custom_minimum_size = Vector2(190, 44)
 layout_mode = 2

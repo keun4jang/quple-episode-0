@@ -13,6 +13,7 @@ const POSTER := "res://assets/splash/splash-poster-no-text.png"
 @onready var panel: PanelContainer  = $Safe/Panel
 @onready var body: VBoxContainer    = $Safe/Panel/Margin/Body
 @onready var album_btn: Button      = $Safe/Footer/AlbumBtn
+@onready var stats_btn: Button      = $Safe/Footer/StatsBtn
 @onready var room_btn: Button       = $Safe/Footer/RoomBtn
 @onready var home_btn: Button       = $Safe/Footer/HomeBtn
 
@@ -27,6 +28,7 @@ func _ready() -> void:
 	AudioManager.play_bgm("doraji")
 	_update_ambient()
 	album_btn.pressed.connect(_show_album)
+	stats_btn.pressed.connect(_show_stats)
 	room_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/travel/SouvenirRoom3D.tscn", "hopeful"))
 	home_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/menu/MainMenu3D.tscn"))
 	_refresh()
@@ -519,7 +521,6 @@ func _show_chapter_unlocked(chapter_id: String, souvenir: Dictionary) -> void:
 	var tw := create_tween()
 	tw.tween_property(emo, "scale", Vector2.ONE, 0.5) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	body.add_child(open_btn)
 
 ## 받은 사진 + 일기 공개 — 엽서가 도착한 것처럼
 func _show_souvenir(sv: Dictionary) -> void:
@@ -667,6 +668,20 @@ func _show_album() -> void:
 			list.add_child(_make_album_row(TravelState.collection[i]))
 		body.add_child(scroll)
 
+	# 여행하며 익힌 것들
+	var habits: Array = TravelState.unlocked_habits()
+	if habits.size() > 0:
+		var hl := Label.new()
+		var names: Array[String] = []
+		for hb in habits:
+			names.append(str(hb.name))
+		hl.text = "함께 배운 것:  " + "  ·  ".join(names)
+		hl.add_theme_font_size_override("font_size", 13)
+		hl.add_theme_color_override("font_color", Color(0.85, 0.82, 0.95))
+		hl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.add_child(hl)
+
 	var back := Button.new()
 	back.text = "돌아가기"
 	back.custom_minimum_size = Vector2(0, 52)
@@ -697,10 +712,64 @@ func _make_album_row(s: Dictionary) -> PanelContainer:
 	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(dl)
 	h.add_child(v)
+	# 엽서로 내보내기
+	var save_btn := Button.new()
+	save_btn.text = "🖼"
+	save_btn.tooltip_text = "엽서로 저장"
+	save_btn.custom_minimum_size = Vector2(40, 40)
+	save_btn.add_theme_font_size_override("font_size", 16)
+	save_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	save_btn.pressed.connect(func(): _save_postcard(s))
+	h.add_child(save_btn)
 	pc.add_child(h)
 	return pc
 
-# ── 유틸 ────────────────────────────────────────────────────────────────
+## 여행 통계 화면을 겹쳐 띄운다 (허브 상태를 지우지 않기 위해 CanvasLayer 로 올린다)
+func _show_stats() -> void:
+	if get_node_or_null("StatsUI") != null:
+		return
+	var ps := load("res://scenes/travel/StatsUI.tscn") as PackedScene
+	if ps == null:
+		return
+	AudioManager.ui_click()
+	var ui := ps.instantiate()
+	ui.name = "StatsUI"
+	add_child(ui)
+
+## 앨범의 기록 한 장을 엽서 이미지로 내보낸다 (user:// 아래에 저장)
+func _save_postcard(s: Dictionary) -> void:
+	var d := TravelState.get_destination(str(s.get("dest_id", "")))
+	var fname := "postcards/%s_%d.png" % [str(s.get("dest_id", "trip")), Time.get_unix_time_from_system()]
+	if PostcardExport.save_souvenir(s, d, fname):
+		AudioManager.ui_confirm()
+		_toast("엽서를 저장했어요\n%s" % ProjectSettings.globalize_path("user://" + fname))
+	else:
+		AudioManager.ui_click()
+		_toast("저장하지 못했어요")
+
+## 잠깐 떴다 사라지는 안내. 저장했는지 알 수 없으면 기능이 없는 것과 같다.
+func _toast(msg: String) -> void:
+	var l := Label.new()
+	l.text = msg
+	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_color_override("font_color", Color(1, 0.86, 0.55))
+	l.add_theme_color_override("font_outline_color", Color(0.06, 0.05, 0.14, 0.95))
+	l.add_theme_constant_override("outline_size", 6)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	l.offset_left = -430.0
+	l.offset_right = 430.0
+	l.offset_top = 52.0
+	l.offset_bottom = 112.0
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.modulate = Color(1, 1, 1, 0)
+	add_child(l)
+	var tw := create_tween()
+	tw.tween_property(l, "modulate", Color(1, 1, 1, 1), 0.25)
+	tw.tween_interval(2.4)
+	tw.tween_property(l, "modulate", Color(1, 1, 1, 0), 0.5)
+	tw.tween_callback(l.queue_free)
 
 func _card_style(tint: Color, bright: bool) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()

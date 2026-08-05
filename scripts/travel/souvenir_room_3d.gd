@@ -20,7 +20,16 @@ const SHELF_Z := -3.35
 var _lamp: OmniLight3D = null
 var _t: float = 0.0
 
+## 여행 진행도(0~1). 방의 시간대·창밖 밝기·별 개수가 전부 여기서 파생된다.
+## "얼마나 왔는지"를 숫자 UI 대신 공간의 빛으로 보여주기 위한 값.
+var _progress: float = 0.0
+## time_of_day_shift 와 같은 축(0 새벽 → 0.5 낮 → 1 노을)으로 맞춘 시간대 값.
+var _tod: float = 0.0
+var _aurora: Array[MeshInstance3D] = []
+
 func _ready() -> void:
+	_progress = _compute_progress()
+	_tod = _time_of_day_for(_progress)
 	_build_room()
 	_build_souvenirs()
 	player.add_to_group("player")
@@ -29,11 +38,7 @@ func _ready() -> void:
 	PartnerSpawner.ensure(self, player, Vector3(1.0, 0, 0.7))
 	$ExitInteract.interacted.connect(_go_hub)
 	await get_tree().create_timer(0.4).timeout
-	var n := TravelState.collection.size()
-	if n == 0:
-		dialogue_box.show_text("아직 비어 있어요. 여행을 다녀오면 이 방이 채워져요.")
-	else:
-		dialogue_box.show_text("기념품 %d개를 모았어요. 가까이 가서 Space 로 볼 수 있어요." % n)
+	dialogue_box.show_text(_progress_line())
 
 func _process(delta: float) -> void:
 	var target = player.global_position + CAM_OFFSET
@@ -41,7 +46,67 @@ func _process(delta: float) -> void:
 	camera.look_at(player.global_position + CAM_LOOK_OFFSET, Vector3.UP)
 	_t += delta
 	if _lamp:
-		_lamp.light_energy = 1.25 + sin(_t * 1.6) * 0.06
+		_lamp.light_energy = _lamp_base_energy() + sin(_t * 1.6) * 0.06
+	# 오로라는 아주 느리게 흔들려야 "은은한" 인상이 된다. 빠르면 장식이 아니라 이펙트가 된다.
+	for i in range(_aurora.size()):
+		var band := _aurora[i]
+		var ph := _t * 0.35 + float(i) * 0.9
+		band.position.x = 2.9 + sin(ph) * 0.10
+		band.scale.y = 1.0 + sin(ph * 0.8) * 0.12
+
+func _lamp_base_energy() -> float:
+	# 밤일수록 램프가 방의 주광원이라 밝고, 낮이 될수록 존재감을 줄인다.
+	return lerpf(1.45, 0.85, clampf(_progress, 0.0, 1.0))
+
+# ── 진행도 ──────────────────────────────────────────────────────────────
+## 다녀온 "고유" 여행지 수 / 전체 여행지 수. 같은 곳을 여러 번 가도 방은 그만큼만 밝아진다.
+func _compute_progress() -> float:
+	var total: int = TravelState.DESTINATIONS.size()
+	if total <= 0:
+		return 0.0
+	var seen := {}
+	for s in TravelState.collection:
+		var did := str((s as Dictionary).get("dest_id", ""))
+		if did != "":
+			seen[did] = true
+	return clampf(float(seen.size()) / float(total), 0.0, 1.0)
+
+func _visited_rift() -> bool:
+	for s in TravelState.collection:
+		if str((s as Dictionary).get("dest_id", "")) == "rift":
+			return true
+	return false
+
+## 진행도 → time_of_day_shift 와 같은 축(0 새벽, 0.5 낮, 1 노을)으로 옮긴다.
+## 초반은 밤이라 새벽 이전이지만, 팔레트에는 밤이 없으므로 0.0 에 붙여 두고
+## 어둡기는 _night_amount() 로 따로 눌러 준다.
+func _time_of_day_for(p: float) -> float:
+	if p < 0.25:
+		return 0.0
+	if p < 0.65:
+		return inverse_lerp(0.25, 0.65, p) * 0.5
+	return 0.5 + inverse_lerp(0.65, 1.0, p) * 0.5
+
+## 1 = 완전한 밤, 0 = 밤기운 없음. 창밖 어둡기와 별 개수를 정한다.
+func _night_amount() -> float:
+	return clampf(inverse_lerp(0.40, 0.0, _progress), 0.0, 1.0)
+
+func _progress_line() -> String:
+	# 숫자 대신 창밖이 어떻게 변했는지로 말한다. 진행 상황이 곧 풍경이라는 인상을 주기 위해.
+	if _visited_rift():
+		return "창밖에 못 보던 빛이 흘러요. 우리, 갈 수 있는 데까지 갔네요."
+	if TravelState.collection.is_empty():
+		return "아직 밤이에요. 여행을 다녀오면 이 방에도 아침이 와요."
+	if _progress < 0.25:
+		return "창밖은 아직 깜깜하지만, 램프 옆이 조금 따뜻해졌어요."
+	if _progress < 0.65:
+		return "창밖이 조금 밝아졌어요. 푸른 빛이 들어오네요."
+	if _progress < 0.95:
+		return "이제 방이 꽤 찼네요. 햇빛이 선반까지 닿아요."
+	return "노을이 방 안까지 들어와요. 참 멀리도 다녀왔어요."
+
+func _hex(c: Color) -> String:
+	return "#%02X%02X%02X" % [int(c.r * 255.0), int(c.g * 255.0), int(c.b * 255.0)]
 
 func _go_hub() -> void:
 	SceneTransition.go_to("res://scenes/travel/TravelHub.tscn", "hopeful")
@@ -64,13 +129,27 @@ func _build_room() -> void:
 		for sx in [-2.9, 2.9]:
 			_box(self, Vector3(sx, y - 0.32, SHELF_Z), Vector3(0.10, 0.62, 0.40), "#7E6248", "ShelfLeg")
 
-	# 창문 (밤하늘) — 유리를 앞에 두고 테두리는 얇은 막대 4개로
-	var glass := _box(self, Vector3(2.9, 2.2, -4.26), Vector3(1.7, 1.4, 0.03), "#16243C", "WindowGlass")
-	_emissive(glass, "#1E3358", 0.5)
-	for i in range(9):
+	# 창문 — 창밖 색은 진행도가 만든 시간대에서 뽑는다.
+	# 여행을 다닐수록 이 방에도 아침이 오는 것이 이 화면의 핵심 연출.
+	var night := _night_amount()
+	var pal := TravelPalette.time_of_day_shift(
+		TravelPalette.CHAPTER_PALETTES["world"] as Dictionary, _tod)
+	var sky: Color = pal["sky_top"]
+	# 밤에는 팔레트 색을 거의 잠재워 짙은 남색으로 떨어뜨린다.
+	var glass_col := sky.lerp(Color(0.086, 0.141, 0.235), night)
+	var glass := _box(self, Vector3(2.9, 2.2, -4.26), Vector3(1.7, 1.4, 0.03), _hex(glass_col), "WindowGlass")
+	# 낮일수록 창이 스스로 빛나 보이게 (발광 세기로 "바깥이 밝다"를 표현)
+	_emissive(glass, _hex(glass_col.lerp(Color(1, 1, 1), 0.18)), lerpf(2.2, 0.35, night))
+
+	# 별: 밤일수록 많고 밝다. 낮에는 하나도 남지 않는다.
+	var star_count := int(round(lerpf(0.0, 12.0, night)))
+	for i in range(star_count):
 		var a := float(i) * 1.9
 		var st := _sphere(self, Vector3(2.9 + cos(a) * 0.62, 2.2 + sin(a * 1.4) * 0.46, -4.245), 0.032, "#FFF3C8", "Star%d" % i)
-		_emissive(st, "#FFF3C8", 3.0)
+		_emissive(st, "#FFF3C8", lerpf(0.6, 3.4, night))
+
+	if _visited_rift():
+		_build_aurora()
 	# 테두리
 	for off in [Vector3(0, 0.74, 0), Vector3(0, -0.74, 0)]:
 		_box(self, Vector3(2.9, 2.2, -4.235) + off, Vector3(1.84, 0.09, 0.05), "#5E4A38", "WinBar")
@@ -79,13 +158,13 @@ func _build_room() -> void:
 	# 창살
 	_box(self, Vector3(2.9, 2.2, -4.235), Vector3(0.055, 1.4, 0.04), "#5E4A38", "WinCrossV")
 	_box(self, Vector3(2.9, 2.2, -4.235), Vector3(1.7, 0.055, 0.04), "#5E4A38", "WinCrossH")
-	# 창밖에서 스며드는 달빛
-	var moon := OmniLight3D.new()
-	moon.light_color = Color("#9FB6E8")
-	moon.light_energy = 0.55
-	moon.omni_range = 6.0
-	moon.position = Vector3(2.9, 2.2, -3.9)
-	add_child(moon)
+	# 창으로 들어오는 빛. 밤에는 차가운 달빛, 진행할수록 푸른 새벽빛 → 따뜻한 낮/노을빛.
+	var win_light := OmniLight3D.new()
+	win_light.light_color = Color("#9FB6E8").lerp(pal["light_color"], 1.0 - night)
+	win_light.light_energy = lerpf(0.55, 2.1, clampf(_progress, 0.0, 1.0))
+	win_light.omni_range = lerpf(6.0, 11.0, clampf(_progress, 0.0, 1.0))
+	win_light.position = Vector3(2.9, 2.2, -3.9)
+	add_child(win_light)
 
 	# 작은 탁자 + 램프
 	_box(self, Vector3(-3.0, 0.55, -2.4), Vector3(1.1, 0.1, 0.9), "#8A6A4A", "TableTop")
@@ -97,7 +176,7 @@ func _build_room() -> void:
 	_emissive(shade, "#FFE7A8", 2.0)
 	_lamp = OmniLight3D.new()
 	_lamp.light_color = Color("#FFD3A0")
-	_lamp.light_energy = 1.25
+	_lamp.light_energy = _lamp_base_energy()
 	_lamp.omni_range = 7.5
 	_lamp.position = Vector3(-3.0, 1.15, -2.4)
 	add_child(_lamp)
@@ -108,13 +187,30 @@ func _build_room() -> void:
 	_box(self, Vector3(1.4, 0.16, 1.6), Vector3(0.9, 0.28, 0.9), "#C98BA0", "Cushion")
 	_box(self, Vector3(-1.4, 0.16, 1.9), Vector3(0.8, 0.26, 0.8), "#8FA9C9", "Cushion2")
 
-	# 천장 은은한 조명
+	# 천장 은은한 조명. 밤에는 보랏빛, 진행할수록 방 전체가 따뜻하게 물든다.
 	var amb := OmniLight3D.new()
-	amb.light_color = Color("#B9A7E8")
-	amb.light_energy = 0.45
+	amb.light_color = Color("#B9A7E8").lerp(Color("#FFE2B4"), clampf(_progress, 0.0, 1.0))
+	amb.light_energy = lerpf(0.45, 0.95, clampf(_progress, 0.0, 1.0))
 	amb.omni_range = 12.0
 	amb.position = Vector3(0, 3.4, 0)
 	add_child(amb)
+
+## 마지막 여행지(rift)를 다녀오면 창밖에 겹쳐지는 은은한 오로라.
+## 색을 여러 개 쓰되 채도를 낮춰, 스카프의 산호색과 경쟁하지 않게 한다.
+func _build_aurora() -> void:
+	var cols := ["#9FE8D6", "#A8C4F0", "#C9A8E8"]
+	for i in range(cols.size()):
+		var y := 2.55 - float(i) * 0.26
+		var band := _box(self, Vector3(2.9, y, -4.252), Vector3(1.5, 0.16, 0.01), cols[i], "Aurora%d" % i)
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(cols[i], 0.28)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.emission_enabled = true
+		m.emission = Color(cols[i])
+		m.emission_energy_multiplier = 1.6
+		band.material_override = m
+		_aurora.append(band)
 
 # ── 기념품 배치 ─────────────────────────────────────────────────────────
 func _build_souvenirs() -> void:
