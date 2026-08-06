@@ -59,7 +59,8 @@ func _check_move() -> void:
 	var db := get_tree().get_first_node_in_group("dialogue_box")
 	var talking: bool = db != null and db.has_method("is_open") and db.is_open()
 	if talking:
-		_show("대사를 넘겨볼까요", "조사 버튼을 누르면 다음으로 넘어가요")
+		var tc0 := get_tree().get_first_node_in_group("touch_controls")
+		_show("대사를 넘겨볼까요", "'%s' 버튼을 누르거나 화면을 톡 치세요" % _interact_label(tc0))
 		return
 	_show("걸어볼까요", "왼쪽 화면을 손가락으로 밀어보세요")
 	if _player == null or not is_instance_valid(_player):
@@ -73,13 +74,22 @@ func _check_interact() -> void:
 	var tc := get_tree().get_first_node_in_group("touch_controls")
 	var can: bool = tc != null and tc.has_method("_can_use") and tc._can_use("interact")
 	if can:
-		_show("가까이 왔어요", "오른쪽 아래 '조사' 를 눌러보세요")
+		_show("가까이 왔어요", "오른쪽 아래 '%s' 를 눌러보세요" % _interact_label(tc))
 	else:
 		_show("무언가 있는 곳으로", "왼쪽 위 목표를 따라가 보세요")
 	# 상호작용이 실제로 일어났는지는 대사가 새로 열리는 것으로 안다
 	var db := get_tree().get_first_node_in_group("dialogue_box")
 	if db != null and db.has_method("is_open") and db.is_open() and _elapsed > 2.0:
 		_advance(Step.DONE)
+
+
+## 지금 그 버튼에 실제로 적혀 있는 글자. 안내와 화면이 다르면 안 된다.
+func _interact_label(tc) -> String:
+	if tc != null and ("_buttons" in tc) and tc._buttons.has("interact"):
+		var b: Button = tc._buttons["interact"]
+		if b != null and b.text != "":
+			return b.text
+	return "조사"
 
 
 func _advance(next: int) -> void:
@@ -105,7 +115,8 @@ func _build() -> void:
 	_panel.add_theme_stylebox_override("panel", D.panel())
 	_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_panel.position = Vector2(0, 30)
+	_panel.position = Vector2(0, 18)
+	_panel.modulate.a = 0.92
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var box := VBoxContainer.new()
@@ -114,13 +125,13 @@ func _build() -> void:
 	_panel.add_child(box)
 
 	_label = Label.new()
-	_label.add_theme_font_size_override("font_size", D.TEXT_L)
+	_label.add_theme_font_size_override("font_size", D.TEXT_M)
 	_label.add_theme_color_override("font_color", D.TEXT)
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_label)
 
 	_hint = Label.new()
-	_hint.add_theme_font_size_override("font_size", D.TEXT_S)
+	_hint.add_theme_font_size_override("font_size", D.TEXT_S - 4)
 	_hint.add_theme_color_override("font_color", D.ACCENT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_hint)

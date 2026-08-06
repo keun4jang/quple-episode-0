@@ -197,7 +197,7 @@ func _make_recenter() -> void:
 	b.add_theme_stylebox_override("hover", sb2)
 	b.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	b.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	b.position = Vector2(-118, 26)
+	b.position = Vector2(-166, 54)
 	b.pressed.connect(func():
 		var fl := get_tree().get_first_node_in_group("free_look")
 		if fl != null and fl.has_method("recenter"):
@@ -279,7 +279,7 @@ func _input(event: InputEvent) -> void:
 				_stick_touch = event.index
 				_stick_origin = event.position
 				_place_stick(event.position)
-				stick_base.modulate.a = 0.75
+				stick_base.modulate.a = 0.62
 		elif event.index == _stick_touch:
 			_release_stick()
 	elif event is InputEventScreenDrag and event.index == _stick_touch:
@@ -318,7 +318,7 @@ func _release_move() -> void:
 func _release_stick() -> void:
 	_stick_touch = -1
 	_release_move()
-	stick_base.modulate.a = 0.35
+	stick_base.modulate.a = 0.18
 	stick_knob.position = Vector2(STICK_RADIUS - KNOB_RADIUS, STICK_RADIUS - KNOB_RADIUS)
 
 func _exit_tree() -> void:
@@ -335,9 +335,9 @@ func _exit_tree() -> void:
 
 func _style_stick() -> void:
 	stick_base.texture = _ring(int(STICK_RADIUS * 2), Color(1, 0.95, 0.82))
-	stick_base.modulate.a = 0.35
+	stick_base.modulate.a = 0.18
 	stick_knob.texture = _disc(int(KNOB_RADIUS * 2), Color(1, 0.88, 0.60))
-	stick_knob.modulate.a = 0.8
+	stick_knob.modulate.a = 0.45
 	stick_knob.position = Vector2(STICK_RADIUS - KNOB_RADIUS, STICK_RADIUS - KNOB_RADIUS)
 
 ## 동작 버튼. 누르는 동안 해당 키를 누른 것으로 만든다.
