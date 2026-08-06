@@ -15,6 +15,7 @@ studio-director  (총괄 — 무엇부터 할지 정한다)
 ├─ art-lead      (아트팀장)
 │   ├─ art-layout       배치·잘림·겹침·종횡비
 │   ├─ art-color        색·조명·시간대 무드
+│   ├─ art-type         글자·폰트 굵기·읽히는지·줄바꿈
 │   ├─ art-motion       움직임·전환·손맛
 │   └─ art-3d           실루엣·모델·베벨·텍스처
 │
@@ -82,6 +83,6 @@ Task 도구 subagent_type 에 이름을 그대로 넣는다: art-lead, qa-playth
 
 - 테스트 429개가 통과하는 동안 게임이 플레이 불가능했다 → `qa-playthrough`
 - 터치 테스트 17개가 통과하는 동안 폰에서 아무것도 안 눌렸다 → `qa-device`
-- 글자 크기를 씬 파일만 고치고 코드 라벨을 놓쳤다 → `art-layout`, `localization`
+- 글자 크기를 씬 파일만 고치고 코드 라벨을 놓쳤다 → `art-type`, `localization`
 - 실내가 전부 파랬는데 아무도 그걸 "문제"라고 부르지 않았다 → `art-color`
 - 만들어 둔 메인 화면을 아무도 못 봤다 (시작 씬이 아니었다) → `ux-flow`
