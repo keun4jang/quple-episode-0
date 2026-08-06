@@ -1,6 +1,10 @@
 extends CharacterBody3D
 
 const MAX_SPEED: float = 3.2
+## 쿼카는 급할 때 네 발로 통통 튀며 달린다. 스틱을 끝까지 밀면 그 걸음이 나온다.
+const RUN_SPEED: float = 5.6
+const RUN_INPUT: float = 0.86      # 스틱을 이만큼 넘게 밀면 달리기
+const QUAD_BLEND: float = 3.2      # 두 발 ↔ 네 발 전환 속도
 const ACCELERATION: float = 14.0
 const DECELERATION: float = 18.0
 const TURN_LERP: float = 8.0
@@ -12,6 +16,9 @@ var _blink_duration: float = 0.0
 var _is_walking: bool = false
 var _speed: float = 0.0
 var _step_accum: float = 0.0
+var _input_power: float = 0.0      # 스틱을 얼마나 밀었나 (0~1)
+var _quad: float = 0.0             # 0 = 두 발, 1 = 네 발
+var _bound_time: float = 0.0       # 네 발 뜀박질 위상
 
 var dialogue_box = null
 var choice_box = null
@@ -73,8 +80,9 @@ func _physics_process(delta: float) -> void:
 	_is_walking = dir.length_squared() > 0.01
 
 	if _is_walking:
-		_speed = move_toward(_speed, MAX_SPEED, ACCELERATION * delta)
-		velocity = velocity.move_toward(dir * MAX_SPEED, ACCELERATION * delta)
+		var top: float = RUN_SPEED if is_running() else MAX_SPEED
+		_speed = move_toward(_speed, top, ACCELERATION * delta)
+		velocity = velocity.move_toward(dir * top, ACCELERATION * delta)
 		var target_angle = atan2(dir.x, dir.z)
 		rotation.y = lerp_angle(rotation.y, target_angle, TURN_LERP * delta)
 	else:
@@ -87,21 +95,66 @@ func _process(delta: float) -> void:
 	_animate(delta)
 
 func _animate(delta: float) -> void:
+	# 두 발 ↔ 네 발은 즉시 바뀌지 않는다. 뚝 끊기면 사람이 아니라 인형처럼 보인다.
+	_quad = move_toward(_quad, 1.0 if is_running() else 0.0, delta * QUAD_BLEND)
+
 	if _is_walking:
 		_walk_time += delta * _speed * 2.2
-		var bob = sin(_walk_time * 3.0) * 0.07
-		var tilt = sin(_walk_time * 3.0) * deg_to_rad(3.0)
-		body_pivot.position.y = 0.0 + bob
+		_bound_time += delta * _speed * 2.0
+
+		# ── 두 발로 걷는 자세 ──
+		var bob := sin(_walk_time * 3.0) * 0.07
+		var tilt := sin(_walk_time * 3.0) * deg_to_rad(3.0)
+		var lean := 0.0
+		var arm_l := sin(_walk_time * 3.0) * deg_to_rad(12.0)
+		var arm_r := -sin(_walk_time * 3.0) * deg_to_rad(12.0)
+		var leg_l := -sin(_walk_time * 3.0) * deg_to_rad(8.0)
+		var leg_r := sin(_walk_time * 3.0) * deg_to_rad(8.0)
+		var head_z := sin(_walk_time * 3.0 - 0.2) * deg_to_rad(1.5)
+		var head_x := 0.0
+
+		if _quad > 0.001:
+			# ── 네 발로 뛰는 자세 ──
+			# 쿼카는 성큼성큼 걷는 게 아니라 앞발과 뒷발을 각각 모아 통통 튄다.
+			# 그래서 좌우를 엇갈리게 하지 않고 앞/뒤로 묶는다.
+			var b := _bound_time * 2.6
+			var hop := maxf(sin(b), 0.0)                     # 땅을 차고 뜨는 구간만
+			var front := sin(b) * deg_to_rad(38.0)
+			var back := sin(b + 0.9) * deg_to_rad(34.0)
+			var q := _quad
+
+			# 몸을 앞으로 숙여 앞발이 땅에 닿게 한다
+			# 52° 까지 숙였더니 통통 튀는 게 아니라 바닥에 엎드린 것처럼 보였다.
+			# 이 체형은 짧고 통통해서 30° 근처가 "네 발로 뛴다" 로 읽힌다.
+			lean = lerpf(lean, deg_to_rad(30.0), q)
+			bob = lerpf(bob, hop * 0.24 - 0.02, q)
+			tilt = lerpf(tilt, 0.0, q)
+			# 팔이 앞발이 된다. 아래로 내려 땅을 짚는 각도.
+			# 앞발은 아래로만 뻗는 게 아니라 앞으로 뻗었다가 당겨진다
+			arm_l = lerpf(arm_l, deg_to_rad(-44.0) + front, q)
+			arm_r = lerpf(arm_r, deg_to_rad(-44.0) + front, q)
+			leg_l = lerpf(leg_l, back, q)
+			leg_r = lerpf(leg_r, back, q)
+			# 몸을 숙인 만큼 고개는 들어야 앞을 본다
+			# 숙인 몸을 상쇄하고도 조금 더 들어야 앞을 보는 얼굴이 된다
+			head_x = lerpf(0.0, deg_to_rad(-34.0), q)
+			head_z = lerpf(head_z, 0.0, q)
+
+		body_pivot.position.y = bob
+		body_pivot.rotation.x = lerp(body_pivot.rotation.x, lean, delta * 8.0)
 		body_pivot.rotation.z = tilt
-		head_pivot.rotation.z = sin(_walk_time * 3.0 - 0.2) * deg_to_rad(1.5)
-		left_arm.rotation.x = sin(_walk_time * 3.0) * deg_to_rad(12.0)
-		right_arm.rotation.x = -sin(_walk_time * 3.0) * deg_to_rad(12.0)
-		left_leg.rotation.x = -sin(_walk_time * 3.0) * deg_to_rad(8.0)
-		right_leg.rotation.x = sin(_walk_time * 3.0) * deg_to_rad(8.0)
+		head_pivot.rotation.x = lerp(head_pivot.rotation.x, head_x, delta * 8.0)
+		head_pivot.rotation.z = head_z
+		left_arm.rotation.x = arm_l
+		right_arm.rotation.x = arm_r
+		left_leg.rotation.x = leg_l
+		right_leg.rotation.x = leg_r
 		left_ear.rotation.z = sin(_walk_time * 2.5) * deg_to_rad(2.0)
 		right_ear.rotation.z = -sin(_walk_time * 2.5) * deg_to_rad(2.0)
 		backpack.rotation.x = sin(_walk_time * 3.0 - 0.3) * deg_to_rad(4.0)
-		_step_accum += delta * _speed
+
+		# 네 발일 때는 발이 네 개니까 발소리도 촘촘해진다
+		_step_accum += delta * _speed * lerpf(1.0, 1.7, _quad)
 		if _step_accum >= 0.5:
 			_step_accum = 0.0
 			var _am := get_node_or_null("/root/AudioManager")
@@ -112,6 +165,9 @@ func _animate(delta: float) -> void:
 		var breathe = sin(_idle_time * (TAU / 1.8)) * 0.025
 		body_pivot.position.y = breathe
 		body_pivot.rotation.z = lerp(body_pivot.rotation.z, 0.0, delta * 4.0)
+		# 멈추면 네 발 자세를 풀고 일어선다
+		body_pivot.rotation.x = lerp(body_pivot.rotation.x, 0.0, delta * 6.0)
+		head_pivot.rotation.x = lerp(head_pivot.rotation.x, 0.0, delta * 6.0)
 		head_pivot.rotation.z = sin(_idle_time * (TAU / 2.5)) * deg_to_rad(1.0)
 		left_arm.rotation.x = lerp(left_arm.rotation.x, 0.0, delta * 5.0)
 		right_arm.rotation.x = lerp(right_arm.rotation.x, 0.0, delta * 5.0)
@@ -142,7 +198,15 @@ func _get_input_dir() -> Vector3:
 	var v := Vector3.ZERO
 	v.x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
 	v.z = Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
+	# 방향은 정규화해서 쓰지만, "얼마나 밀었나" 는 따로 남겨 둔다.
+	# 이게 없으면 살살 밀어도 달리기가 나온다.
+	_input_power = clampf(v.length(), 0.0, 1.0)
 	return v.normalized()
+
+
+## 지금 네 발로 달리는 중인가
+func is_running() -> bool:
+	return _is_walking and _input_power >= RUN_INPUT
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):

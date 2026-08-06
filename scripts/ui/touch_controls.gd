@@ -25,6 +25,7 @@ var _pressed: Dictionary = {}     # 지금 우리가 누르고 있다고 보고�
 var _buttons: Dictionary = {}     # 액션 이름 → Button
 var _avail: Dictionary = {}       # 액션 이름 → 지금 쓸 수 있는가
 var _label: Label                 # 조사 대상 이름
+var _recenter: Button             # 카메라를 원래 각도로
 var _refresh_t := 0.0
 
 
@@ -70,6 +71,7 @@ func _ready() -> void:
 	# 대화상자 등이 우리보다 늦게 준비될 수 있어 한 프레임 뒤 한 번 더 맞춘다
 	get_tree().process_frame.connect(_sync_key_guide, CONNECT_ONE_SHOT)
 	_make_target_label()
+	_make_recenter()
 	# 터치가 한 번이라도 들어오면 그때부터 보여준다 (PC 에서는 계속 숨김)
 	set_process_input(true)
 	set_process(true)
@@ -133,6 +135,20 @@ func _can_use(action: String) -> bool:
 	return true
 
 
+## 이 자리에서 시작한 드래그를 둘러보기로 써도 되는가.
+## 버튼과 조이스틱 위에서 시작한 손가락은 카메라를 돌리면 안 된다.
+func blocks_look(pos: Vector2) -> bool:
+	if not visible:
+		return false
+	for a in _buttons:
+		var b: Button = _buttons[a]
+		if b.get_global_rect().grow(10.0).has_point(pos):
+			return true
+	if _recenter != null and _recenter.get_global_rect().grow(10.0).has_point(pos):
+		return true
+	return false
+
+
 ## 지금 조사할 수 있는 대상. 없으면 null.
 func _interact_target() -> Node:
 	var pl := get_tree().get_first_node_in_group("player")
@@ -155,6 +171,35 @@ func _make_target_label() -> void:
 	_label.position = Vector2(0, -210)
 	_label.visible = false
 	root.add_child(_label)
+
+
+## 둘러보다 방향을 잃었을 때 돌아올 곳. 360° 로 돌릴 수 있게 하면 반드시 필요하다.
+func _make_recenter() -> void:
+	var b := Button.new()
+	b.text = "⟲"
+	b.custom_minimum_size = Vector2(84, 84)
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", 38)
+	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08))
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1, 0.42)
+	sb.set_corner_radius_all(42)
+	sb.set_border_width_all(2)
+	sb.border_color = Color(1, 1, 1, 0.5)
+	b.add_theme_stylebox_override("normal", sb)
+	var sb2 := sb.duplicate() as StyleBoxFlat
+	sb2.bg_color = Color(1, 1, 1, 0.85)
+	b.add_theme_stylebox_override("pressed", sb2)
+	b.add_theme_stylebox_override("hover", sb2)
+	b.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	b.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	b.position = Vector2(-118, 26)
+	b.pressed.connect(func():
+		var fl := get_tree().get_first_node_in_group("free_look")
+		if fl != null and fl.has_method("recenter"):
+			fl.recenter())
+	root.add_child(b)
+	_recenter = b
 
 
 func _refresh_target_label() -> void:
