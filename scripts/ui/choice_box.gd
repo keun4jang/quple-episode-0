@@ -13,6 +13,25 @@ func _ready() -> void:
 	btn0.pressed.connect(func(): _on_choice(0))
 	btn1.pressed.connect(func(): _on_choice(1))
 
+## 선택지 상자도 대사창과 같은 문제를 갖는다 — 폭 고정인데 버튼 글자가
+## 줄바꿈 없이 한 줄이라 패널이 양쪽으로 자라 터치 버튼을 덮는다.
+func _fit_panel() -> void:
+	var panel := get_node_or_null("Panel") as Control
+	if panel == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var right_limit := vp.x - 24.0
+	var tc := get_tree().get_first_node_in_group("touch_controls")
+	if tc != null and tc.visible and ("_buttons" in tc):
+		for a in tc._buttons:
+			var b: Button = tc._buttons[a]
+			if b != null and b.is_visible_in_tree():
+				right_limit = minf(right_limit, b.get_global_rect().position.x - 20.0)
+	var half: float = maxf(right_limit - vp.x * 0.5, 200.0)
+	panel.offset_left = -half
+	panel.offset_right = half
+
+
 func show_choices(option0: String, option1: String) -> void:
 	btn0.text = option0
 	btn1.text = option1
@@ -20,6 +39,7 @@ func show_choices(option0: String, option1: String) -> void:
 	_update_highlight()
 	visible = true
 	# 버튼 순차 페이드인 + 슬라이드업 애니메이션 (0.08초 간격 지연)
+	_fit_panel()
 	_animate_button(btn0, 0.0)
 	_animate_button(btn1, 0.08)
 

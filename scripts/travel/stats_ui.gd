@@ -68,9 +68,22 @@ func _build() -> void:
 	margin.add_theme_constant_override("margin_bottom", 14)
 	panel.add_child(margin)
 
+	# 글자를 30pt 로 올린 뒤로 내용이 화면 높이를 넘겨서 '닫기' 버튼이 잘려 나갔다.
+	# 폰 비율(720)에서만 나던 문제라 태블릿에서는 안 보였다.
+	# 넘치면 스크롤되게 하고, 닫기 버튼은 스크롤 밖에 고정해 언제나 눌리게 둔다.
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	margin.add_child(outer)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	outer.add_child(scroll)
+
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", 10)
-	margin.add_child(root)
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(root)
 
 	root.add_child(_make_header())
 	root.add_child(_make_overall_bar())
@@ -84,7 +97,8 @@ func _build() -> void:
 	root.add_child(cols)
 
 	root.add_child(_make_habits_row())
-	root.add_child(_make_footer())
+	# 닫기 버튼은 스크롤 밖. 내용이 아무리 길어도 항상 화면 안에 있어야 한다.
+	outer.add_child(_make_footer())
 
 
 func _make_header() -> Control:

@@ -33,6 +33,19 @@ func _fit_to_text(text: String) -> void:
 	# 너무 좁으면 한 글자짜리 대사에서 알약처럼 보이므로 하한도 둔다.
 	var w: float = clampf(text_w + 96.0, 320.0, vp.x * 0.84)
 
+	# 가운데 정렬이라 폭이 커지면 양쪽으로 자란다. 오른쪽에는 터치 버튼이 있고,
+	# 글자를 30pt 로 올린 뒤로는 긴 대사가 '다음' 버튼 밑으로 100px 넘게 파고들었다.
+	# 버튼이 실제로 어디 있는지 물어보고 그 앞에서 멈춘다.
+	var right_limit := vp.x - 24.0
+	var tc := get_tree().get_first_node_in_group("touch_controls")
+	if tc != null and tc.visible and ("_buttons" in tc):
+		for a in tc._buttons:
+			var b: Button = tc._buttons[a]
+			if b != null and b.is_visible_in_tree():
+				right_limit = minf(right_limit, b.get_global_rect().position.x - 20.0)
+	# 가운데에 두면서 오른쪽 끝이 저 선을 넘지 않는 최대 폭
+	w = minf(w, maxf((right_limit - vp.x * 0.5) * 2.0, 320.0))
+
 	panel_rect.anchor_left = 0.5
 	panel_rect.anchor_right = 0.5
 	panel_rect.offset_left = -w * 0.5
