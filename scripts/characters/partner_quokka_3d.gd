@@ -177,14 +177,16 @@ func _build_meshes() -> void:
 	var body_col = "#C98B61"   # 몸통도 털색
 	var belly_col = "#F2E0C8"  # 크림 배
 	# ── 몸통(스웨터) ──
-	_set_sphere($BodyPivot/BodyMesh, 0.31, 0.50, body_col)
+	_set_sphere($BodyPivot/BodyMesh, 0.345, 0.545, body_col)
 	$BodyPivot/BodyMesh.position = Vector3(0, -0.02, 0)
 	$BodyPivot/BodyMesh.scale = Vector3(1.0, 1.0, 0.95)
-	_set_sphere($BodyPivot/BellyMesh, 0.19, 0.19, belly_col)
-	$BodyPivot/BellyMesh.position = Vector3(0, 0.0, 0.20); $BodyPivot/BellyMesh.scale = Vector3(0.82, 0.95, 0.62)
+	_set_sphere($BodyPivot/BellyMesh, 0.265, 0.265, belly_col)
+	$BodyPivot/BellyMesh.position = Vector3(0, 0.03, 0.225); $BodyPivot/BellyMesh.scale = Vector3(0.80, 1.05, 0.55)
 
 	# ── 머리 ──
-	$BodyPivot/HeadPivot.position = Vector3(0, 0.4, 0)
+	# 삼면도 실측: 머리폭/몸통폭 = 0.81. 리더와 같은 이유로 피벗째 줄인다.
+	$BodyPivot/HeadPivot.position = Vector3(0, 0.48, 0)
+	$BodyPivot/HeadPivot.scale = Vector3(0.86, 0.86, 0.86)
 	_set_sphere($BodyPivot/HeadPivot/HeadMesh, 0.33, 0.34, fur)
 	$BodyPivot/HeadPivot/HeadMesh.scale = Vector3(1.05, 0.98, 1.0)
 	# 머리 털 뭉치
@@ -203,8 +205,6 @@ func _build_meshes() -> void:
 	_child_sphere($BodyPivot/HeadPivot/LeftEarPivot, 0.042, 0.046, "#F2A6AE", Vector3(0, 0.01, 0.010), Vector3(0.8, 1.0, 0.6))
 	_child_sphere($BodyPivot/HeadPivot/RightEarPivot, 0.042, 0.046, "#F2A6AE", Vector3(0, 0.01, 0.010), Vector3(0.8, 1.0, 0.6))
 	# 귀 털 뭉치
-	_add_fur_tufts($BodyPivot/HeadPivot/LeftEarPivot, 0.11, fur, 8, Vector3.ZERO)
-	_add_fur_tufts($BodyPivot/HeadPivot/RightEarPivot, 0.11, fur, 8, Vector3.ZERO)
 
 	# ── 주둥이 ──
 	var muzzle = MeshInstance3D.new()
@@ -275,7 +275,12 @@ func _build_meshes() -> void:
 	_tail_mesh = tail
 
 	# ── 몸통 앞면 털 뭉치 ──
-	_add_fur_tufts_body($BodyPivot, 0.31, fur, 14)
+	# 털 뭉치는 뺐다.
+	#
+	# 결을 내려던 것인데 화면에서는 혹으로 보였다. 크기를 키워도 줄여도
+	# 마찬가지였다 — 캐릭터가 100px 인데 뭉치는 3~5px 이라 결이 될 수가 없다.
+	# 그리고 삼면도를 보면 목표 화풍은 **완전히 매끈한 클레이**다.
+	# 없는 것이 그림에 더 가깝다.
 
 	_build_gear()
 

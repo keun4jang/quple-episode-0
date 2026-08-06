@@ -181,6 +181,23 @@ func _make_filter_row() -> Control:
 	v.add_child(h2)
 	return v
 
+func _chip_style(on: bool, bright: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	if on:
+		sb.bg_color = D.GOLD.lightened(0.08) if bright else D.GOLD
+		sb.border_color = Color(1, 0.96, 0.80, 0.90)
+	else:
+		sb.bg_color = Color(0.22, 0.21, 0.26, 0.85)
+		sb.border_color = Color(0.80, 0.78, 0.60, 0.45)
+	sb.set_corner_radius_all(999)
+	sb.set_border_width_all(2)
+	sb.content_margin_left = 22.0
+	sb.content_margin_right = 22.0
+	sb.content_margin_top = 8.0
+	sb.content_margin_bottom = 8.0
+	return sb
+
+
 func _filter_btn(id: String, label: String, on: bool, setter: Callable) -> Button:
 	var b := Button.new()
 	b.text = label
@@ -188,10 +205,12 @@ func _filter_btn(id: String, label: String, on: bool, setter: Callable) -> Butto
 	b.add_theme_font_size_override("font_size", 30)
 	# 골든 토프 배색. 고른 것은 금색, 안 고른 것은 카키 쪽으로 눌러 둔다.
 	# 예전에는 둘 다 보라 계열이라 무엇이 켜져 있는지 한눈에 안 들어왔다.
-	var col := D.GOLD if on else Color(0.40, 0.39, 0.33)
-	b.add_theme_stylebox_override("normal", _card_style(col, on))
-	b.add_theme_stylebox_override("hover", _card_style(col, true))
-	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08) if on else Color(0.88, 0.86, 0.95))
+	# 칩은 카드와 같은 스타일을 쓰면 안 된다. 카드가 카키로 내려오면서
+	# 칩까지 카키가 돼 무엇이 켜져 있는지 다시 안 보이게 됐다.
+	# 칩은 칩대로 — 켜진 것은 금색으로 꽉 채우고, 꺼진 것은 테두리만 남긴다.
+	b.add_theme_stylebox_override("normal", _chip_style(on, false))
+	b.add_theme_stylebox_override("hover", _chip_style(on, true))
+	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08) if on else D.CREAM)
 	b.pressed.connect(func():
 		AudioManager.ui_click()
 		setter.call(id)
@@ -1033,18 +1052,26 @@ func _toast(msg: String) -> void:
 ##
 ## 바탕은 팔레트 안(어두운 카키)으로 낮추고 글자를 크림으로 뒤집는다.
 ## 대륙 색은 **왼쪽 띠**로만 남긴다 — 구분에는 그만큼이면 충분하다.
+## 목적지 카드의 바탕.
+##
+## 그려 온 카드 그림도 넣어 봤지만 안 맞았다. 그림은 가로세로 2:1 인데
+## 실제 카드는 15:1 로 늘어난다. 9슬라이스로도 왼쪽 금테가 세로로 끌려
+## 찢어진 것처럼 보였다. 이 비율 차이는 어떤 그림으로도 못 넘는다.
+##
+## 대신 그림의 **배색**만 가져온다 — 카키 몸통에 왼쪽 금테.
 func _card_style(tint: Color, bright: bool) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	var base := Color(0.26, 0.25, 0.18)
+	var base := Color(0.42, 0.40, 0.26)
 	sb.bg_color = base.lightened(0.10) if bright else base
 	sb.set_corner_radius_all(20)
-	sb.set_border_width_all(3)
-	sb.border_color = Color(tint.r, tint.g, tint.b, 0.85 if bright else 0.55)
-	sb.border_width_left = 14
+	sb.set_border_width_all(0)
+	# 왼쪽 금테 한 줄. 대륙 색은 여기에만 섞는다.
+	sb.border_width_left = 12
+	sb.border_color = D.GOLD.lerp(tint, 0.35)
 	sb.set_content_margin_all(12)
-	sb.shadow_color = Color(0.05, 0.03, 0.15, 0.45)
-	sb.shadow_size = 14
-	sb.shadow_offset = Vector2(0, 6)
+	sb.shadow_color = Color(0.05, 0.03, 0.12, 0.40)
+	sb.shadow_size = 12
+	sb.shadow_offset = Vector2(0, 5)
 	return sb
 
 func _load_poster() -> void:

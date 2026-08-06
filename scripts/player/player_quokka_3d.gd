@@ -257,16 +257,22 @@ func _build_meshes() -> void:
 func _build_quokka(_unused, c: Dictionary) -> void:
 	var fur = c.fur
 	# ── 몸통(스웨터) : 둥근 달걀형 ──
-	_set_sphere($BodyPivot/BodyMesh, 0.33, 0.52, c.body)
+	_set_sphere($BodyPivot/BodyMesh, 0.36, 0.56, c.body)
 	$BodyPivot/BodyMesh.position = Vector3(0, -0.02, 0)
 	$BodyPivot/BodyMesh.scale = Vector3(1.0, 1.0, 0.95)
 	# 크림색 배. 예전엔 몸통과 색차가 0.05 뿐이라 없는 것과 같았다.
-	_set_sphere($BodyPivot/BellyMesh, 0.21, 0.21, c.belly)
-	$BodyPivot/BellyMesh.position = Vector3(0, 0.0, 0.21)
-	$BodyPivot/BellyMesh.scale = Vector3(0.82, 0.95, 0.65)
+	_set_sphere($BodyPivot/BellyMesh, 0.275, 0.275, c.belly)
+	$BodyPivot/BellyMesh.position = Vector3(0, 0.03, 0.235)
+	$BodyPivot/BellyMesh.scale = Vector3(0.80, 1.05, 0.55)
 
-	# ── 머리 : 크고 둥글게, 몸에 자연스럽게 얹힘(목 없음) ──
-	$BodyPivot/HeadPivot.position = Vector3(0, 0.42, 0)
+	# ── 머리 ──
+	#
+	# 삼면도를 재 보니 그림은 **머리폭 / 몸통폭 = 0.81** 인데 여기는 1.06 이었다.
+	# 머리가 몸보다 커서 눈사람으로 읽힌 것이다. 머리 안쪽(눈·귀·주둥이·모자)은
+	# 서로 맞물려 있으므로 하나하나 줄이지 않고 피벗을 통째로 줄인다.
+	# 그림의 목 잘록한 지점(위에서 48%)이 생기도록 위치도 함께 올린다.
+	$BodyPivot/HeadPivot.position = Vector3(0, 0.50, 0)
+	$BodyPivot/HeadPivot.scale = Vector3(0.86, 0.86, 0.86)
 	_set_sphere($BodyPivot/HeadPivot/HeadMesh, 0.35, 0.36, fur)
 	$BodyPivot/HeadPivot/HeadMesh.scale = Vector3(1.05, 0.98, 1.0)
 
@@ -286,8 +292,6 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 	_child_sphere($BodyPivot/HeadPivot/LeftEarPivot, 0.045, 0.05, "#F2A6AE", Vector3(0, 0.01, 0.012), Vector3(0.8, 1.0, 0.6))
 	_child_sphere($BodyPivot/HeadPivot/RightEarPivot, 0.045, 0.05, "#F2A6AE", Vector3(0, 0.01, 0.012), Vector3(0.8, 1.0, 0.6))
 	# 귀 털 뭉치
-	_add_fur_tufts($BodyPivot/HeadPivot/LeftEarPivot, 0.11, fur, 4, Vector3.ZERO)
-	_add_fur_tufts($BodyPivot/HeadPivot/RightEarPivot, 0.11, fur, 4, Vector3.ZERO)
 
 	# ── 주둥이(밝은 털) : 얼굴 아래쪽 둥근 입주변 ──
 	var muzzle = MeshInstance3D.new()
@@ -360,7 +364,12 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 	tail.name = "_Tail"
 
 	# ── 몸통 앞면 털 뭉치 (앞쪽 반구, z > 0 위치만) ──
-	_add_fur_tufts_body($BodyPivot, 0.33, fur, 14)
+	# 털 뭉치는 뺐다.
+	#
+	# 결을 내려던 것인데 화면에서는 혹으로 보였다. 크기를 키워도 줄여도
+	# 마찬가지였다 — 캐릭터가 100px 인데 뭉치는 3~5px 이라 결이 될 수가 없다.
+	# 그리고 삼면도를 보면 목표 화풍은 **완전히 매끈한 클레이**다.
+	# 없는 것이 그림에 더 가깝다.
 
 	_build_gear()
 
