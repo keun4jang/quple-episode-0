@@ -23,6 +23,7 @@ const PHOTOS = [
 ]
 
 func _ready() -> void:
+	add_to_group("album_ui")     # 뒤로가기가 이걸 찾아 닫는다
 	visible = false
 
 func _unhandled_input(event: InputEvent) -> void:

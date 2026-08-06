@@ -23,6 +23,7 @@ var _stats: Dictionary = {}
 
 
 func _ready() -> void:
+	add_to_group("stats_ui")     # 뒤로가기가 이걸 찾아 닫는다
 	layer = 60
 	_stats = TripStats.gather()
 	_build()

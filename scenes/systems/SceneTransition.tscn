@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bscenetrans001"]
+[gd_scene load_steps=3 format=3 uid="uid://bscenetrans001"]
 
 [ext_resource type="Script" path="res://scripts/systems/scene_transition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/systems/back_handler.gd" id="2"]
 
 [node name="SceneTransition" type="CanvasLayer"]
 layer = 10
@@ -14,3 +15,6 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0)
 mouse_filter = 2
+
+[node name="BackHandler" type="Node" parent="."]
+script = ExtResource("2")
