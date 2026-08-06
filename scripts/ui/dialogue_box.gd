@@ -14,6 +14,31 @@ func _ready() -> void:
 	add_to_group("dialogue_box")
 	visible = false
 
+## 대화창 폭을 문장 길이에 맞춘다.
+##
+## 화면 폭을 꽉 채우면 짧은 한 마디에도 검은 띠가 화면을 가로지른다.
+## 글자는 왼쪽 끝에 붙고 오른쪽은 텅 비어서, 읽는 눈이 매번 멀리 이동한다.
+## 문장만큼만 잡고 가운데 두면 시선이 캐릭터 바로 아래에 머문다.
+func _fit_to_text(text: String) -> void:
+	if panel_rect == null or label == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var fs: int = label.get_theme_font_size("font_size")
+	var font := label.get_theme_font("font")
+	if font == null:
+		font = ThemeDB.fallback_font
+	var text_w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+
+	# 좌우 여백(패널 안쪽 22 + 테두리) 을 더하고, 화면을 넘지 않게 자른다.
+	# 너무 좁으면 한 글자짜리 대사에서 알약처럼 보이므로 하한도 둔다.
+	var w: float = clampf(text_w + 96.0, 320.0, vp.x * 0.84)
+
+	panel_rect.anchor_left = 0.5
+	panel_rect.anchor_right = 0.5
+	panel_rect.offset_left = -w * 0.5
+	panel_rect.offset_right = w * 0.5
+
+
 func show_text(text: String) -> void:
 	# 타자기 효과 시작
 	_typewriter_text = text
@@ -21,6 +46,7 @@ func show_text(text: String) -> void:
 	_typewriter_timer = 0.0
 	_typewriter_active = true
 	label.text = ""
+	_fit_to_text(text)
 	visible = true
 	# 슬라이드업 애니메이션: 아래에서 위로 올라오기
 	if panel_rect:
