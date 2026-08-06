@@ -60,6 +60,17 @@ uniform bool  use_normal = false;
 // 너무 크면 면이 바뀌는 자리에 금이 보인다. 4 는 그 사이.
 const float TRI_SHARPNESS = 4.0;
 
+// 시선 유도. 멀리 있는 것일수록 대비와 채도를 떨어뜨려 공기 속으로 물린다.
+// 화면의 모든 것이 똑같이 또렷하면 어디를 보라는 신호가 없다. 가까운 쪽만
+// 선명하게 남기면 시선이 저절로 캐릭터 주변에 머문다.
+// 안개와 다른 점: 안개는 색을 한 방향으로 덮지만 이건 "대비" 를 죽인다.
+uniform vec3  haze_color : source_color = vec3(0.72, 0.70, 0.82);
+// 9m 부터 흐리게 했더니 정작 주인공인 건물까지 뭉갰다.
+// 중경(건물·소품)은 또렷하게 두고 먼 스카이라인만 물린다.
+uniform float haze_start = 20.0;
+uniform float haze_end = 60.0;
+uniform float haze_amount : hint_range(0.0, 1.0) = 0.26;
+
 // 바람에 흔들리는 잎. LivingScene 이 나뭇잎 재질에만 켜 준다.
 uniform float sway_amount = 0.0;
 uniform float sway_speed = 1.1;
@@ -118,7 +129,15 @@ void fragment() {
 	c *= 1.0 - (1.0 - smoothstep(0.0, 1.0, h)) * ao_amount;
 
 	// 명암을 넣으면 전체가 가라앉는다. 파스텔 톤을 지키려고 조금 되올린다.
-	ALBEDO = c * 1.10;
+	c *= 1.10;
+
+	// 시선 유도 — 카메라에서 멀수록 공기색 쪽으로 당겨 대비를 죽인다.
+	// 색을 덮는 게 아니라 "가까운 것과의 차이" 를 줄이는 쪽이라 파스텔이 탁해지지 않는다.
+	float view_dist = length(VERTEX);          // VERTEX 는 뷰 공간이라 곧 카메라까지 거리
+	float haze = smoothstep(haze_start, haze_end, view_dist) * haze_amount;
+	c = mix(c, haze_color, haze);
+
+	ALBEDO = c;
 	ROUGHNESS = roughness;
 
 	// 3. 가장자리를 살짝 밝혀 배경에서 떼어 놓는다
@@ -152,6 +171,8 @@ void fragment() {
 ## 표면 종류를 답해 주는 쪽. class_name 을 안 쓰는 이유는 .godot 이 gitignore 라
 ## 새로 클론한 곳에서 "Identifier not declared" 로 죽기 때문이다. 실제로 당했다.
 const SurfaceKit := preload("res://scripts/systems/surface_kit.gd")
+## 모서리를 깎아 주는 쪽. 재질과 같은 이유로 여기서 한꺼번에 갈아끼운다.
+const BevelKit := preload("res://scripts/systems/bevel_kit.gd")
 
 ## 씬마다 바닥 높이가 다르다. 잘못 주면 공중에 뜬 물체가 까맣게 된다.
 @export var floor_y := 0.0
@@ -163,6 +184,7 @@ var _shader: Shader
 var _cache: Dictionary = {}          # "재질+표면" 키 → 만들어 둔 셰이더 재질
 var _tex_cache: Dictionary = {}      # 텍스처 경로 → Texture2D (못 읽었으면 null)
 var _surfaced := 0                   # 그중 결이 붙은 재질 수. 로그용.
+var _beveled := 0                    # 모서리를 깎은 상자 수. 로그용.
 
 ## 반구조명 색. 위 셰이더의 기본값과 같은 값으로 시작한다.
 ## CinematicLook 이 지금 무드의 hemi_sky_tint / hemi_ground_tint 로 갈아준다.
@@ -183,8 +205,8 @@ func _ready() -> void:
 	# CinematicLook 이 밀어 주는 게 아니라 이쪽에서 가져온다. 위에서 한 프레임을
 	# 기다렸으니 씬의 _ready 는 전부 끝나 있고, 그러면 누가 먼저 도는지 따질 필요가 없다.
 	_pull_mood()
-	print("[DepthShading] 재질 %d 개 교체 (결 %d 개 / 텍스처 %d 장)"
-		% [n, _surfaced, _tex_cache.size()])
+	print("[DepthShading] 재질 %d 개 교체 (결 %d / 텍스처 %d / 모서리 %d)"
+		% [n, _surfaced, _tex_cache.size(), _beveled])
 
 
 ## 반구조명 색을 갈아끼운다. 이미 만들어 둔 재질과 앞으로 만들 재질 모두에 적용된다.
@@ -217,6 +239,7 @@ func _write_hemi(m: ShaderMaterial) -> void:
 func _apply_to(node: Node) -> int:
 	var count := 0
 	if node is MeshInstance3D:
+		_bevel(node)
 		count += _convert(node)
 	for c in node.get_children():
 		count += _apply_to(c)
@@ -262,6 +285,23 @@ func _surface_name(mi: MeshInstance3D) -> String:
 ## Godot 이 알아서 붙인 이름인가. 겹치면 "@클래스명@숫자" 가 된다.
 func _is_auto_name(n: String) -> bool:
 	return n.is_empty() or n.begins_with("@") or n.begins_with("MeshInstance3D")
+
+
+## 각진 상자를 모서리 깎은 상자로 바꾼다.
+##
+## 재질과 같은 자리에서 하는 이유는 같다 — 씬마다 손으로 고치지 않아도
+## 새로 추가한 오브젝트가 저절로 같은 규칙을 따르게 하려고.
+func _bevel(mi: MeshInstance3D) -> void:
+	var bm := mi.mesh as BoxMesh
+	if bm == null:
+		return
+	# 아주 얇은 판(창문 유리, 간판 면, 횡단보도 줄무늬)은 그대로 둔다.
+	# 두께가 모서리 반지름 수준이면 깎을 자리가 없고 알약이 된다.
+	var sz: Vector3 = bm.size
+	if minf(sz.x, minf(sz.y, sz.z)) < 0.06:
+		return
+	mi.mesh = BevelKit.rounded_box(sz)
+	_beveled += 1
 
 
 ## StandardMaterial3D 의 겉모습을 그대로 옮긴 셰이더 재질을 만든다.
