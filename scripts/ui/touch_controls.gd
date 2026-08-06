@@ -22,6 +22,10 @@ var _stick_touch := -1            # 조이스틱을 잡고 있는 손가락 id
 var _stick_origin := Vector2.ZERO
 var _held_actions: Array[String] = []
 var _pressed: Dictionary = {}     # 지금 우리가 누르고 있다고 보고한 액션들
+var _buttons: Dictionary = {}     # 액션 이름 → Button
+var _avail: Dictionary = {}       # 액션 이름 → 지금 쓸 수 있는가
+var _label: Label                 # 조사 대상 이름
+var _refresh_t := 0.0
 
 
 ## 액션을 "진짜 입력 이벤트" 로 흘려보낸다.
@@ -65,8 +69,111 @@ func _ready() -> void:
 	_sync_key_guide()
 	# 대화상자 등이 우리보다 늦게 준비될 수 있어 한 프레임 뒤 한 번 더 맞춘다
 	get_tree().process_frame.connect(_sync_key_guide, CONNECT_ONE_SHOT)
+	_make_target_label()
 	# 터치가 한 번이라도 들어오면 그때부터 보여준다 (PC 에서는 계속 숨김)
 	set_process_input(true)
+	set_process(true)
+	_refresh_availability()
+
+
+## 눌러도 아무 일이 없는 버튼은 "고장난 게임" 으로 읽힌다.
+## 지금 쓸 수 있는 버튼만 또렷하게 두고 나머지는 흐리게 한다.
+## 매 프레임 돌 필요는 없다. 0.2 초면 사람 눈에는 즉각이다.
+func _process(delta: float) -> void:
+	if not visible:
+		return
+	_refresh_t -= delta
+	if _refresh_t <= 0.0:
+		_refresh_t = 0.2
+		_refresh_availability()
+
+
+func _refresh_availability() -> void:
+	for action in _buttons:
+		var can := _can_use(action)
+		if _avail.get(action) == can:
+			continue
+		_avail[action] = can
+		var b: Button = _buttons[action]
+		b.modulate = Color(1, 1, 1, 1) if can else Color(1, 1, 1, 0.42)
+		b.disabled = not can
+		if can:
+			# 막 쓸 수 있게 된 버튼은 한 번 부풀려 알려준다
+			var tw := create_tween()
+			tw.tween_property(b, "scale", Vector2(1.12, 1.12), 0.10)
+			tw.tween_property(b, "scale", Vector2.ONE, 0.16)
+	_refresh_target_label()
+
+
+## 씬이 직접 판단하고 싶으면 "action_availability" 그룹에 노드를 넣고
+## can_use(action) 을 구현하면 된다. 없으면 아래 기본 규칙을 쓴다.
+func _can_use(action: String) -> bool:
+	var p := get_tree().get_first_node_in_group("action_availability")
+	if p != null and p.has_method("can_use"):
+		return p.can_use(action)
+
+	match action:
+		"wind_note":
+			return true                      # 목표 확인은 언제나 된다
+		"interact":
+			var db := get_tree().get_first_node_in_group("dialogue_box")
+			if db != null and db.has_method("is_open") and db.is_open():
+				return true                  # 대사 넘기기
+			return _interact_target() != null
+		"photo":
+			var st := get_node_or_null("/root/Episode0State")
+			if st == null:
+				return true                  # 여행 씬 등 에피소드 밖
+			return st.current_state >= st.State.FIRST_PHOTO
+		"album":
+			var st2 := get_node_or_null("/root/Episode0State")
+			if st2 == null:
+				return true
+			return st2.current_state >= st2.State.ALBUM_CREATED
+	return true
+
+
+## 지금 조사할 수 있는 대상. 없으면 null.
+func _interact_target() -> Node:
+	var pl := get_tree().get_first_node_in_group("player")
+	if pl == null or not ("nearby_interactables" in pl):
+		return null
+	var list: Array = pl.nearby_interactables
+	return list[0] if list.size() > 0 else null
+
+
+func _make_target_label() -> void:
+	_label = Label.new()
+	_label.add_theme_font_size_override("font_size", 28)
+	_label.add_theme_color_override("font_color", Color(1, 0.94, 0.82))
+	_label.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.06, 0.8))
+	_label.add_theme_constant_override("outline_size", 6)
+	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_label.position = Vector2(0, -210)
+	_label.visible = false
+	root.add_child(_label)
+
+
+func _refresh_target_label() -> void:
+	if _label == null:
+		return
+	var t := _interact_target()
+	if t == null:
+		_label.visible = false
+		return
+	var name_text := ""
+	if "label" in t and str(t.label) != "":
+		name_text = str(t.label)
+	elif "prompt" in t and str(t.prompt) != "":
+		name_text = str(t.prompt)
+	if name_text == "":
+		_label.visible = false
+		return
+	_label.text = name_text
+	_label.visible = true
 
 ## 모바일이거나, 터치 화면이 있으면 보여준다
 func _should_show() -> bool:
@@ -155,18 +262,22 @@ func _build_buttons() -> void:
 	for c in buttons.get_children():
 		c.queue_free()
 	var defs := [
-		["interact", "조사", Color(1.0, 0.78, 0.52), 132],
 		["photo", "📷", Color(0.72, 0.86, 0.96), 104],
 		["wind_note", "🍃", Color(0.70, 0.90, 0.74), 104],
 		["album", "📖", Color(0.86, 0.78, 0.96), 104],
+		["interact", "조사", Color(1.0, 0.78, 0.52), 138],
 	]
 	for d in defs:
-		buttons.add_child(_action_button(str(d[0]), str(d[1]), d[2], int(d[3])))
+		var b := _action_button(str(d[0]), str(d[1]), d[2], int(d[3]))
+		buttons.add_child(b)
+		_buttons[str(d[0])] = b
 
 func _action_button(action: String, label: String, tint: Color, size_px: int) -> Button:
 	var b := Button.new()
 	b.text = label
 	b.custom_minimum_size = Vector2(size_px, size_px)
+	# 컨테이너 폭에 늘어나면 원이 알약이 된다. 자기 크기를 지키게 한다.
+	b.size_flags_horizontal = Control.SIZE_SHRINK_END
 	b.focus_mode = Control.FOCUS_NONE   # 포커스를 뺏어 키 입력을 먹지 않게
 	b.add_theme_font_size_override("font_size", 30 if size_px > 110 else 38)
 	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08))
@@ -180,6 +291,13 @@ func _action_button(action: String, label: String, tint: Color, size_px: int) ->
 	sb2.bg_color = Color(tint.r, tint.g, tint.b, 0.98)
 	b.add_theme_stylebox_override("pressed", sb2)
 	b.add_theme_stylebox_override("hover", sb2)
+	# 지금 못 쓰는 버튼도 같은 동그라미여야 한다. 이걸 안 주면 기본 테마의
+	# 네모 패널이 나와서 "버튼이 깨졌다" 로 보인다.
+	var sb3 := sb.duplicate() as StyleBoxFlat
+	sb3.bg_color = Color(tint.r, tint.g, tint.b, 0.30)
+	sb3.border_color = Color(1, 1, 1, 0.22)
+	b.add_theme_stylebox_override("disabled", sb3)
+	b.add_theme_color_override("font_disabled_color", Color(0.18, 0.12, 0.08, 0.55))
 	# 버튼을 누르고 있는 동안 그 키가 눌린 것으로 만든다
 	b.button_down.connect(func():
 		Input.action_press(action)

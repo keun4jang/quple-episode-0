@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://bcompanyfront3d"]
+[gd_scene load_steps=18 format=3 uid="uid://bcompanyfront3d"]
 
 [ext_resource type="Script" path="res://scripts/maps/company_front_3d.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2_player"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/systems/cinematic_look.gd" id="cine_look"]
 [ext_resource type="Script" path="res://scripts/systems/depth_shading.gd" id="depth_sh"]
 [ext_resource type="Script" path="res://scripts/systems/living_scene.gd" id="living"]
+[ext_resource type="Script" path="res://scripts/ui/tutorial.gd" id="tutorial"]
 
 [sub_resource type="SphereShape3D" id="IS15"]
 radius = 1.5
@@ -127,3 +128,6 @@ script = ExtResource("depth_sh")
 
 [node name="LivingScene" type="Node" parent="."]
 script = ExtResource("living")
+
+[node name="Tutorial" type="CanvasLayer" parent="."]
+script = ExtResource("tutorial")

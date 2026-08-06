@@ -125,6 +125,28 @@ func load_game() -> bool:
 		_restoring = false
 	return true
 
+# ── 작은 표시들 ────────────────────────────────────────────────────────
+#
+# "튜토리얼 봤음" 처럼 게임 진행과 무관한 한 줄짜리 기록. 저장본에 같이 넣는다.
+# 세이브 슬롯을 따로 만들 만한 무게가 아니고, 저장본과 생사를 같이 하는 편이 맞다.
+# (저장을 지우면 튜토리얼도 다시 나오는 게 자연스럽다.)
+
+func get_flag(key: String, fallback = false):
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return fallback
+	return cfg.get_value("flags", key, fallback)
+
+
+func set_flag(key: String, value) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)              # 없으면 빈 것으로 시작한다
+	cfg.set_value("flags", key, value)
+	# 표시 하나 때문에 전체 저장 절차(임시→검증→백업→교체)를 돌리진 않는다.
+	# 이게 날아가도 튜토리얼이 한 번 더 나올 뿐이다.
+	cfg.save(SAVE_PATH)
+
+
 ## 백업이 있는가 (설정 화면에서 안내용)
 func has_backup() -> bool:
 	return _is_valid(BACKUP_PATH)

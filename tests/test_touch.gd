@@ -29,6 +29,8 @@ func _ready() -> void:
 	ck("손잡이 있음", tc.get_node_or_null("Root/Stick/Knob") != null)
 	var btns = tc.get_node("Root/Buttons")
 	ck("동작 버튼 4개", btns.get_child_count() == 4, "%d개" % btns.get_child_count())
+	ck("조사 버튼이 제일 아래 (엄지 자리)",
+		btns.get_child(btns.get_child_count() - 1) == tc._buttons["interact"])
 	ck("조이스틱 그림 생성", tc.stick_base.texture != null)
 
 	print("\n[2] 조이스틱 → 이동 액션")
@@ -69,7 +71,9 @@ func _ready() -> void:
 	ck("전부 멈춤", still.is_empty(), str(still))
 
 	print("\n[6] 동작 버튼 → 키")
-	var ib: Button = btns.get_child(0)
+	# 순서로 찾으면 배치를 바꿀 때마다 깨진다. 액션 이름으로 찾는다.
+	var ib: Button = tc._buttons["interact"]
+	ck("조사 버튼을 이름으로 찾았다", ib != null)
 	ib.emit_signal("button_down")
 	ck("조사 버튼 → interact", Input.is_action_pressed("interact"))
 	ib.emit_signal("button_up")
