@@ -46,8 +46,25 @@ const PANEL_SOLID := Color(0.15, 0.14, 0.20)
 const LINE := Color(1.0, 0.88, 0.62, 0.42)    # 테두리
 const TEXT := Color(1.0, 0.96, 0.89)          # 본문 글자
 const TEXT_DIM := Color(0.80, 0.78, 0.84)     # 보조 글자
-const ACCENT := Color(1.0, 0.84, 0.52)        # 강조 (버튼·표식)
-const ACCENT_SOFT := Color(1.0, 0.88, 0.66)
+const ACCENT := Color(0.831, 0.686, 0.216)    # 강조 (버튼·표식) #D4AF37
+const ACCENT_SOFT := Color(0.992, 0.984, 0.831) # 밝은 크림 #FDFBD4
+
+# ── 골든 토프 ──────────────────────────────────────────────────────────
+# 참고로 받은 배색. 우리 화면은 원래 보라·남색 일색이라 강조가 전부 같은 주황이었다.
+# 이 넷은 서로 명도가 달라서 "지금 고른 것 / 고를 수 있는 것 / 지나간 것" 을
+# 색만으로 구분할 수 있다.
+#
+#   GOLD   #D4AF37  지금 고른 것, 열린 것
+#   KHAKI  #BDB76B  고를 수 있지만 지금이 아닌 것
+#   CREAM  #FDFBD4  어두운 바탕 위의 글자
+#   CARAMEL #CE8946 제일 중요한 버튼 하나
+#
+# 캐러멜(#CE8946)은 산호가 아니다 — 색상환에서 쿼카 스카프보다 노랑 쪽으로
+# 충분히 떨어져 있어서 tools/check-design-tokens.py 의 산호 금지에 걸리지 않는다.
+const GOLD := Color(0.831, 0.686, 0.216)
+const KHAKI := Color(0.741, 0.718, 0.420)
+const CREAM := Color(0.992, 0.984, 0.831)
+const CARAMEL := Color(0.808, 0.537, 0.275)
 const OUTLINE := Color(0.08, 0.06, 0.10, 0.85) # 글자 외곽선
 
 # 비활성 상태는 지우지 말고 흐리게. 사라지면 "그런 기능이 없다" 로 읽힌다.

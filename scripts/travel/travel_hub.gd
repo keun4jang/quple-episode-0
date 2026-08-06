@@ -6,7 +6,10 @@ extends Control
 
 const TW := preload("res://scripts/ui/text_wrap.gd")
 
-const POSTER := "res://assets/splash/splash-poster-no-text.png"
+## 여행 방 배경. 예전에는 메인화면 포스터를 그대로 가져다 썼는데,
+## 그러면 앨범·기록 화면 뒤에까지 쿼카 커플이 또 나와서 화면이 겹쳐 보였다.
+## 이건 캐릭터가 없는 방 그림이고, 시간대에 따라 색이 입혀지도록 중간 밝기다.
+const POSTER := "res://assets/travel/hub-bg.png"
 const D := preload("res://scripts/ui/design.gd")
 
 ## 시간대 무드 / 여행지 팔레트. 둘 다 preload 로 잡는다 —
@@ -57,6 +60,10 @@ func _ready() -> void:
 	_apply_mood()
 	AudioManager.play_bgm("doraji")
 	_update_ambient()
+	_put_icon(album_btn, "album")
+	_put_icon(stats_btn, "note")
+	_put_icon(room_btn, "gift")
+	_put_icon(home_btn, "home")
 	album_btn.pressed.connect(_show_album)
 	stats_btn.pressed.connect(_show_stats)
 	room_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/travel/SouvenirRoom3D.tscn", "hopeful"))
@@ -179,7 +186,9 @@ func _filter_btn(id: String, label: String, on: bool, setter: Callable) -> Butto
 	b.text = label
 	b.custom_minimum_size = Vector2(0, 30)
 	b.add_theme_font_size_override("font_size", 30)
-	var col := Color(1.0, 0.86, 0.55) if on else Color(0.42, 0.40, 0.55)
+	# 골든 토프 배색. 고른 것은 금색, 안 고른 것은 카키 쪽으로 눌러 둔다.
+	# 예전에는 둘 다 보라 계열이라 무엇이 켜져 있는지 한눈에 안 들어왔다.
+	var col := D.GOLD if on else Color(0.40, 0.39, 0.33)
 	b.add_theme_stylebox_override("normal", _card_style(col, on))
 	b.add_theme_stylebox_override("hover", _card_style(col, true))
 	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08) if on else Color(0.88, 0.86, 0.95))
@@ -206,7 +215,7 @@ func _make_chapter_header(ch: Dictionary, open: bool, done: int, total: int) -> 
 	var l := Label.new()
 	if open:
 		l.text = "──  %s   %d/%d  ──" % [ch.name, done, total]
-		l.add_theme_color_override("font_color", Color(1, 0.90, 0.62))
+		l.add_theme_color_override("font_color", D.CREAM)
 	else:
 		var idx: int = TravelState.chapter_index(str(ch.id))
 		var prev: Dictionary = TravelState.CHAPTERS[maxi(0, idx - 1)]
@@ -555,6 +564,22 @@ func _hero_symbol(d: Dictionary) -> String:
 		"space": return "🪐"
 		"beyond": return "✨"
 		_: return "🌍"
+
+
+## 버튼 앞에 그림을 붙인다.
+##
+## 예전에는 버튼 글자에 📖 📊 🏡 🏠 이모지를 섞어 썼다. 그 글자들은 우리 폰트에
+## 없어서 **기기의 시스템 폰트로 그려진다** — 기기마다 모양이 다르고, 없으면 □ 다.
+## 우리가 만든 그림을 쓰면 어느 기기에서나 똑같이 나온다.
+func _put_icon(b: Button, name: String) -> void:
+	if b == null:
+		return
+	var path := "res://assets/ui/icons/%s.png" % name
+	if not ResourceLoader.exists(path):
+		return
+	b.icon = load(path)
+	b.expand_icon = true
+	b.add_theme_constant_override("h_separation", 10)
 
 
 func _make_message_row() -> Control:

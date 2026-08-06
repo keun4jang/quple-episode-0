@@ -5,7 +5,10 @@ var _t := 0.0
 var _star_meshes: Array = []
 var _star_phases: Array = []
 
-const POSTER_PATH    := "res://assets/splash/splash-poster-no-text.png"
+# 가로 화면용 배경. 예전 포스터는 1080x1920 **세로**라, 초광각 폰에 채우면
+# 세로로 70% 가 잘려 나가면서 쿼카 두 마리의 머리가 통째로 날아갔다.
+# 이건 처음부터 가로로 그린 것이고, 오른쪽 절반이 비어 있어 버튼 기둥이 앉는다.
+const POSTER_PATH    := "res://assets/splash/menu-bg-wide.png"
 const COUPLE_3D_PATH := "res://assets/mascots/quica-hero-diorama.png"
 
 func _ready() -> void:
@@ -133,7 +136,7 @@ func _add_title_scrim(ctrl: Control) -> void:
 ## 폰은 가로 2.2:1 이라 세로로 70% 가 잘려 나가는데, 그 가운데 띠에 얼굴이
 ## 없다 — 쿼카 두 마리의 머리가 통째로 날아갔다.
 ## 그래서 직접 계산하고, 자르는 위치를 위쪽으로 당긴다.
-const POSTER_BIAS := 0.42   # 0=위 정렬, 0.5=가운데
+const POSTER_BIAS := 0.5   # 0=위 정렬, 0.5=가운데
 
 func _fit_poster(bg: TextureRect) -> void:
 	var ctrl := bg.get_parent() as Control
