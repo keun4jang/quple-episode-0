@@ -25,6 +25,7 @@ var _cam: Camera3D
 var _dust: CPUParticles3D
 var _lights: Array[Dictionary] = []
 var _t := 0.0
+var _wind_at := 12.0        # 다음 바람까지 남은 시간
 
 
 func _ready() -> void:
@@ -42,11 +43,33 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	_maybe_wind(delta)
 	_breathe_lights()
 	_breathe_camera()
 	if _dust != null and _cam != null:
 		# 먼지는 카메라를 따라다닌다. 안 그러면 걸어나가는 순간 공기가 사라진다.
 		_dust.global_position = _cam.global_position - _cam.global_transform.basis.z * 6.0
+
+
+## 가끔 바람이 한 번 스친다. 실외에서만.
+##
+## 소리가 규칙적으로 반복되면 배경음이 아니라 알람이 된다. 간격을 넓게 두고
+## 매번 다르게 한다. 위치 기반이 아니라 시간 기반이라 randf 를 써도
+## 화면 결과가 달라지지 않는다 — 검증 대상이 아닌 것에만 쓴다.
+func _maybe_wind(delta: float) -> void:
+	if _dust == null:
+		return                      # 아직 준비 전
+	var look := get_tree().get_first_node_in_group("cinematic_look")
+	if look != null and ("indoor" in look) and look.indoor:
+		return
+	var am := get_node_or_null("/root/AudioManager")
+	if am == null or not am.has_method("wind_gust"):
+		return
+	_wind_at -= delta
+	if _wind_at > 0.0:
+		return
+	_wind_at = randf_range(22.0, 46.0)
+	am.wind_gust()
 
 
 # ── 수집 ───────────────────────────────────────────────────────────────

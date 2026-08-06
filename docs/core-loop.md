@@ -97,6 +97,39 @@ _auto_messages(d)
 관련 API — `TravelState.unread_count()` / `arrived_messages()` / `mark_messages_read()`
 / `seconds_to_next_message()`
 
+## 돌아옴은 사건이다
+
+여행이 끝나도 조용히 목록에 한 줄 늘어날 뿐이었다. 다시 켤 이유가 여기서 만들어져야 한다.
+
+허브가 `ARRIVED` 상태로 처음 들어가면 말 없는 장면이 화면을 덮는다
+(`scripts/travel/arrival_scene.gd`).
+
+1. 화면이 **그 시각의 하늘빛**으로 바뀐다 (밤에 켜면 밤하늘 아래로 걸어온다)
+2. 지평선 저 끝의 작은 실루엣 둘이 **천천히 걸어온다** — 발소리, 발밑 먼지
+3. 문 앞에 **짐을 툭 내려놓는다** (튕김 + 먼지)
+4. 기다린 만큼 **쪽지가 한 장씩 내려앉는다**
+5. 짧은 한 줄. 그리고 멈춰 있는다. 화면을 누르면 건너뛰거나 닫는다
+
+축포·점수·팡파레는 쓰지 않는다. "아, 다녀왔구나" 하고 잠깐 멈추는 것이 전부다.
+
+### 기다린 만큼 문 앞이 두툼해진다
+
+며칠 만에 켠 사람이 빈손으로 돌아가면 다음이 없다. 그래서 **도착한 뒤 흐른 시간**만큼
+쪽지가 쌓인다. 벌이 아니라 선물이다.
+
+| 도착 후 | 쪽지 | 한 줄 |
+|---|---|---|
+| 바로 | 0장 | 방금 돌아왔어요 |
+| 1시간 | 1장 | 조금 전에 돌아왔어요 |
+| 6시간 | 2장 | 한참 전에 돌아와 있었어요 |
+| 24시간 | 3장 | 며칠째 문 앞에서 기다렸어요 |
+
+쪽지 문장은 여행지 id 로 골라서 곳마다 다르다. 연출은 **여행 한 번에 한 번만** 재생되고
+(`trip.arrival_seen`, 저장에 남는다), 사진을 받으면 여행이 닫히며 초기화된다.
+
+관련 API — `TravelState.waiting_notes()` / `seconds_since_arrival()` / `arrival_line()`
+/ `arrival_seen()` / `mark_arrival_seen()`
+
 ## 0편에서 챙긴 물건이 여행에 반영된다
 
 | 물건 | 없을 때 |
@@ -116,18 +149,19 @@ _auto_messages(d)
 | `scenes/travel/TravelHub.tscn` | 허브 화면 |
 | `scripts/systems/save_manager.gd` | `user://save.cfg` 저장/복원 |
 | `scripts/systems/episode0_state.gd` | Episode 0 서사 진행도 |
-| `tests/test_core_loop.gd` | 자동 테스트 31개 |
+| `scripts/travel/arrival_scene.gd` | 돌아온 순간의 연출 (씬 파일 없이 코드로) |
+| `tests/test_core_loop.gd` | 자동 테스트 68개 |
 
 ## 테스트
 
 ```bash
 godot --headless --path . res://tests/TestCoreLoop.tscn
-# → 31 통과 / 0 실패
+# → 68 통과 / 0 실패
 ```
 
 커버 범위: 초기 상태, 여행 시작, 중복/무효 목적지 차단, 오프라인 경과,
 도착 판정, 기념품 수집, 중복 수집 방지, 저장/복원, 재방문 시 다른 기념품,
-진행 중 강제 종료 후 복원.
+진행 중 강제 종료 후 복원, 돌아옴 연출(기다린 시간·쪽지·한 번만 재생).
 
 ## 다음에 붙일 것
 

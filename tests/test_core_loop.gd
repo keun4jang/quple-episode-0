@@ -167,6 +167,54 @@ func _ready() -> void:
 	TravelState.start_trip("seoul")
 	ck("새 여행은 소식 초기화", TravelState.arrived_messages().size() == 0)
 
+	print("\n[9] 돌아온 순간")
+	SaveManager.clear_save()
+	TravelState.reset()
+	TravelState.start_trip("jeju")
+	var now2 := int(Time.get_unix_time_from_system())
+	# 막 도착한 참
+	TravelState.trip["arrive_at"] = now2 - 1
+	ck("도착 직후엔 쪽지 없음", TravelState.waiting_note_count() == 0)
+	ck("도착 직후 한 줄", TravelState.arrival_line() == "방금 돌아왔어요",
+		TravelState.arrival_line())
+	ck("연출을 아직 안 봄", not TravelState.arrival_seen())
+
+	# 두 시간 뒤에 켰다 → 쪽지 한 장
+	TravelState.trip["arrive_at"] = now2 - 7200
+	ck("2시간 기다림 = 쪽지 1장", TravelState.waiting_note_count() == 1,
+		"%d장" % TravelState.waiting_note_count())
+	ck("2시간 뒤 한 줄", TravelState.arrival_line() == "조금 전에 돌아왔어요")
+
+	# 사흘 만에 켰다 → 문 앞이 두툼하다
+	TravelState.trip["arrive_at"] = now2 - 86400 * 3
+	var notes: Array = TravelState.waiting_notes()
+	ck("사흘 기다림 = 쪽지 3장", notes.size() == 3, "%d장" % notes.size())
+	ck("쪽지에 내용이 있다", str(notes[0].get("text", "")) != "" \
+		and str(notes[2].get("emoji", "")) != "")
+	var texts := {}
+	for n in notes:
+		texts[str(n.get("text", ""))] = true
+	ck("쪽지가 서로 다르다", texts.size() == notes.size())
+	ck("사흘 뒤 한 줄", TravelState.arrival_line() == "며칠째 문 앞에서 기다렸어요")
+	ck("경과 시간이 3일 이상", TravelState.seconds_since_arrival() >= 86400 * 3)
+
+	# 연출은 여행 한 번에 한 번만. 앱을 껐다 켜도 다시 재생되지 않는다.
+	TravelState.mark_arrival_seen()
+	ck("연출 봤음 표시", TravelState.arrival_seen())
+	SaveManager.save_game()
+	TravelState.reset()
+	SaveManager.load_game()
+	ck("복원 후에도 봤음 유지", TravelState.arrival_seen())
+	ck("복원 후에도 쪽지 3장", TravelState.waiting_note_count() == 3)
+
+	# 사진을 받으면 여행이 닫히고 표시도 초기화된다
+	TravelState.collect_arrival()
+	ck("수집 후 연출 표시 초기화", not TravelState.arrival_seen())
+	ck("수집 후 쪽지 없음", TravelState.waiting_note_count() == 0)
+	ck("수집 후 경과 0", TravelState.seconds_since_arrival() == 0)
+	TravelState.start_trip("seoul")
+	ck("새 여행은 연출을 다시 본다", not TravelState.arrival_seen())
+
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	SaveManager.clear_save()
 	get_tree().quit(0 if fail_n == 0 else 1)

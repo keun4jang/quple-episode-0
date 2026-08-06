@@ -46,7 +46,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact"):
 		_used = true
-		AudioManager.ui_confirm()
+		# 한 번 쓰고 사라지는 지점은 대개 무언가를 집는 것이다.
+		# 계속 쓸 수 있는 곳(문·통로)은 확인음이 맞다.
+		if one_shot and AudioManager.has_method("pickup"):
+			AudioManager.pickup()
+		else:
+			AudioManager.ui_confirm()
 		interacted.emit()
 		get_viewport().set_input_as_handled()
 

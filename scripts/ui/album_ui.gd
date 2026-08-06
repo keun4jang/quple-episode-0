@@ -71,10 +71,18 @@ func _fit_to_screen() -> void:
 func _on_visibility() -> void:
 	if visible:
 		_fit_to_screen()
+		_page_sound()
 	for g in ["touch_controls", "quest_marker"]:
 		var n := get_tree().get_first_node_in_group(g)
 		if n != null and n is CanvasLayer:
 			n.visible = not visible
+
+
+## 종이 넘기는 소리. 앨범을 열 때와 장을 넘길 때 난다.
+func _page_sound() -> void:
+	var am := get_node_or_null("/root/AudioManager")
+	if am != null and am.has_method("page_turn"):
+		am.page_turn()
 
 
 ## 화면 아무 데나 톡 치면 닫힌다. 폰에는 B 키가 없다.
@@ -99,11 +107,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	if unlocked.size() == 0:
 		return
 	if event.is_action_pressed("move_left"):
+		var before := _current_page
 		_current_page = max(0, _current_page - 1)
 		_show_page(unlocked)
+		if _current_page != before:
+			_page_sound()
 	elif event.is_action_pressed("move_right"):
+		var before2 := _current_page
 		_current_page = min(unlocked.size() - 1, _current_page + 1)
 		_show_page(unlocked)
+		if _current_page != before2:
+			_page_sound()
 
 func _get_unlocked() -> Array:
 	var result = []

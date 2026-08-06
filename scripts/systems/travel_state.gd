@@ -760,6 +760,74 @@ func seconds_to_next_message() -> int:
 			return int((at - prog) * float(total))
 	return -1
 
+# ── 돌아옴 ──────────────────────────────────────────────────────────────
+# 도착이 "목록에 한 줄 늘어나는 일" 이 되지 않게, 돌아온 뒤 흐른 시간을 센다.
+# 오래 안 들여다볼수록 문 앞에 쪽지가 쌓인다. 벌이 아니라 선물이다 —
+# 며칠 만에 켠 사람이 더 두툼한 문 앞을 본다.
+
+## 문 앞에 쪽지가 한 장씩 늘어나는 시각 (도착 후 몇 초)
+const WAIT_NOTE_AFTER: Array = [3600, 21600, 86400]
+
+## 쪽지 문장. 여행지 id 로 골라서 곳마다 다른 쪽지가 나온다.
+const WAIT_NOTES: Array = [
+	{"emoji": "🌙", "text": "불 켜두고 기다렸어.\n생각보다 오래 걸렸네."},
+	{"emoji": "🍵", "text": "차 끓여놨어.\n식기 전에 마셔."},
+	{"emoji": "🧦", "text": "양말이 다 젖었다.\n그래도 재밌었어."},
+	{"emoji": "📮", "text": "문틈에 끼워둘게.\n천천히 봐도 돼."},
+	{"emoji": "🌿", "text": "가져온 것 중에\n이게 제일 마음에 들어."},
+	{"emoji": "🍊", "text": "먼저 자고 있을게.\n일어나면 이것부터 봐."},
+]
+
+## 도착한 뒤 흐른 시간(초). 아직 안 돌아왔으면 0.
+func seconds_since_arrival() -> int:
+	if trip.is_empty() or not has_arrived():
+		return 0
+	return maxi(0, _now() - int(trip.get("arrive_at", 0)))
+
+## 문 앞에 쌓인 쪽지들. 도착 직후엔 없고, 기다린 만큼 늘어난다 (최대 3장).
+func waiting_notes() -> Array:
+	var waited := seconds_since_arrival()
+	var dest_id: String = str(trip.get("dest_id", ""))
+	var out: Array = []
+	for i in range(WAIT_NOTE_AFTER.size()):
+		if waited < int(WAIT_NOTE_AFTER[i]):
+			break
+		var h: int = abs(hash(dest_id + "note" + str(i)))
+		var n: Dictionary = (WAIT_NOTES[h % WAIT_NOTES.size()] as Dictionary).duplicate(true)
+		# 같은 여행에서 같은 쪽지가 두 번 나오지 않게 한 칸씩 민다
+		var used := false
+		for prev in out:
+			if str(prev.get("text", "")) == str(n.get("text", "")):
+				used = true
+		if used:
+			n = (WAIT_NOTES[(h + i + 1) % WAIT_NOTES.size()] as Dictionary).duplicate(true)
+		out.append(n)
+	return out
+
+func waiting_note_count() -> int:
+	return waiting_notes().size()
+
+## 돌아온 장면을 이미 봤는가. 여행 한 번에 한 번만 재생한다.
+func arrival_seen() -> bool:
+	return bool(trip.get("arrival_seen", false))
+
+func mark_arrival_seen() -> void:
+	if trip.is_empty():
+		return
+	trip["arrival_seen"] = true
+	SaveManager.save_game()
+
+## 얼마나 기다리게 했는지 한 줄로. 길게 설명하지 않는다.
+func arrival_line() -> String:
+	var w := seconds_since_arrival()
+	if w >= 86400:
+		return "며칠째 문 앞에서 기다렸어요"
+	if w >= 21600:
+		return "한참 전에 돌아와 있었어요"
+	if w >= 3600:
+		return "조금 전에 돌아왔어요"
+	return "방금 돌아왔어요"
+
 func format_time_left() -> String:
 	var s := seconds_left()
 	if s <= 0:

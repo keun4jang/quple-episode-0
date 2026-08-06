@@ -52,6 +52,12 @@ func go_to(path: String, style: String = "normal") -> void:
 	is_transitioning = true
 	var fade_color := fade_color_for(path, style)
 	var duration: float = float(STYLE_DURATION.get(style, STYLE_DURATION["normal"]))
+	# 장면이 바뀐다는 건 이 게임에서 대개 문을 지난다는 뜻이다.
+	# 소리가 먼저 나고 화면이 넘어가야 "내가 연 것" 으로 느껴진다.
+	var am := get_node_or_null("/root/AudioManager")
+	if am != null and am.has_method("door_open"):
+		am.door_open()
+
 	var tween = create_tween()
 	tween.tween_property(overlay, "color", fade_color, duration)
 	tween.tween_callback(func():

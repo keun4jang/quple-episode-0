@@ -11,6 +11,8 @@ const D := preload("res://scripts/ui/design.gd")
 ## 전역 클래스 이름은 에디터 스캔에서만 갱신되는 캐시에 의존해서 새 클론에서 죽는다.
 const MoodPalette := preload("res://scripts/systems/mood_palette.gd")
 const Palette := preload("res://scripts/travel/palette.gd")
+## 돌아온 순간의 연출. 씬 파일 없이 코드로 세운다.
+const ArrivalScene := preload("res://scripts/travel/arrival_scene.gd")
 
 ## 무드는 몇 초에 한 번만 다시 계산한다. 매 프레임 계산할 값이 아니다.
 const MOOD_CHECK_SEC := 5.0
@@ -604,6 +606,9 @@ func _build_arrived() -> void:
 	var d := TravelState.get_destination(TravelState.trip.get("dest_id", ""))
 	title.text = "돌아왔어요!"
 	subtitle.text = "%s에서 무언가를 가져왔대요" % d.get("name", "")
+	# 이 여행에서 처음 마주치는 순간이면, 돌아오는 장면을 먼저 보여준다.
+	# 화면은 아래에 이미 세워 두고 그 위를 덮는 방식이라 닫히면 곧바로 이어진다.
+	_maybe_play_arrival()
 
 	var open_btn := Button.new()
 	open_btn.text = "🎁  사진 받기"
@@ -641,6 +646,16 @@ func _build_arrived() -> void:
 			_show_chapter_unlocked(newly, s)
 		else:
 			_show_souvenir(s))
+
+## 돌아온 장면. 여행 한 번에 한 번만 재생한다.
+func _maybe_play_arrival() -> void:
+	if TravelState.arrival_seen():
+		return
+	if get_node_or_null("ArrivalScene") != null:
+		return
+	var sc := ArrivalScene.new()
+	sc.name = "ArrivalScene"
+	add_child(sc)
 
 ## 새 막이 열렸을 때의 연출
 func _show_chapter_unlocked(chapter_id: String, souvenir: Dictionary) -> void:
