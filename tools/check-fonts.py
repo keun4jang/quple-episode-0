@@ -9,10 +9,10 @@
 보는 것 두 가지.
 
 **1. 개별 폰트 지정** — CLAUDE.md 의 고정 규칙이다. 위젯마다 폰트를 지정하면
-전역 테마(굵기 0.55)를 덮어써서 그 글자만 얇아진다. 크기는 바꿔도 되고
+전역 테마의 굵기를 덮어써서 그 글자만 얇아진다. 크기는 바꿔도 되고
 폰트 자체는 건드리면 안 된다.
 
-**2. 폰트에 없는 글자** — Jua.ttf 에는 한글·영문·숫자와 약간의 기호만 있다.
+**2. 폰트에 없는 글자** — 우리 폰트에는 한글·영문·숫자와 약간의 기호만 있다.
 ✦ ⚙ 🌿 같은 것을 쓰면 Godot 이 **기기의 시스템 폰트로 대신 그린다.**
 그러면 기기마다 모양이 달라지고, 폰트가 없는 기기에서는 두부(□)가 뜬다.
 개발 PC 에서 멀쩡했다고 폰에서도 멀쩡한 게 아니다 — 그래서 기계로 센다.
@@ -25,7 +25,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FONT = ROOT / "assets/fonts/Jua.ttf"
+THEME = ROOT / "assets/themes/quple_bold.tres"
+
+
+def theme_font() -> Path:
+    """전역 테마가 실제로 쓰는 폰트. 폰트를 갈아끼워도 검사가 따라오게."""
+    m = re.search(r'path="res://(assets/fonts/[^"]+\.ttf)"', THEME.read_text(encoding="utf-8"))
+    return ROOT / (m.group(1) if m else "assets/fonts/Jua.ttf")
 
 
 # ── TTF cmap 읽기 ──────────────────────────────────────────────────────
@@ -101,10 +107,12 @@ def strings_of(path: Path) -> list[tuple[int, str]]:
 
 
 def main() -> int:
-    if not FONT.exists():
-        print("✗ 폰트를 찾을 수 없다: %s" % FONT)
+    font_path = theme_font()
+    if not font_path.exists():
+        print("✗ 폰트를 찾을 수 없다: %s" % font_path)
         return 1
-    have = font_codepoints(FONT)
+    have = font_codepoints(font_path)
+    print("검사 기준 폰트: %s (글자 %d 종)" % (font_path.name, len(have)))
 
     overrides: list[str] = []
     missing: dict[str, list[str]] = {}
