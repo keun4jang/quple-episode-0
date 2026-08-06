@@ -13,6 +13,9 @@ const KNOB_RADIUS := 56.0
 const DEAD_ZONE := 0.16           # 이 안에서는 안 움직인다 (손 떨림 방지)
 const MOVE_ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
 
+## UI 규칙은 한 곳에서 가져온다. 색·둥글기·글자 크기를 여기서 직접 정하지 않는다.
+const D := preload("res://scripts/ui/design.gd")
+
 @onready var root: Control = $Root
 @onready var stick_base: TextureRect = $Root/Stick/Base
 @onready var stick_knob: TextureRect = $Root/Stick/Knob
@@ -97,7 +100,7 @@ func _refresh_availability() -> void:
 			continue
 		_avail[action] = can
 		var b: Button = _buttons[action]
-		b.modulate = Color(1, 1, 1, 1) if can else Color(1, 1, 1, 0.42)
+		b.modulate = Color(1, 1, 1, 1) if can else Color(1, 1, 1, D.DISABLED_ALPHA)
 		b.disabled = not can
 		if can:
 			# 막 쓸 수 있게 된 버튼은 한 번 부풀려 알려준다
@@ -161,9 +164,9 @@ func _interact_target() -> Node:
 
 func _make_target_label() -> void:
 	_label = Label.new()
-	_label.add_theme_font_size_override("font_size", 28)
-	_label.add_theme_color_override("font_color", Color(1, 0.94, 0.82))
-	_label.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.06, 0.8))
+	_label.add_theme_font_size_override("font_size", D.TEXT_S)
+	_label.add_theme_color_override("font_color", D.ACCENT_SOFT)
+	_label.add_theme_color_override("font_outline_color", D.OUTLINE)
 	_label.add_theme_constant_override("outline_size", 6)
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -361,11 +364,7 @@ func _action_button(action: String, label: String, tint: Color, size_px: int) ->
 	b.focus_mode = Control.FOCUS_NONE   # 포커스를 뺏어 키 입력을 먹지 않게
 	b.add_theme_font_size_override("font_size", 30 if size_px > 110 else 38)
 	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08))
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(tint.r, tint.g, tint.b, 0.80)
-	sb.set_corner_radius_all(size_px / 2)
-	sb.set_border_width_all(2)
-	sb.border_color = Color(1, 1, 1, 0.5)
+	var sb := D.round_button(tint, size_px)
 	b.add_theme_stylebox_override("normal", sb)
 	var sb2 := sb.duplicate() as StyleBoxFlat
 	sb2.bg_color = Color(tint.r, tint.g, tint.b, 0.98)
@@ -373,8 +372,7 @@ func _action_button(action: String, label: String, tint: Color, size_px: int) ->
 	b.add_theme_stylebox_override("hover", sb2)
 	# 지금 못 쓰는 버튼도 같은 동그라미여야 한다. 이걸 안 주면 기본 테마의
 	# 네모 패널이 나와서 "버튼이 깨졌다" 로 보인다.
-	var sb3 := sb.duplicate() as StyleBoxFlat
-	sb3.bg_color = Color(tint.r, tint.g, tint.b, 0.30)
+	var sb3 := D.round_button(tint, size_px, 0.30)
 	sb3.border_color = Color(1, 1, 1, 0.22)
 	b.add_theme_stylebox_override("disabled", sb3)
 	b.add_theme_color_override("font_disabled_color", Color(0.18, 0.12, 0.08, 0.55))

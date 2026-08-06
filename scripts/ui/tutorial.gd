@@ -8,6 +8,7 @@ extends CanvasLayer
 ## 저장이 없거나 깨졌을 때 튜토리얼이 매번 뜨는 것보다는 낫다 — 안 뜨는 쪽이 덜 거슬린다.
 
 const DONE_KEY := "tutorial_done"
+const D := preload("res://scripts/ui/design.gd")
 
 ## 단계 정의. check 는 매 프레임 불려서 "해냈는가" 를 판정한다.
 enum Step { MOVE, INTERACT, DONE }
@@ -101,32 +102,26 @@ func _finish() -> void:
 
 func _build() -> void:
 	_panel = PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.10, 0.09, 0.14, 0.82)
-	sb.set_corner_radius_all(22)
-	sb.set_content_margin_all(20)
-	sb.border_color = Color(1, 0.88, 0.62, 0.45)
-	sb.set_border_width_all(2)
-	_panel.add_theme_stylebox_override("panel", sb)
+	_panel.add_theme_stylebox_override("panel", D.panel())
 	_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.position = Vector2(0, 30)
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", D.GAP_XS)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(box)
 
 	_label = Label.new()
-	_label.add_theme_font_size_override("font_size", 32)
-	_label.add_theme_color_override("font_color", Color(1, 0.96, 0.88))
+	_label.add_theme_font_size_override("font_size", D.TEXT_L)
+	_label.add_theme_color_override("font_color", D.TEXT)
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_label)
 
 	_hint = Label.new()
-	_hint.add_theme_font_size_override("font_size", 26)
-	_hint.add_theme_color_override("font_color", Color(1, 0.86, 0.60))
+	_hint.add_theme_font_size_override("font_size", D.TEXT_S)
+	_hint.add_theme_color_override("font_color", D.ACCENT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_hint)
 

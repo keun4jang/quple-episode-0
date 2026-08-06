@@ -10,7 +10,8 @@ extends CanvasLayer
 
 const EDGE_MARGIN := 92.0
 const NEAR_DIST := 2.2          # 이만큼 가까우면 표식을 지운다. 다 왔는데 계속 띄우면 잔소리다.
-const COL := Color(1.0, 0.86, 0.52)
+const D := preload("res://scripts/ui/design.gd")
+const COL := D.ACCENT
 
 var _cam: Camera3D
 var _player: Node3D
@@ -120,9 +121,9 @@ func _draw_edge(p: Vector2, ang: float, pulse: float, dist: float) -> void:
 
 func _label(at: Vector2, text: String) -> void:
 	var font := ThemeDB.fallback_font
-	var sz := 22
+	var sz := D.TEXT_S - 4
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
 	_draw.draw_string_outline(font, at - Vector2(w * 0.5, -sz * 0.5), text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, sz, 6, Color(0.08, 0.06, 0.10, 0.8))
+		HORIZONTAL_ALIGNMENT_LEFT, -1, sz, 6, D.OUTLINE)
 	_draw.draw_string(font, at - Vector2(w * 0.5, -sz * 0.5), text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(1, 0.95, 0.86))
+		HORIZONTAL_ALIGNMENT_LEFT, -1, sz, D.TEXT)

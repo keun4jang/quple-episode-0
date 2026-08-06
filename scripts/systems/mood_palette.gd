@@ -227,18 +227,23 @@ const FIXED_MOODS := {
 		"sky_horizon": Color(0.098039, 0.113725, 0.160784),
 		"ground_horizon": Color(0.082353, 0.094118, 0.129412),
 		"ground_bottom": Color(0.054902, 0.062745, 0.090196),
-		"sun_color": Color(1.000000, 0.945098, 0.847059),
-		"sun_energy": 0.40,
+		# 창밖은 밤이라 차갑게 둔다. 실내를 데우는 건 형광등·스탠드다.
+		"sun_color": Color(0.72, 0.80, 0.98),
+		"sun_energy": 0.22,
 		"sun_angle_deg": -70.0,
-		"ambient_color": Color(0.725490, 0.654902, 0.909804),
-		"ambient_energy": 0.55,
-		"fog_color": Color(0.130000, 0.140000, 0.210000),
-		"fog_density": 0.0045,
-		"hemi_sky_tint": Color(0.62, 0.70, 0.92),
-		"hemi_ground_tint": Color(0.58, 0.48, 0.56),
-		"exposure": 1.05,
-		"saturation": 1.24,
-		"contrast": 1.14,
+		# 실내 환경광은 하늘색이 아니라 **등불색**이다.
+		# 이걸 밤하늘 라벤더로 두는 바람에 로비도 사무실도 복도도 수영장처럼 새파랬다.
+		# 실내는 빛이 천장과 벽에 부딪혀 돌아다니고, 그 벽을 비추는 건 전등이다.
+		"ambient_color": Color(0.98, 0.89, 0.78),
+		"ambient_energy": 0.78,
+		"fog_color": Color(0.17, 0.16, 0.20),
+		"fog_density": 0.0030,
+		# 위(천장 반사)는 등불색, 아래(바닥 반사)는 살짝 가라앉힌 중간색.
+		"hemi_sky_tint": Color(0.95, 0.88, 0.78),
+		"hemi_ground_tint": Color(0.56, 0.52, 0.54),
+		"exposure": 1.12,
+		"saturation": 1.16,
+		"contrast": 1.10,
 		"fade_color": Color(0.06, 0.07, 0.11),
 	},
 }

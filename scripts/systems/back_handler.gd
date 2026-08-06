@@ -14,6 +14,7 @@ extends Node
 ## 대신 실행 중에 SceneTree 로 끈다. 이건 코드라서 갱신으로 전달된다.
 
 const CONFIRM_WINDOW := 2.5      # 이 안에 한 번 더 누르면 종료
+const D := preload("res://scripts/ui/design.gd")
 
 var _armed_at := -100.0
 var _toast: Label
@@ -114,10 +115,7 @@ func _build_toast() -> void:
 	var cl := CanvasLayer.new()
 	cl.layer = 60
 	add_child(cl)
-	_toast = Label.new()
-	_toast.add_theme_font_size_override("font_size", 28)
-	_toast.add_theme_color_override("font_color", Color(1, 0.96, 0.88))
-	_toast.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.10, 0.85))
+	_toast = D.label("", D.TEXT_M)
 	_toast.add_theme_constant_override("outline_size", 8)
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
