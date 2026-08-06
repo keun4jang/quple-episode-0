@@ -64,13 +64,25 @@ func _grab() -> void:
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	if _cam == null or _player == null:
 		return
-	# 지금 맵이 잡아 둔 각도를 그대로 출발점으로 삼는다.
-	# 이렇게 해야 이 기능을 켜도 첫 화면이 예전과 똑같다.
-	var off := _cam.global_position - _player.global_position
+	# 맵이 잡아 둔 "구도" 를 그대로 출발점으로 삼는다.
+	#
+	# 카메라 위치만 보고 플레이어를 보도록 각도를 다시 만들면 안 된다.
+	# 맵마다 카메라가 겨냥하는 곳이 다르다 — 사무실은 플레이어가 아니라 방을 잡고
+	# 있어서, 플레이어를 보게 강제했더니 시점이 위로 꺾이며 앞벽이 화면을 덮었다.
+	#
+	# 그래서 카메라가 실제로 보고 있는 방향에서 회전 중심을 역산한다.
+	# 그 시선 위에서 플레이어와 가장 가까운 점이 곧 맵이 잡은 중심이다.
+	var cpos := _cam.global_position
+	var fwd := -_cam.global_transform.basis.z
+	var to_player := _player.global_position - cpos
+	var along := maxf(to_player.dot(fwd), 1.0)
+	var pivot := cpos + fwd * along
+
+	_pivot_y = clampf(pivot.y - _player.global_position.y, -1.0, 4.0)
+	var off := cpos - pivot
 	dist = clampf(off.length(), DIST_MIN, DIST_MAX)
 	yaw = rad_to_deg(atan2(off.x, off.z))
 	pitch = rad_to_deg(asin(clampf(off.y / maxf(off.length(), 0.001), -1.0, 1.0)))
-	_pivot_y = clampf(off.y * 0.35, 0.8, 3.0)
 	_yaw = yaw
 	_pitch = pitch
 	_dist = dist
