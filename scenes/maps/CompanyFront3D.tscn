@@ -110,6 +110,7 @@ shape = SubResource("IS15")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.4)
 script = ExtResource("9_interact")
 prompt_text = "여기서 사진 찍기"
+locked = true
 show_indicator = false
 indicator_height = 1.4
 

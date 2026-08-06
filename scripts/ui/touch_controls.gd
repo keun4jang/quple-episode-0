@@ -29,6 +29,7 @@ var _buttons: Dictionary = {}     # 액션 이름 → Button
 var _avail: Dictionary = {}       # 액션 이름 → 지금 쓸 수 있는가
 var _label: Label                 # 조사 대상 이름
 var _recenter: Button             # 카메라를 원래 각도로
+var _settings_btn: Button         # 환경설정 열기
 var _refresh_t := 0.0
 
 
@@ -75,6 +76,7 @@ func _ready() -> void:
 	get_tree().process_frame.connect(_sync_key_guide, CONNECT_ONE_SHOT)
 	_make_target_label()
 	_make_recenter()
+	_make_settings()
 	# 터치가 한 번이라도 들어오면 그때부터 보여준다 (PC 에서는 계속 숨김)
 	set_process_input(true)
 	set_process(true)
@@ -148,6 +150,8 @@ func blocks_look(pos: Vector2) -> bool:
 		var b: Button = _buttons[a]
 		if b.get_global_rect().grow(10.0).has_point(pos):
 			return true
+	if _settings_btn != null and _settings_btn.get_global_rect().grow(10.0).has_point(pos):
+		return true
 	if _recenter != null and _recenter.get_global_rect().grow(10.0).has_point(pos):
 		return true
 	return false
@@ -196,15 +200,68 @@ func _make_recenter() -> void:
 	sb2.bg_color = Color(1, 1, 1, 0.85)
 	b.add_theme_stylebox_override("pressed", sb2)
 	b.add_theme_stylebox_override("hover", sb2)
-	b.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	b.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	b.position = Vector2(-166, 54)
+	b.anchor_left = 1.0; b.anchor_right = 1.0
+	b.anchor_top = 0.0;  b.anchor_bottom = 0.0
+	b.offset_left = -262.0; b.offset_right = -166.0
+	b.offset_top = 54.0;    b.offset_bottom = 150.0
 	b.pressed.connect(func():
 		var fl := get_tree().get_first_node_in_group("free_look")
 		if fl != null and fl.has_method("recenter"):
 			fl.recenter())
 	root.add_child(b)
 	_recenter = b
+
+
+## 게임 화면의 환경설정 버튼.
+##
+## 지금까지 게임 안에는 설정도, 나가는 길도 없었다. 메인화면에만 있었다.
+## 소리를 줄이려면 앱을 죽였다가 다시 켜야 했다.
+## 설정 창은 맵 씬에 없으므로 여기서 한 번 만들어 붙인다.
+func _make_settings() -> void:
+	var b := Button.new()
+	b.name = "SettingsBtn"
+	b.text = "설정"
+	b.custom_minimum_size = Vector2(96, 96)
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", 30)
+	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08))
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1, 0.78)
+	sb.set_corner_radius_all(48)
+	sb.set_border_width_all(2)
+	sb.border_color = Color(1, 1, 1, 0.5)
+	b.add_theme_stylebox_override("normal", sb)
+	var sb2 := sb.duplicate() as StyleBoxFlat
+	sb2.bg_color = Color(1, 1, 1, 0.95)
+	b.add_theme_stylebox_override("pressed", sb2)
+	b.add_theme_stylebox_override("hover", sb2)
+	# 오른쪽 위. preset + position 으로 잡으면 폭이 앵커 밖으로 삐져나가
+	# 화면 오른쪽이 잘린다 (버전 토스트가 같은 실수로 잘려 있었다).
+	# 오프셋을 직접 준다.
+	b.anchor_left = 1.0; b.anchor_right = 1.0
+	b.anchor_top = 0.0;  b.anchor_bottom = 0.0
+	b.offset_left = -148.0; b.offset_right = -52.0
+	b.offset_top = 54.0;    b.offset_bottom = 150.0
+	b.pressed.connect(_open_settings)
+	root.add_child(b)
+	_settings_btn = b
+
+
+## 설정 창을 찾아 연다. 맵 씬에는 없으므로 없으면 만들어 둔다.
+func _open_settings() -> void:
+	var sv := get_tree().get_first_node_in_group("settings_ui")
+	if sv == null:
+		var packed := load("res://scenes/ui/SettingsUI.tscn")
+		if packed == null:
+			return
+		sv = packed.instantiate()
+		var scene := get_tree().current_scene
+		if scene == null:
+			return
+		scene.add_child(sv)
+		await get_tree().process_frame
+	if sv.has_method("open"):
+		sv.open()
 
 
 ## 버튼에 쓸 짧은 동사. "쿼카전자로 들어가기" → "들어가기".

@@ -19,6 +19,45 @@ func _ready() -> void:
 	sfx.value_changed.connect(func(v): _apply("SFX", v); AudioManager.set_sfx_volume(v); _save())
 	close_btn.pressed.connect(close)
 	reset_btn.pressed.connect(_on_reset)
+	_add_home_button()
+
+
+## 게임 도중에는 여기서 메인화면으로 나갈 수 있어야 한다.
+##
+## 지금까지 게임에 들어가면 나오는 길이 없었다. 폰에는 Esc 가 없고,
+## 안드로이드 뒤로가기는 한 화면 뒤로만 간다. 앱을 죽이는 것 말고는
+## 메인화면으로 돌아갈 방법이 없었던 셈이다.
+## 메인화면에서 연 설정에는 이 버튼을 넣지 않는다 — 이미 거기다.
+func _add_home_button() -> void:
+	var body := close_btn.get_parent()
+	if body == null:
+		return
+	var scene := get_tree().current_scene
+	if scene != null and scene.scene_file_path.ends_with("MainMenu3D.tscn"):
+		return
+
+	var b := Button.new()
+	b.name = "HomeBtn"
+	b.text = "메인화면으로"
+	b.custom_minimum_size = close_btn.custom_minimum_size
+	b.add_theme_font_size_override("font_size",
+		close_btn.get_theme_font_size("font_size"))
+	for st in ["normal", "hover", "pressed"]:
+		var sb := close_btn.get_theme_stylebox(st)
+		if sb != null:
+			b.add_theme_stylebox_override(st, sb)
+	b.add_theme_color_override("font_color", close_btn.get_theme_color("font_color"))
+	b.pressed.connect(_go_home)
+	body.add_child(b)
+	body.move_child(b, close_btn.get_index())
+
+
+func _go_home() -> void:
+	# 나가기 전에 저장한다. 여기까지 온 걸 잃게 하면 안 된다.
+	if SaveManager.has_method("autosave") and get_tree().current_scene != null:
+		SaveManager.autosave(get_tree().current_scene.scene_file_path)
+	close()
+	SceneTransition.go_to("res://scenes/menu/MainMenu3D.tscn")
 
 func open() -> void:
 	_reset_armed = false

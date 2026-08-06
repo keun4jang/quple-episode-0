@@ -107,8 +107,8 @@ func _inject_poster_background() -> void:
 ## 오른쪽은 건드리지 않는다 — 거기는 캐릭터가 주인공이다.
 func _add_title_scrim(ctrl: Control) -> void:
 	var g := Gradient.new()
-	g.set_color(0, Color(0.06, 0.04, 0.14, 0.52))
-	g.set_color(1, Color(0.06, 0.04, 0.14, 0.0))
+	g.set_color(0, Color(0.14, 0.12, 0.08, 0.50))
+	g.set_color(1, Color(0.14, 0.12, 0.08, 0.0))
 	var gt := GradientTexture2D.new()
 	gt.gradient = g
 	gt.fill_from = Vector2(0.0, 0.5)

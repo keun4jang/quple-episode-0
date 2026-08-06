@@ -342,6 +342,11 @@ func _setup_photo_stage() -> void:
 func _set_photo_stage_visible(v: bool) -> void:
 	if _photo_ring: _photo_ring.visible = v
 	for sp in _photo_sparks: sp.visible = v
+	# 사진 지점도 같이 열고 닫는다. 무대만 감추고 지점을 열어 두면
+	# 보이지도 않는 곳에서 "사진 찍기" 버튼만 뜬다.
+	var spot := get_node_or_null("PhotoSpot")
+	if spot != null and ("locked" in spot):
+		spot.locked = not v
 
 ## 합류한 애인을 회사 앞에 세운다
 func _spawn_partner() -> void:
@@ -350,9 +355,16 @@ func _spawn_partner() -> void:
 		partner.set_emotion("happy")
 	_set_photo_stage_visible(true)
 
-## F 로 첫 사진 찍기
+## 액션 버튼으로 첫 사진 찍기.
+##
+## 예전에는 비어 있었다. 그래서 버튼에 "사진 찍기" 라고 적혀 있는데 눌러도
+## 아무 일도 안 일어났다. 같은 조건을 쓰는 photo 키와 이어 준다.
 func _try_photo() -> void:
-	pass
+	if _photo_done:
+		return
+	if Episode0State.current_state < Episode0State.State.FIRST_PHOTO:
+		return
+	_take_photo()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("photo"): return
