@@ -26,7 +26,6 @@ func _ready() -> void:
 	$UILayer/Control/SmallBtnRow/QuitBtn.pressed.connect(_on_quit)
 	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(
 		func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
-	_fix_subtitle_overlap()
 	_add_credits_button()
 	AudioManager.play_bgm("arirang")
 
@@ -44,10 +43,12 @@ func _process(delta: float) -> void:
 			var mat = sm.material_override as StandardMaterial3D
 			if mat:
 				mat.emission_energy_multiplier = 3.5 + sin(_t * _star_phases[i] + i) * 2.2
-	# 로고 펄스
-	var logo = get_node_or_null("UILayer/Control/Logo")
+	# 로고 숨쉬기. 라벨 7겹으로 쌓던 가짜 입체를 그림 한 장으로 바꿨다.
+	var logo = get_node_or_null("UILayer/Control/LogoImage")
 	if logo:
-		logo.modulate.a = 0.97 + sin(_t * 1.8) * 0.03
+		var k: float = 1.0 + sin(_t * 1.4) * 0.012
+		logo.scale = Vector2(k, k)
+		logo.pivot_offset = logo.size * 0.5
 
 # ─── 포스터 배경 주입 ───
 func _inject_poster_background() -> void:
@@ -337,14 +338,6 @@ func _build_bg_stars() -> void:
 		_star_meshes.append(sm); _star_phases.append(0.8 + fmod(float(i) * 0.61, 3.0))
 
 # ── UI 장식 (반짝이 레이블) ──
-## 부제가 두 개 겹쳐 찍히고 있었다. 아래로 옮겨도 이번엔 시작 버튼과 부딪힌다.
-## 로고 아래는 한 줄이면 충분하다 — 둘 다 같은 말을 하고 있었다.
-func _fix_subtitle_overlap() -> void:
-	var copy := get_node_or_null("UILayer/Control/CopyLabel")
-	if copy != null:
-		copy.visible = false
-
-
 ## 만든사람. 게임을 만든 도구와 저작권 표시를 남기는 자리이기도 하다 —
 ## 폰트와 곡이 전부 자유 라이선스라 출처를 밝혀야 한다.
 func _add_credits_button() -> void:
