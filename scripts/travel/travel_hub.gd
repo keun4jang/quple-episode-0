@@ -262,7 +262,7 @@ func _make_dest_card(d: Dictionary) -> Button:
 	if not unlocked:
 		b.text = "🔒  %s" % TravelState.unlock_hint(d.id)
 		b.add_theme_font_size_override("font_size", D.TEXT_S)
-		b.add_theme_color_override("font_disabled_color", Color(0.30, 0.26, 0.24, 0.75))
+		b.add_theme_color_override("font_disabled_color", Color(0.86, 0.84, 0.72, 0.80))
 		b.disabled = true
 		return b
 
@@ -286,14 +286,14 @@ func _make_dest_card(d: Dictionary) -> Button:
 	var name_lb := Label.new()
 	name_lb.text = "%s  %s" % [d.emoji, d.name]
 	name_lb.add_theme_font_size_override("font_size", D.TEXT_M)
-	name_lb.add_theme_color_override("font_color", Color(0.16, 0.11, 0.08))
+	name_lb.add_theme_color_override("font_color", D.CREAM)
 	name_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	left.add_child(name_lb)
 
 	var tag_lb := Label.new()
 	tag_lb.text = str(d.tagline)
 	tag_lb.add_theme_font_size_override("font_size", D.TEXT_S)
-	tag_lb.add_theme_color_override("font_color", Color(0.30, 0.24, 0.20, 0.85))
+	tag_lb.add_theme_color_override("font_color", Color(0.90, 0.88, 0.76, 0.88))
 	tag_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	left.add_child(tag_lb)
 
@@ -306,7 +306,7 @@ func _make_dest_card(d: Dictionary) -> Button:
 	var dur_lb := Label.new()
 	dur_lb.text = _format_duration(TravelState.duration_of(d))
 	dur_lb.add_theme_font_size_override("font_size", D.TEXT_S)
-	dur_lb.add_theme_color_override("font_color", Color(0.22, 0.16, 0.12))
+	dur_lb.add_theme_color_override("font_color", D.CREAM)
 	dur_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	dur_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right.add_child(dur_lb)
@@ -315,7 +315,7 @@ func _make_dest_card(d: Dictionary) -> Button:
 		var v_lb := Label.new()
 		v_lb.text = "%d번 다녀옴" % visits
 		v_lb.add_theme_font_size_override("font_size", D.TEXT_S)
-		v_lb.add_theme_color_override("font_color", Color(0.32, 0.26, 0.22, 0.8))
+		v_lb.add_theme_color_override("font_color", Color(0.88, 0.86, 0.74, 0.82))
 		v_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		v_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		right.add_child(v_lb)
@@ -1025,13 +1025,22 @@ func _toast(msg: String) -> void:
 	tw.tween_property(l, "modulate", Color(1, 1, 1, 0), 0.5)
 	tw.tween_callback(l.queue_free)
 
+## 목적지 카드의 바탕.
+##
+## 예전에는 대륙 색(잔디 초록·분홍)을 카드 전체에 칠했다. 채도 높은 색이
+## 큰 면적을 먹으니 배경·필터칩·하단 탭 어느 것과도 안 맞았고, 그 위에 얹은
+## 작은 글자는 대비 2.6:1 로 읽히지도 않았다.
+##
+## 바탕은 팔레트 안(어두운 카키)으로 낮추고 글자를 크림으로 뒤집는다.
+## 대륙 색은 **왼쪽 띠**로만 남긴다 — 구분에는 그만큼이면 충분하다.
 func _card_style(tint: Color, bright: bool) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	var c := tint
-	sb.bg_color = Color(c.r, c.g, c.b, 0.95 if bright else 0.82)
+	var base := Color(0.26, 0.25, 0.18)
+	sb.bg_color = base.lightened(0.10) if bright else base
 	sb.set_corner_radius_all(20)
 	sb.set_border_width_all(3)
-	sb.border_color = Color(1, 1, 1, 0.55 if bright else 0.32)
+	sb.border_color = Color(tint.r, tint.g, tint.b, 0.85 if bright else 0.55)
+	sb.border_width_left = 14
 	sb.set_content_margin_all(12)
 	sb.shadow_color = Color(0.05, 0.03, 0.15, 0.45)
 	sb.shadow_size = 14

@@ -38,8 +38,27 @@ func _process(delta: float) -> void:
 		_cam = get_viewport().get_camera_3d()
 	if _player == null or not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("player") as Node3D
-	_target = _pick_target()
+	_target = null if _blocked() else _pick_target()
 	_draw.queue_redraw()
+
+
+## 길 안내를 접어야 할 때.
+##
+## 마커는 3D 위에 그려지므로 그 위에 뜨는 것들과 자리를 다툰다. 실제로 설정
+## 창의 슬라이더 한가운데에 "3m" 화살표가 찍혀 손잡이처럼 보였고, 복도에서는
+## 대사 위에 겹쳐 "문 너머에서3m목소리가 새" 로 읽혔다.
+##
+## 레이어를 조절해 봐야 소용없다 — 겹치는 것 자체가 문제다. 설정 창이 떠 있거나
+## 대사를 읽는 중이면 어차피 걷지 않는다. 그때는 길 안내가 필요 없다.
+func _blocked() -> bool:
+	var sv := get_tree().get_first_node_in_group("settings_ui")
+	if sv != null and ("visible" in sv) and sv.visible:
+		return true
+	for g in ["dialogue_box", "album_ui", "wind_note"]:
+		var n := get_tree().get_first_node_in_group(g)
+		if n != null and ("visible" in n) and n.visible:
+			return true
+	return false
 
 
 ## 아직 안 쓴 상호작용 지점 중 가장 가까운 것.

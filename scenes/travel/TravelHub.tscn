@@ -54,9 +54,9 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 150.0
-offset_top = 18.0
+offset_top = 10.0
 offset_right = -150.0
-offset_bottom = -16.0
+offset_bottom = -40.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
@@ -108,25 +108,25 @@ alignment = 1
 theme_override_constants/separation = 14
 
 [node name="AlbumBtn" type="Button" parent="Safe/Footer"]
-custom_minimum_size = Vector2(190, 44)
+custom_minimum_size = Vector2(190, 88)
 layout_mode = 2
 text = "앨범"
 theme_override_font_sizes/font_size = 30
 
 [node name="StatsBtn" type="Button" parent="Safe/Footer"]
-custom_minimum_size = Vector2(190, 44)
+custom_minimum_size = Vector2(190, 88)
 layout_mode = 2
 text = "여행 기록"
 theme_override_font_sizes/font_size = 30
 
 [node name="RoomBtn" type="Button" parent="Safe/Footer"]
-custom_minimum_size = Vector2(190, 44)
+custom_minimum_size = Vector2(190, 88)
 layout_mode = 2
 text = "기념품 방"
 theme_override_font_sizes/font_size = 30
 
 [node name="HomeBtn" type="Button" parent="Safe/Footer"]
-custom_minimum_size = Vector2(190, 44)
+custom_minimum_size = Vector2(190, 88)
 layout_mode = 2
 text = "홈"
 theme_override_font_sizes/font_size = 30

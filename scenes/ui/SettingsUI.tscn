@@ -1,6 +1,42 @@
-[gd_scene load_steps=3 format=3 uid="uid://bsettingsui01"]
+[gd_scene load_steps=6 format=3 uid="uid://bsettingsui01"]
 
 [ext_resource type="Script" path="res://scripts/ui/settings_ui.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="SetBtn"]
+bg_color = Color(0.30, 0.29, 0.21, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1.0, 0.88, 0.62, 0.42)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+
+[sub_resource type="StyleBoxFlat" id="SetBtnHover"]
+bg_color = Color(0.40, 0.39, 0.27, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1.0, 0.92, 0.70, 0.70)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+
+[sub_resource type="StyleBoxFlat" id="SetBtnDanger"]
+bg_color = Color(0.30, 0.20, 0.14, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.808, 0.537, 0.275, 0.85)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
 
 [sub_resource type="StyleBoxFlat" id="S1"]
 bg_color = Color(0.10, 0.08, 0.22, 0.97)
@@ -47,9 +83,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -400.0
-offset_top = -320.0
+offset_top = -286.0
 offset_right = 400.0
-offset_bottom = 320.0
+offset_bottom = 286.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("S1")
@@ -111,6 +147,10 @@ custom_minimum_size = Vector2(0, 88)
 layout_mode = 2
 text = "기록 초기화"
 theme_override_font_sizes/font_size = 42
+theme_override_colors/font_color = Color(0.992, 0.984, 0.831, 1)
+theme_override_styles/normal = SubResource("SetBtnDanger")
+theme_override_styles/hover = SubResource("SetBtnHover")
+theme_override_styles/pressed = SubResource("SetBtnHover")
 
 [node name="ResetHint" type="Label" parent="Root/Panel/Margin/Body"]
 layout_mode = 2
@@ -124,3 +164,7 @@ custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 text = "닫기"
 theme_override_font_sizes/font_size = 42
+theme_override_colors/font_color = Color(0.992, 0.984, 0.831, 1)
+theme_override_styles/normal = SubResource("SetBtn")
+theme_override_styles/hover = SubResource("SetBtnHover")
+theme_override_styles/pressed = SubResource("SetBtnHover")

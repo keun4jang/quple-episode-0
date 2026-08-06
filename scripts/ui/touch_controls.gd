@@ -102,7 +102,7 @@ func _refresh_availability() -> void:
 			continue
 		_avail[action] = can
 		var b: Button = _buttons[action]
-		b.modulate = Color(1, 1, 1, 1) if can else Color(1, 1, 1, D.DISABLED_ALPHA)
+		b.modulate = Color(1, 1, 1, 1) if can else Color(1, 1, 1, 0.62)
 		b.disabled = not can
 		if can:
 			# 막 쓸 수 있게 된 버튼은 한 번 부풀려 알려준다
@@ -200,10 +200,10 @@ func _make_recenter() -> void:
 	sb2.bg_color = Color(1, 1, 1, 0.85)
 	b.add_theme_stylebox_override("pressed", sb2)
 	b.add_theme_stylebox_override("hover", sb2)
-	b.anchor_left = 1.0; b.anchor_right = 1.0
+	b.anchor_left = 0.0; b.anchor_right = 0.0
 	b.anchor_top = 0.0;  b.anchor_bottom = 0.0
-	b.offset_left = -262.0; b.offset_right = -166.0
-	b.offset_top = 54.0;    b.offset_bottom = 150.0
+	b.offset_left = 48.0;   b.offset_right = 144.0
+	b.offset_top = 124.0;   b.offset_bottom = 220.0
 	b.pressed.connect(func():
 		var fl := get_tree().get_first_node_in_group("free_look")
 		if fl != null and fl.has_method("recenter"):
@@ -238,10 +238,10 @@ func _make_settings() -> void:
 	# 오른쪽 위. preset + position 으로 잡으면 폭이 앵커 밖으로 삐져나가
 	# 화면 오른쪽이 잘린다 (버전 토스트가 같은 실수로 잘려 있었다).
 	# 오프셋을 직접 준다.
-	b.anchor_left = 1.0; b.anchor_right = 1.0
+	b.anchor_left = 0.0; b.anchor_right = 0.0
 	b.anchor_top = 0.0;  b.anchor_bottom = 0.0
-	b.offset_left = -148.0; b.offset_right = -52.0
-	b.offset_top = 54.0;    b.offset_bottom = 150.0
+	b.offset_left = 160.0;  b.offset_right = 256.0
+	b.offset_top = 124.0;   b.offset_bottom = 220.0
 	b.pressed.connect(_open_settings)
 	root.add_child(b)
 	_settings_btn = b
@@ -394,7 +394,7 @@ func _release_move() -> void:
 func _release_stick() -> void:
 	_stick_touch = -1
 	_release_move()
-	stick_base.modulate.a = 0.18
+	stick_base.modulate.a = 0.34
 	stick_knob.position = Vector2(STICK_RADIUS - KNOB_RADIUS, STICK_RADIUS - KNOB_RADIUS)
 
 func _exit_tree() -> void:
@@ -411,7 +411,7 @@ func _exit_tree() -> void:
 
 func _style_stick() -> void:
 	stick_base.texture = _ring(int(STICK_RADIUS * 2), Color(1, 0.95, 0.82))
-	stick_base.modulate.a = 0.18
+	stick_base.modulate.a = 0.34
 	stick_knob.texture = _disc(int(KNOB_RADIUS * 2), Color(1, 0.88, 0.60))
 	stick_knob.modulate.a = 0.45
 	stick_knob.position = Vector2(STICK_RADIUS - KNOB_RADIUS, STICK_RADIUS - KNOB_RADIUS)
@@ -453,9 +453,10 @@ func _action_button(action: String, label: String, tint: Color, size_px: int) ->
 	# 지금 못 쓰는 버튼도 같은 동그라미여야 한다. 이걸 안 주면 기본 테마의
 	# 네모 패널이 나와서 "버튼이 깨졌다" 로 보인다.
 	var sb3 := D.round_button(tint, size_px, 0.30)
-	sb3.border_color = Color(1, 1, 1, 0.22)
+	sb3.border_color = Color(1, 1, 1, 0.42)
 	b.add_theme_stylebox_override("disabled", sb3)
-	b.add_theme_color_override("font_disabled_color", Color(0.18, 0.12, 0.08, 0.55))
+	# 어두운 배경 위에서도 형태가 남게 밝은 크림으로. 어둡게 흐리면 버그처럼 보인다.
+	b.add_theme_color_override("font_disabled_color", Color(0.99, 0.97, 0.88, 0.92))
 	# 버튼을 누르고 있는 동안 그 키가 눌린 것으로 만든다
 	b.button_down.connect(func():
 		Input.action_press(action)
@@ -477,9 +478,9 @@ func _ring(size: int, col: Color) -> ImageTexture:
 			var d := Vector2(float(x) - c, float(y) - c).length() / c
 			var a := 0.0
 			if d < 1.0:
-				a = 0.10                       # 안쪽은 아주 옅게
+				a = 0.03                       # 안쪽은 거의 비운다
 				if d > 0.86:
-					a = 0.85 * (1.0 - (d - 0.86) / 0.14)   # 테두리
+					a = 0.95 * (1.0 - (d - 0.86) / 0.14)   # 테두리
 			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
 	return ImageTexture.create_from_image(img)
 

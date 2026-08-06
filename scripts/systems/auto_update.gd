@@ -109,8 +109,9 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	# "쿼플 v0.1.2…" 가 잘린 채 찍혀 있던 게 이것이다.
 	l.anchor_left = 1.0; l.anchor_right = 1.0
 	l.anchor_top = 0.0;  l.anchor_bottom = 0.0
-	l.offset_left = -560.0; l.offset_right = -28.0
-	l.offset_top = 22.0;    l.offset_bottom = 140.0
+	# 가로모드 폰은 오른쪽 위가 카메라 홀·둥근 모서리다. 안전영역 안으로 들인다.
+	l.offset_left = -620.0; l.offset_right = -72.0
+	l.offset_top = 40.0;    l.offset_bottom = 158.0
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(l)
 	var tw := create_tween()

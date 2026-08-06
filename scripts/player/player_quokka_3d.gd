@@ -241,9 +241,13 @@ func _on_area_exited(area: Area3D) -> void:
 
 func _build_meshes() -> void:
 	_build_quokka(self, {
-		"body": "#F2E4C6",   # 크림 니트 스웨터(몸통)
+		# 그림 속 쿼카는 스웨터를 입지 않았다. 온몸이 갈색 털이고 배만 밝다.
+		# 예전엔 몸통 전체가 크림이라 기저귀를 찬 것처럼 보였고, 소매가 몸통과
+		# 같은 색이라 팔이 실루엣에서 통째로 사라졌다.
+		"body": "#B8784F",   # 갈색 털(몸통)
 		"fur": "#B8784F",    # 갈색 털(머리/팔다리/귀)
-		"sleeve": "#F2E4C6", # 스웨터 소매
+		"belly": "#F2E4C6",  # 크림 배
+		"sleeve": "#A96C45", # 팔(몸통보다 한 단계 어둡게 — 옆 실루엣이 살아난다)
 		"pack": "#4A7DAD",   # 배낭
 		"mat": "#6FB8C8",    # 돌돌 만 매트
 	})
@@ -256,16 +260,10 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 	_set_sphere($BodyPivot/BodyMesh, 0.33, 0.52, c.body)
 	$BodyPivot/BodyMesh.position = Vector3(0, -0.02, 0)
 	$BodyPivot/BodyMesh.scale = Vector3(1.0, 1.0, 0.95)
-	# 스웨터 짜임 칼라(목)
-	var collar = MeshInstance3D.new()
-	_set_sphere_mi(collar, 0.22, 0.16, _shade(c.body, -0.07))
-	collar.position = Vector3(0, 0.22, 0.02)
-	collar.scale = Vector3(1.0, 0.5, 1.0)
-	$BodyPivot.add_child(collar)
-	# 가슴 하이라이트(밝은 배)
-	_set_sphere($BodyPivot/BellyMesh, 0.2, 0.2, _shade(c.body, 0.05))
-	$BodyPivot/BellyMesh.position = Vector3(0, 0.02, 0.17)
-	$BodyPivot/BellyMesh.scale = Vector3(0.85, 0.95, 0.5)
+	# 크림색 배. 예전엔 몸통과 색차가 0.05 뿐이라 없는 것과 같았다.
+	_set_sphere($BodyPivot/BellyMesh, 0.21, 0.21, c.belly)
+	$BodyPivot/BellyMesh.position = Vector3(0, 0.0, 0.21)
+	$BodyPivot/BellyMesh.scale = Vector3(0.82, 0.95, 0.65)
 
 	# ── 머리 : 크고 둥글게, 몸에 자연스럽게 얹힘(목 없음) ──
 	$BodyPivot/HeadPivot.position = Vector3(0, 0.42, 0)
@@ -275,17 +273,21 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 	# 머리 상단 털 뭉치 비활성 (메뉴에서 안테나처럼 보이는 문제 방지)
 
 	# ── 귀 : 머리 위쪽 옆에 붙임 + 분홍 안쪽 ──
-	$BodyPivot/HeadPivot/LeftEarPivot.position = Vector3(-0.19, 0.22, 0.06)
-	$BodyPivot/HeadPivot/RightEarPivot.position = Vector3(0.19, 0.22, 0.06)
+	# 귀를 바깥으로 눕힌다. 똑바로 세우면 머리 실루엣이 하트가 된다.
+	$BodyPivot/HeadPivot/LeftEarPivot.position = Vector3(-0.19, 0.22, 0.02)
+	$BodyPivot/HeadPivot/RightEarPivot.position = Vector3(0.19, 0.22, 0.02)
+	$BodyPivot/HeadPivot/LeftEarPivot.rotation_degrees = Vector3(0, 0, 20)
+	$BodyPivot/HeadPivot/RightEarPivot.rotation_degrees = Vector3(0, 0, -20)
 	_set_sphere($BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh, 0.12, 0.13, fur)
 	_set_sphere($BodyPivot/HeadPivot/RightEarPivot/RightEarMesh, 0.12, 0.13, fur)
 	$BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh.scale = Vector3(0.9, 1.0, 0.7)
 	$BodyPivot/HeadPivot/RightEarPivot/RightEarMesh.scale = Vector3(0.9, 1.0, 0.7)
-	_child_sphere($BodyPivot/HeadPivot/LeftEarPivot, 0.07, 0.08, "#F2A6AE", Vector3(0, 0.01, 0.05), Vector3(0.8, 1.0, 0.6))
-	_child_sphere($BodyPivot/HeadPivot/RightEarPivot, 0.07, 0.08, "#F2A6AE", Vector3(0, 0.01, 0.05), Vector3(0.8, 1.0, 0.6))
+	# 분홍 안쪽은 살짝만 보이게. z 로 앞에 내밀면 눈처럼 읽힌다.
+	_child_sphere($BodyPivot/HeadPivot/LeftEarPivot, 0.045, 0.05, "#F2A6AE", Vector3(0, 0.01, 0.012), Vector3(0.8, 1.0, 0.6))
+	_child_sphere($BodyPivot/HeadPivot/RightEarPivot, 0.045, 0.05, "#F2A6AE", Vector3(0, 0.01, 0.012), Vector3(0.8, 1.0, 0.6))
 	# 귀 털 뭉치
-	_add_fur_tufts($BodyPivot/HeadPivot/LeftEarPivot, 0.11, fur, 8, Vector3.ZERO)
-	_add_fur_tufts($BodyPivot/HeadPivot/RightEarPivot, 0.11, fur, 8, Vector3.ZERO)
+	_add_fur_tufts($BodyPivot/HeadPivot/LeftEarPivot, 0.11, fur, 4, Vector3.ZERO)
+	_add_fur_tufts($BodyPivot/HeadPivot/RightEarPivot, 0.11, fur, 4, Vector3.ZERO)
 
 	# ── 주둥이(밝은 털) : 얼굴 아래쪽 둥근 입주변 ──
 	var muzzle = MeshInstance3D.new()
@@ -294,33 +296,22 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 	muzzle.scale = Vector3(1.25, 0.85, 0.8)
 	$BodyPivot/HeadPivot.add_child(muzzle)
 
-	# ── 눈 : 흰자 + 홍채(갈색 링) + 동공 + 하이라이트 ──
-	# 흰자
-	var left_white = MeshInstance3D.new()
-	_set_sphere_mi(left_white, 0.068, 0.082, "#FAFAFA")
-	left_white.position = Vector3(-0.14, 0.07, 0.290)
-	$BodyPivot/HeadPivot.add_child(left_white)
-	var right_white = MeshInstance3D.new()
-	_set_sphere_mi(right_white, 0.068, 0.082, "#FAFAFA")
-	right_white.position = Vector3(0.14, 0.07, 0.290)
-	$BodyPivot/HeadPivot.add_child(right_white)
-	# 홍채(갈색 링 - 흰자와 동공 사이)
-	var left_iris = MeshInstance3D.new()
-	_set_sphere_mi(left_iris, 0.057, 0.068, "#6B3A2A")
-	left_iris.position = Vector3(-0.14, 0.07, 0.296)
-	$BodyPivot/HeadPivot.add_child(left_iris)
-	var right_iris = MeshInstance3D.new()
-	_set_sphere_mi(right_iris, 0.057, 0.068, "#6B3A2A")
-	right_iris.position = Vector3(0.14, 0.07, 0.296)
-	$BodyPivot/HeadPivot.add_child(right_iris)
-	# 동공 (기존 LeftEyeMesh/RightEyeMesh 재사용, 반경 약간 키움)
-	_set_sphere($BodyPivot/HeadPivot/LeftEyeMesh, 0.065, 0.078, "#2A211C")
-	_set_sphere($BodyPivot/HeadPivot/RightEyeMesh, 0.065, 0.078, "#2A211C")
-	$BodyPivot/HeadPivot/LeftEyeMesh.position = Vector3(-0.14, 0.07, 0.295)
-	$BodyPivot/HeadPivot/RightEyeMesh.position = Vector3(0.14, 0.07, 0.295)
-	# 하이라이트
-	_left_eye_hl = _child_sphere($BodyPivot/HeadPivot, 0.02, 0.024, "#FFFFFF", Vector3(-0.155, 0.095, 0.33), Vector3.ONE)
-	_right_eye_hl = _child_sphere($BodyPivot/HeadPivot, 0.02, 0.024, "#FFFFFF", Vector3(0.125, 0.095, 0.33), Vector3.ONE)
+	# ── 눈 : 검은 눈 하나 + 하이라이트 둘 ──
+	#
+	# 예전엔 흰자·홍채·동공 구 세 개를 5mm 간격으로 겹쳐 놨다. 동공(0.065)이
+	# 흰자(0.068)와 거의 같은 크기라 흰자가 위쪽 초승달로만 남았고, 그래서
+	# 눈이 반쯤 감긴 채 아래를 보는 표정이 됐다. 화면에서 눈은 6px 이다 —
+	# 그 크기에 구 세 개는 절대 안 읽히고 오차만 만든다.
+	# 그림이 쓰는 구성 그대로 간다: 큰 검은 눈 + 하이라이트 두 점.
+	_set_sphere($BodyPivot/HeadPivot/LeftEyeMesh, 0.078, 0.094, "#2A211C")
+	_set_sphere($BodyPivot/HeadPivot/RightEyeMesh, 0.078, 0.094, "#2A211C")
+	$BodyPivot/HeadPivot/LeftEyeMesh.position = Vector3(-0.14, 0.07, 0.285)
+	$BodyPivot/HeadPivot/RightEyeMesh.position = Vector3(0.14, 0.07, 0.285)
+	# 큰 하이라이트(위 바깥) + 작은 하이라이트(아래 안쪽)
+	_left_eye_hl = _child_sphere($BodyPivot/HeadPivot, 0.026, 0.030, "#FFFFFF", Vector3(-0.165, 0.105, 0.335), Vector3.ONE)
+	_right_eye_hl = _child_sphere($BodyPivot/HeadPivot, 0.026, 0.030, "#FFFFFF", Vector3(0.115, 0.105, 0.335), Vector3.ONE)
+	_child_sphere($BodyPivot/HeadPivot, 0.013, 0.015, "#FFFFFF", Vector3(-0.108, 0.030, 0.330), Vector3.ONE)
+	_child_sphere($BodyPivot/HeadPivot, 0.013, 0.015, "#FFFFFF", Vector3(0.172, 0.030, 0.330), Vector3.ONE)
 
 	# ── 코 ──
 	_set_sphere($BodyPivot/HeadPivot/NoseMesh, 0.034, 0.04, "#3A2418")
@@ -371,6 +362,8 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 	# ── 몸통 앞면 털 뭉치 (앞쪽 반구, z > 0 위치만) ──
 	_add_fur_tufts_body($BodyPivot, 0.33, fur, 14)
 
+	_build_gear()
+
 	# ── 배낭 + 돌돌 만 매트 (등 뒤) ──
 	if $BodyPivot.has_node("BackpackPivot"):
 		$BodyPivot/BackpackPivot.position = Vector3(0, 0.08, -0.30)
@@ -382,6 +375,83 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 		matroll.position = Vector3(0, 0.26, 0)
 		matroll.rotation_degrees = Vector3(0, 0, 90)
 		$BodyPivot/BackpackPivot.add_child(matroll)
+
+## 리더를 리더로 알아보게 하는 것들 — 초록 모자와 목에 건 카메라.
+##
+## 그림 속 리더는 행성 배지가 달린 초록 캡을 쓰고 카메라를 목에 걸고 있다.
+## 3D 에는 등 뒤 배낭 하나뿐이었는데, 게임 카메라는 캐릭터를 뒤 위에서
+## 내려다보므로 배낭은 몸에 가려 어느 캡처에도 안 보였다.
+## 화면에서 캐릭터는 높이 100px 남짓이라, 알아보는 건 색이 아니라 **윤곽**이다.
+## 모자는 윤곽 위쪽을, 카메라는 가슴 쪽을 튀어나오게 만든다.
+func _build_gear() -> void:
+	var head := $BodyPivot/HeadPivot
+
+	# 모자 — 머리통(크라운) + 앞 챙
+	var crown := MeshInstance3D.new()
+	var cm := SphereMesh.new(); cm.radius = 0.255; cm.height = 0.30
+	crown.mesh = cm
+	var cmat := StandardMaterial3D.new()
+	cmat.albedo_color = Color("#5E8C52"); cmat.roughness = 0.85
+	crown.material_override = cmat
+	crown.position = Vector3(0, 0.255, -0.015)
+	crown.scale = Vector3(1.0, 0.66, 1.0)
+	head.add_child(crown)
+
+	# 챙은 크라운에 파묻혀 앞으로만 나오게 한다. 따로 떨어뜨리면
+	# 초록 원반 두 장이 겹친 것처럼 보인다.
+	var brim := MeshInstance3D.new()
+	var bm := SphereMesh.new(); bm.radius = 0.135; bm.height = 0.14
+	brim.mesh = bm
+	brim.material_override = cmat
+	brim.position = Vector3(0, 0.185, 0.20)
+	brim.scale = Vector3(0.82, 0.24, 1.55)
+	head.add_child(brim)
+
+	# 행성 배지
+	var badge := _child_sphere(head, 0.045, 0.050, "#8FC4E8", Vector3(0, 0.285, 0.165), Vector3.ONE)
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new(); tm.inner_radius = 0.062; tm.outer_radius = 0.086
+	ring.mesh = tm
+	var rmat2 := StandardMaterial3D.new()
+	rmat2.albedo_color = Color("#E8C87A"); rmat2.roughness = 0.7
+	ring.material_override = rmat2
+	ring.position = badge.position
+	ring.rotation_degrees = Vector3(72, 0, 18)
+	head.add_child(ring)
+
+	# 카메라 — 몸통 + 렌즈 + 어깨끈
+	var body_p := $BodyPivot
+	var cam_body := MeshInstance3D.new()
+	var cbm := BoxMesh.new(); cbm.size = Vector3(0.15, 0.10, 0.06)
+	cam_body.mesh = cbm
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color("#3A322C"); dark.roughness = 0.6
+	cam_body.material_override = dark
+	cam_body.position = Vector3(0, 0.10, 0.285)
+	body_p.add_child(cam_body)
+
+	var lens := MeshInstance3D.new()
+	var lm := CylinderMesh.new()
+	lm.top_radius = 0.038; lm.bottom_radius = 0.042; lm.height = 0.05
+	lens.mesh = lm
+	var lmat := StandardMaterial3D.new()
+	lmat.albedo_color = Color("#6B6259"); lmat.roughness = 0.35
+	lens.material_override = lmat
+	lens.position = Vector3(0, 0.10, 0.325)
+	lens.rotation_degrees = Vector3(90, 0, 0)
+	body_p.add_child(lens)
+
+	var strap_mat := StandardMaterial3D.new()
+	strap_mat.albedo_color = Color("#8A5A3A"); strap_mat.roughness = 0.9
+	for sx in [-1.0, 1.0]:
+		var strap := MeshInstance3D.new()
+		var sm2 := BoxMesh.new(); sm2.size = Vector3(0.026, 0.17, 0.018)
+		strap.mesh = sm2
+		strap.material_override = strap_mat
+		strap.position = Vector3(sx * 0.085, 0.205, 0.248)
+		strap.rotation_degrees = Vector3(0, 0, sx * 26.0)
+		body_p.add_child(strap)
+
 
 # 구 표면에 털 뭉치 스피어를 구면 피보나치로 균일하게 배치
 func _add_fur_tufts(parent: Node3D, surface_r: float, fur_hex: String, count: int, center_offset: Vector3) -> void:
@@ -395,10 +465,10 @@ func _add_fur_tufts(parent: Node3D, surface_r: float, fur_hex: String, count: in
 		var theta = golden_angle * float(i)
 		var dir = Vector3(cos(theta) * radius_at_y, y, sin(theta) * radius_at_y)
 		# 표면 위치 (살짝 돌출)
-		var tuft_r = randf_range(0.011, 0.020)
+		var tuft_r = 0.026 + fmod(sin(float(i) * 12.9898) * 43758.5453, 1.0) * 0.012
 		var pos = center_offset + dir * (surface_r + tuft_r * 0.5)
 		# 색상 무작위 밝기 변화 ±0.12
-		var shade_amt = randf_range(-0.12, 0.12)
+		var shade_amt = fmod(sin(float(i) * 78.233) * 43758.5453, 1.0) * 0.10 - 0.05
 		var tuft_col: Color
 		if shade_amt >= 0.0:
 			tuft_col = base_col.lightened(shade_amt)
@@ -433,9 +503,9 @@ func _add_fur_tufts_body(parent: Node3D, surface_r: float, fur_hex: String, coun
 		# 앞쪽 반구 (z > 0.1) 이고 위쪽 절반 (y > -0.2)만
 		if dir.z < 0.1 or dir.y < -0.2:
 			continue
-		var tuft_r = randf_range(0.011, 0.020)
+		var tuft_r = 0.026 + fmod(sin(float(attempt) * 12.9898) * 43758.5453, 1.0) * 0.012
 		var pos = dir * (surface_r + tuft_r * 0.5)
-		var shade_amt = randf_range(-0.12, 0.12)
+		var shade_amt = fmod(sin(float(attempt) * 78.233) * 43758.5453, 1.0) * 0.10 - 0.05
 		var tuft_col: Color
 		if shade_amt >= 0.0:
 			tuft_col = base_col.lightened(shade_amt)

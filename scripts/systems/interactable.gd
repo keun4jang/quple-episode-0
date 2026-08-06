@@ -34,7 +34,19 @@ func _ready() -> void:
 	body_exited.connect(_on_body_exited)
 	if show_indicator:
 		_build_indicator()
-		_build_floor_ring()
+		if _wants_floor_ring():
+			_build_floor_ring()
+
+
+## 바닥 원을 그릴 자리인가.
+##
+## 처음엔 표시가 있는 지점마다 그렸더니 사무실이 엉망이 됐다. 방 전체를 덮는
+## 트리거는 지름 6m 짜리 원을 깔았고, 책상 위 지점은 원이 공중에 떠 있었다.
+## 바닥 원은 **걸어가서 설 자리**를 가리키는 것이다. 그 둘은 설 자리가 아니다.
+func _wants_floor_ring() -> bool:
+	if _reach() > 1.6:
+		return false
+	return absf(global_position.y) < 0.6
 	set_locked(locked)
 
 
@@ -78,6 +90,8 @@ func _reach() -> float:
 		if c is CollisionShape3D and c.shape != null:
 			var sh = c.shape
 			if sh is SphereShape3D:
+				return maxf(sh.radius, 0.4)
+			if sh is CapsuleShape3D:
 				return maxf(sh.radius, 0.4)
 			if sh is BoxShape3D:
 				return maxf(maxf(sh.size.x, sh.size.z) * 0.5, 0.4)
