@@ -81,7 +81,7 @@ func _inject_poster_background() -> void:
 
 		var hint = Label.new()
 		hint.text = "assets/splash/splash-poster-no-text.png 를 추가하면\n고퀄리티 포스터가 표시됩니다."
-		hint.add_theme_font_size_override("font_size", 28)
+		hint.add_theme_font_size_override("font_size", 36)
 		hint.add_theme_color_override("font_color", Color(0.8, 0.7, 1.0, 0.55))
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -208,21 +208,21 @@ func _ask_skip_prologue() -> void:
 	var d := Label.new()
 	d.text = "프롤로그를 건너뛰고\n바로 여행을 떠날까요?"
 	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	d.add_theme_font_size_override("font_size", 32)
+	d.add_theme_font_size_override("font_size", 36)
 	d.add_theme_color_override("font_color", Color(0.88, 0.85, 1.0))
 	v.add_child(d)
 
 	var skip := Button.new()
 	skip.text = "건너뛰고 여행 시작"
 	skip.custom_minimum_size = Vector2(0, 104)
-	skip.add_theme_font_size_override("font_size", 38)
+	skip.add_theme_font_size_override("font_size", 44)
 	skip.pressed.connect(func(): AudioManager.ui_confirm(); _start_new(true))
 	v.add_child(skip)
 
 	var play := Button.new()
 	play.text = "0편부터 다시 보기"
 	play.custom_minimum_size = Vector2(0, 92)
-	play.add_theme_font_size_override("font_size", 34)
+	play.add_theme_font_size_override("font_size", 44)
 	play.pressed.connect(func(): AudioManager.ui_click(); _start_new(false))
 	v.add_child(play)
 

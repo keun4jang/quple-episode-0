@@ -21,7 +21,7 @@ func _ready() -> void:
 func _on_saved() -> void:
 	var toast := Label.new()
 	toast.text = "여행 기록 저장 완료"
-	toast.add_theme_font_size_override("font_size", 16)
+	toast.add_theme_font_size_override("font_size", 30)
 	toast.add_theme_color_override("font_color", Color("#FFD76D"))
 	toast.add_theme_color_override("font_outline_color", Color(0.09, 0.13, 0.16, 0.9))
 	toast.add_theme_constant_override("outline_size", 6)
@@ -50,12 +50,12 @@ func _build() -> void:
 		var key := Label.new()
 		key.text = pair[0]
 		key.custom_minimum_size = Vector2(58, 0)
-		key.add_theme_font_size_override("font_size", 14)
+		key.add_theme_font_size_override("font_size", 30)
 		key.add_theme_color_override("font_color", Color("#FFD76D"))
 		row.add_child(key)
 		var desc := Label.new()
 		desc.text = pair[1]
-		desc.add_theme_font_size_override("font_size", 14)
+		desc.add_theme_font_size_override("font_size", 30)
 		desc.add_theme_color_override("font_color", Color("#FFF1D0"))
 		row.add_child(desc)
 		rows.add_child(row)

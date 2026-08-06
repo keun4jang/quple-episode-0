@@ -93,14 +93,14 @@ func _make_header() -> Control:
 
 	var t := Label.new()
 	t.text = "여행 기록"
-	t.add_theme_font_size_override("font_size", 26)
+	t.add_theme_font_size_override("font_size", 36)
 	t.add_theme_color_override("font_color", CREAM)
 	h.add_child(t)
 
 	var sub := Label.new()
 	# 숫자보다 문장이 먼저 읽히도록 요약을 한 줄로 준다
 	sub.text = "쿼카 커플이 지금까지 다녀온 길"
-	sub.add_theme_font_size_override("font_size", 15)
+	sub.add_theme_font_size_override("font_size", 30)
 	sub.add_theme_color_override("font_color", SOFT)
 	sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -109,7 +109,7 @@ func _make_header() -> Control:
 	if bool(_stats.get("ending", false)):
 		var e := Label.new()
 		e.text = "✨ 다른 차원까지 다녀옴"
-		e.add_theme_font_size_override("font_size", 15)
+		e.add_theme_font_size_override("font_size", 30)
 		e.add_theme_color_override("font_color", GOLD)
 		e.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(e)
@@ -126,7 +126,7 @@ func _make_overall_bar() -> Control:
 
 	var l := Label.new()
 	l.text = "다녀온 곳 %d / %d" % [int(_stats.get("visited", 0)), int(_stats.get("total", 0))]
-	l.add_theme_font_size_override("font_size", 13)
+	l.add_theme_font_size_override("font_size", 30)
 	l.add_theme_color_override("font_color", DIM)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	v.add_child(l)
@@ -153,13 +153,13 @@ func _make_chapter_column() -> Control:
 		var head := HBoxContainer.new()
 		var name_l := Label.new()
 		name_l.text = ("%s" % c.get("name", "")) if open else ("🔒 %s" % c.get("name", ""))
-		name_l.add_theme_font_size_override("font_size", 16)
+		name_l.add_theme_font_size_override("font_size", 30)
 		name_l.add_theme_color_override("font_color", col if open else DIM)
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		head.add_child(name_l)
 		var num := Label.new()
 		num.text = "%d/%d" % [int(c.get("visited", 0)), int(c.get("total", 0))]
-		num.add_theme_font_size_override("font_size", 13)
+		num.add_theme_font_size_override("font_size", 30)
 		num.add_theme_color_override("font_color", DIM)
 		head.add_child(num)
 		row.add_child(head)
@@ -200,7 +200,7 @@ func _make_highlight_card() -> Control:
 	for s in lines:
 		var l := Label.new()
 		l.text = s
-		l.add_theme_font_size_override("font_size", 14)
+		l.add_theme_font_size_override("font_size", 30)
 		l.add_theme_color_override("font_color", SOFT)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(l)
@@ -234,7 +234,7 @@ func _make_habits_row() -> Control:
 	if habits.is_empty():
 		var l := Label.new()
 		l.text = "아직 없어요. 여행을 다녀오면 하나씩 생겨요."
-		l.add_theme_font_size_override("font_size", 14)
+		l.add_theme_font_size_override("font_size", 30)
 		l.add_theme_color_override("font_color", DIM)
 		v.add_child(l)
 		return v
@@ -257,7 +257,7 @@ func _make_habits_row() -> Control:
 		var cl := Label.new()
 		cl.text = str((hb as Dictionary).get("name", ""))
 		cl.tooltip_text = str((hb as Dictionary).get("effect_hint", ""))
-		cl.add_theme_font_size_override("font_size", 14)
+		cl.add_theme_font_size_override("font_size", 30)
 		cl.add_theme_color_override("font_color", CREAM)
 		chip.add_child(cl)
 		flow.add_child(chip)
@@ -271,7 +271,7 @@ func _make_footer() -> Control:
 	var b := Button.new()
 	b.text = "닫기"
 	b.custom_minimum_size = Vector2(200, 40)
-	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_font_size_override("font_size", 30)
 	b.pressed.connect(_close)
 	h.add_child(b)
 	return h
@@ -282,7 +282,7 @@ func _make_footer() -> Control:
 func _section_title(text: String) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", 16)
+	l.add_theme_font_size_override("font_size", 30)
 	l.add_theme_color_override("font_color", GOLD)
 	return l
 

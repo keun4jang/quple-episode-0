@@ -10,5 +10,10 @@ Thumbs.db
 *.tmp
 *.bak
 .claude/
+# 에이전트 정의는 프로젝트 설정이라 남긴다.
+# 컨테이너는 사라지지만 이 규칙은 다음 작업에도 그대로 쓰여야 한다.
+!.claude/
+!.claude/agents/
+!.claude/agents/*.md
 build/
 *.keystore

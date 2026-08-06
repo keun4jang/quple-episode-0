@@ -130,7 +130,7 @@ func _build_idle() -> void:
 					continue
 				var rl := Label.new()
 				rl.text = "%s (%d곳)" % [rg.name, cards.size()]
-				rl.add_theme_font_size_override("font_size", 13)
+				rl.add_theme_font_size_override("font_size", 30)
 				rl.add_theme_color_override("font_color", Color(0.80, 0.78, 0.92))
 				rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 				list.add_child(rl)
@@ -171,7 +171,7 @@ func _filter_btn(id: String, label: String, on: bool, setter: Callable) -> Butto
 	var b := Button.new()
 	b.text = label
 	b.custom_minimum_size = Vector2(0, 30)
-	b.add_theme_font_size_override("font_size", 13)
+	b.add_theme_font_size_override("font_size", 30)
 	var col := Color(1.0, 0.86, 0.55) if on else Color(0.42, 0.40, 0.55)
 	b.add_theme_stylebox_override("normal", _card_style(col, on))
 	b.add_theme_stylebox_override("hover", _card_style(col, true))
@@ -206,7 +206,7 @@ func _make_chapter_header(ch: Dictionary, open: bool, done: int, total: int) -> 
 		var need: int = int(ch.get("need_prev", 3)) - TravelState.chapter_cleared(str(prev.id))
 		l.text = "──  🔒 %s   (%s %d곳 더)  ──" % [ch.name, prev.name, maxi(0, need)]
 		l.add_theme_color_override("font_color", Color(0.62, 0.60, 0.75))
-	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_font_size_override("font_size", 30)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
 
@@ -217,7 +217,7 @@ const CHAPTER_TINT := {
 	"beyond": Color(1.00, 0.86, 0.62),
 }
 const REGION_TINT := {
-	"asia":    Color(0.90, 0.66, 0.62),
+	"asia":    Color(0.85, 0.70, 0.80),   # 산호(스카프)와 겹쳐서 장미빛 보라로 옮겼다
 	"europe":  Color(0.72, 0.72, 0.92),
 	"africa":  Color(0.92, 0.80, 0.55),
 	"america": Color(0.62, 0.82, 0.72),
@@ -329,7 +329,7 @@ func _make_items_row() -> Label:
 	if st == null or st.has_notebook: parts.append("📓 수첩")
 	if st == null or st.has_travel_bag: parts.append("🎒 가방")
 	l.text = ("가진 것: " + "   ".join(parts)) if parts.size() > 0 else "아직 챙긴 것이 없어요"
-	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_font_size_override("font_size", 30)
 	l.add_theme_color_override("font_color", Color(0.85, 0.82, 0.95))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
@@ -360,7 +360,7 @@ func _build_traveling() -> void:
 	var hint := Label.new()
 	hint.name = "Hint"
 	hint.text = "돌아오면 사진과 일기를 보여줄 거예요"
-	hint.add_theme_font_size_override("font_size", 15)
+	hint.add_theme_font_size_override("font_size", 30)
 	hint.add_theme_color_override("font_color", Color(0.85, 0.82, 0.95))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -370,7 +370,7 @@ func _build_traveling() -> void:
 	var peek := Label.new()
 	peek.name = "TimeLeft"
 	peek.text = ""
-	peek.add_theme_font_size_override("font_size", 13)
+	peek.add_theme_font_size_override("font_size", 30)
 	peek.add_theme_color_override("font_color", Color(0.70, 0.68, 0.85))
 	peek.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(peek)
@@ -529,7 +529,7 @@ func _make_message_row() -> Control:
 		b.name = "MsgBtn"
 		b.custom_minimum_size = Vector2(0, 60)
 		b.text = "💌  새 소식 %d개  ·  눌러서 읽기" % unread
-		b.add_theme_font_size_override("font_size", 20)
+		b.add_theme_font_size_override("font_size", 32)
 		b.add_theme_color_override("font_color", Color(0.24, 0.12, 0.30))
 		b.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.72, 0.82), false))
 		b.add_theme_stylebox_override("hover", _card_style(Color(1.0, 0.82, 0.90), true))
@@ -543,7 +543,7 @@ func _make_message_row() -> Control:
 	else:
 		var nxt: int = TravelState.seconds_to_next_message()
 		l.text = ("곧 첫 소식이 올 거예요" if nxt < 0 else "첫 소식까지 %s" % _format_duration(nxt))
-	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_font_size_override("font_size", 30)
 	l.add_theme_color_override("font_color", Color(0.78, 0.75, 0.90))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
@@ -572,7 +572,7 @@ func _show_messages() -> void:
 	var back := Button.new()
 	back.text = "돌아가기"
 	back.custom_minimum_size = Vector2(0, 52)
-	back.add_theme_font_size_override("font_size", 20)
+	back.add_theme_font_size_override("font_size", 32)
 	back.pressed.connect(_refresh)
 	body.add_child(back)
 
@@ -583,12 +583,12 @@ func _make_message_card(m: Dictionary) -> PanelContainer:
 	h.add_theme_constant_override("separation", 14)
 	var e := Label.new()
 	e.text = str(m.get("emoji", "💌"))
-	e.add_theme_font_size_override("font_size", 34)
+	e.add_theme_font_size_override("font_size", 44)
 	e.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	h.add_child(e)
 	var t := Label.new()
 	t.text = str(m.get("text", ""))
-	t.add_theme_font_size_override("font_size", 17)
+	t.add_theme_font_size_override("font_size", 30)
 	t.add_theme_color_override("font_color", Color(1, 0.98, 0.94))
 	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -605,7 +605,7 @@ func _build_arrived() -> void:
 	var open_btn := Button.new()
 	open_btn.text = "🎁  사진 받기"
 	open_btn.custom_minimum_size = Vector2(0, 72)
-	open_btn.add_theme_font_size_override("font_size", 24)
+	open_btn.add_theme_font_size_override("font_size", 36)
 	open_btn.add_theme_color_override("font_color", Color(0.22, 0.10, 0.03))
 	open_btn.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.78, 0.52), false))
 	open_btn.add_theme_stylebox_override("hover",  _card_style(Color(1.0, 0.86, 0.62), true))
@@ -671,7 +671,7 @@ func _show_chapter_unlocked(chapter_id: String, souvenir: Dictionary) -> void:
 		if str(d.get("chapter", "")) == chapter_id:
 			total += 1
 	msg.text = "%s  %d곳이 기다리고 있어요" % [ch.get("name", ""), total]
-	msg.add_theme_font_size_override("font_size", 20)
+	msg.add_theme_font_size_override("font_size", 32)
 	msg.add_theme_color_override("font_color", Color(1, 0.90, 0.62))
 	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(msg)
@@ -679,7 +679,7 @@ func _show_chapter_unlocked(chapter_id: String, souvenir: Dictionary) -> void:
 	var next_btn := Button.new()
 	next_btn.text = "이번 여행 기록 보기"
 	next_btn.custom_minimum_size = Vector2(0, 60)
-	next_btn.add_theme_font_size_override("font_size", 20)
+	next_btn.add_theme_font_size_override("font_size", 32)
 	next_btn.add_theme_color_override("font_color", Color(0.22, 0.10, 0.03))
 	next_btn.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.78, 0.52), false))
 	next_btn.add_theme_stylebox_override("hover", _card_style(Color(1.0, 0.86, 0.62), true))
@@ -729,14 +729,14 @@ func _show_souvenir(sv: Dictionary) -> void:
 	# 손글씨 자리 — 제목
 	var t := Label.new()
 	t.text = str(sv.get("title", ""))
-	t.add_theme_font_size_override("font_size", 17)
+	t.add_theme_font_size_override("font_size", 30)
 	t.add_theme_color_override("font_color", Color(0.32, 0.24, 0.14))
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	inner.add_child(t)
 
 	var diary := Label.new()
 	diary.text = str(sv.get("diary", ""))
-	diary.add_theme_font_size_override("font_size", 15)
+	diary.add_theme_font_size_override("font_size", 30)
 	diary.add_theme_color_override("font_color", Color(0.28, 0.22, 0.16))
 	diary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	diary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -749,7 +749,7 @@ func _show_souvenir(sv: Dictionary) -> void:
 	var again := Button.new()
 	again.text = "다시 보내기"
 	again.custom_minimum_size = Vector2(0, 52)
-	again.add_theme_font_size_override("font_size", 19)
+	again.add_theme_font_size_override("font_size", 32)
 	again.add_theme_color_override("font_color", Color(0.22, 0.10, 0.03))
 	again.add_theme_stylebox_override("normal", _card_style(Color(1.0, 0.78, 0.52), false))
 	again.add_theme_stylebox_override("hover", _card_style(Color(1.0, 0.86, 0.62), true))
@@ -824,7 +824,7 @@ func _show_album() -> void:
 	if n == 0:
 		var empty := Label.new()
 		empty.text = "여행을 보내면\n사진이 하나씩 쌓여요"
-		empty.add_theme_font_size_override("font_size", 18)
+		empty.add_theme_font_size_override("font_size", 32)
 		empty.add_theme_color_override("font_color", Color(0.85, 0.82, 0.95))
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		body.add_child(empty)
@@ -849,7 +849,7 @@ func _show_album() -> void:
 		for hb in habits:
 			names.append(str(hb.name))
 		hl.text = "함께 배운 것:  " + "  ·  ".join(names)
-		hl.add_theme_font_size_override("font_size", 13)
+		hl.add_theme_font_size_override("font_size", 30)
 		hl.add_theme_color_override("font_color", Color(0.85, 0.82, 0.95))
 		hl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -858,7 +858,7 @@ func _show_album() -> void:
 	var back := Button.new()
 	back.text = "돌아가기"
 	back.custom_minimum_size = Vector2(0, 52)
-	back.add_theme_font_size_override("font_size", 20)
+	back.add_theme_font_size_override("font_size", 32)
 	back.pressed.connect(_refresh)
 	body.add_child(back)
 
@@ -869,18 +869,18 @@ func _make_album_row(s: Dictionary) -> PanelContainer:
 	h.add_theme_constant_override("separation", 18)
 	var ph := Label.new()
 	ph.text = s.get("photo", "📷")
-	ph.add_theme_font_size_override("font_size", 32)
+	ph.add_theme_font_size_override("font_size", 36)
 	h.add_child(ph)
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var t := Label.new()
 	t.text = s.get("title", "")
-	t.add_theme_font_size_override("font_size", 18)
+	t.add_theme_font_size_override("font_size", 32)
 	t.add_theme_color_override("font_color", Color(1, 0.90, 0.62))
 	v.add_child(t)
 	var dl := Label.new()
 	dl.text = str(s.get("diary", "")).replace("\n", " ")
-	dl.add_theme_font_size_override("font_size", 15)
+	dl.add_theme_font_size_override("font_size", 30)
 	dl.add_theme_color_override("font_color", Color(0.95, 0.93, 1.0))
 	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(dl)
@@ -890,7 +890,7 @@ func _make_album_row(s: Dictionary) -> PanelContainer:
 	save_btn.text = "🖼"
 	save_btn.tooltip_text = "엽서로 저장"
 	save_btn.custom_minimum_size = Vector2(40, 40)
-	save_btn.add_theme_font_size_override("font_size", 16)
+	save_btn.add_theme_font_size_override("font_size", 30)
 	save_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	save_btn.pressed.connect(func(): _save_postcard(s))
 	h.add_child(save_btn)
@@ -924,7 +924,7 @@ func _save_postcard(s: Dictionary) -> void:
 func _toast(msg: String) -> void:
 	var l := Label.new()
 	l.text = msg
-	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_font_size_override("font_size", 30)
 	l.add_theme_color_override("font_color", Color(1, 0.86, 0.55))
 	l.add_theme_color_override("font_outline_color", Color(0.06, 0.05, 0.14, 0.95))
 	l.add_theme_constant_override("outline_size", 6)

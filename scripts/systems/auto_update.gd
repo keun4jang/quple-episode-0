@@ -99,7 +99,7 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	add_child(cl)
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", 26)
+	l.add_theme_font_size_override("font_size", 36)
 	l.add_theme_color_override("font_color", col)
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.65))
 	l.add_theme_constant_override("outline_size", 6)
