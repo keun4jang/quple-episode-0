@@ -977,12 +977,13 @@ func _card_style(tint: Color, bright: bool) -> StyleBoxFlat:
 	return sb
 
 func _load_poster() -> void:
-	var abs := ProjectSettings.globalize_path(POSTER)
-	if not FileAccess.file_exists(abs):
+	# globalize_path + FileAccess 로 읽으면 **에디터에서만** 된다.
+	# 내보낸 앱에서 res:// 는 APK·팩 안이라 OS 경로가 없고, 폰에서는 배경이 통째로 비었다.
+	if not ResourceLoader.exists(POSTER):
 		return
-	var img := Image.load_from_file(abs)
-	if img:
-		bg.texture = ImageTexture.create_from_image(img)
+	var tex := load(POSTER) as Texture2D
+	if tex != null:
+		bg.texture = tex
 
 
 ## 지금 여행 중인 곳에 어울리는 주변 소리를 튼다

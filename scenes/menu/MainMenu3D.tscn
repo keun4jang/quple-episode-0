@@ -23,32 +23,32 @@ glow_intensity = 1.0
 glow_bloom = 0.24
 
 [sub_resource type="LabelSettings" id="LogoShadowG5_Settings"]
-font_size = 200
+font_size = 128
 font_color = Color(0.14, 0.39, 0.25, 0.98)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG4_Settings"]
-font_size = 200
+font_size = 128
 font_color = Color(0.15, 0.42, 0.27, 0.94)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG3_Settings"]
-font_size = 200
+font_size = 128
 font_color = Color(0.16, 0.44, 0.28, 0.90)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG2_Settings"]
-font_size = 200
+font_size = 128
 font_color = Color(0.17, 0.46, 0.29, 0.86)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="LogoShadowG1_Settings"]
-font_size = 200
+font_size = 128
 font_color = Color(0.18, 0.48, 0.30, 0.82)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="Logo_Settings"]
-font_size = 200
+font_size = 128
 font_color = Color(1.0, 0.949, 0.784, 1)
 outline_size = 16
 outline_color = Color(0.184, 0.478, 0.302, 1)
@@ -57,12 +57,12 @@ shadow_color = Color(0.16, 0.08, 0.31, 0.55)
 shadow_offset = Vector2(0, 7)
 
 [sub_resource type="LabelSettings" id="LogoHighlight_Settings"]
-font_size = 200
+font_size = 128
 font_color = Color(1, 1, 1, 0.55)
 outline_size = 0
 
 [sub_resource type="LabelSettings" id="Sub_1"]
-font_size = 52
+font_size = 38
 font_color = Color(1, 0.96, 0.88, 1)
 outline_size = 18
 outline_color = Color(0.18, 0.09, 0.32, 1)
@@ -80,7 +80,7 @@ shadow_color = Color(0, 0, 0, 0.4)
 shadow_offset = Vector2(1, 2)
 
 [sub_resource type="LabelSettings" id="SparkLabel_Settings"]
-font_size = 48
+font_size = 34
 font_color = Color(1, 0.95, 0.7, 1)
 outline_size = 0
 
@@ -117,7 +117,7 @@ shadow_color = Color(0.6, 0.28, 0.08, 0.52)
 shadow_offset = Vector2(0, 11)
 
 [sub_resource type="StyleBoxFlat" id="BtnContinue"]
-bg_color = Color(0.32, 0.22, 0.55, 0.72)
+bg_color = Color(0.30, 0.21, 0.52, 0.92)
 corner_radius_top_left = 65
 corner_radius_top_right = 65
 corner_radius_bottom_right = 65
@@ -191,6 +191,13 @@ corner_radius_top_right = 30
 corner_radius_bottom_right = 30
 corner_radius_bottom_left = 30
 
+[sub_resource type="StyleBoxFlat" id="RightScrim_Style"]
+bg_color = Color(0.07, 0.05, 0.16, 0.42)
+corner_radius_top_left = 56
+corner_radius_top_right = 56
+corner_radius_bottom_right = 56
+corner_radius_bottom_left = 56
+
 [node name="MainMenu3D" type="Node3D"]
 script = ExtResource("s")
 
@@ -222,7 +229,7 @@ anchor_left = 0.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -260.0
+offset_top = -150.0
 grow_horizontal = 2
 grow_vertical = 0
 color = Color(0.04, 0.02, 0.12, 0.50)
@@ -275,12 +282,12 @@ theme_override_styles/panel = SubResource("FrameSharp_Style")
 
 [node name="LogoShadowG5" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -500.0
-offset_top = 110.0
-offset_right = 500.0
-offset_bottom = 344.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -320.0
+offset_top = 92.0
+offset_right = 320.0
+offset_bottom = 252.0
 grow_horizontal = 2
 text = "쿼플"
 label_settings = SubResource("LogoShadowG5_Settings")
@@ -289,12 +296,12 @@ vertical_alignment = 1
 
 [node name="LogoShadowG4" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -500.0
-offset_top = 104.0
-offset_right = 500.0
-offset_bottom = 338.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -320.0
+offset_top = 86.0
+offset_right = 320.0
+offset_bottom = 246.0
 grow_horizontal = 2
 text = "쿼플"
 label_settings = SubResource("LogoShadowG4_Settings")
@@ -303,12 +310,12 @@ vertical_alignment = 1
 
 [node name="LogoShadowG3" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -500.0
-offset_top = 99.0
-offset_right = 500.0
-offset_bottom = 333.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -320.0
+offset_top = 81.0
+offset_right = 320.0
+offset_bottom = 241.0
 grow_horizontal = 2
 text = "쿼플"
 label_settings = SubResource("LogoShadowG3_Settings")
@@ -317,12 +324,12 @@ vertical_alignment = 1
 
 [node name="LogoShadowG2" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -500.0
-offset_top = 95.0
-offset_right = 500.0
-offset_bottom = 329.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -320.0
+offset_top = 77.0
+offset_right = 320.0
+offset_bottom = 237.0
 grow_horizontal = 2
 text = "쿼플"
 label_settings = SubResource("LogoShadowG2_Settings")
@@ -331,12 +338,12 @@ vertical_alignment = 1
 
 [node name="LogoShadowG1" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -500.0
-offset_top = 91.0
-offset_right = 500.0
-offset_bottom = 325.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -320.0
+offset_top = 73.0
+offset_right = 320.0
+offset_bottom = 233.0
 grow_horizontal = 2
 text = "쿼플"
 label_settings = SubResource("LogoShadowG1_Settings")
@@ -345,12 +352,12 @@ vertical_alignment = 1
 
 [node name="Logo" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -500.0
-offset_top = 86.0
-offset_right = 500.0
-offset_bottom = 320.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -320.0
+offset_top = 68.0
+offset_right = 320.0
+offset_bottom = 228.0
 grow_horizontal = 2
 text = "쿼플"
 label_settings = SubResource("Logo_Settings")
@@ -359,12 +366,12 @@ vertical_alignment = 1
 
 [node name="LogoHighlight" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -500.0
-offset_top = 82.0
-offset_right = 500.0
-offset_bottom = 316.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -320.0
+offset_top = 64.0
+offset_right = 320.0
+offset_bottom = 224.0
 grow_horizontal = 2
 text = "쿼플"
 label_settings = SubResource("LogoHighlight_Settings")
@@ -373,39 +380,39 @@ vertical_alignment = 1
 
 [node name="LeafLeft" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -592.0
-offset_top = 106.0
-offset_right = -462.0
-offset_bottom = 228.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -238.0
+offset_top = 90.0
+offset_right = -148.0
+offset_bottom = 180.0
 text = "🌿"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 82
+theme_override_font_sizes/font_size = 58
 
 [node name="LeafRight" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = 462.0
-offset_top = 106.0
-offset_right = 592.0
-offset_bottom = 228.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = 148.0
+offset_top = 90.0
+offset_right = 238.0
+offset_bottom = 180.0
 text = "🌿"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 82
+theme_override_font_sizes/font_size = 58
 scale = Vector2(-1, 1)
 
 [node name="Subtitle" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -480.0
-offset_top = 332.0
-offset_right = 480.0
-offset_bottom = 418.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -320.0
+offset_top = 240.0
+offset_right = 320.0
+offset_bottom = 300.0
 grow_horizontal = 2
 text = "쿼카 커플의 힐링 여행"
 label_settings = SubResource("Sub_1")
@@ -414,53 +421,53 @@ vertical_alignment = 1
 
 [node name="SparkLabel1" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -598.0
-offset_top = 88.0
-offset_right = -528.0
-offset_bottom = 168.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -292.0
+offset_top = 46.0
+offset_right = -242.0
+offset_bottom = 96.0
 text = "✦"
 label_settings = SubResource("SparkLabel_Settings")
 horizontal_alignment = 1
 
 [node name="SparkLabel2" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = 528.0
-offset_top = 88.0
-offset_right = 598.0
-offset_bottom = 168.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = 242.0
+offset_top = 46.0
+offset_right = 292.0
+offset_bottom = 96.0
 text = "✦"
 label_settings = SubResource("SparkLabel_Settings")
 horizontal_alignment = 1
 
 [node name="SparkLabel3" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -548.0
-offset_top = 270.0
-offset_right = -492.0
-offset_bottom = 320.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = -276.0
+offset_top = 196.0
+offset_right = -226.0
+offset_bottom = 238.0
 text = "✦"
 horizontal_alignment = 1
 theme_override_colors/font_color = Color(1, 0.92, 0.6, 0.75)
-theme_override_font_sizes/font_size = 42
+theme_override_font_sizes/font_size = 32
 
 [node name="SparkLabel4" type="Label" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = 492.0
-offset_top = 270.0
-offset_right = 548.0
-offset_bottom = 320.0
+anchor_left = 0.21
+anchor_right = 0.21
+offset_left = 226.0
+offset_top = 196.0
+offset_right = 276.0
+offset_bottom = 238.0
 text = "✦"
 horizontal_alignment = 1
 theme_override_colors/font_color = Color(1, 0.92, 0.6, 0.75)
-theme_override_font_sizes/font_size = 42
+theme_override_font_sizes/font_size = 32
 
 [node name="CopyLabel" type="Label" parent="UILayer/Control"]
 layout_mode = 1
@@ -478,36 +485,51 @@ label_settings = SubResource("CopyLabel_Settings")
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="RightScrim" type="Panel" parent="UILayer/Control"]
+layout_mode = 1
+anchor_left = 0.72
+anchor_top = 0.5
+anchor_right = 0.72
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -196.0
+offset_right = 300.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("RightScrim_Style")
+
 [node name="VBox" type="VBoxContainer" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -310.0
-offset_top = -450.0
-offset_right = 310.0
-offset_bottom = -155.0
+anchor_left = 0.72
+anchor_top = 0.5
+anchor_right = 0.72
+anchor_bottom = 0.5
+offset_left = -270.0
+offset_top = -152.0
+offset_right = 270.0
+offset_bottom = 100.0
 grow_horizontal = 2
-grow_vertical = 0
-theme_override_constants/separation = 26
+grow_vertical = 2
+theme_override_constants/separation = 24
 
 [node name="StartBtn" type="Button" parent="UILayer/Control/VBox"]
-custom_minimum_size = Vector2(620, 132)
+custom_minimum_size = Vector2(540, 124)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.22, 0.09, 0.03, 1)
 theme_override_colors/font_hover_color = Color(0.16, 0.05, 0.01, 1)
-theme_override_font_sizes/font_size = 56
+theme_override_font_sizes/font_size = 48
 theme_override_styles/normal = SubResource("BtnStart")
 theme_override_styles/hover = SubResource("BtnStartHover")
 theme_override_styles/pressed = SubResource("BtnStartHover")
 text = "새 여행 시작  ✦"
 
 [node name="ContinueBtn" type="Button" parent="UILayer/Control/VBox"]
-custom_minimum_size = Vector2(620, 112)
+custom_minimum_size = Vector2(540, 104)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.82, 0.76, 1.0, 0.90)
-theme_override_font_sizes/font_size = 48
+theme_override_colors/font_color = Color(0.97, 0.94, 1.0, 1)
+theme_override_font_sizes/font_size = 42
 theme_override_styles/normal = SubResource("BtnContinue")
 theme_override_styles/hover = SubResource("BtnStartHover")
 theme_override_styles/pressed = SubResource("BtnStartHover")
@@ -516,32 +538,33 @@ text = "이어하기"
 
 [node name="SmallBtnRow" type="HBoxContainer" parent="UILayer/Control"]
 layout_mode = 1
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -188.0
-offset_top = -128.0
-offset_right = 188.0
-offset_bottom = -76.0
+anchor_left = 0.72
+anchor_top = 0.5
+anchor_right = 0.72
+anchor_bottom = 0.5
+offset_left = -290.0
+offset_top = 128.0
+offset_right = 290.0
+offset_bottom = 196.0
 grow_horizontal = 2
+grow_vertical = 2
 alignment = 1
-theme_override_constants/separation = 28
+theme_override_constants/separation = 20
 
 [node name="SettingsBtn" type="Button" parent="UILayer/Control/SmallBtnRow"]
-custom_minimum_size = Vector2(158, 50)
+custom_minimum_size = Vector2(176, 68)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.88, 0.82, 1.0, 0.85)
-theme_override_font_sizes/font_size = 36
+theme_override_colors/font_color = Color(0.93, 0.89, 1.0, 1)
+theme_override_font_sizes/font_size = 30
 theme_override_styles/normal = SubResource("SmallBtn_Style")
 theme_override_styles/hover = SubResource("SmallBtn_Style")
 text = "⚙ 설정"
 
 [node name="QuitBtn" type="Button" parent="UILayer/Control/SmallBtnRow"]
-custom_minimum_size = Vector2(158, 50)
+custom_minimum_size = Vector2(176, 68)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.88, 0.82, 1.0, 0.85)
-theme_override_font_sizes/font_size = 36
+theme_override_colors/font_color = Color(0.93, 0.89, 1.0, 1)
+theme_override_font_sizes/font_size = 30
 theme_override_styles/normal = SubResource("SmallBtn_Style")
 theme_override_styles/hover = SubResource("SmallBtn_Style")
 text = "✕ 종료"

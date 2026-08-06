@@ -104,9 +104,13 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.65))
 	l.add_theme_constant_override("outline_size", 6)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	l.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	l.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	l.position = Vector2(-28, 22)
+	# 오른쪽 위에 붙인다. 예전에는 preset 만 걸고 position 을 줬는데,
+	# 그러면 폭이 0 이라 글자가 화면 밖 오른쪽으로 흘러나갔다 — 메인화면 구석에
+	# "쿼플 v0.1.2…" 가 잘린 채 찍혀 있던 게 이것이다.
+	l.anchor_left = 1.0; l.anchor_right = 1.0
+	l.anchor_top = 0.0;  l.anchor_bottom = 0.0
+	l.offset_left = -560.0; l.offset_right = -28.0
+	l.offset_top = 22.0;    l.offset_bottom = 140.0
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(l)
 	var tw := create_tween()

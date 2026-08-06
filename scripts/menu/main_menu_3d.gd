@@ -52,56 +52,114 @@ func _inject_poster_background() -> void:
 	if not ctrl:
 		return
 
+	# load() 로 읽는다. 예전에는 globalize_path() + FileAccess 로 **OS 파일 경로**를
+	# 뒤졌는데, 그건 에디터에서만 통한다. 내보낸 앱에서 res:// 는 APK·팩 안에 있어서
+	# 그런 경로가 존재하지 않는다. 그래서 폰에서는 **항상** 실패했고, 포스터 대신
+	# 개발자용 안내문("assets/... 를 추가하면")이 화면에 그대로 떴다.
 	var tex: Texture2D = null
-	var abs_path = ProjectSettings.globalize_path(POSTER_PATH)
-	if FileAccess.file_exists(abs_path):
-		var img = Image.load_from_file(abs_path)
-		if img:
-			tex = ImageTexture.create_from_image(img)
+	if ResourceLoader.exists(POSTER_PATH):
+		tex = load(POSTER_PATH) as Texture2D
 
-	if tex:
+	if tex != null:
 		var bg = TextureRect.new()
 		bg.name = "PosterBG"
 		bg.texture = tex
-		bg.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_SCALE
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ctrl.add_child(bg)
 		ctrl.move_child(bg, 0)
-	else:
-		# 포스터 없을 때 fallback: 어두운 배경 + 안내 메시지
-		var fallback = ColorRect.new()
-		fallback.name = "FallbackBG"
-		fallback.color = Color(0.06, 0.04, 0.18, 1.0)
-		fallback.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		fallback.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		ctrl.add_child(fallback)
-		ctrl.move_child(fallback, 0)
+		_fit_poster(bg)
+		ctrl.resized.connect(func(): _fit_poster(bg))
+		_add_title_scrim(ctrl)
+		return
 
-		var hint = Label.new()
-		hint.text = "assets/splash/splash-poster-no-text.png 를 추가하면\n고퀄리티 포스터가 표시됩니다."
-		hint.add_theme_font_size_override("font_size", 36)
-		hint.add_theme_color_override("font_color", Color(0.8, 0.7, 1.0, 0.55))
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		hint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		ctrl.add_child(hint)
-		ctrl.move_child(hint, 1)
+	# 포스터가 없어도 **완성된 화면**이어야 한다.
+	# 개발용 안내문을 사용자에게 보여 주는 건 그 자체로 버그다.
+	# 밤하늘 그라데이션을 깔아 두면 별·잎사귀 장식과 이어져 의도된 화면이 된다.
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.10, 0.09, 0.22))
+	grad.set_color(1, Color(0.04, 0.03, 0.10))
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill_from = Vector2(0.5, 0.0)
+	gt.fill_to = Vector2(0.5, 1.0)
+	gt.width = 64
+	gt.height = 64
+
+	var fallback = TextureRect.new()
+	fallback.name = "FallbackBG"
+	fallback.texture = gt
+	fallback.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fallback.stretch_mode = TextureRect.STRETCH_SCALE
+	fallback.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	fallback.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ctrl.add_child(fallback)
+	ctrl.move_child(fallback, 0)
+
+## 제목이 얹히는 왼쪽을 살짝 어둡게 깐다.
+##
+## 포스터 위에 글자를 그냥 얹으면 쿼카 얼굴과 글자가 서로를 잡아먹는다.
+## 영화 포스터가 늘 하는 것처럼, 제목 쪽만 부드럽게 눌러 준다.
+## 오른쪽은 건드리지 않는다 — 거기는 캐릭터가 주인공이다.
+func _add_title_scrim(ctrl: Control) -> void:
+	var g := Gradient.new()
+	g.set_color(0, Color(0.06, 0.04, 0.14, 0.52))
+	g.set_color(1, Color(0.06, 0.04, 0.14, 0.0))
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill_from = Vector2(0.0, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	gt.width = 128
+	gt.height = 8
+
+	var scrim := TextureRect.new()
+	scrim.name = "TitleScrim"
+	scrim.texture = gt
+	scrim.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	scrim.stretch_mode = TextureRect.STRETCH_SCALE
+	scrim.anchor_top = 0.0
+	scrim.anchor_bottom = 1.0
+	scrim.anchor_left = 0.0
+	scrim.anchor_right = 0.62
+	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ctrl.add_child(scrim)
+	ctrl.move_child(scrim, 1)
+
+
+## 세로 포스터를 가로 화면에 채운다.
+##
+## KEEP_ASPECT_COVERED 는 **가운데**를 잘라낸다. 우리 포스터는 세로 3:2 이고
+## 폰은 가로 2.2:1 이라 세로로 70% 가 잘려 나가는데, 그 가운데 띠에 얼굴이
+## 없다 — 쿼카 두 마리의 머리가 통째로 날아갔다.
+## 그래서 직접 계산하고, 자르는 위치를 위쪽으로 당긴다.
+const POSTER_BIAS := 0.42   # 0=위 정렬, 0.5=가운데
+
+func _fit_poster(bg: TextureRect) -> void:
+	var ctrl := bg.get_parent() as Control
+	if ctrl == null or bg.texture == null:
+		return
+	var view := ctrl.size
+	var tsz := bg.texture.get_size()
+	if tsz.x <= 0.0 or tsz.y <= 0.0 or view.x <= 0.0:
+		return
+	var s: float = maxf(view.x / tsz.x, view.y / tsz.y)
+	var out := tsz * s
+	bg.size = out
+	bg.position = Vector2((view.x - out.x) * 0.5, (view.y - out.y) * POSTER_BIAS)
+
 
 # ─── 3D 마스코트 커플 주입 ───
 func _inject_mascot_couple() -> void:
 	var ctrl = get_node_or_null("UILayer/Control")
 	if not ctrl:
 		return
-	var abs_path = ProjectSettings.globalize_path(COUPLE_3D_PATH)
-	if not FileAccess.file_exists(abs_path):
+	# 여기도 같은 이유로 load() 를 쓴다 (내보낸 앱에는 OS 파일 경로가 없다)
+	if not ResourceLoader.exists(COUPLE_3D_PATH):
 		return
-	var img = Image.load_from_file(abs_path)
-	if not img:
+	var tex = load(COUPLE_3D_PATH) as Texture2D
+	if tex == null:
 		return
-	var tex = ImageTexture.create_from_image(img)
 
 	# 히어로 디오라마: 캐릭터+행성 통합 에셋을 중앙 히어로로 배치 (y13~70%)
 	var wrap = Control.new()
@@ -358,13 +416,16 @@ func _build_ui_decorations() -> void:
 	var ctrl = get_node_or_null("UILayer/Control")
 	if not ctrl:
 		return
+	# 좌표는 1280×720 기준이다. 예전 값은 세로 화면에서 잡은 것이라
+	# 절반이 화면 밖(y 940)에 있었고, 남은 것도 버튼 위에 얹혔다.
+	# 오른쪽 버튼 기둥(x 700 이상)은 비워 둔다.
 	var sparks = [
-		{"pos": Vector2(165, 410), "size": 26, "txt": "✦"},
-		{"pos": Vector2(882, 430), "size": 22, "txt": "✦"},
-		{"pos": Vector2(128, 660), "size": 18, "txt": "★"},
-		{"pos": Vector2(930, 700), "size": 16, "txt": "★"},
-		{"pos": Vector2(205, 940), "size": 20, "txt": "✦"},
-		{"pos": Vector2(855, 960), "size": 18, "txt": "✦"},
+		{"pos": Vector2(96, 128), "size": 26, "txt": "✦"},
+		{"pos": Vector2(612, 96), "size": 22, "txt": "✦"},
+		{"pos": Vector2(74, 430), "size": 20, "txt": "★"},
+		{"pos": Vector2(640, 400), "size": 18, "txt": "★"},
+		{"pos": Vector2(150, 604), "size": 22, "txt": "✦"},
+		{"pos": Vector2(520, 640), "size": 18, "txt": "✦"},
 	]
 	for sd in sparks:
 		var lbl = Label.new()
