@@ -102,7 +102,10 @@ func _build_idle() -> void:
 	subtitle.text = "쿼카 커플이 다녀올 곳을 골라주세요"
 	body.add_child(_make_filter_row())
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 250)
+	# 250px 로 못박아 두니 화면이 아무리 커도 카드가 두세 장뿐이었다.
+	# 남는 세로 공간을 목록이 가져가게 한다.
+	scroll.custom_minimum_size = Vector2(0, 200)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -276,7 +279,7 @@ func _make_dest_card(d: Dictionary) -> Button:
 
 	var tag_lb := Label.new()
 	tag_lb.text = str(d.tagline)
-	tag_lb.add_theme_font_size_override("font_size", D.TEXT_S - 4)
+	tag_lb.add_theme_font_size_override("font_size", D.TEXT_S)
 	tag_lb.add_theme_color_override("font_color", Color(0.30, 0.24, 0.20, 0.85))
 	tag_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	left.add_child(tag_lb)
@@ -298,7 +301,7 @@ func _make_dest_card(d: Dictionary) -> Button:
 	if visits > 0:
 		var v_lb := Label.new()
 		v_lb.text = "%d번 다녀옴" % visits
-		v_lb.add_theme_font_size_override("font_size", D.TEXT_S - 6)
+		v_lb.add_theme_font_size_override("font_size", D.TEXT_S)
 		v_lb.add_theme_color_override("font_color", Color(0.32, 0.26, 0.22, 0.8))
 		v_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		v_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -830,7 +833,8 @@ func _show_album() -> void:
 		body.add_child(empty)
 	else:
 		var scroll := ScrollContainer.new()
-		scroll.custom_minimum_size = Vector2(0, 250)
+		scroll.custom_minimum_size = Vector2(0, 200)
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		var list := VBoxContainer.new()
 		list.add_theme_constant_override("separation", 16)

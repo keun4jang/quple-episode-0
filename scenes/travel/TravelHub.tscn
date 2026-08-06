@@ -86,12 +86,12 @@ theme_override_constants/outline_size = 4
 
 [node name="Spacer" type="Control" parent="Safe"]
 layout_mode = 2
-size_flags_vertical = 3
+size_flags_vertical = 0
 mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="Safe"]
 layout_mode = 2
-size_flags_vertical = 8
+size_flags_vertical = 3
 theme_override_styles/panel = SubResource("PanelStyle")
 
 [node name="Margin" type="MarginContainer" parent="Safe/Panel"]

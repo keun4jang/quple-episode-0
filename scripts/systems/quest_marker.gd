@@ -120,8 +120,11 @@ func _draw_edge(p: Vector2, ang: float, pulse: float, dist: float) -> void:
 
 
 func _label(at: Vector2, text: String) -> void:
-	var font := ThemeDB.fallback_font
-	var sz := D.TEXT_S - 4
+	# 전역 테마의 굵은 한글 폰트를 쓴다. fallback 을 쓰면 여기만 다른 글꼴이 된다.
+	var font := _draw.get_theme_font("font")
+	if font == null:
+		font = ThemeDB.fallback_font
+	var sz := D.TEXT_S
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
 	_draw.draw_string_outline(font, at - Vector2(w * 0.5, -sz * 0.5), text,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, sz, 6, D.OUTLINE)

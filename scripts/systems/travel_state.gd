@@ -830,7 +830,39 @@ func _has_item(item: String) -> bool:
 
 ## 손으로 쓴 기념품이 없는 곳은 그곳의 특징으로 문장을 만든다.
 ## 225곳을 전부 손으로 쓸 수 없으므로, 여행지마다 다른 결과가 나오도록 조합한다.
-const AUTO_TITLES := ["[ %s ]", "[ %s 앞에서 ]", "[ %s 의 하루 ]"]
+const AUTO_TITLES := ["[ %s ]", "[ %s 앞에서 ]", "[ %s의 하루 ]"]
+
+
+## 받침에 맞는 조사를 고른다.
+##
+## "%s(을)를" 같은 표기를 그대로 화면에 내보내고 있었다. 손으로 쓴 여행지는
+## 몇 곳뿐이고 나머지 200곳 넘게가 이 문장을 쓰므로, 대부분의 플레이어가
+## 괄호를 본다는 뜻이었다.
+##
+## 한글 음절은 유니코드에서 (초성, 중성, 종성) 순서로 배열돼 있어서
+## (코드 - 0xAC00) % 28 이 0 이면 받침이 없다.
+static func _josa(word: String, with_final: String, without_final: String) -> String:
+	if word.is_empty():
+		return without_final
+	var c := word.strip_edges().unicode_at(word.strip_edges().length() - 1)
+	# 한글이 아니면(숫자·라틴 문자) 받침 유무를 알 수 없다. 흔한 쪽으로 둔다.
+	if c < 0xAC00 or c > 0xD7A3:
+		return without_final
+	return with_final if (c - 0xAC00) % 28 != 0 else without_final
+
+
+## 문장 안의 조사 표기를 실제 조사로 바꾼다. "%s" 가 이미 채워진 뒤에 부른다.
+static func fix_josa(text: String) -> String:
+	var out := text
+	for pair in [["(을)를", "을", "를"], ["(이)가", "이", "가"],
+			["(은)는", "은", "는"], ["(과)와", "과", "와"], ["(으)로", "으로", "로"]]:
+		while true:
+			var i: int = out.find(pair[0])
+			if i < 0:
+				break
+			out = out.substr(0, i) + _josa(out.substr(0, i), pair[1], pair[2]) \
+				+ out.substr(i + pair[0].length())
+	return out
 const AUTO_DIARIES := [
 	"%s(을)를 보고\n한참 아무 말도 안 했다.",
 	"%s(이)가 있는 곳까지\n손을 잡고 걸었다.",
@@ -874,7 +906,7 @@ func _auto_souvenir(d: Dictionary, idx: int) -> Dictionary:
 	var h: int = abs(hash(str(d.get("id", "")) + str(idx)))
 	return {
 		"title": AUTO_TITLES[h % AUTO_TITLES.size()] % kw,
-		"diary": AUTO_DIARIES[(h / 7) % AUTO_DIARIES.size()] % kw,
+		"diary": fix_josa(AUTO_DIARIES[(h / 7) % AUTO_DIARIES.size()] % kw),
 		"photo": str(d.get("emoji", "📷")),
 	}
 
@@ -884,9 +916,9 @@ func _auto_messages(d: Dictionary) -> Array:
 	var h: int = abs(hash(str(d.get("id", ""))))
 	return [
 		{"at": 0.35, "emoji": str(d.get("emoji", "💌")),
-		 "text": AUTO_MSGS[h % AUTO_MSGS.size()] % kw},
+		 "text": fix_josa(AUTO_MSGS[h % AUTO_MSGS.size()] % kw)},
 		{"at": 0.70, "emoji": "✉",
-		 "text": AUTO_MSGS[(h / 5) % AUTO_MSGS.size()] % kw},
+		 "text": fix_josa(AUTO_MSGS[(h / 5) % AUTO_MSGS.size()] % kw)},
 	]
 
 func _pick_souvenir(dest_id: String) -> Dictionary:

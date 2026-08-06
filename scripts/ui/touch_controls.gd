@@ -208,16 +208,31 @@ func _make_recenter() -> void:
 
 ## 버튼에 쓸 짧은 동사. "쿼카전자로 들어가기" → "들어가기".
 ## 너무 짧으면("찍기") 앞 낱말을 하나 더 붙여 "사진 찍기" 로 만든다.
+## 동사로 끝나면 뒤에서 잘라 쓰고, 아니면 무엇을 할지 붙여 준다.
+##
+## 처음엔 뒤 낱말부터 4자가 될 때까지 붙였는데 두 가지가 깨졌다.
+##   "[ 첫 골목 ]" → "골목 ]"   대괄호 조각이 남았다
+##   "오래된 카메라"  → "오래된 카메라"  명사만 남아 무슨 일이 일어날지 알 수 없다
+## 버튼은 **무엇이 일어나는지** 를 말해야 한다.
 static func short_verb(prompt: String) -> String:
-	var parts := prompt.strip_edges().split(" ", false)
+	# 기념품 제목은 "[ 첫 골목 ]" 형식이다. 장식 기호를 먼저 걷어낸다.
+	var clean := prompt.strip_edges().replace("[", "").replace("]", "").strip_edges()
+	var parts := clean.split(" ", false)
 	if parts.is_empty():
 		return "조사"
-	var out: String = parts[parts.size() - 1]
-	var i := parts.size() - 2
-	while out.length() < 4 and i >= 0:
-		out = parts[i] + " " + out
-		i -= 1
-	return out if out.length() <= 8 else parts[parts.size() - 1]
+
+	# 동사로 끝나는가. "~기" 로 끝나면 이미 행동을 말하고 있다.
+	var last: String = parts[parts.size() - 1]
+	if last.ends_with("기"):
+		var out := last
+		var i := parts.size() - 2
+		while out.length() < 4 and i >= 0:
+			out = parts[i] + " " + out
+			i -= 1
+		return out if out.length() <= 7 else last
+
+	# 명사다. 무엇을 할지 붙인다.
+	return "살펴보기"
 
 
 ## 지금 무엇을 하는 버튼인지 글자를 바꾼다.
@@ -237,7 +252,10 @@ func _refresh_interact_text() -> void:
 	if b.text != want:
 		b.text = want
 		# 글자가 길어지면 작게. 동그라미를 넘치면 안 된다.
-		b.add_theme_font_size_override("font_size", 30 if want.length() <= 4 else 24)
+		# 지름 138px 안에 들어와야 한다. 단계가 둘뿐일 때 8자가 원을 넘쳤다.
+		var n := want.length()
+		var fs := 30 if n <= 4 else (26 if n <= 5 else (23 if n <= 6 else 20))
+		b.add_theme_font_size_override("font_size", fs)
 
 
 func _refresh_target_label() -> void:

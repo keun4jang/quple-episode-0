@@ -40,22 +40,37 @@ func _ready() -> void:
 func _build_scrim() -> void:
 	_scrim = ColorRect.new()
 	_scrim.color = Color(0.05, 0.04, 0.08, 0.72)
-	_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_scrim)
 	move_child(_scrim, 0)
+	# CanvasLayer 직속 Control 은 부모가 Control 이 아니라 앵커만으로 안 커진다.
+	# 화면 크기를 직접 넣고, 화면이 바뀌면 따라가게 한다.
+	_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fit_to_screen()
+	get_viewport().size_changed.connect(_fit_to_screen)
 
 	_hint = D.label("화면을 누르면 닫혀요", D.TEXT_S, D.ACCENT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_hint.position = Vector2(0, -168)   # 대화창 위로. 겹치면 둘 다 안 읽힌다.
 	add_child(_hint)
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
+## 화면 전체를 덮고, 안내는 아래 가운데에 놓는다.
+func _fit_to_screen() -> void:
+	var vp := get_viewport().get_visible_rect().size
+	if _scrim != null:
+		_scrim.position = Vector2.ZERO
+		_scrim.size = vp
+	if _hint != null:
+		_hint.size = Vector2(vp.x, 40)
+		_hint.position = Vector2(0, vp.y - 168)
 
 
 ## 열려 있는 동안에는 조작 버튼과 방향 표시를 감춘다.
 ## 앨범을 보는 중에 조이스틱과 화살표가 같이 떠 있으면 화면이 시끄럽다.
 func _on_visibility() -> void:
+	if visible:
+		_fit_to_screen()
 	for g in ["touch_controls", "quest_marker"]:
 		var n := get_tree().get_first_node_in_group(g)
 		if n != null and n is CanvasLayer:

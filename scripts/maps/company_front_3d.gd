@@ -42,7 +42,7 @@ func _ready() -> void:
 		await get_tree().create_timer(0.8).timeout
 		dialogue_box.show_text("애인: \"오늘이 그 언젠가야.\"")
 		await get_tree().create_timer(2.4).timeout
-		dialogue_box.show_text("빛나는 자리에 서서 사진 버튼을 눌러요.")
+		dialogue_box.show_text("빛나는 자리에 서서 📷 를 눌러요.")
 
 func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET
@@ -359,7 +359,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _photo_done: return
 	if Episode0State.current_state < Episode0State.State.FIRST_PHOTO: return
 	if player.global_position.distance_to(Vector3(0, player.global_position.y, 1.4)) > 1.6:
-		dialogue_box.show_text("빛나는 자리로 가서 찍어보세요.")
+		dialogue_box.show_text("빛나는 자리로 가서 📷 를 눌러보세요.")
 		return
 	get_viewport().set_input_as_handled()
 	_take_photo()

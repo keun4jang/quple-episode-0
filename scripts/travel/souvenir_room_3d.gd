@@ -39,6 +39,11 @@ var _aurora: Array[MeshInstance3D] = []
 ## 아래 _progress / _tod 는 그것과 다른 축이다. 저건 "여행을 얼마나 왔는지"를
 ## 창밖 그림으로 보여주는 값이고, 무드는 "지금 몇 시인지"다. 섞지 말 것.
 func _ready() -> void:
+	# 이 방은 하늘 배경을 쓰지만 실내다. 그렇게 알려 주지 않으면
+	# 천장 없는 벽 위로 한낮 하늘이 그대로 보인다.
+	var look := get_node_or_null("CinematicLook")
+	if look != null:
+		look.indoor = true
 	_progress = _compute_progress()
 	_tod = _time_of_day_for(_progress)
 	_build_room()
@@ -150,7 +155,8 @@ func _build_room() -> void:
 	var glass_col := sky.lerp(Color(0.086, 0.141, 0.235), night)
 	var glass := _box(self, Vector3(2.9, 2.2, -4.26), Vector3(1.7, 1.4, 0.03), _hex(glass_col), "WindowGlass")
 	# 낮일수록 창이 스스로 빛나 보이게 (발광 세기로 "바깥이 밝다"를 표현)
-	_emissive(glass, _hex(glass_col.lerp(Color(1, 1, 1), 0.18)), lerpf(2.2, 0.35, night))
+	# 2.2 로 두니 창이 순백으로 타서 창틀·커튼·바깥 하늘색까지 전부 날아갔다.
+	_emissive(glass, _hex(glass_col.lerp(Color(1, 1, 1), 0.18)), lerpf(0.85, 0.30, night))
 
 	# 별: 밤일수록 많고 밝다. 낮에는 하나도 남지 않는다.
 	var star_count := int(round(lerpf(0.0, 12.0, night)))
@@ -480,7 +486,8 @@ func _place_souvenir(s: Dictionary, pos: Vector3, idx: int) -> void:
 	_box(root, Vector3(0, 0.18, 0), Vector3(0.36, 0.32, 0.035), "#5E4A38", "Frame")
 	var photo := _box(root, Vector3(0, 0.18, 0.028), Vector3(0.30, 0.26, 0.01),
 		"#%02X%02X%02X" % [int(tint.r * 255), int(tint.g * 255), int(tint.b * 255)], "Photo")
-	_emissive(photo, "#%02X%02X%02X" % [int(tint.r * 255), int(tint.g * 255), int(tint.b * 255)], 0.55)
+	# 0.55 는 사진이 백지가 되어 안 읽혔다. 이 방의 존재 이유가 사진 보는 것이다.
+	_emissive(photo, "#%02X%02X%02X" % [int(tint.r * 255), int(tint.g * 255), int(tint.b * 255)], 0.22)
 	# 액자 받침
 	_box(root, Vector3(0, 0.015, -0.03), Vector3(0.30, 0.03, 0.14), "#4A3A2C", "FrameStand")
 

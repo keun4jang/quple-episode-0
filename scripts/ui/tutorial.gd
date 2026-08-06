@@ -131,7 +131,7 @@ func _build() -> void:
 	box.add_child(_label)
 
 	_hint = Label.new()
-	_hint.add_theme_font_size_override("font_size", D.TEXT_S - 4)
+	_hint.add_theme_font_size_override("font_size", D.TEXT_S)
 	_hint.add_theme_color_override("font_color", D.ACCENT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_hint)

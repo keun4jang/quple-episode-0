@@ -24,6 +24,9 @@ const DRAG_TO_DEG := 0.26       # 손가락 1px 당 회전량
 const SMOOTH := 12.0
 const RECENTER_DELAY := 3.0     # 손 뗀 뒤 이만큼 지나야 슬슬 돌아온다
 const RECENTER_SPEED := 0.55
+## 카메라가 플레이어 발밑보다 이만큼은 위에 있어야 한다.
+## 지면 아래로 내려가면 바닥을 뚫고 세상이 뒤집혀 보인다.
+const MIN_HEIGHT := 0.45
 
 @export var enabled := true
 
@@ -200,6 +203,13 @@ func _process(delta: float) -> void:
 
 	var pivot: Vector3 = _player.global_position + Vector3(0, _pivot_y, 0)
 	var want := pivot + _dir() * _dist
+
+	# 하늘을 보려고 각도를 내리면 카메라가 지면 아래로 박힌다.
+	# Office 는 pitch -11.5° 만 내려가도 바닥 밑이었다 — 손가락으로 조금만 끌면 닿는다.
+	# pitch 한계를 좁히는 대신 높이를 막는다. 안전한 각도는 거리에 따라 달라지기 때문이다.
+	var floor_y: float = _player.global_position.y + MIN_HEIGHT
+	if want.y < floor_y:
+		want.y = floor_y
 
 	# 벽을 뚫고 나가지 않게 앞으로 당긴다
 	want = _avoid_walls(pivot, want)

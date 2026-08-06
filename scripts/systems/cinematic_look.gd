@@ -63,6 +63,11 @@ const INDOOR_AMBIENT_MIX := 0.50    # 환경광 색·밝기에 바깥 빛이 섞
 ## 실내 밝기는 무드 값으로 갈아치우지 않고 이 값 대비 비율로만 흔든다.
 ## 한낮 무드의 ambient_energy 를 그대로 넣으면 방이 하얗게 뜬다.
 const INDOOR_AMBIENT_REF := 0.85
+## 실내 배경색이 이보다 밝아지지 않게 한다. 벽 위로 보이는 "바깥" 이
+## 방 안보다 밝으면 시선이 그리로 끌린다.
+const INDOOR_BG_MAX_LUM := 0.30
+## 실내 씬이 하늘 배경을 쓸 때 하늘을 이만큼으로 눌러 둔다.
+const INDOOR_SKY_DIM := 0.24
 
 ## 씬이 원래 갖고 있던 값을 적어 두는 메타 키.
 ## Environment 는 .tscn 의 sub_resource 라 씬을 다시 들어와도 같은 객체가 재활용된다.
@@ -78,6 +83,13 @@ var _applied := false               # mood setter 가 이걸 보고 다시 바�
 ## 고정 무드 이름. 비워 두면 실제 시각을 따라간다.
 ## 아는 이름은 MoodPalette.fixed_names() — 지금은 "night_office" / "night_office_indoor".
 @export var mood: String = "": set = set_mood
+
+## 배경이 하늘(BG_SKY)이어도 실내로 다룬다.
+##
+## 기념품 방이 하늘 배경을 쓰고 있어서 실외로 판정됐다. 방에는 천장이 없어
+## 벽 위로 그 하늘이 그대로 보이는데, 한낮이면 화면 위 1/5 이 순백이 된다.
+## 실내 장면에서 제일 밝은 것이 "아무것도 없는 하늘" 이 되는 건 잘못이다.
+@export var indoor := false: set = set_indoor
 
 var current_mood: Dictionary = {}   # 지금 화면에 발려 있는 무드
 var current_mood_name := ""         # 고정 무드 이름이거나, 실시간이면 "dawn"/"night" 같은 구간 이름
@@ -95,6 +107,14 @@ func _ready() -> void:
 ## mood 를 늦게(씬 루트의 _ready 등) 넣어도 화면에 반영되게 한다.
 func set_mood(value: String) -> void:
 	mood = value
+	if _applied:
+		apply_mood(resolve_mood())
+
+
+## 씬 루트의 _ready 에서 늦게 켜도 화면에 반영되게 한다.
+## 이미 한 번 바른 뒤에 값만 바꾸면 아무 일도 일어나지 않는다.
+func set_indoor(value: bool) -> void:
+	indoor = value
 	if _applied:
 		apply_mood(resolve_mood())
 
@@ -135,7 +155,7 @@ func _apply_environment(m: Dictionary) -> bool:
 	if we == null or we.environment == null:
 		return false
 	var e: Environment = we.environment
-	var outdoor := e.background_mode == Environment.BG_SKY
+	var outdoor := e.background_mode == Environment.BG_SKY and not indoor
 
 	# 톤매핑 — 하이라이트가 하얗게 타지 않고 부드럽게 말린다
 	e.tonemap_mode = Environment.TONE_MAPPER_ACES
@@ -144,10 +164,13 @@ func _apply_environment(m: Dictionary) -> bool:
 
 	# 글로우 — 창문 불빛과 가로등이 번지면서 밤 공기가 생긴다
 	e.glow_enabled = true
-	e.glow_intensity = 0.95
+	# 실내는 광원이 가깝고 많아 같은 값이면 훨씬 심하게 탄다.
+	# 기념품 방에서 창·사진·램프가 전부 흰 덩어리가 됐다.
+	var indoor := not outdoor
+	e.glow_intensity = 0.55 if indoor else 0.95
 	e.glow_strength = 1.15
-	e.glow_bloom = 0.28
-	e.glow_hdr_threshold = 0.82
+	e.glow_bloom = 0.16 if indoor else 0.28
+	e.glow_hdr_threshold = 1.05 if indoor else 0.82
 	e.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 
 	# 색보정 — 파스텔이 흐리멍덩해지지 않게 대비와 채도를 올린다
@@ -159,7 +182,17 @@ func _apply_environment(m: Dictionary) -> bool:
 	# 안개 — 뒤로 갈수록 옅어지면서 깊이가 생긴다. 디오라마 느낌의 핵심.
 	# 색까지 무드에서 가져와야 새벽 안개와 밤 안개가 달라진다.
 	e.fog_enabled = true
-	e.fog_light_color = m["fog_color"]
+	# 안개는 배경(무한 깊이)까지 덮는다. fog_sky_affect = 0 은 하늘 배경만 막을 뿐,
+	# 단색 배경 씬에서는 화면이 통째로 안개색이 된다.
+	# 기념품 방이 그랬다 — 배경색은 짙은 남색인데 벽 위쪽이 한낮 안개색으로 하얗게 떴다.
+	# 실내에서는 안개색 밝기를 눌러 방보다 밝아지지 않게 한다.
+	var fog: Color = m["fog_color"]
+	if not outdoor:
+		var fl := fog.get_luminance()
+		if fl > INDOOR_BG_MAX_LUM:
+			fog = fog * (INDOOR_BG_MAX_LUM / maxf(fl, 0.001))
+			fog.a = 1.0
+	e.fog_light_color = fog
 	e.fog_density = float(m["fog_density"])
 	e.fog_sky_affect = 0.0
 
@@ -187,21 +220,46 @@ func _paint_sky(e: Environment, m: Dictionary) -> void:
 
 
 ## 실내. 하늘이 안 보이니 배경색과 환경광에만 바깥 시간을 섞는다.
-## 고정 무드 실내 씬은 이미 그 시각으로 칠해져 있다는 뜻이라 손대지 않는다.
+##
+## 고정 무드(에피소드 0 의 실내 세 씬)도 **무드 값을 쓴다.**
+## 예전에는 "씬이 손으로 맞춰 둔 값이 있으니 그대로 두자" 며 여기서 그냥 돌아갔는데,
+## 그 바람에 `night_office_indoor` 의 환경광이 아무 데도 안 쓰이는 죽은 값이 됐다.
+## 실내를 등불색으로 바꾼 변경이 통째로 화면에 닿지 않았고, 로비·사무실·복도는
+## .tscn 에 적힌 밤하늘 라벤더 그대로 남아 "수영장 색" 이었다.
+##
+## 고정 무드는 "시간에 따라 변하지 않는다" 는 뜻이지 "무드를 무시한다" 가 아니다.
 func _paint_indoor(e: Environment, m: Dictionary) -> void:
 	var base_bg: Color = _base_color(e, META_BG, e.background_color)
+
+	# 하늘 배경을 쓰는 실내 씬(기념품 방)은 하늘을 어둡게 눌러 둔다.
+	# 시간대 색은 남기되 밝기는 방보다 아래로 내린다.
+	if e.background_mode == Environment.BG_SKY:
+		var dim := m.duplicate()
+		for k in ["sky_top", "sky_horizon", "ground_horizon", "ground_bottom"]:
+			var c: Color = m[k]
+			dim[k] = Color(c.r * INDOOR_SKY_DIM, c.g * INDOOR_SKY_DIM, c.b * INDOOR_SKY_DIM)
+		_paint_sky(e, dim)
+
+	if not mood.is_empty():
+		# 고정 무드 — 시간과 무관하게 이 무드의 값을 그대로 바른다.
+		e.background_color = m.get("fog_color", base_bg)
+		e.ambient_light_color = m["ambient_color"]
+		e.ambient_light_energy = m["ambient_energy"]
+		return
+
 	var base_amb: Color = _base_color(e, META_AMBIENT, e.ambient_light_color)
 	var base_energy := _base_float(e, META_AMBIENT_ENERGY, e.ambient_light_energy)
 
-	if not mood.is_empty():
-		# 고정 무드 실내 씬. 씬이 손으로 맞춰 둔 값을 그대로 쓴다.
-		# (혹시 실시간으로 한 번 발린 뒤에 무드가 늦게 들어왔다면 여기서 되돌아간다.)
-		e.background_color = base_bg
-		e.ambient_light_color = base_amb
-		e.ambient_light_energy = base_energy
-		return
-
-	e.background_color = base_bg.lerp(m["sky_top"], INDOOR_SKY_MIX)
+	# 방에는 천장이 없어서 벽 위로 이 배경색이 그대로 보인다.
+	# 한낮 하늘색을 그대로 섞었더니 화면 위쪽 1/5 이 순백이 되어,
+	# 실내 장면에서 제일 밝은 것이 "아무것도 없는 하늘" 이 됐다.
+	# 시간대는 색으로만 느끼게 하고 밝기는 방 쪽에 묶어 둔다.
+	var bg := base_bg.lerp(m["sky_top"], INDOOR_SKY_MIX)
+	var lum := bg.get_luminance()
+	if lum > INDOOR_BG_MAX_LUM:
+		bg = bg * (INDOOR_BG_MAX_LUM / maxf(lum, 0.001))
+		bg.a = 1.0
+	e.background_color = bg
 	e.ambient_light_color = base_amb.lerp(m["ambient_color"], INDOOR_AMBIENT_MIX)
 	var ratio := float(m["ambient_energy"]) / INDOOR_AMBIENT_REF
 	e.ambient_light_energy = base_energy * lerpf(1.0, ratio, INDOOR_AMBIENT_MIX)
