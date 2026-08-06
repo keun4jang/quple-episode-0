@@ -163,14 +163,24 @@ func _apply_environment(m: Dictionary) -> bool:
 	e.tonemap_exposure = float(m["exposure"])
 
 	# 글로우 — 창문 불빛과 가로등이 번지면서 밤 공기가 생긴다
-	e.glow_enabled = true
-	# 실내는 광원이 가깝고 많아 같은 값이면 훨씬 심하게 탄다.
-	# 기념품 방에서 창·사진·램프가 전부 흰 덩어리가 됐다.
 	var indoor := not outdoor
-	e.glow_intensity = 0.55 if indoor else 0.95
+
+	# 글로우는 **실외에서만** 켠다.
+	#
+	# gl_compatibility 의 글로우는 HDR 버퍼가 없어서 밝기 임계값이라는 개념이 없다.
+	# 실제로 재 봤더니 intensity / strength / bloom / hdr_threshold / blend 를
+	# 어떤 값으로 바꿔도 화면이 똑같았고, **켜고 끄는 것만** 차이를 만들었다.
+	# 그래서 광원이 가깝고 많은 실내에서는 화면 전체가 밝은 쪽으로 끌려간다.
+	# 기념품 방은 벽 위 배경까지 하얗게 떠서(밝기 0.96) 아무것도 없는 하늘이
+	# 화면에서 제일 밝은 것이 됐다. 글로우를 끄면 0.19 로 내려간다.
+	#
+	# 실외는 어두운 밤 화면에 창문·가로등만 도드라져서 이 문제가 안 생긴다.
+	# 거기서는 글로우가 밤 공기를 만드는 핵심이라 그대로 둔다.
+	e.glow_enabled = outdoor
+	e.glow_intensity = 0.95
 	e.glow_strength = 1.15
-	e.glow_bloom = 0.16 if indoor else 0.28
-	e.glow_hdr_threshold = 1.05 if indoor else 0.82
+	e.glow_bloom = 0.28
+	e.glow_hdr_threshold = 0.82
 	e.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 
 	# 색보정 — 파스텔이 흐리멍덩해지지 않게 대비와 채도를 올린다
