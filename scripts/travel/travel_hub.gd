@@ -5,6 +5,7 @@ extends Control
 ##   ARRIVED   돌아온 쿼카들에게서 사진과 일기를 받는다
 
 const POSTER := "res://assets/splash/splash-poster-no-text.png"
+const D := preload("res://scripts/ui/design.gd")
 
 ## 시간대 무드 / 여행지 팔레트. 둘 다 preload 로 잡는다 —
 ## 전역 클래스 이름은 에디터 스캔에서만 갱신되는 캐시에 의존해서 새 클론에서 죽는다.
@@ -233,32 +234,82 @@ func _dest_tint(d: Dictionary) -> Color:
 
 func _make_dest_card(d: Dictionary) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(0, 58)
+	b.custom_minimum_size = Vector2(0, 96)
 	var tint: Color = _dest_tint(d)
 	var visits: int = TravelState.visit_count(d.id)
 	var unlocked: bool = TravelState.is_unlocked(d.id)
-	var secs: int = TravelState.duration_of(d)
-	var dur := _format_duration(secs)
-	if unlocked:
-		b.text = "%s  %s\n%s\n소요 %s%s" % [
-			d.emoji, d.name, d.tagline, dur,
-			("   ·   %d번 다녀옴" % visits) if visits > 0 else "",
-		]
-	else:
-		b.text = "🔒  %s" % TravelState.unlock_hint(d.id)
-		b.disabled = true
-	b.add_theme_font_size_override("font_size", 15)
-	b.add_theme_color_override("font_color", Color(0.20, 0.14, 0.10))
-	b.add_theme_color_override("font_hover_color", Color(0.10, 0.07, 0.05))
-	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	b.add_theme_stylebox_override("normal", _card_style(tint, false))
 	b.add_theme_stylebox_override("hover",  _card_style(tint, true))
 	b.add_theme_stylebox_override("pressed",_card_style(tint, true))
+	b.add_theme_stylebox_override("disabled", _card_style(tint, false))
+
+	if not unlocked:
+		b.text = "🔒  %s" % TravelState.unlock_hint(d.id)
+		b.add_theme_font_size_override("font_size", D.TEXT_S)
+		b.add_theme_color_override("font_disabled_color", Color(0.30, 0.26, 0.24, 0.75))
+		b.disabled = true
+		return b
+
+	# 이름 / 한 줄 소개 / 걸리는 시간 — 셋의 크기와 진하기를 다르게 해서
+	# 훑어볼 때 이름이 먼저 들어오게 한다.
+	var row := HBoxContainer.new()
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.add_theme_constant_override("separation", D.GAP_M)
+	row.offset_left = D.GAP_L
+	row.offset_right = -D.GAP_L
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(row)
+
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.alignment = BoxContainer.ALIGNMENT_CENTER
+	left.add_theme_constant_override("separation", 2)
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(left)
+
+	var name_lb := Label.new()
+	name_lb.text = "%s  %s" % [d.emoji, d.name]
+	name_lb.add_theme_font_size_override("font_size", D.TEXT_M)
+	name_lb.add_theme_color_override("font_color", Color(0.16, 0.11, 0.08))
+	name_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left.add_child(name_lb)
+
+	var tag_lb := Label.new()
+	tag_lb.text = str(d.tagline)
+	tag_lb.add_theme_font_size_override("font_size", D.TEXT_S - 4)
+	tag_lb.add_theme_color_override("font_color", Color(0.30, 0.24, 0.20, 0.85))
+	tag_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left.add_child(tag_lb)
+
+	var right := VBoxContainer.new()
+	right.alignment = BoxContainer.ALIGNMENT_CENTER
+	right.add_theme_constant_override("separation", 2)
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(right)
+
+	var dur_lb := Label.new()
+	dur_lb.text = _format_duration(TravelState.duration_of(d))
+	dur_lb.add_theme_font_size_override("font_size", D.TEXT_S)
+	dur_lb.add_theme_color_override("font_color", Color(0.22, 0.16, 0.12))
+	dur_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	dur_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.add_child(dur_lb)
+
+	if visits > 0:
+		var v_lb := Label.new()
+		v_lb.text = "%d번 다녀옴" % visits
+		v_lb.add_theme_font_size_override("font_size", D.TEXT_S - 6)
+		v_lb.add_theme_color_override("font_color", Color(0.32, 0.26, 0.22, 0.8))
+		v_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		v_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		right.add_child(v_lb)
+
 	b.pressed.connect(func():
 		if TravelState.start_trip(d.id):
 			AudioManager.ui_confirm()
 			_refresh())
 	return b
+
 
 func _format_duration(secs: int) -> String:
 	if secs >= 3600:
@@ -435,11 +486,13 @@ func _apply_mood() -> void:
 	var m := _mood()
 	var tint := _light_tint(m)
 	var b := clampf(_bright(m["sky_horizon"]), BG_MIN_BRIGHT, 1.0)
-	bg.modulate = Color(tint.r * b, tint.g * b, tint.b * b, 1.0)
+	bg.modulate = Color(tint.r * b * 0.78, tint.g * b * 0.78, tint.b * b * 0.78, 1.0)
 	# Dim 은 어둡기(0.14)와 두께(0.28)를 그대로 두고 색조만 시간대로 옮긴다.
 	var f: Color = m["fog_color"]
 	var k := 0.14 / maxf(_vmax(f), 0.001)
-	dim.color = Color(f.r * k, f.g * k, f.b * k, 0.28)
+	# 0.28 로는 배경 얼굴이 너무 또렷해서 눈이 카드가 아니라 얼굴로 간다.
+	# 포스터는 분위기만 남기고 뒤로 물러나야 한다.
+	dim.color = Color(f.r * k, f.g * k, f.b * k, 0.62)
 
 ## 그 시각의 빛 색. 세기는 빼고 색조만 남긴다 (가장 밝은 채널이 1.0 이 되게).
 func _light_tint(m: Dictionary) -> Color:

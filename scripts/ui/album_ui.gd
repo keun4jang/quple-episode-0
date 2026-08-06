@@ -22,9 +22,53 @@ const PHOTOS = [
 	},
 ]
 
+const D := preload("res://scripts/ui/design.gd")
+
+var _scrim: ColorRect
+var _hint: Label
+
+
 func _ready() -> void:
 	add_to_group("album_ui")     # 뒤로가기가 이걸 찾아 닫는다
+	layer = 20                   # 게임 UI(8) 와 방향 표시(6) 위로
+	_build_scrim()
 	visible = false
+	visibility_changed.connect(_on_visibility)
+
+
+## 앨범이 열렸는데 뒤 배경이 그대로 보이면 붕 떠 보인다. 뒤를 눌러 어둡게 깐다.
+func _build_scrim() -> void:
+	_scrim = ColorRect.new()
+	_scrim.color = Color(0.05, 0.04, 0.08, 0.72)
+	_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_scrim)
+	move_child(_scrim, 0)
+
+	_hint = D.label("화면을 누르면 닫혀요", D.TEXT_S, D.ACCENT)
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_hint.position = Vector2(0, -168)   # 대화창 위로. 겹치면 둘 다 안 읽힌다.
+	add_child(_hint)
+
+
+## 열려 있는 동안에는 조작 버튼과 방향 표시를 감춘다.
+## 앨범을 보는 중에 조이스틱과 화살표가 같이 떠 있으면 화면이 시끄럽다.
+func _on_visibility() -> void:
+	for g in ["touch_controls", "quest_marker"]:
+		var n := get_tree().get_first_node_in_group(g)
+		if n != null and n is CanvasLayer:
+			n.visible = not visible
+
+
+## 화면 아무 데나 톡 치면 닫힌다. 폰에는 B 키가 없다.
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventScreenTouch and not event.pressed:
+		visible = false
+		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("album"):
