@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/systems/free_look.gd" id="free_look"]
 [ext_resource type="Script" path="res://scripts/systems/quest_marker.gd" id="qmark"]
 [ext_resource type="Script" path="res://scripts/systems/collision_kit.gd" id="coll_kit"]
+[ext_resource type="Script" path="res://scripts/systems/touch_feedback.gd" id="touchfb"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1
@@ -82,3 +83,6 @@ script = ExtResource("qmark")
 
 [node name="CollisionKit" type="Node" parent="."]
 script = ExtResource("coll_kit")
+
+[node name="TouchFeedback" type="CanvasLayer" parent="."]
+script = ExtResource("touchfb")

@@ -148,6 +148,47 @@ func message_arrive() -> void:
 func souvenir_get() -> void:
 	_play("sparkle", -8.0)
 
+# ── 촉감 효과음 ─────────────────────────────────────────────────────────
+# 아래 소리들은 전부 낮은 음역(대체로 1kHz 아래)에 머문다.
+# 자기 전에 켜는 게임이라 날카로운 고음을 넣지 않는다.
+
+## 문이 열린다 (로비·사무실·복도 전환)
+func door_open() -> void:
+	_play("door_open", -13.0, randf_range(0.97, 1.03))
+
+## 문이 닫힌다
+func door_close() -> void:
+	_play("door_close", -13.0, randf_range(0.97, 1.03))
+
+## 물건을 집는다 (기념품·여행 물품)
+func pickup() -> void:
+	_play("pickup", -13.0, randf_range(0.95, 1.06))
+
+## 소파·러그에 앉는다 (부스럭)
+func sit_rustle() -> void:
+	_play("sit_rustle", -15.0, randf_range(0.96, 1.05))
+
+## 바람이 스친다 (야외에서 가끔)
+func wind_gust() -> void:
+	_play("wind_gust", -18.0, randf_range(0.92, 1.08))
+
+## 종이를 넘긴다 (앨범·일기)
+func page_turn() -> void:
+	_play("page_turn", -15.0, randf_range(0.96, 1.05))
+
+## 물방울 — 화면을 톡 건드렸을 때 (터치 반응용)
+func water_drop() -> void:
+	_play("water_drop", -14.0, randf_range(0.94, 1.07))
+
+## 잔물결 — 화면을 쓸었을 때 (터치 반응용, 물방울보다 여리다)
+func water_ripple() -> void:
+	_play("water_ripple", -19.0, randf_range(0.95, 1.05))
+
+## 화면을 톡 쳤을 때. 물방울 하나 떨어지는 정도로 아주 여리게.
+## 아무 데나 만져도 나는 소리라서, 들릴락 말락 해야 지겹지 않다.
+func touch_tap() -> void:
+	_play("tap", -24.0, randf_range(0.94, 1.10))
+
 # ── 재생 ────────────────────────────────────────────────────────────────
 
 func _play(kind: String, db: float, pitch: float = 1.0) -> void:
@@ -169,13 +210,23 @@ func _play(kind: String, db: float, pitch: float = 1.0) -> void:
 # ── 파형 합성 ───────────────────────────────────────────────────────────
 
 func _build(kind: String) -> AudioStreamWAV:
+	# 잡음 필터 상태를 초기화한다. 안 하면 앞서 만든 소리의 꼬리가 섞인다.
+	_reset_filters(hash(kind) + 11)
 	match kind:
-		"footstep":  return _make(0.09, _footstep_wave)
-		"shutter":   return _make(0.16, _shutter_wave)
-		"click":     return _make(0.05, _click_wave)
-		"confirm":   return _make(0.22, _confirm_wave)
-		"chime":     return _make(0.55, _chime_wave)
-		"sparkle":   return _make(0.45, _sparkle_wave)
+		"footstep":     return _make(0.09, _footstep_wave)
+		"shutter":      return _make(0.16, _shutter_wave)
+		"click":        return _make(0.05, _click_wave)
+		"confirm":      return _make(0.22, _confirm_wave)
+		"chime":        return _make(0.55, _chime_wave)
+		"sparkle":      return _make(0.45, _sparkle_wave)
+		"door_open":    return _make_norm(0.75, _door_open_wave, 0.72)
+		"door_close":   return _make_norm(0.50, _door_close_wave, 0.72)
+		"pickup":       return _make_norm(0.30, _pickup_wave, 0.68)
+		"sit_rustle":   return _make_norm(0.85, _sit_rustle_wave, 0.62)
+		"wind_gust":    return _make_norm(1.80, _wind_gust_wave, 0.60)
+		"page_turn":    return _make_norm(0.45, _page_turn_wave, 0.66)
+		"water_drop":   return _make_norm(0.55, _water_drop_wave, 0.70)
+		"water_ripple": return _make_norm(0.80, _water_ripple_wave, 0.58)
 	return null
 
 ## 부드럽고 낮은 툭 소리 (발소리)
@@ -220,6 +271,144 @@ func _sparkle_wave(t: float, dur: float) -> float:
 	var env := exp(-t * 9.0) * (1.0 - t / dur)
 	var shimmer := sin(TAU * sweep * t) + sin(TAU * sweep * 1.5 * t) * 0.4
 	return clampf(shimmer * env * 0.5, -1.0, 1.0)
+
+# ── 촉감 효과음 파형 ────────────────────────────────────────────────────
+#
+# 잡음을 쓰는 소리는 표본마다 필터 상태를 이어가야 하므로 멤버 변수에 담는다.
+# _make() 가 t=0 부터 순서대로 한 번씩 부르기 때문에 이 방식이 성립한다.
+# _build() 가 파형을 만들기 전에 _reset_filters() 로 상태를 0 으로 돌린다.
+#
+# 잡음은 재생마다가 아니라 **만들 때 한 번만** 뽑힌다(파형은 캐시된다).
+# 화면과 달리 소리는 매번 같아도 상관없고, 대신 재생 피치를 흔들어 단조로움을 던다.
+
+var _f1 := 0.0
+var _f2 := 0.0
+var _f3 := 0.0
+var _sfx_rng := RandomNumberGenerator.new()
+
+func _reset_filters(seed_v: int) -> void:
+	_f1 = 0.0
+	_f2 = 0.0
+	_f3 = 0.0
+	_sfx_rng.seed = seed_v
+
+## 잡음을 두 번 저역통과시켜 낮고 부드러운 "부스럭" 을 만든다.
+##   a  : 필터 세기 (작을수록 낮고 둥글다)
+##   hp : 0 보다 크면 그만큼 저역을 빼서 바스락거리는 결을 남긴다
+func _soft_noise(a: float, hp: float) -> float:
+	var w := _sfx_rng.randf_range(-1.0, 1.0)
+	_f1 += (w - _f1) * a
+	_f2 += (_f1 - _f2) * a
+	if hp <= 0.0:
+		return _f2 * (2.4 / maxf(a, 0.02))
+	_f3 += (_f2 - _f3) * hp
+	return (_f2 - _f3) * (2.4 / maxf(a, 0.02))
+
+## 문이 열린다 — 걸쇠가 톡 풀리고 경첩이 낮게 끼익 하며 돈다.
+## 경첩 소리는 165→210Hz 로 아주 조금만 올라간다. 더 올리면 귀에 거슬린다.
+func _door_open_wave(t: float, dur: float) -> float:
+	# 걸쇠 (나무를 톡 치는 소리)
+	var latch := (sin(TAU * 148.0 * t) * 0.7 + sin(TAU * 231.0 * t) * 0.3) * exp(-t * 34.0) * 0.5
+	# 경첩 — 느리게 도는 동안만 울린다
+	var hinge_env := minf(1.0, t / 0.09) * exp(-maxf(0.0, t - 0.09) * 5.2)
+	var f := 165.0 + 45.0 * (t / dur)
+	# 마찰이 끊겼다 이어지는 결 (stick-slip). 12Hz 로 아주 느리게 떤다.
+	var flutter := 0.78 + 0.22 * sin(TAU * 12.0 * t)
+	var hinge := (sin(TAU * f * t) * 0.6 + sin(TAU * f * 2.0 * t) * 0.14) * hinge_env * flutter * 0.42
+	# 공기가 쓸리는 결
+	var air := _soft_noise(0.05, 0.0) * 0.10 * hinge_env
+	return clampf(latch + hinge + air, -1.0, 1.0)
+
+## 문이 닫힌다 — 스쳐 지나가고 낮게 툭, 걸쇠가 딸깍.
+func _door_close_wave(t: float, dur: float) -> float:
+	var swish := _soft_noise(0.06, 0.008) * 0.16 * exp(-t * 9.0)
+	# 0.14초에 문짝이 닿는다
+	var ct := t - 0.14
+	var thud := 0.0
+	if ct > 0.0:
+		thud = (sin(TAU * 92.0 * ct) * 0.75 + sin(TAU * 137.0 * ct) * 0.25) * exp(-ct * 26.0) * 0.46
+	# 0.20초에 걸쇠가 걸린다
+	var lt := t - 0.20
+	var latch := 0.0
+	if lt > 0.0:
+		latch = sin(TAU * 320.0 * lt) * exp(-lt * 90.0) * 0.20
+	return clampf(swish + thud + latch, -1.0, 1.0)
+
+## 물건을 집는다 — 손이 닿아 부스럭, 이어서 살짝 들리는 낮은 두 음.
+func _pickup_wave(t: float, dur: float) -> float:
+	var touch := _soft_noise(0.14, 0.02) * 0.22 * exp(-t * 26.0)
+	# 293Hz(D4) → 440Hz(A4). 5도 위로 살짝만 올린다.
+	var f := 293.66 if t < 0.075 else 440.0
+	var lt := t if t < 0.075 else t - 0.075
+	var tone := sin(TAU * f * lt) * exp(-lt * 17.0) * 0.30
+	return clampf(touch + tone, -1.0, 1.0)
+
+## 앉는다 — 쿠션이 눌리는 낮은 울림 + 천이 눌리며 나는 긴 부스럭.
+func _sit_rustle_wave(t: float, dur: float) -> float:
+	var cushion := sin(TAU * 76.0 * t) * exp(-t * 11.0) * 0.30
+	# 부스럭은 천천히 부풀었다 가라앉는다 (몸무게가 실리는 시간)
+	var env := minf(1.0, t / 0.10) * exp(-maxf(0.0, t - 0.10) * 3.6)
+	var cloth := _soft_noise(0.10, 0.012) * 0.20 * env
+	return clampf(cushion + cloth, -1.0, 1.0)
+
+## 바람이 스친다 — 부풀었다 빠지는 대역잡음. 소리라기보다 결에 가깝다.
+func _wind_gust_wave(t: float, dur: float) -> float:
+	var x := t / dur
+	# 0에서 시작해 0으로 끝나는 완만한 산 (앞이 짧고 뒤가 길다)
+	var env := pow(sin(PI * x), 1.7) * (1.0 - 0.35 * x)
+	var body := _soft_noise(0.085, 0.010)
+	# 세기가 미세하게 흔들려야 기계음으로 들리지 않는다
+	var wob := 0.80 + 0.20 * sin(TAU * 2.3 * t + 0.7)
+	return clampf(body * env * wob * 0.26, -1.0, 1.0)
+
+## 종이를 넘긴다 — 두 번 스친다(들어올릴 때, 내려놓을 때).
+## 종이 소리는 원래 고역이지만 필터를 세게 걸어 3kHz 위를 깎았다.
+func _page_turn_wave(t: float, dur: float) -> float:
+	var n := _soft_noise(0.30, 0.055)
+	# 첫 스침
+	var e1 := exp(-t * 20.0) * minf(1.0, t / 0.012)
+	# 두 번째 스침 (0.15초 뒤, 조금 더 여리게)
+	var t2 := t - 0.15
+	var e2 := 0.0
+	if t2 > 0.0:
+		e2 = exp(-t2 * 16.0) * minf(1.0, t2 / 0.012) * 0.72
+	# 종이가 접히며 나는 아주 낮은 결
+	var body := sin(TAU * 128.0 * t) * exp(-t * 30.0) * 0.10
+	return clampf(n * (e1 + e2) * 0.40 + body, -1.0, 1.0)
+
+## 물방울 — 화면을 톡 건드렸을 때. 위로 살짝 휘는 음이 물방울처럼 들린다.
+## 최고 주파수를 900Hz 로 묶어 두었다. 더 올리면 자기 전에 듣기 따갑다.
+func _water_drop_wave(t: float, dur: float) -> float:
+	# 표면을 때리는 순간 (2ms)
+	var plip := 0.0
+	if t < 0.002:
+		plip = _sfx_rng.randf_range(-1.0, 1.0) * 0.16 * (1.0 - t / 0.002)
+	# 440 → 900Hz 로 빠르게 휘어 오른다
+	var f := 440.0 + 460.0 * (1.0 - exp(-t * 26.0))
+	var main := sin(TAU * f * t) * exp(-t * 13.0) * 0.55
+	# 0.16초 뒤 아주 작은 두 번째 방울
+	var t2 := t - 0.16
+	var echo := 0.0
+	if t2 > 0.0:
+		var f2 := 330.0 + 300.0 * (1.0 - exp(-t2 * 26.0))
+		echo = sin(TAU * f2 * t2) * exp(-t2 * 16.0) * 0.18
+	return clampf(plip + main + echo, -1.0, 1.0)
+
+## 잔물결 — 화면을 쓸었을 때. 물방울보다 여리고 길다.
+func _water_ripple_wave(t: float, dur: float) -> float:
+	var x := t / dur
+	var env := pow(sin(PI * x), 1.4)
+	# 낮게 웅웅대는 물소리
+	var body := _soft_noise(0.055, 0.0) * 0.15 * env
+	# 수면이 흔들리는 느린 맥놀이 (196Hz / 200Hz → 4Hz 로 출렁인다)
+	var beat := (sin(TAU * 196.0 * t) + sin(TAU * 200.0 * t)) * 0.11 * env
+	return clampf(body + beat, -1.0, 1.0)
+
+## 톡 (화면 터치) — 짧게 떨어지는 물방울. 배음 없이 순한 사인 하나.
+func _tap_wave(t: float, dur: float) -> float:
+	var f := 660.0 - 180.0 * (t / dur)          # 살짝 내려앉는 음
+	var env := exp(-t * 26.0) * (1.0 - t / dur)
+	return sin(TAU * f * t) * env * 0.55
 
 # ── 배경음악 합성 ───────────────────────────────────────────────────────
 #
@@ -644,6 +833,34 @@ func _finalize(buf: PackedFloat32Array, n: int) -> AudioStreamWAV:
 	st.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	st.loop_begin = 0
 	st.loop_end = n
+	return st
+
+## 콜백으로 만들되 최대 진폭을 target 으로 맞춘다.
+## 잡음을 섞는 소리는 최대값을 미리 계산할 수 없어서, 클램프에 걸려 찌그러지기 쉽다.
+## 한 번 재서 나누면 소리마다 세기가 고르고 클리핑이 없다.
+func _make_norm(duration: float, wave: Callable, target: float) -> AudioStreamWAV:
+	var n := int(SAMPLE_RATE * duration)
+	var raw := PackedFloat32Array()
+	raw.resize(n)
+	var peak := 0.0
+	for i in range(n):
+		var v: float = float(wave.call(float(i) / float(SAMPLE_RATE), duration))
+		raw[i] = v
+		peak = maxf(peak, absf(v))
+	var norm: float = 1.0 if peak < 0.0001 else target / peak
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	for i in range(n):
+		# 앞뒤 페이드로 클릭 노이즈 방지
+		var fade := minf(1.0, minf(float(i), float(n - i)) / 64.0)
+		var sv := int(clampf(raw[i] * norm, -1.0, 1.0) * fade * 32000.0)
+		data[i * 2] = sv & 0xFF
+		data[i * 2 + 1] = (sv >> 8) & 0xFF
+	var st := AudioStreamWAV.new()
+	st.format = AudioStreamWAV.FORMAT_16_BITS
+	st.mix_rate = SAMPLE_RATE
+	st.stereo = false
+	st.data = data
 	return st
 
 ## 콜백으로 16bit PCM 스트림을 만든다
