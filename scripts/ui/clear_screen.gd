@@ -22,6 +22,26 @@ func _process(delta: float) -> void:
 	if glow:
 		glow.modulate.a = 0.16 + sin(_t * 1.4) * 0.05
 
+var _tap_index := -1
+var _tap_from := Vector2.ZERO
+
+## 폰에는 Space 도 Esc 도 없다. 화면을 톡 치면 넘어간다.
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_tap_index = event.index
+			_tap_from = event.position
+		elif event.index == _tap_index:
+			_tap_index = -1
+			if event.position.distance_to(_tap_from) < 24.0:
+				var ev := InputEventAction.new()
+				ev.action = "interact"
+				ev.pressed = true
+				Input.parse_input_event(ev)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()

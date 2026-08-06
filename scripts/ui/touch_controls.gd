@@ -105,6 +105,7 @@ func _refresh_availability() -> void:
 			tw.tween_property(b, "scale", Vector2(1.12, 1.12), 0.10)
 			tw.tween_property(b, "scale", Vector2.ONE, 0.16)
 	_refresh_target_label()
+	_refresh_interact_text()
 
 
 ## 씬이 직접 판단하고 싶으면 "action_availability" 그룹에 노드를 넣고
@@ -200,6 +201,40 @@ func _make_recenter() -> void:
 			fl.recenter())
 	root.add_child(b)
 	_recenter = b
+
+
+## 버튼에 쓸 짧은 동사. "쿼카전자로 들어가기" → "들어가기".
+## 너무 짧으면("찍기") 앞 낱말을 하나 더 붙여 "사진 찍기" 로 만든다.
+static func short_verb(prompt: String) -> String:
+	var parts := prompt.strip_edges().split(" ", false)
+	if parts.is_empty():
+		return "조사"
+	var out: String = parts[parts.size() - 1]
+	var i := parts.size() - 2
+	while out.length() < 4 and i >= 0:
+		out = parts[i] + " " + out
+		i -= 1
+	return out if out.length() <= 8 else parts[parts.size() - 1]
+
+
+## 지금 무엇을 하는 버튼인지 글자를 바꾼다.
+## 문 앞인데 "조사" 라고 적혀 있으면 무엇이 일어날지 알 수 없다.
+func _refresh_interact_text() -> void:
+	var b: Button = _buttons.get("interact")
+	if b == null:
+		return
+	var want := "조사"
+	var db := get_tree().get_first_node_in_group("dialogue_box")
+	if db != null and db.has_method("is_open") and db.is_open():
+		want = "다음"
+	else:
+		var t := _interact_target()
+		if t != null and ("prompt_text" in t) and str(t.prompt_text) != "":
+			want = short_verb(str(t.prompt_text))
+	if b.text != want:
+		b.text = want
+		# 글자가 길어지면 작게. 동그라미를 넘치면 안 된다.
+		b.add_theme_font_size_override("font_size", 30 if want.length() <= 4 else 24)
 
 
 func _refresh_target_label() -> void:

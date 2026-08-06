@@ -269,7 +269,7 @@ func _make_footer() -> Control:
 	var h := HBoxContainer.new()
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
 	var b := Button.new()
-	b.text = "닫기  (Esc)"
+	b.text = "닫기"
 	b.custom_minimum_size = Vector2(200, 40)
 	b.add_theme_font_size_override("font_size", 16)
 	b.pressed.connect(_close)

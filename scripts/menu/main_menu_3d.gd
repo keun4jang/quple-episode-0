@@ -23,6 +23,8 @@ func _ready() -> void:
 	$UILayer/Control/SmallBtnRow/QuitBtn.pressed.connect(_on_quit)
 	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(
 		func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
+	_fix_subtitle_overlap()
+	_add_credits_button()
 	AudioManager.play_bgm("arirang")
 
 	if OS.get_environment("QUPLE_SHOT") != "":
@@ -274,6 +276,84 @@ func _build_bg_stars() -> void:
 		_star_meshes.append(sm); _star_phases.append(0.8 + fmod(float(i) * 0.61, 3.0))
 
 # ── UI 장식 (반짝이 레이블) ──
+## 부제가 두 개 겹쳐 찍히고 있었다. 아래로 옮겨도 이번엔 시작 버튼과 부딪힌다.
+## 로고 아래는 한 줄이면 충분하다 — 둘 다 같은 말을 하고 있었다.
+func _fix_subtitle_overlap() -> void:
+	var copy := get_node_or_null("UILayer/Control/CopyLabel")
+	if copy != null:
+		copy.visible = false
+
+
+## 만든사람. 게임을 만든 도구와 저작권 표시를 남기는 자리이기도 하다 —
+## 폰트와 곡이 전부 자유 라이선스라 출처를 밝혀야 한다.
+func _add_credits_button() -> void:
+	var row := get_node_or_null("UILayer/Control/SmallBtnRow")
+	if row == null:
+		return
+	var src: Button = row.get_node_or_null("SettingsBtn")
+	var b := Button.new()
+	b.text = "🎬 만든사람"
+	b.focus_mode = Control.FOCUS_NONE
+	if src != null:
+		b.custom_minimum_size = src.custom_minimum_size
+		for st in ["normal", "hover", "pressed"]:
+			var sb := src.get_theme_stylebox(st)
+			if sb != null:
+				b.add_theme_stylebox_override(st, sb)
+		b.add_theme_font_size_override("font_size",
+			src.get_theme_font_size("font_size"))
+		b.add_theme_color_override("font_color", src.get_theme_color("font_color"))
+	b.pressed.connect(_show_credits)
+	row.add_child(b)
+	row.move_child(b, 1)
+
+
+func _show_credits() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 80
+	add_child(layer)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.06, 0.05, 0.09, 0.86)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
+
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.add_theme_constant_override("separation", 14)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	dim.add_child(box)
+
+	var lines := [
+		["쿼플", 54, Color(1, 0.93, 0.78)],
+		["쿼카 커플의 힐링 여행", 30, Color(1, 0.86, 0.62)],
+		["", 18, Color.WHITE],
+		["기획 · 개발 · 아트", 26, Color(0.82, 0.86, 0.96)],
+		["Godot 4.3 · Blender · Python", 24, Color(0.72, 0.78, 0.90)],
+		["", 18, Color.WHITE],
+		["글꼴  Jua (SIL Open Font License)", 22, Color(0.72, 0.78, 0.90)],
+		["음악  한국 동요 편곡 (저작권 만료)", 22, Color(0.72, 0.78, 0.90)],
+		["", 18, Color.WHITE],
+		["화면을 누르면 닫혀요", 24, Color(1, 0.86, 0.62)],
+	]
+	for l in lines:
+		var lb := Label.new()
+		lb.text = str(l[0])
+		lb.add_theme_font_size_override("font_size", int(l[1]))
+		lb.add_theme_color_override("font_color", l[2])
+		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(lb)
+
+	# 아무 데나 눌러 닫는다. 폰에는 Esc 가 없다.
+	var close := Button.new()
+	close.flat = true
+	close.set_anchors_preset(Control.PRESET_FULL_RECT)
+	close.pressed.connect(layer.queue_free)
+	layer.add_child(close)
+
+
 func _build_ui_decorations() -> void:
 	var ctrl = get_node_or_null("UILayer/Control")
 	if not ctrl:

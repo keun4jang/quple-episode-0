@@ -29,7 +29,7 @@ func _ready() -> void:
 	$BackInteract.interacted.connect(_go_back)
 	PartnerSpawner.ensure(self, player)
 	await get_tree().create_timer(0.5).timeout
-	dialogue_box.show_text("문 너머에서 목소리가 새어 나와요. (Space로 들어보기)")
+	dialogue_box.show_text("문 너머에서 목소리가 새어 나와요.")
 
 func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET

@@ -70,6 +70,26 @@ func _play_sequence() -> void:
 	tw.tween_property(hint, "modulate", Color(1, 1, 1, 1), 0.8)
 	tw.tween_callback(func(): _done = true)
 
+var _tap_index := -1
+var _tap_from := Vector2.ZERO
+
+## 폰에는 Space 도 Esc 도 없다. 화면을 톡 치면 넘어간다.
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_tap_index = event.index
+			_tap_from = event.position
+		elif event.index == _tap_index:
+			_tap_index = -1
+			if event.position.distance_to(_tap_from) < 24.0:
+				var ev := InputEventAction.new()
+				ev.action = "interact"
+				ev.pressed = true
+				Input.parse_input_event(ev)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _done:
 		# 연출 중 아무 키나 누르면 건너뛴다

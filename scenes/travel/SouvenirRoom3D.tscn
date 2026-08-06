@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://bsouvenirroom3d"]
+[gd_scene load_steps=15 format=3 uid="uid://bsouvenirroom3d"]
 
 [ext_resource type="Script" path="res://scripts/travel/souvenir_room_3d.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/characters/PlayerQuokka3D.tscn" id="2_player"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/systems/depth_shading.gd" id="depth_sh"]
 [ext_resource type="Script" path="res://scripts/systems/living_scene.gd" id="living"]
 [ext_resource type="Script" path="res://scripts/systems/free_look.gd" id="free_look"]
+[ext_resource type="Script" path="res://scripts/systems/quest_marker.gd" id="qmark"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1
@@ -74,3 +75,6 @@ script = ExtResource("living")
 
 [node name="FreeLook" type="Node" parent="."]
 script = ExtResource("free_look")
+
+[node name="QuestMarker" type="CanvasLayer" parent="."]
+script = ExtResource("qmark")

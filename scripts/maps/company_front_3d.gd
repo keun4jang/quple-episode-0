@@ -42,7 +42,7 @@ func _ready() -> void:
 		await get_tree().create_timer(0.8).timeout
 		dialogue_box.show_text("애인: \"오늘이 그 언젠가야.\"")
 		await get_tree().create_timer(2.4).timeout
-		dialogue_box.show_text("빛나는 자리에 서서 F 를 눌러 첫 사진을 찍어요.")
+		dialogue_box.show_text("빛나는 자리에 서서 사진 버튼을 눌러요.")
 
 func _process(delta: float) -> void:
 	var target_pos = player.global_position + CAM_OFFSET

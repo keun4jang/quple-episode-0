@@ -32,8 +32,8 @@ const OBJECTIVES := {
 	State.COLLECT_TRAVEL_ITEMS: "여행 물품 3가지 챙기기",
 	State.RETURN_BADGE: "로비에서 사원증 반납하기",
 	State.PARTNER_JOINED: "둘이 함께 회사 밖으로 나가기",
-	State.FIRST_PHOTO: "회사 앞에서 첫 사진 찍기 (F)",
-	State.ALBUM_CREATED: "앨범 확인하기 (B)",
+	State.FIRST_PHOTO: "회사 앞에서 첫 사진 찍기",
+	State.ALBUM_CREATED: "앨범 확인하기",
 	State.CLEAR: "0편 완료",
 }
 

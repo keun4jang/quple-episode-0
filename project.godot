@@ -12,7 +12,7 @@ config_version=5
 
 config/name="쿼플"
 config/description="쿼카 커플의 힐링 여행"
-run/main_scene="res://scenes/maps/CompanyFront3D.tscn"
+run/main_scene="res://scenes/menu/MainMenu3D.tscn"
 config/features=PackedStringArray("4.3")
 config/icon="res://assets/icon/icon-512.png"
 config/version="0.1.8"

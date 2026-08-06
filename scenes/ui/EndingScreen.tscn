@@ -93,7 +93,7 @@ theme_override_colors/font_color = Color(1, 0.858824, 0.619608, 1)
 
 [node name="HintLabel" type="Label" parent="Root/Center/Body"]
 layout_mode = 2
-text = "Space 여행 계속하기      Esc 종료"
+text = "화면을 누르면 여행을 계속해요"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 26
 theme_override_colors/font_color = Color(1, 0.945098, 0.815686, 0.501961)
