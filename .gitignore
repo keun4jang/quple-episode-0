@@ -17,3 +17,8 @@ Thumbs.db
 !.claude/agents/*.md
 build/
 *.keystore
+
+# 화면을 찍어 보려고 만드는 임시 프로브 씬.
+# 디자인 에이전트와 내가 수시로 만들었다 지운다. 저장소에 남을 것이 아니다.
+# 이름은 밑줄로 시작하는 규칙 (tests/_probe.gd, tests/_Lead.tscn …).
+tests/_*
