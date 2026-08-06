@@ -54,12 +54,32 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	# 여기까지 왔으면 이번 부팅은 성공이다. 롤백 표시를 지운다.
-	if _state.get("boot_pending", false):
-		_state["boot_pending"] = false
-		_write_state()
 	_show_version_badge()
 	_check_for_update()
+	_arm_boot_watchdog()
+
+
+## "이번 부팅은 성공했다" 를 언제 인정할 것인가.
+##
+## 처음엔 이 _ready 안에서 바로 지웠다. 그건 틀렸다.
+## 오토로드의 _ready 는 **메인 씬이 뜨기도 전에** 돈다. 그래서 팩이 씬을 죽여도
+## 이미 "성공" 으로 기록된 뒤라 롤백이 영영 걸리지 않는다.
+## 잘못된 팩 하나로 앱이 켜지지 않는 상태가 되고, 켤 때마다 같은 팩을 다시 얹는다.
+##
+## 그래서 화면이 실제로 몇 초 버틴 뒤에 지운다. 그 전에 죽으면 표시가 남고,
+## 다음 실행에서 팩을 버리고 APK 원래 내용으로 돌아간다.
+const BOOT_OK_SECONDS := 8.0
+
+func _arm_boot_watchdog() -> void:
+	if not _state.get("boot_pending", false):
+		return
+	await get_tree().create_timer(BOOT_OK_SECONDS).timeout
+	# 여기까지 왔으면 씬이 뜨고 몇 초를 버텼다는 뜻이다.
+	if get_tree().current_scene == null:
+		return          # 아직 씬이 없다 = 아직 성공이라고 못 한다
+	_state["boot_pending"] = false
+	_write_state()
+	print("[AutoUpdate] 부팅 확인 — 이 팩을 유지한다")
 	update_ready.connect(_show_update_toast)
 
 

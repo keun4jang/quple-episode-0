@@ -62,17 +62,17 @@ theme_override_colors/font_color = Color(1, 0.843137, 0.427451, 1)
 layout_mode = 2
 text = "오늘은 퇴근이 아니라 출발이었다."
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 36
 theme_override_colors/font_color = Color(1, 0.945098, 0.815686, 1)
 
 [node name="SpacerLabel" type="Label" parent="Root/Center/Body"]
 layout_mode = 2
 text = ""
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 30
 
 [node name="HintLabel" type="Label" parent="Root/Center/Body"]
 layout_mode = 2
 text = "화면을 누르면 여행을 떠나요"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 30
 theme_override_colors/font_color = Color(1, 0.945098, 0.815686, 0.627451)

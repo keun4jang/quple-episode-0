@@ -73,14 +73,14 @@ layout_mode = 2
 text = "여기서부터는 지도가 없었다.
 그래서 손을 잡고 걸었다."
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 36
 theme_override_colors/font_color = Color(1, 0.960784, 0.878431, 1)
 
 [node name="StatsLabel" type="Label" parent="Root/Center/Body"]
 layout_mode = 2
 text = ""
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 30
 theme_override_colors/font_color = Color(0.780392, 0.752941, 0.898039, 1)
 
 [node name="LastLabel" type="Label" parent="Root/Center/Body"]
@@ -88,12 +88,12 @@ layout_mode = 2
 text = "그날 회사를 나선 게
 가장 잘한 일이었다."
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 36
 theme_override_colors/font_color = Color(1, 0.858824, 0.619608, 1)
 
 [node name="HintLabel" type="Label" parent="Root/Center/Body"]
 layout_mode = 2
 text = "화면을 누르면 여행을 계속해요"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 30
 theme_override_colors/font_color = Color(1, 0.945098, 0.815686, 0.501961)

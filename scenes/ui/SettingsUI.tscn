@@ -76,7 +76,7 @@ theme_override_constants/separation = 20
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 text = "배경음"
-theme_override_font_sizes/font_size = 36
+theme_override_font_sizes/font_size = 42
 theme_override_colors/font_color = Color(0.92, 0.90, 1.0, 1)
 
 [node name="Slider" type="HSlider" parent="Root/Panel/Margin/Body/BgmRow"]
@@ -95,7 +95,7 @@ theme_override_constants/separation = 20
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 text = "효과음"
-theme_override_font_sizes/font_size = 36
+theme_override_font_sizes/font_size = 42
 theme_override_colors/font_color = Color(0.92, 0.90, 1.0, 1)
 
 [node name="Slider" type="HSlider" parent="Root/Panel/Margin/Body/SfxRow"]
@@ -110,17 +110,17 @@ value = 0.9
 custom_minimum_size = Vector2(0, 88)
 layout_mode = 2
 text = "기록 초기화"
-theme_override_font_sizes/font_size = 34
+theme_override_font_sizes/font_size = 42
 
 [node name="ResetHint" type="Label" parent="Root/Panel/Margin/Body"]
 layout_mode = 2
 text = ""
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 36
 theme_override_colors/font_color = Color(1, 0.75, 0.75, 1)
 
 [node name="CloseBtn" type="Button" parent="Root/Panel/Margin/Body"]
 custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 text = "닫기"
-theme_override_font_sizes/font_size = 38
+theme_override_font_sizes/font_size = 42
