@@ -180,14 +180,15 @@ func _make_target_label() -> void:
 ## 둘러보다 방향을 잃었을 때 돌아올 곳. 360° 로 돌릴 수 있게 하면 반드시 필요하다.
 func _make_recenter() -> void:
 	var b := Button.new()
-	b.text = "⟲"
-	b.custom_minimum_size = Vector2(84, 84)
+	# ⟲ 역시 폰트에 없는 글자다. 글자로 쓴다.
+	b.text = "정면"
+	b.custom_minimum_size = Vector2(96, 96)
 	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_size_override("font_size", 38)
+	b.add_theme_font_size_override("font_size", 30)
 	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08))
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(1, 1, 1, 0.42)
-	sb.set_corner_radius_all(42)
+	sb.bg_color = Color(1, 1, 1, 0.78)
+	sb.set_corner_radius_all(48)
 	sb.set_border_width_all(2)
 	sb.border_color = Color(1, 1, 1, 0.5)
 	b.add_theme_stylebox_override("normal", sb)
@@ -362,10 +363,14 @@ func _style_stick() -> void:
 func _build_buttons() -> void:
 	for c in buttons.get_children():
 		c.queue_free()
+	# 글자로 쓴다. 예전에는 📷 🍃 📖 이모지 하나뿐이었는데, 이 글자들은
+	# **우리 폰트에 없어서 기기의 시스템 폰트로 대신 그려진다.** 기기에 따라
+	# 모양이 다르고, 없는 기기에서는 네 버튼이 전부 □ 가 된다.
+	# 뜻을 전부 담은 자리를 기기 사정에 맡길 수는 없다.
 	var defs := [
-		["photo", "📷", Color(0.72, 0.86, 0.96), 104],
-		["wind_note", "🍃", Color(0.70, 0.90, 0.74), 104],
-		["album", "📖", Color(0.86, 0.78, 0.96), 104],
+		["photo", "사진", Color(0.72, 0.86, 0.96), 112],
+		["wind_note", "바람", Color(0.70, 0.90, 0.74), 112],
+		["album", "앨범", Color(0.86, 0.78, 0.96), 112],
 		["interact", "조사", Color(1.0, 0.78, 0.52), 138],
 	]
 	for d in defs:
@@ -380,7 +385,7 @@ func _action_button(action: String, label: String, tint: Color, size_px: int) ->
 	# 컨테이너 폭에 늘어나면 원이 알약이 된다. 자기 크기를 지키게 한다.
 	b.size_flags_horizontal = Control.SIZE_SHRINK_END
 	b.focus_mode = Control.FOCUS_NONE   # 포커스를 뺏어 키 입력을 먹지 않게
-	b.add_theme_font_size_override("font_size", 30 if size_px > 110 else 38)
+	b.add_theme_font_size_override("font_size", 30)
 	b.add_theme_color_override("font_color", Color(0.18, 0.12, 0.08))
 	var sb := D.round_button(tint, size_px)
 	b.add_theme_stylebox_override("normal", sb)

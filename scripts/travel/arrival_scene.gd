@@ -16,6 +16,8 @@ extends CanvasLayer
 
 signal finished
 
+const TW := preload("res://scripts/ui/text_wrap.gd")
+
 const D := preload("res://scripts/ui/design.gd")
 const MoodPalette := preload("res://scripts/systems/mood_palette.gd")
 const COUPLE_TEX := "res://assets/mascots/quica-couple-splash.png"
@@ -228,7 +230,8 @@ func _make_note(n: Dictionary, i: int) -> Control:
 	t.text = str(n.get("text", ""))
 	t.add_theme_font_size_override("font_size", D.TEXT_S)
 	t.add_theme_color_override("font_color", Color(0.28, 0.22, 0.16))
-	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD
+	TW.keep_words(t)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(t)

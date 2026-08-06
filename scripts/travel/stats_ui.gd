@@ -7,6 +7,8 @@ extends CanvasLayer
 
 ## 막별 색. TravelState.CHAPTERS 순서와 짝을 이룬다.
 ## (CHAPTERS 자체에는 색이 없어서 여행 허브의 색조와 같은 값을 쓴다)
+const TW := preload("res://scripts/ui/text_wrap.gd")
+
 const CHAPTER_COLORS := {
 	"korea":  Color(0.55, 0.78, 0.55),
 	"world":  Color(0.72, 0.72, 0.92),
@@ -216,7 +218,8 @@ func _make_highlight_card() -> Control:
 		l.text = s
 		l.add_theme_font_size_override("font_size", 30)
 		l.add_theme_color_override("font_color", SOFT)
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD
+		TW.keep_words(l)
 		v.add_child(l)
 	pc.add_child(v)
 	return pc

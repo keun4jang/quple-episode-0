@@ -4,6 +4,8 @@ extends Control
 ##   TRAVELING 앱을 꺼도 시간이 흐른다 (남은 시간 표시)
 ##   ARRIVED   돌아온 쿼카들에게서 사진과 일기를 받는다
 
+const TW := preload("res://scripts/ui/text_wrap.gd")
+
 const POSTER := "res://assets/splash/splash-poster-no-text.png"
 const D := preload("res://scripts/ui/design.gd")
 
@@ -344,6 +346,8 @@ func _make_items_row() -> Label:
 func _build_traveling() -> void:
 	var d := TravelState.get_destination(TravelState.trip.get("dest_id", ""))
 	title.text = "%s 여행 중" % d.get("name", "")
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD
+	TW.keep_words(title)
 	subtitle.text = "앱을 꺼도 괜찮아요"
 
 	# 하늘: 출발(새벽) → 도착(노을)
@@ -354,7 +358,7 @@ func _build_traveling() -> void:
 	_paint_sky(sky, TravelState.progress())
 
 	var emoji := Label.new()
-	emoji.text = d.get("emoji", "✈")
+	emoji.text = _hero_symbol(d)
 	emoji.add_theme_font_size_override("font_size", 54)
 	emoji.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(emoji)
@@ -362,13 +366,15 @@ func _build_traveling() -> void:
 	# 중간 소식
 	body.add_child(_make_message_row())
 
+
 	var hint := Label.new()
 	hint.name = "Hint"
 	hint.text = "돌아오면 사진과 일기를 보여줄 거예요"
 	hint.add_theme_font_size_override("font_size", 30)
 	hint.add_theme_color_override("font_color", Color(0.85, 0.82, 0.95))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD
+	TW.keep_words(hint)
 	body.add_child(hint)
 
 	# 숫자가 궁금하면 D 를 눌러 잠깐 볼 수 있다
@@ -525,6 +531,32 @@ func _lit(place: Color, light: Color, tint: Color, atmos: float) -> Color:
 	return out.lerp(light, clampf(atmos, 0.0, 1.0))
 
 ## 소식 버튼: 안 읽은 게 있으면 강조, 없으면 다음 소식까지 안내
+## 여행 중 화면 한가운데 크게 놓는 그림 글자.
+##
+## 여행지 표식은 대부분 국기인데, 국기 이모지는 사실 **글자 두 개**다
+## (🇰🇷 = 🇰 + 🇷, regional indicator). 이 둘을 국기로 합쳐 그리는 건 폰트가
+## 하는 일이라, 그 기능이 없는 기기에서는 국기 대신 **"KR" 두 글자**가 뜬다.
+## 실제로 우리 렌더 환경에서 🇻🇨 가 네모 상자에 갇힌 `V` `C` 로 나왔다.
+##
+## 목록 카드는 표식 옆에 이름이 붙어 있어서 뜻을 잃지 않는다. 하지만 이 화면은
+## 표식 하나를 크게 놓는 자리라, 깨지면 화면 한가운데가 통째로 이상해진다.
+## 그래서 여기서만 챕터 기호로 바꾼다 — 하나짜리 이모지는 훨씬 안전하다.
+func _hero_symbol(d: Dictionary) -> String:
+	var e := str(d.get("emoji", "✈"))
+	var flag := e.length() > 0
+	for i in e.length():
+		var c := e.unicode_at(i)
+		if c < 0x1F1E6 or c > 0x1F1FF:
+			flag = false
+			break
+	if not flag:
+		return e
+	match str(d.get("chapter", "")):
+		"space": return "🪐"
+		"beyond": return "✨"
+		_: return "🌍"
+
+
 func _make_message_row() -> Control:
 	var unread: int = TravelState.unread_count()
 	var arrived: int = TravelState.arrived_messages().size()
@@ -595,7 +627,8 @@ func _make_message_card(m: Dictionary) -> PanelContainer:
 	t.text = str(m.get("text", ""))
 	t.add_theme_font_size_override("font_size", 30)
 	t.add_theme_color_override("font_color", Color(1, 0.98, 0.94))
-	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD
+	TW.keep_words(t)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(t)
 	pc.add_child(h)
@@ -757,7 +790,8 @@ func _show_souvenir(sv: Dictionary) -> void:
 	diary.add_theme_font_size_override("font_size", 30)
 	diary.add_theme_color_override("font_color", Color(0.28, 0.22, 0.16))
 	diary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	diary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	diary.autowrap_mode = TextServer.AUTOWRAP_WORD
+	TW.keep_words(diary)
 	diary.custom_minimum_size = Vector2(300, 0)
 	inner.add_child(diary)
 
@@ -871,7 +905,8 @@ func _show_album() -> void:
 		hl.add_theme_font_size_override("font_size", 30)
 		hl.add_theme_color_override("font_color", Color(0.85, 0.82, 0.95))
 		hl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		TW.keep_words(hl)
 		body.add_child(hl)
 
 	var back := Button.new()
@@ -901,7 +936,8 @@ func _make_album_row(s: Dictionary) -> PanelContainer:
 	dl.text = str(s.get("diary", "")).replace("\n", " ")
 	dl.add_theme_font_size_override("font_size", 30)
 	dl.add_theme_color_override("font_color", Color(0.95, 0.93, 1.0))
-	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	TW.keep_words(dl)
 	v.add_child(dl)
 	h.add_child(v)
 	# 엽서로 내보내기
@@ -948,7 +984,8 @@ func _toast(msg: String) -> void:
 	l.add_theme_color_override("font_outline_color", Color(0.06, 0.05, 0.14, 0.95))
 	l.add_theme_constant_override("outline_size", 6)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD
+	TW.keep_words(l)
 	l.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	l.offset_left = -430.0
 	l.offset_right = 430.0

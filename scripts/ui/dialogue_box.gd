@@ -3,6 +3,12 @@ extends CanvasLayer
 @onready var label: Label = $PanelRect/MarginContainer/VBoxContainer/Label
 @onready var panel_rect = $PanelRect
 
+# DialogueBox.tscn 의 MarginContainer·테두리와 같은 값이어야 한다
+const MARGIN_H := 22.0
+const MARGIN_V := 12.0
+const BORDER := 2.0
+const BOTTOM_GAP := 24.0
+
 # 타자기 효과 변수
 var _typewriter_text: String = ""
 var _typewriter_pos: int = 0
@@ -19,9 +25,10 @@ func _ready() -> void:
 ## 화면 폭을 꽉 채우면 짧은 한 마디에도 검은 띠가 화면을 가로지른다.
 ## 글자는 왼쪽 끝에 붙고 오른쪽은 텅 비어서, 읽는 눈이 매번 멀리 이동한다.
 ## 문장만큼만 잡고 가운데 두면 시선이 캐릭터 바로 아래에 머문다.
-func _fit_to_text(text: String) -> void:
+## 반환값은 **줄바꿈을 넣은 대사**다. 그대로 화면에 찍으면 된다.
+func _fit_to_text(text: String) -> String:
 	if panel_rect == null or label == null:
-		return
+		return text
 	var vp := get_viewport().get_visible_rect().size
 	var fs: int = label.get_theme_font_size("font_size")
 	var font := label.get_theme_font("font")
@@ -51,15 +58,74 @@ func _fit_to_text(text: String) -> void:
 	panel_rect.offset_left = -w * 0.5
 	panel_rect.offset_right = w * 0.5
 
+	# 높이도 맞춘다.
+	#
+	# 폭만 맞추고 높이는 88px 로 못 박혀 있었다. 30pt 글자 한 줄과 ▼ 힌트가
+	# 이미 그 높이를 다 쓰므로 **둘째 줄이 들어갈 자리가 없었다.**
+	# 긴 대사는 문장이 끝나기 전에 잘렸다 — 읽기 불편한 게 아니라 이야기가 사라졌다.
+	# 상자는 아래를 고정하고 위로 자란다.
+	var inner_w: float = maxf(w - MARGIN_H * 2.0 - BORDER * 2.0, 80.0)
+	var wrapped := _wrap_by_word(text, inner_w, font, fs)
+	var text_h: float = font.get_multiline_string_size(
+		wrapped, HORIZONTAL_ALIGNMENT_CENTER, inner_w, fs).y
+
+	var extra := MARGIN_V * 2.0 + BORDER * 2.0
+	var vbox := label.get_parent() as VBoxContainer
+	var hint := _hint_label()
+	if hint != null and hint.visible:
+		extra += font.get_height(hint.get_theme_font_size("font_size"))
+		if vbox != null:
+			extra += float(vbox.get_theme_constant("separation"))
+
+	# 화면의 절반을 넘기지 않는다. 그 위로 가면 상자가 아니라 벽이다.
+	var h: float = clampf(text_h + extra, 88.0, vp.y * 0.5)
+	panel_rect.offset_top = -(h + BOTTOM_GAP)
+	panel_rect.offset_bottom = -BOTTOM_GAP
+	return wrapped
+
+
+## 어절 단위로 줄을 나눈다.
+##
+## Godot 의 자동 줄바꿈에 맡기면 한국어가 **낱말 가운데서 끊긴다.** 유니코드
+## 줄바꿈 규칙이 한글 음절 사이를 전부 끊어도 되는 자리로 보기 때문이다.
+## 실제로 "사라지면" 이 `사라지` / `면` 으로, "아무" 가 `아` / `무` 로 갈라졌다.
+## `AUTOWRAP_WORD` 로 바꿔도 마찬가지다 — 그 규칙 자체가 그렇다.
+##
+## 그래서 띄어쓰기에서 직접 끊는다. 라벨의 자동 줄바꿈은 그대로 켜 둔다.
+## 한 어절이 통째로 폭보다 길면(아주 긴 지명 같은 것) 그때만 대신 끊어 준다.
+func _wrap_by_word(text: String, width: float, font: Font, fs: int) -> String:
+	if width <= 0.0:
+		return text
+	var out := ""
+	for para in text.split("\n"):
+		if out != "":
+			out += "\n"
+		var line := ""
+		for word in para.split(" ", false):
+			var probe: String = word if line == "" else line + " " + word
+			if font.get_string_size(probe, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= width:
+				line = probe
+			else:
+				if line != "":
+					out += line + "\n"
+				line = word
+		out += line
+	return out
+
+
+func _hint_label() -> Label:
+	return panel_rect.get_node_or_null(
+		"MarginContainer/VBoxContainer/HintLabel") as Label
+
 
 func show_text(text: String) -> void:
-	# 타자기 효과 시작
-	_typewriter_text = text
+	# 타자기 효과 시작. 찍는 것은 **줄바꿈까지 넣은** 대사다 —
+	# 원본을 찍으면 상자 높이를 잰 것과 줄 나눔이 달라진다.
 	_typewriter_pos = 0
 	_typewriter_timer = 0.0
 	_typewriter_active = true
 	label.text = ""
-	_fit_to_text(text)
+	_typewriter_text = _fit_to_text(text)
 	visible = true
 	# 슬라이드업 애니메이션: 아래에서 위로 올라오기
 	if panel_rect:
