@@ -1,0 +1,153 @@
+# 실내 배경 그림 — 제미나이 프롬프트
+
+옆에서 보는 0편 맵 네 곳의 배경. 지금은 코드로 그려 두었고, 그림이 들어오면
+그 자리에 걸린다. 되돌리려면 파일만 지우면 된다.
+
+받은 파일은 이렇게 넣는다:
+
+```bash
+python3 tools/side/import-indoor-bg.py --map office --file ~/받은그림.png
+```
+
+바닥선이 어긋나 보이면 `--floor 0.78` 처럼 값만 바꿔 다시 넣으면 된다.
+`--map` 은 `front` / `lobby` / `office` / `hallway` 넷 중 하나.
+
+---
+
+## 반드시 지켜야 하는 것 넷
+
+이 넷 중 하나라도 어긋나면 그림을 못 쓴다. 예쁜 것보다 이게 먼저다.
+
+**1. 완전히 정면에서 본 단면.**
+원근이 있으면 안 된다. 소실점도, 비스듬한 각도도 없어야 한다. 인형의 집을
+정면에서 열어 본 것처럼, 벽이 화면과 완전히 평행해야 한다. 캐릭터는 이
+그림 위를 좌우로만 걸어다니므로, 조금이라도 각도가 들어가면 걸을수록
+바닥과 어긋난다.
+
+**2. 바닥선이 위에서 82% 지점.**
+벽과 바닥이 만나는 가로선이 그림 높이의 82% 자리에 있어야 한다.
+(예: 세로 1000px 그림이면 위에서 820px 지점) 이 선 위에 캐릭터가 선다.
+정확히 82%가 아니어도 된다 — 넣을 때 `--floor` 로 알려 주면 맞춘다.
+**대신 바닥선이 처음부터 끝까지 수평이어야 한다.** 기울거나 층이 지면 못 쓴다.
+
+**3. 좌우로 이어 붙여도 어색하지 않을 것.**
+맵이 화면보다 훨씬 길어서, 받은 그림을 거울처럼 뒤집어 이어 붙여 늘린다.
+그래서 **딱 하나뿐이어야 하는 것**(간판, 큰 시계, 특별한 문)은 넣지 말아야
+한다. 여러 개 있어도 이상하지 않은 것(창, 기둥, 천장등)만 넣는다.
+
+**4. 글자와 캐릭터 없음.**
+글자는 코드로 얹고, 쿼카 커플은 따로 세운다. 사람·동물·문자·로고가
+들어가면 못 쓴다.
+
+## 그 밖의 규격
+
+- **가로로 긴 그림.** 16:9 정도면 충분하다. 클수록 좋다
+- **밤.** 네 곳 모두 밤 11시 무렵이다
+- **화풍은 `assets/travel/chapter-korea.png` 와 같게.** 이 파일을 제미나이에
+  같이 올리고 "이 그림과 같은 화풍으로" 라고 붙이는 것이 가장 확실하다
+- **가구는 배경에만.** 앞쪽에 놓이는 책상·물건·문은 코드가 그린다.
+  그림 속 가구는 벽에 붙어 있거나 멀리 있는 것만
+
+---
+
+## 프롬프트
+
+제미나이에는 영어가 더 잘 통한다. 아래를 그대로 붙여 넣고,
+`chapter-korea.png` 를 같이 올린다.
+
+### 공통 앞머리 (네 개 모두 앞에 붙인다)
+
+```
+Soft pastel 3D clay-render style, matte rounded shapes, gentle warm rim light,
+muted dusty palette — match the style of the attached reference image exactly.
+
+STRICT ORTHOGRAPHIC SIDE ELEVATION. Absolutely flat, straight-on view like a
+dollhouse cross-section. No perspective, no vanishing point, no camera tilt.
+Every wall perfectly parallel to the picture plane.
+
+Wide 16:9 horizontal image. The floor line (where wall meets floor) must be a
+perfectly straight horizontal line at 82% down from the top, unbroken across
+the full width.
+
+Horizontally repeatable: no unique landmarks, no signage, no large single
+feature. Only elements that can appear many times (windows, pillars, lights).
+
+No characters, no people, no animals, no text, no letters, no logos, no UI.
+```
+
+### 1. 사무실 — `--map office`
+
+```
+An open-plan office floor at 11pm, seen from the side.
+
+A long wall of tall night windows showing a distant dark blue city with a few
+scattered warm-lit windows. Slim window mullions between them. Above the
+windows a low ceiling with recessed strip lights, most of them switched off.
+Below the windows a waist-high wall panel. Low fabric cubicle partitions along
+the back. Cool blue-grey interior, one or two pools of warm light on the floor.
+Quiet, empty, a little lonely — everyone has gone home.
+```
+
+**이 맵에 있는 것:** 애인의 책상(모니터 켜짐), 다른 책상 둘, 사다리와 선반,
+로비 문(왼쪽 끝), 복도 문(오른쪽 끝). 전부 코드가 그리니 그림에는 넣지 말 것.
+
+### 2. 로비 — `--map lobby`
+
+```
+The ground-floor lobby of a small office building at night, seen from the side.
+
+A tall wall with big glass panes looking out onto a dark street. Polished pale
+stone floor with soft reflections. Warm ceiling downlights, only some of them
+on. A row of slim columns. Higher ceiling than an office floor — this is an
+entrance hall. Calm, clean, slightly cold, with one or two warm pools of light.
+```
+
+**이 맵에 있는 것:** 안내 데스크, 사원증 반납함, 엘리베이터, 계단, 2층 통로,
+바깥 문, 사무실 문. 전부 코드가 그린다.
+
+### 3. 복도 — `--map hallway`
+
+```
+A narrow office corridor at night, seen from the side.
+
+Plain windowless walls, closed doors set into them at intervals, small wall
+lamps between the doors. Carpet floor. Low ceiling. Cool dim blue-grey light,
+noticeably darker than the office. Long, plain, slightly oppressive — the kind
+of corridor you walk down when you would rather not.
+```
+
+**이 맵에 있는 것:** 대표실 문(문틈으로 새는 빛), 돌아가는 문. 코드가 그린다.
+**복도는 창이 없어야 한다.** 답답해야 하는 장면이다.
+
+### 4. 회사 앞 — `--map front`
+
+```
+A quiet city street at night, seen from the side.
+
+A far-away skyline of dark blue office towers with scattered warm-lit windows,
+softly hazy with distance. Empty sky above with a few thin clouds. Nothing in
+the foreground — the near ground is left empty.
+```
+
+**주의: 이것만 다르다.** 회사 앞은 **먼 밤도시만** 그림으로 바꾼다.
+쿼카전자 건물과 가로등, 인도는 코드가 그린 것을 그대로 쓴다.
+불 켜진 4층 창 하나가 이 이야기의 시작인데, 배경은 좌우로 이어 붙이므로
+그림에 넣으면 그 창이 여러 개로 늘어난다. **하나뿐이어야 하는 것은
+그림에 넣지 않는다.**
+
+---
+
+## 받아서 넣는 순서
+
+1. 네 장을 받는다 (또는 한 장씩)
+2. 각각 넣는다
+   ```bash
+   python3 tools/side/import-indoor-bg.py --map office   --file ~/사무실.png
+   python3 tools/side/import-indoor-bg.py --map lobby    --file ~/로비.png
+   python3 tools/side/import-indoor-bg.py --map hallway  --file ~/복도.png
+   python3 tools/side/import-indoor-bg.py --map front    --file ~/밤하늘.png
+   ```
+3. 게임을 켜서 본다. 바닥선이 어긋나면 `--floor` 만 고쳐 다시 넣는다
+4. 너무 밝아 캐릭터가 묻히면 `--dim 0.85` 을 붙인다
+
+넣은 뒤에도 코드로 그린 배경은 지우지 않는다. 파일을 지우면 바로 돌아온다.

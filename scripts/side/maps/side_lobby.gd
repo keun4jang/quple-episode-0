@@ -17,10 +17,12 @@ func map_title() -> String:
 
 func build() -> void:
 	set_bounds(3400.0, 380.0)
-	IndoorParts.skyline(self, 3400.0, FLOOR_Y, 3)
-	IndoorParts.room(self, 3400.0, FLOOR_Y, 300.0, 620.0, 520.0)
-	IndoorParts.ceiling_lights(self, 3400.0, 120.0, 700.0)
-	IndoorParts.floor_pools(self, 3400.0, FLOOR_Y, 700.0)
+	# 그려 받은 그림이 있으면 그것을 쓰고, 없으면 코드로 그린다.
+	if not use_backdrop("lobby"):
+		IndoorParts.skyline(self, 3400.0, FLOOR_Y, 3)
+		IndoorParts.room(self, 3400.0, FLOOR_Y, 300.0, 620.0, 520.0)
+		IndoorParts.ceiling_lights(self, 3400.0, 120.0, 700.0)
+		IndoorParts.floor_pools(self, 3400.0, FLOOR_Y, 700.0)
 	IndoorParts.floor_slab(self, -200, FLOOR_Y, 3800)
 
 	# 안내 데스크

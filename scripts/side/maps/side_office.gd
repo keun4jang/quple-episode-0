@@ -15,10 +15,12 @@ func map_title() -> String:
 
 func build() -> void:
 	set_bounds(4200.0, 420.0)
-	IndoorParts.skyline(self, 4200.0, FLOOR_Y, 5)
-	IndoorParts.room(self, 4200.0, FLOOR_Y, 300.0, 600.0, 480.0)
-	IndoorParts.ceiling_lights(self, 4200.0, 120.0, 900.0)
-	IndoorParts.floor_pools(self, 4200.0, FLOOR_Y, 900.0)
+	# 그려 받은 그림이 있으면 그것을 쓰고, 없으면 코드로 그린다.
+	if not use_backdrop("office"):
+		IndoorParts.skyline(self, 4200.0, FLOOR_Y, 5)
+		IndoorParts.room(self, 4200.0, FLOOR_Y, 300.0, 600.0, 480.0)
+		IndoorParts.ceiling_lights(self, 4200.0, 120.0, 900.0)
+		IndoorParts.floor_pools(self, 4200.0, FLOOR_Y, 900.0)
 	IndoorParts.floor_slab(self, -200, FLOOR_Y, 4600)
 
 	# 애인의 책상. 여기만 모니터가 켜져 있다 —

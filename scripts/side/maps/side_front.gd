@@ -18,7 +18,13 @@ func map_title() -> String:
 
 func build() -> void:
 	set_bounds(3600.0, 420.0)
-	IndoorParts.skyline(self, 3600.0, FLOOR_Y, 11)
+	# 그려 받은 그림이 있으면 **먼 밤도시만** 그것으로 바꾼다.
+	#
+	# 회사 건물과 가로등은 그림에 맡기지 않는다. 불 켜진 4층 창 하나가
+	# 이 이야기의 시작인데, 배경 그림은 맵 길이만큼 좌우로 이어 붙이므로
+	# 그 창이 여러 개로 늘어나 버린다. 하나뿐이어야 하는 것은 코드가 놓는다.
+	if not use_backdrop("front"):
+		IndoorParts.skyline(self, 3600.0, FLOOR_Y, 11)
 
 	# 회사 건물. 오른쪽에 서 있고, 4층 창 하나에만 불이 켜져 있다.
 	var b := Node2D.new()

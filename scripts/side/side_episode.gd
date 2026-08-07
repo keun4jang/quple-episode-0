@@ -57,12 +57,36 @@ func _ready() -> void:
 	build()
 	_build_walker()
 	_build_camera()
+	_sync_backdrop()
 	add_child(SideTouch.new())
 	if _title != null:
 		_title.text = map_title()
 	AudioManager.play_bgm("episode0")
 	await get_tree().process_frame
 	on_enter()
+
+
+## 그려 받은 배경이 있으면 걸고, 없으면 false. 있으면 코드로 그리는
+## 하늘·벽·천장은 건너뛴다 — 겹쳐 그리면 그림이 가려진다.
+##
+## 이 화면이 실제로 보는 세로 범위에 맞춰 그림이 만들어져 있으므로,
+## 여기서는 가로로만 카메라를 따라 되밀어 주면 된다.
+const BACKDROP_TOP := -240.0
+
+var _backdrop: TextureRect
+
+func use_backdrop(map_name: String) -> bool:
+	_backdrop = Indoor.backdrop(self, map_name)
+	return _backdrop != null
+
+
+func _sync_backdrop() -> void:
+	if _backdrop == null:
+		return
+	var vp := get_viewport_rect().size
+	_backdrop.position = Vector2(
+		_cam.global_position.x * (1.0 - Indoor.BACKDROP_FACTOR) - vp.x * 0.5,
+		BACKDROP_TOP)
 
 
 ## 맵 크기와 들어서는 자리. build() 안에서 부른다.
@@ -254,6 +278,7 @@ func _process(delta: float) -> void:
 		return
 	var want := Vector2(walker.global_position.x + walker.facing * 150.0, _cam_y())
 	_cam.global_position = _cam.global_position.lerp(want, clampf(delta * 4.0, 0.0, 1.0))
+	_sync_backdrop()
 	_follow_partner(delta)
 
 

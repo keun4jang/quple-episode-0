@@ -19,6 +19,34 @@ const GLASS := Color("#3E6278")
 const LAMP := Color("#FFD76D")
 
 
+## 그려 받은 배경이 있으면 그것을 걸고 true 를 돌려준다.
+##
+## `tools/side/import-indoor-bg.py` 가 넣어 준 파일을 찾는다. 없으면 false 를
+## 돌려주고, 부르는 쪽은 코드로 그린 배경으로 넘어간다. 그림이 생겨도
+## 코드 쪽을 지우지 않는 이유는 **되돌릴 수 있어야 하기 때문**이다 —
+## 그림이 마음에 안 들면 파일만 지우면 어제 상태로 돌아간다.
+##
+## factor 는 배경이 카메라를 따라 흐르는 정도다. 실내는 벽이 가까우니
+## 바깥 풍경보다 크게 잡는다 — 너무 작으면 벽이 따라오지 않아 방이
+## 미끄러지는 것처럼 보인다.
+const BACKDROP_FACTOR := 0.40
+
+static func backdrop(parent: Node, map_name: String) -> TextureRect:
+	var path := "res://assets/side/%s-room.png" % map_name
+	if not ResourceLoader.exists(path):
+		return null
+	var tex := load(path) as Texture2D
+	if tex == null:
+		return null
+	var tr := TextureRect.new()
+	tr.name = "Backdrop"
+	tr.texture = tex
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.z_index = -45
+	parent.add_child(tr)
+	return tr
+
+
 static func _box(parent: Node, pos: Vector2, size: Vector2, col: Color) -> ColorRect:
 	var r := ColorRect.new()
 	r.color = col

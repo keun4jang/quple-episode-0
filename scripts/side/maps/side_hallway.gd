@@ -18,11 +18,13 @@ func map_title() -> String:
 
 func build() -> void:
 	set_bounds(3400.0, 300.0)
-	IndoorParts.skyline(self, 3400.0, FLOOR_Y, 13)
-	# 복도는 창이 없다. 벽으로 꽉 막아 답답하게 둔다.
-	IndoorParts.room(self, 3400.0, FLOOR_Y, 820.0, 840.0, 600.0)
-	IndoorParts.ceiling_lights(self, 3400.0, 120.0, 760.0)
-	IndoorParts.floor_pools(self, 3400.0, FLOOR_Y, 760.0)
+	# 그려 받은 그림이 있으면 그것을 쓰고, 없으면 코드로 그린다.
+	if not use_backdrop("hallway"):
+		IndoorParts.skyline(self, 3400.0, FLOOR_Y, 13)
+		# 복도는 창이 없다. 벽으로 꽉 막아 답답하게 둔다.
+		IndoorParts.room(self, 3400.0, FLOOR_Y, 820.0, 840.0, 600.0)
+		IndoorParts.ceiling_lights(self, 3400.0, 120.0, 760.0)
+		IndoorParts.floor_pools(self, 3400.0, FLOOR_Y, 760.0)
 	IndoorParts.floor_slab(self, -200, FLOOR_Y, 3800)
 
 	# 대표실 문. 문틈으로 새어 나오는 빛이 유일하게 밝은 것이다.
