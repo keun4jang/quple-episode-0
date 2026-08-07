@@ -16,6 +16,7 @@ const D := preload("res://scripts/ui/design.gd")
 ## 전역 클래스 이름은 에디터 스캔에서만 갱신되는 캐시에 의존해서 새 클론에서 죽는다.
 const MoodPalette := preload("res://scripts/systems/mood_palette.gd")
 const Palette := preload("res://scripts/travel/palette.gd")
+const Scenery := preload("res://scripts/travel/scenery.gd")
 ## 돌아온 순간의 연출. 씬 파일 없이 코드로 세운다.
 const ArrivalScene := preload("res://scripts/travel/arrival_scene.gd")
 
@@ -31,6 +32,9 @@ const BG_MIN_BRIGHT := 0.62
 
 @onready var bg: TextureRect        = $Bg
 @onready var dim: ColorRect         = $Dim
+@onready var couple: Control        = $Couple
+@onready var couple_leader: TextureRect = $Couple/Leader
+@onready var couple_partner: TextureRect = $Couple/Partner
 @onready var title: Label           = $Safe/Header/Title
 @onready var subtitle: Label        = $Safe/Header/Subtitle
 @onready var panel: PanelContainer  = $Safe/Panel
@@ -64,6 +68,9 @@ func _ready() -> void:
 	_put_icon(stats_btn, "note")
 	_put_icon(room_btn, "gift")
 	_put_icon(home_btn, "home")
+	# 커플을 맨 앞으로. 씬 순서대로면 패널이 캐릭터를 덮어 버린다.
+	move_child(couple, get_child_count() - 1)
+	get_viewport().size_changed.connect(_layout_couple)
 	album_btn.pressed.connect(_show_album)
 	stats_btn.pressed.connect(_show_stats)
 	room_btn.pressed.connect(func(): SceneTransition.go_to("res://scenes/travel/SouvenirRoom3D.tscn", "hopeful"))
@@ -106,6 +113,99 @@ func _refresh() -> void:
 		_build_traveling()
 	else:
 		_build_idle()
+	_load_poster()
+	_fit_panel()
+	_layout_couple()
+
+
+## 패널이 화면을 얼마나 차지할지는 상태마다 다르다.
+##
+## 목록을 고를 때는 카드가 많으니 세로를 다 써야 한다. 하지만 떠나 있는
+## 동안에는 보여줄 것이 몇 줄뿐인데, 그때도 패널이 화면을 꽉 채우면
+## 어디에 가 있는지 말해 주는 풍경을 통째로 덮는다. 그럴 거면 그림을
+## 걸 이유가 없다.
+func _fit_panel() -> void:
+	if panel == null:
+		return
+	var traveling := TravelState.is_traveling()
+	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if traveling else Control.SIZE_EXPAND_FILL
+	# 패널이 줄어들면 세로를 늘려 잡는 것이 아무것도 없어서 버튼이 딸려
+	# 올라가 화면 한가운데에 뜬다. 남는 자리를 먹는 빈 칸을 버튼 위에 둔다.
+	var safe := get_node_or_null("Safe") as Control
+	if safe == null:
+		return
+	var tail := safe.get_node_or_null("TailSpacer") as Control
+	if tail == null:
+		tail = Control.new()
+		tail.name = "TailSpacer"
+		tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		safe.add_child(tail)
+		safe.move_child(tail, safe.get_node("Footer").get_index())
+	tail.size_flags_vertical = Control.SIZE_EXPAND_FILL if traveling else Control.SIZE_SHRINK_BEGIN
+	tail.visible = traveling
+
+
+## ─── 쿼카 커플을 화면에 세운다 ───
+##
+## 이 화면에는 정작 쿼카가 없었다. 커플을 보내는 화면인데 커플이 안 보이니
+## 목록만 남아 설정 화면처럼 읽혔다. 삼면도를 잘라 둔 것이 있으니 세운다.
+##
+## 어디에 서는지가 지금 무슨 상태인지를 말한다.
+##   고르는 중 — 방 오른쪽에 정면으로 서서 기다린다. 목록은 왼쪽으로 물러난다
+##   여행 중   — 풍경 속을 옆모습으로 걸어간다. 여기 없다는 뜻이다
+##   돌아옴    — 다시 정면으로 오른쪽에 선다
+##
+## 화면이 좁으면(세로로 긴 폰) 통째로 감춘다. 좁은 화면에서는 목록이
+## 가로를 다 써야 하고, 캐릭터가 글자를 덮는 쪽이 훨씬 나쁘다.
+const COUPLE_MIN_ASPECT := 1.55
+## 캐릭터 키를 화면 높이의 몇 배로 잡을지.
+const COUPLE_H_IDLE := 0.52
+const COUPLE_H_TRAVEL := 0.34
+## 고르는 중일 때 목록이 비켜 주는 오른쪽 폭(화면 너비 대비).
+const COUPLE_MARGIN := 0.24
+
+func _layout_couple() -> void:
+	if couple == null:
+		return
+	var vp := get_viewport_rect().size
+	var traveling := TravelState.is_traveling()
+	var show := vp.x / maxf(vp.y, 1.0) >= COUPLE_MIN_ASPECT
+	couple.visible = show
+	_set_safe_right(0.0 if (not show or traveling) else vp.x * COUPLE_MARGIN)
+	if not show:
+		return
+
+	var h := vp.y * (COUPLE_H_TRAVEL if traveling else COUPLE_H_IDLE)
+	if traveling:
+		# 걸어가는 중. 가운데 아래에 나란히 두고 둘 다 같은 쪽을 본다.
+		_place(couple_leader, Scenery.LEADER_SIDE, h, vp.x * 0.46, vp.y * 0.80, true)
+		_place(couple_partner, Scenery.PARTNER_SIDE, h * 0.96, vp.x * 0.56, vp.y * 0.80, true)
+	else:
+		# 방에서 기다리는 중. 목록이 비켜 준 오른쪽에 정면으로 선다.
+		_place(couple_leader, Scenery.LEADER_FRONT, h, vp.x * 0.79, vp.y * 0.94, false)
+		_place(couple_partner, Scenery.PARTNER_FRONT, h * 0.95, vp.x * 0.90, vp.y * 0.94, false)
+
+
+## 그림을 발밑 기준으로 놓는다. 왼쪽 위 기준으로 놓으면 키가 다른
+## 둘의 발이 안 맞아서 한 명이 공중에 뜬다.
+func _place(tr: TextureRect, path: String, h: float, cx: float, foot_y: float, flip: bool) -> void:
+	var tex := Scenery.tex(path)
+	if tex == null:
+		tr.visible = false
+		return
+	tr.visible = true
+	tr.texture = tex
+	var w := h * float(tex.get_width()) / float(tex.get_height())
+	tr.size = Vector2(w, h)
+	tr.position = Vector2(cx - w * 0.5, foot_y - h)
+	tr.flip_h = flip
+
+
+## 목록이 캐릭터를 피해 왼쪽으로 물러난다.
+func _set_safe_right(px: float) -> void:
+	var safe := get_node_or_null("Safe") as Control
+	if safe != null:
+		safe.offset_right = -150.0 - px
 
 ## 1) 목적지 선택
 func _build_idle() -> void:
@@ -378,18 +478,14 @@ func _build_traveling() -> void:
 	TW.keep_words(title)
 	subtitle.text = "앱을 꺼도 괜찮아요"
 
-	# 하늘: 출발(새벽) → 도착(노을)
+	# 하늘 띠. 예전에는 이것이 120px 로 화면 한가운데를 차지했다 — 여행지를
+	# 보여줄 그림이 없어서 색 띠로 대신했기 때문이다. 이제 배경이 그 몫을
+	# 하니, 띠는 해의 위치로 진행도만 말하는 얇은 줄로 남긴다.
 	var sky := ColorRect.new()
 	sky.name = "Sky"
-	sky.custom_minimum_size = Vector2(0, 120)
+	sky.custom_minimum_size = Vector2(0, 34)
 	body.add_child(sky)
 	_paint_sky(sky, TravelState.progress())
-
-	var emoji := Label.new()
-	emoji.text = _hero_symbol(d)
-	emoji.add_theme_font_size_override("font_size", 54)
-	emoji.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(emoji)
 
 	# 중간 소식
 	body.add_child(_make_message_row())
@@ -529,9 +625,10 @@ func _apply_mood() -> void:
 	# Dim 은 어둡기(0.14)와 두께(0.28)를 그대로 두고 색조만 시간대로 옮긴다.
 	var f: Color = m["fog_color"]
 	var k := 0.14 / maxf(_vmax(f), 0.001)
-	# 0.28 로는 배경 얼굴이 너무 또렷해서 눈이 카드가 아니라 얼굴로 간다.
-	# 포스터는 분위기만 남기고 뒤로 물러나야 한다.
-	dim.color = Color(f.r * k, f.g * k, f.b * k, 0.62)
+	# 0.62 는 캐릭터가 없던 시절 값이다. 방 그림을 통째로 덮어 버려서
+	# 배경이 회색 벽이나 마찬가지였다. 카드가 이미 0.80 으로 깔려 글씨는
+	# 그대로 읽히니, 장막은 그림이 살아 있을 만큼만 남긴다.
+	dim.color = Color(f.r * k, f.g * k, f.b * k, 0.34)
 
 ## 그 시각의 빛 색. 세기는 빼고 색조만 남긴다 (가장 밝은 채널이 1.0 이 되게).
 func _light_tint(m: Dictionary) -> Color:
@@ -1074,12 +1171,20 @@ func _card_style(tint: Color, bright: bool) -> StyleBoxFlat:
 	sb.shadow_offset = Vector2(0, 5)
 	return sb
 
+## 지금 어디에 있는지에 맞는 그림을 배경에 건다.
+##
+## 고르는 동안에는 방, 떠나 있는 동안에는 그 막의 풍경. 여행 중 화면이
+## 색 띠 하나였던 것은 그릴 그릇이 없어서였는데, 막마다 그려 둔 그림이
+## 이미 있었다.
+##
+## globalize_path + FileAccess 로 읽으면 **에디터에서만** 된다. 내보낸 앱에서
+## res:// 는 APK·팩 안이라 OS 경로가 없고, 폰에서는 배경이 통째로 비었다.
 func _load_poster() -> void:
-	# globalize_path + FileAccess 로 읽으면 **에디터에서만** 된다.
-	# 내보낸 앱에서 res:// 는 APK·팩 안이라 OS 경로가 없고, 폰에서는 배경이 통째로 비었다.
-	if not ResourceLoader.exists(POSTER):
-		return
-	var tex := load(POSTER) as Texture2D
+	var path := POSTER
+	if TravelState.is_traveling():
+		var d := TravelState.get_destination(str(TravelState.trip.get("dest_id", "")))
+		path = Scenery.art_for(d)
+	var tex := Scenery.tex(path)
 	if tex != null:
 		bg.texture = tex
 

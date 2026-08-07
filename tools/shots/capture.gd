@@ -20,10 +20,28 @@ func _ready() -> void:
 					TravelState.trip["arrive_at"] = 0
 					TravelState.collect_arrival()
 			await get_tree().process_frame
+	# 여행 중 화면은 실제로 떠나 있어야 나온다. 다녀온 기록을 만든 뒤
+	# 한 번 더 보내고 도착 시각을 미래로 둔다.
+	if t == "traveling":
+		for d: String in ["seoul", "busan"]:
+			if TravelState.start_trip(d):
+				TravelState.trip["arrive_at"] = 0
+				TravelState.collect_arrival()
+		if TravelState.start_trip("jeju"):
+			TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) + 8000
+		print("TRAVELING? ", TravelState.is_traveling(), " ", TravelState.trip.get("dest_id",""))
+		await get_tree().process_frame
+	# 돌아온 직후 화면. 사진과 일기를 받는 자리라 제일 붐빈다.
+	if t == "arrived":
+		if TravelState.start_trip("seoul"):
+			TravelState.trip["arrive_at"] = 0
+		await get_tree().process_frame
 	if t == "menu":
 		add_child(load("res://scenes/menu/MainMenu3D.tscn").instantiate())
 	var path: String = {
 		"hub": "res://scenes/travel/TravelHub.tscn",
+		"traveling": "res://scenes/travel/TravelHub.tscn",
+		"arrived": "res://scenes/travel/TravelHub.tscn",
 		"souvenir": "res://scenes/travel/SouvenirRoom3D.tscn",
 		"lobby": "res://scenes/maps/CompanyLobby3D.tscn",
 		"office": "res://scenes/maps/Office3D.tscn",
@@ -32,7 +50,8 @@ func _ready() -> void:
 	}.get(t, "")
 	if path != "":
 		add_child(load(path).instantiate())
-	await get_tree().create_timer(2.4).timeout
+	# 돌아온 순간에는 연출이 먼저 흐른다. 그게 끝난 화면을 찍어야 한다.
+	await get_tree().create_timer(9.0 if t == "arrived" else 2.4).timeout
 	if t == "settings":
 		add_child(load("res://scenes/maps/Office3D.tscn").instantiate())
 		await get_tree().create_timer(1.6).timeout

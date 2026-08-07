@@ -48,6 +48,27 @@ grow_vertical = 2
 color = Color(0.05, 0.04, 0.14, 0.28)
 mouse_filter = 2
 
+[node name="Couple" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Leader" type="TextureRect" parent="Couple"]
+layout_mode = 0
+expand_mode = 1
+stretch_mode = 5
+mouse_filter = 2
+
+[node name="Partner" type="TextureRect" parent="Couple"]
+layout_mode = 0
+expand_mode = 1
+stretch_mode = 5
+mouse_filter = 2
+
 [node name="Safe" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
