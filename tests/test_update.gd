@@ -73,6 +73,23 @@ func _ready() -> void:
 	ck("확인 중에는 안 받는다", not AutoUpdate.check_now())
 	AutoUpdate.checking = false
 
+	print("\n[4-2] 일찍 꺼져도 팩을 바로 버리지 않는가")
+	# "껐다 켜면 적용" 안내대로 빨리 껐다 켜기를 반복하면, 부팅 확인
+	# 시간을 매번 못 채워서 팩이 계속 되돌려지는 고리에 갇혔었다.
+	AutoUpdate._state = {"boot_pending": true, "pck_version": "9.9.9"}
+	var fails := 0
+	for i in range(2):
+		var st: Dictionary = AutoUpdate._state
+		if st.get("boot_pending", false):
+			fails = int(st.get("boot_fail_count", 0)) + 1
+			if fails >= 3:
+				break
+			st["boot_fail_count"] = fails
+	ck("두 번 일찍 꺼져도 팩이 남아 있다", AutoUpdate._state.has("pck_version"),
+		"fail_count=%d" % fails)
+	ck("실패 횟수를 세고 있다", int(AutoUpdate._state.get("boot_fail_count", 0)) == 2)
+	AutoUpdate._state = AutoUpdate._read_state()
+
 	print("\n[5] 설정창에 버튼이 있는가")
 	var ui: Node = load("res://scenes/ui/SettingsUI.tscn").instantiate()
 	add_child(ui)

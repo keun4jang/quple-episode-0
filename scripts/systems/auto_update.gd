@@ -76,7 +76,9 @@ func _ready() -> void:
 ##
 ## 그래서 화면이 실제로 몇 초 버틴 뒤에 지운다. 그 전에 죽으면 표시가 남고,
 ## 다음 실행에서 팩을 버리고 APK 원래 내용으로 돌아간다.
-const BOOT_OK_SECONDS := 8.0
+## 8초였는데, 껐다 켜기를 빠르게 반복하는 사용자는 매번 이 시간을 못
+## 채워서 팩이 계속 되돌려졌다. 씬이 떠 있는 것만 확인하면 되니 짧게 잡는다.
+const BOOT_OK_SECONDS := 3.0
 
 func _arm_boot_watchdog() -> void:
 	if not _state.get("boot_pending", false):
@@ -86,6 +88,7 @@ func _arm_boot_watchdog() -> void:
 	if get_tree().current_scene == null:
 		return          # 아직 씬이 없다 = 아직 성공이라고 못 한다
 	_state["boot_pending"] = false
+	_state.erase("boot_fail_count")
 	_write_state()
 	print("[AutoUpdate] 부팅 확인 — 이 팩을 유지한다")
 	update_ready.connect(_show_update_toast)
@@ -134,13 +137,24 @@ func _apply_pending_pack() -> void:
 	if not FileAccess.file_exists(PCK_PATH):
 		return
 
-	# 지난 부팅이 끝까지 못 갔다 = 이 팩이 앱을 죽였다. 되돌린다.
-	# 이게 없으면 잘못된 패치 하나로 앱이 영영 안 켜지고 손쓸 방법이 없다.
-	# 개발용 예외보다 먼저 본다. 안전장치를 편의 때문에 끄면 안 된다.
+	# 지난 부팅이 확인을 못 받았다. 두 가지 경우가 있다.
+	#
+	# 팩이 정말 앱을 죽였을 수도 있지만, **사용자가 그냥 빨리 껐을** 수도
+	# 있다. "껐다 켜면 적용된다" 는 안내대로 껐다 켜기를 빠르게 반복하면
+	# 확인 시간을 매번 못 채워서, 받는다→얹는다→되돌린다→다시 받는다 의
+	# 고리에 갇힌다 — 실제로 폰이 며칠 전 내용에 묶여 있었다.
+	#
+	# 그래서 한 번 실패로는 안 버린다. **연달아 세 번** 확인을 못 받았을
+	# 때만 팩이 범인이라 보고 되돌린다. 진짜로 죽는 팩이면 세 번 연속
+	# 못 버틸 것이고, 그동안 앱은 어차피 안 켜지는 상태라 잃는 것이 없다.
 	if _state.get("boot_pending", false):
-		push_warning("[AutoUpdate] 지난 실행이 팩 적용 중 죽었다. 되돌린다.")
-		_rollback()
-		return
+		var fails := int(_state.get("boot_fail_count", 0)) + 1
+		if fails >= 3:
+			push_warning("[AutoUpdate] 팩 적용 후 %d번 연속 확인 실패. 되돌린다." % fails)
+			_rollback()
+			return
+		_state["boot_fail_count"] = fails
+		push_warning("[AutoUpdate] 지난 부팅이 확인을 못 받았다 (%d/3). 팩은 유지한다." % fails)
 
 	# 개발 중에는 얹지 않는다. 받아둔 팩이 방금 고친 파일을 덮어써서
 	# "코드를 고쳤는데 화면이 안 바뀐다" 는 상황이 벌어진다.
@@ -162,6 +176,7 @@ func _rollback() -> void:
 	if FileAccess.file_exists(PCK_PATH):
 		DirAccess.open("user://").remove("patch.pck")
 	_state.erase("pck_version")
+	_state.erase("boot_fail_count")
 	_state["boot_pending"] = false
 	_write_state()
 
