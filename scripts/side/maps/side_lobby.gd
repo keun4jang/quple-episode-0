@@ -61,8 +61,7 @@ func build() -> void:
 		IndoorParts.WARM_LEG if painted else IndoorParts.FLOOR_BODY)
 
 	door(280.0, "회사 밖으로", "res://scenes/maps/CompanyFront3D.tscn")
-	var d := door(3150.0, "사무실로", "res://scenes/maps/Office3D.tscn")
-	d.position.y = UPPER_Y
+	door(3150.0, "사무실로", "res://scenes/maps/Office3D.tscn", "normal", UPPER_Y)
 
 
 func on_enter() -> void:

@@ -200,6 +200,56 @@ func _ready() -> void:
 		m.queue_free()
 		await get_tree().process_frame
 
+	print("\n[10] 로비 2층 문이 그림과 같은 높이에 서는가")
+	# 그림은 1층에, 들어가는 자리는 2층에 있던 적이 있다. 1층에서 빛나는
+	# 문 앞에 서도 아무 일이 없고, 문이 하나도 없는 2층 끝에서야 열렸다.
+	Episode0State.reset()
+	var lob: Node = load("res://scenes/side/Lobby.tscn").instantiate()
+	add_child(lob)
+	await get_tree().create_timer(0.8).timeout
+	var office_door: Dictionary = {}
+	for r in lob._spots:
+		if str(r["label"]).contains("사무실"):
+			office_door = r
+	ck("사무실 문이 있다", not office_door.is_empty())
+	if not office_door.is_empty():
+		var dy: float = (office_door["area"] as Area2D).position.y
+		ck("  판정이 2층 높이에 있다", absf(dy - lob.UPPER_Y) < 1.0,
+			"y=%.0f (2층 %.0f)" % [dy, lob.UPPER_Y])
+		# 그림도 같은 높이인가 — 문틀은 fy-268 에서 시작한다
+		var found := false
+		for c in lob.get_children():
+			if c is Node2D and c.get_child_count() > 0:
+				for g in c.get_children():
+					if g is ColorRect and absf(g.position.y - (lob.UPPER_Y - 268.0)) < 2.0:
+						found = true
+		ck("  문 그림도 2층 높이다", found)
+	# 1층에서 걸어도 문이 안 열려야 정상 (그림이 거기 없으므로)
+	lob.walker.global_position = Vector2(3150, lob.FLOOR_Y - 10)
+	await get_tree().create_timer(0.6).timeout
+	var live := lob._live_spot()
+	ck("  1층 같은 x 에서는 안 열린다",
+		live.is_empty() or not str(live.get("label", "")).contains("사무실"),
+		str(live.get("label", "-")))
+	lob.queue_free()
+	await get_tree().process_frame
+
+	print("\n[11] 0편 도중에 저장되는가")
+	# 전화 한 통에 진행이 통째로 날아가던 문제. 맵에 들어설 때마다 적는다.
+	SaveManager.clear_save()
+	Episode0State.reset()
+	Episode0State.advance_to(Episode0State.State.FIND_PARTNER)
+	var off: Node = load("res://scenes/side/Office.tscn").instantiate()
+	add_child(off)
+	await get_tree().create_timer(0.8).timeout
+	ck("맵에 들어서면 저장된다", SaveManager.has_save())
+	ck("  그 맵으로 이어진다",
+		SaveManager.get_saved_scene().ends_with("Office.tscn"),
+		SaveManager.get_saved_scene())
+	off.queue_free()
+	SaveManager.clear_save()
+	await get_tree().process_frame
+
 	_done()
 
 

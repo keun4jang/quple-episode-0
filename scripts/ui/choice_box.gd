@@ -61,6 +61,11 @@ func _animate_button(btn: Button, delay: float) -> void:
 	tw.tween_property(btn, "modulate:a", 1.0, 0.15).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(btn, "scale", Vector2.ONE, 0.18).set_ease(Tween.EASE_OUT)
 
+## 선택지가 떠 있는 동안 이 입력들은 여기서 끝난다.
+##
+## 예전에는 확정 입력이 그대로 아래로 흘러가 발밑의 자리(말 걸기 등)에도
+## 들어갔다. 지금은 그 상태에 해당하는 자리가 없어 우연히 아무 일도
+## 안 일어나지만, 자리 하나만 더 놓으면 한 번 누른 것이 두 번 먹는다.
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
@@ -72,6 +77,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_update_highlight()
 	elif event.is_action_pressed("interact"):
 		_on_choice(_selected)
+	else:
+		return
+	get_viewport().set_input_as_handled()
 
 func _update_highlight() -> void:
 	btn0.modulate = Color(1.0, 0.92, 0.35) if _selected == 0 else Color(0.75, 0.75, 0.75)

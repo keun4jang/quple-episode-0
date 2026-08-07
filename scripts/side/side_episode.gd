@@ -68,8 +68,24 @@ func _ready() -> void:
 	if _title != null:
 		_title.text = map_title()
 	AudioManager.play_bgm("episode0")
+	# 맵에 들어설 때와 진행이 바뀔 때마다 저장한다.
+	#
+	# 0편 안에서 저장하는 곳은 사진을 찍은 뒤뿐이었다. 물품을 다 챙기고
+	# 사원증까지 반납한 사람이 전화 한 통에 앱이 내려가면 **처음부터**
+	# 다시였다 — 이어하기 자체가 비활성이었다.
+	_autosave_here()
+	Episode0State.state_changed.connect(func(_s): _autosave_here())
 	await get_tree().process_frame
 	on_enter()
+
+
+## 지금 이 맵을 이어하기 자리로 적어 둔다.
+func _autosave_here() -> void:
+	if Episode0State.episode0_cleared:
+		return              # 다 깬 사람의 이어하기는 여행 허브다
+	var here := scene_file_path
+	if here != "":
+		SaveManager.autosave(here)
 
 
 ## 그려 받은 배경이 있으면 걸고, 없으면 false. 있으면 코드로 그리는
@@ -173,14 +189,22 @@ func set_spot_label(a: Area2D, label: String) -> void:
 
 ## 다른 맵으로 나가는 문. 포탈처럼 빛나야 문인 줄 안다 —
 ## 문틀만 그려 두니 배경 그림에 묻혀서 지나가는 사람이 못 알아봤다.
-func door(x: float, label: String, path: String, style := "normal") -> Area2D:
-	Indoor.door_frame(self, x, FLOOR_Y, Indoor.GLASS, _backdrop != null)
+## floor_y 를 주면 그 높이에 통째로 선다.
+##
+## 예전에는 문을 FLOOR_Y 에 만들고 부르는 쪽이 판정만 위로 옮겼다.
+## 그래서 로비에서는 **그림이 1층에, 들어가는 자리는 2층에** 있었다 —
+## 1층에서 빛나는 문 앞에 서도 아무 일이 없고, 문 그림이 하나도 없는
+## 2층 통로 끝에서야 "사무실로" 가 떴다. 첫 플레이가 실제로 막히는 곳이다.
+func door(x: float, label: String, path: String, style := "normal",
+		floor_y := -1.0) -> Area2D:
+	var fy := FLOOR_Y if floor_y < 0.0 else floor_y
+	Indoor.door_frame(self, x, fy, Indoor.GLASS, _backdrop != null)
 
 	# 숨쉬는 빛무리
 	var glow := ColorRect.new()
 	glow.color = Color(1.0, 0.9, 0.55, 0.16)
 	glow.size = Vector2(300, 340)
-	glow.position = Vector2(x - 150, FLOOR_Y - 320)
+	glow.position = Vector2(x - 150, fy - 320)
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	glow.z_index = -1
 	add_child(glow)
@@ -195,13 +219,15 @@ func door(x: float, label: String, path: String, style := "normal") -> Area2D:
 	arrow.add_theme_color_override("font_color", Color("#FFE7A8"))
 	arrow.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.05))
 	arrow.add_theme_constant_override("outline_size", 8)
-	arrow.position = Vector2(x - 22, FLOOR_Y - 360)
+	arrow.position = Vector2(x - 22, fy - 360)
 	add_child(arrow)
 	var tw2 := create_tween().set_loops()
-	tw2.tween_property(arrow, "position:y", FLOOR_Y - 336.0, 0.55).set_trans(Tween.TRANS_SINE)
-	tw2.tween_property(arrow, "position:y", FLOOR_Y - 360.0, 0.55).set_trans(Tween.TRANS_SINE)
+	tw2.tween_property(arrow, "position:y", fy - 336.0, 0.55).set_trans(Tween.TRANS_SINE)
+	tw2.tween_property(arrow, "position:y", fy - 360.0, 0.55).set_trans(Tween.TRANS_SINE)
 
-	return spot(x, label, func(): SceneTransition.go_to(path, style))
+	var a := spot(x, label, func(): SceneTransition.go_to(path, style))
+	a.position.y = fy
+	return a
 
 
 func _refresh_prompt() -> void:

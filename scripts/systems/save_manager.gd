@@ -174,6 +174,12 @@ func get_current_scene(fallback: String = HUB) -> String:
 	return _raw_current_scene(fallback)
 
 
+## 저장 파일에 적힌 그대로. 이어하기 **정책**이 아니라 저장이 제대로
+## 오갔는지를 볼 때 쓴다.
+func get_saved_scene(fallback: String = HUB) -> String:
+	return _raw_current_scene(fallback)
+
+
 func _raw_current_scene(fallback: String) -> String:
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) != OK:

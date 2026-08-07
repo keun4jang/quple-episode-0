@@ -66,7 +66,9 @@ func _ready() -> void:
 	ck("상태 복원", Episode0State.current_state == saved_state)
 	ck("물품 복원", Episode0State.all_items_collected())
 	ck("사원증 복원", Episode0State.badge_returned)
-	ck("씬 경로 복원", SaveManager.get_current_scene().ends_with("CompanyFront3D.tscn"))
+	# 저장한 값이 그대로 돌아오는지를 본다. 어디서 이어할지는 별개 질문이라
+	# TestResume 이 맡는다 — 0편을 깬 뒤에는 저 경로로 돌아가지 않는다.
+	ck("씬 경로 복원", SaveManager.get_saved_scene().ends_with("CompanyFront3D.tscn"))
 	ck("위치 복원", SaveManager.get_player_position() == Vector3(1, 2, 3))
 
 	print("\n[7] 앨범 해금 (min_state 7 / 11)")
