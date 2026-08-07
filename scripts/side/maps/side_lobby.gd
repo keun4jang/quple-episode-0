@@ -42,8 +42,11 @@ func build() -> void:
 	Parts.platform(self, 2100, UPPER_Y, 1300, 40, true,
 		IndoorParts.WARM_TOP if painted else IndoorParts.FLOOR_TOP,
 		IndoorParts.WARM_LEG if painted else IndoorParts.FLOOR_BODY)
-	# 엘리베이터 바닥면이 1층 바닥과 딱 맞아야 걸어 타진다.
-	Parts.elevator(self, 2260, UPPER_Y + 10, FLOOR_Y - 10)
+	# 엘리베이터 바닥판(두께 20, 가운데 기준)의 **윗면**이 로비 바닥과
+	# 정확히 같은 높이여야 한다. 10px 만 솟아도 옆에서 걸어오다 그 턱에
+	# 막힌다 — 시뮬레이션이 실제로 여기서 걸어오다 멈췄다. 위층도 같은
+	# 이유로 통로 윗면과 맞춘다.
+	Parts.elevator(self, 2260, UPPER_Y + 10, FLOOR_Y + 10)
 	# 계단으로도 올라갈 수 있게 둔다. 엘리베이터를 못 찾아 갇히면 안 된다.
 	#
 	# 색은 반드시 실내 것으로 준다. 기본값이 풀·흙이라 그대로 두면 로비
