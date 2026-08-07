@@ -137,6 +137,15 @@ func _apply_pending_pack() -> void:
 	if not FileAccess.file_exists(PCK_PATH):
 		return
 
+	# APK 를 새로 깔았는데 옛 팩이 남아 있는 경우. 팩이 APK 보다 낡았으면
+	# 얹는 순간 게임이 과거로 돌아간다 — 업데이트 문제로 재설치한 사람이
+	# 재설치 직후 다시 옛 화면을 보는 것보다 나쁜 첫인상은 없다.
+	var pv := str(_state.get("pck_version", ""))
+	if pv != "" and not is_newer(pv, baked_version):
+		print("[AutoUpdate] 팩(%s)이 APK(%s)보다 낡았다. 버린다." % [pv, baked_version])
+		_rollback()
+		return
+
 	# 지난 부팅이 확인을 못 받았다. 두 가지 경우가 있다.
 	#
 	# 팩이 정말 앱을 죽였을 수도 있지만, **사용자가 그냥 빨리 껐을** 수도
