@@ -25,20 +25,26 @@ func build() -> void:
 		IndoorParts.room(self, 3400.0, FLOOR_Y, 820.0, 840.0, 600.0)
 		IndoorParts.ceiling_lights(self, 3400.0, 120.0, 760.0)
 		IndoorParts.floor_pools(self, 3400.0, FLOOR_Y, 760.0)
-	IndoorParts.floor_slab(self, -200, FLOOR_Y, 3800)
+	var painted := _backdrop != null
+	IndoorParts.floor_slab(self, -200, FLOOR_Y, 3800, 320.0, painted)
 
 	# 대표실 문. 문틈으로 새어 나오는 빛이 유일하게 밝은 것이다.
 	var n := Node2D.new()
 	add_child(n)
-	_rect(n, Vector2(DOOR_X - 120, FLOOR_Y - 340), Vector2(240, 340), Color("#1E2738"))
-	_rect(n, Vector2(DOOR_X - 100, FLOOR_Y - 318), Vector2(200, 318), Color("#33405A"))
+	# 문틀 색은 벽에 맞춘다. 갈색 복도에 남색 문 하나만 서 있으면
+	# 문이 아니라 화면에 뚫린 구멍처럼 보인다.
+	_rect(n, Vector2(DOOR_X - 120, FLOOR_Y - 340), Vector2(240, 340),
+		Color("#3A2C2C") if painted else Color("#1E2738"))
+	_rect(n, Vector2(DOOR_X - 100, FLOOR_Y - 318), Vector2(200, 318),
+		Color("#54403E") if painted else Color("#33405A"))
 	_door_glow = ColorRect.new()
 	_door_glow.color = Color(1, 0.84, 0.42, 0.55)
 	_door_glow.size = Vector2(200, 12)
 	_door_glow.position = Vector2(DOOR_X - 100, FLOOR_Y - 12)
 	_door_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	n.add_child(_door_glow)
-	_rect(n, Vector2(DOOR_X - 60, FLOOR_Y - 430), Vector2(120, 46), Color("#46587A"))
+	_rect(n, Vector2(DOOR_X - 60, FLOOR_Y - 430), Vector2(120, 46),
+		Color("#6A5350") if painted else Color("#46587A"))
 
 	spot(DOOR_X, "문 앞에서 들어보기", _eavesdrop, false, 260.0)
 	door(180.0, "사무실로 돌아가기", "res://scenes/maps/Office3D.tscn")

@@ -136,8 +136,11 @@ static func floor_pools(parent: Node, w: float, floor_y: float, gap := 620.0) ->
 
 
 ## 바닥. 옆에서 보는 실내는 바닥선 하나로 층이 정해진다.
-static func floor_slab(parent: Node, x: float, y: float, w: float, h := 320.0) -> StaticBody2D:
-	return SideParts.platform(parent, x, y, w, h, false, FLOOR_TOP, FLOOR_BODY)
+##
+## painted 면 그리지 않고 딛는 자리만 남긴다 — 바닥은 그림에 이미 있다.
+static func floor_slab(parent: Node, x: float, y: float, w: float, h := 320.0,
+		painted := false) -> StaticBody2D:
+	return SideParts.platform(parent, x, y, w, h, false, FLOOR_TOP, FLOOR_BODY, not painted)
 
 
 ## 그려 받은 배경 위에 놓을 때 쓰는 색.

@@ -21,11 +21,11 @@ func build() -> void:
 		IndoorParts.room(self, 4200.0, FLOOR_Y, 300.0, 600.0, 480.0)
 		IndoorParts.ceiling_lights(self, 4200.0, 120.0, 900.0)
 		IndoorParts.floor_pools(self, 4200.0, FLOOR_Y, 900.0)
-	IndoorParts.floor_slab(self, -200, FLOOR_Y, 4600)
+	var painted := _backdrop != null
+	IndoorParts.floor_slab(self, -200, FLOOR_Y, 4600, 320.0, painted)
 
 	# 애인의 책상. 여기만 모니터가 켜져 있다 —
 	# 불 꺼진 사무실에서 그 빛 하나가 "아직 남아 있다" 를 말한다.
-	var painted := _backdrop != null
 	IndoorParts.desk(self, 1180, FLOOR_Y, 360, true, painted)
 	_partner_spot = spot(1360.0, "애인에게 말 걸기", talk_to_partner)
 	if partner == null and not Episode0State.partner_joined:

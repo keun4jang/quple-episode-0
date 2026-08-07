@@ -40,6 +40,7 @@ func build() -> void:
 				Vector2(150, 110), Color("#FFE7A8") if lit else Color("#1B2540"))
 	_rect(b, Vector2(2180, FLOOR_Y - 300), Vector2(1340, 24), Color("#3A4A6A"))
 
+	# 회사 앞은 먼 하늘만 그림으로 바꾸므로 인도는 늘 코드가 그린다.
 	Parts.platform(self, -200, FLOOR_Y, 4000, 320, false,
 		Color("#4C5570"), Color("#333B52"))
 	# 가로등. 밤길이 새까맣기만 하면 걸어갈 마음이 안 난다.

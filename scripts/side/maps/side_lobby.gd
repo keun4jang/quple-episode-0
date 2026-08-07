@@ -24,7 +24,7 @@ func build() -> void:
 		IndoorParts.ceiling_lights(self, 3400.0, 120.0, 700.0)
 		IndoorParts.floor_pools(self, 3400.0, FLOOR_Y, 700.0)
 	var painted := _backdrop != null
-	IndoorParts.floor_slab(self, -200, FLOOR_Y, 3800)
+	IndoorParts.floor_slab(self, -200, FLOOR_Y, 3800, 320.0, painted)
 
 	# 안내 데스크
 	IndoorParts.desk(self, 900, FLOOR_Y, 420, false, painted)

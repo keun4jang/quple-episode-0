@@ -42,6 +42,66 @@ PARALLAX = 0.40
 SCREEN_W = 2600
 
 
+def _rows(im, step=6):
+    """줄마다 (평균색, 가로로 얼마나 들쭉날쭉한가) 를 잰다."""
+    px = im.convert("RGB").load()
+    w, h = im.size
+    out = []
+    for y in range(h):
+        vals = [px[x, y] for x in range(0, w, step)]
+        n = len(vals)
+        m = tuple(sum(v[i] for v in vals) / n for i in range(3))
+        var = sum((sum(v) - sum(m)) ** 2 for v in vals) / n
+        out.append((m, var ** 0.5))
+    return out
+
+
+def trim_bands(im):
+    """위아래에 덧대어진 단색 띠를 잘라낸다.
+
+    이미지 모델은 요청한 비율을 맞추려고 위아래를 단색으로 채워 내보내는
+    일이 잦다. 복도 그림이 그랬다 — 실제 복도는 가운데 60% 뿐이고 나머지는
+    분홍빛 여백이었다. 그대로 넣으면 그 여백이 천장과 바닥 행세를 한다.
+
+    잘라내는 기준은 두 가지를 **함께** 본다. 첫 줄과 색이 거의 같고,
+    가로로도 거의 변화가 없는 줄. 하나만 보면 진짜 천장이나 카펫처럼
+    고르게 칠해진 부분까지 잘려 나간다.
+    """
+    rows = _rows(im)
+    h = len(rows)
+
+    def flat_like(i, ref):
+        m, var = rows[i]
+        near = sum(abs(m[k] - ref[k]) for k in range(3)) < 9
+        return near and var < 4.0
+
+    top = 0
+    while top < h - 2 and flat_like(top, rows[0][0]):
+        top += 1
+    bot = h - 1
+    while bot > top + 2 and flat_like(bot, rows[h - 1][0]):
+        bot -= 1
+    if top == 0 and bot == h - 1:
+        return im, 0, 0
+    return im.crop((0, top, im.width, bot + 1)), top, h - 1 - bot
+
+
+def find_floor(im):
+    """벽과 바닥이 만나는 줄을 찾는다.
+
+    화면 폭 전체를 가로지르는 가장 뚜렷한 가로 경계가 그것이다. 아래쪽
+    절반에서만 찾는다 — 위쪽에는 천장선과 창틀이 있어서 더 셀 수 있다.
+    """
+    rows = _rows(im)
+    h = len(rows)
+    best, best_y = -1.0, None
+    for y in range(int(h * 0.45), int(h * 0.97)):
+        d = sum(abs(rows[y][0][k] - rows[y - 1][0][k]) for k in range(3))
+        if d > best:
+            best, best_y = d, y
+    return (best_y / h) if best_y else None
+
+
 def widen(im, target_w):
     """좌우로 거울처럼 이어 붙여 넓힌다. 그냥 반복하면 이음매가 딱 보인다."""
     if im.width >= target_w:
@@ -60,14 +120,29 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--map", required=True, choices=sorted(MAPS))
     ap.add_argument("--file", required=True)
-    ap.add_argument("--floor", type=float, default=0.82,
-                    help="그림에서 바닥선이 위에서 몇 지점인가 (0~1, 기본 0.82)")
+    ap.add_argument("--floor", type=float, default=None,
+                    help="바닥선이 위에서 몇 지점인가 (0~1). 안 주면 알아서 찾는다")
+    ap.add_argument("--no-trim", action="store_true",
+                    help="위아래 단색 여백을 잘라내지 않는다")
     ap.add_argument("--dim", type=float, default=1.0,
                     help="어둡게/밝게 (1.0 = 그대로)")
     a = ap.parse_args()
 
     src = Image.open(os.path.expanduser(a.file)).convert("RGBA")
     print(f"  받은 그림  {src.width}x{src.height}")
+
+    if not a.no_trim:
+        src, cut_top, cut_bot = trim_bands(src)
+        if cut_top or cut_bot:
+            print(f"  위아래 단색 여백을 잘랐다 (위 {cut_top}px, 아래 {cut_bot}px)"
+                  f" → {src.width}x{src.height}")
+
+    floor_frac = a.floor
+    if floor_frac is None:
+        floor_frac = find_floor(src) or 0.82
+        print(f"  바닥선을 찾았다: 위에서 {floor_frac * 100:.1f}%")
+    else:
+        print(f"  바닥선: 위에서 {floor_frac * 100:.1f}% (직접 지정)")
 
     # 세로 맞추기 — 그림의 바닥선이 화면의 바닥선과 겹치도록 키운다.
     #
@@ -77,7 +152,7 @@ def main():
     # 카메라가 올라가는 경우(로비 2층)는 위쪽을 늘려 메운다.
     view_h = VIEW_BOTTOM - VIEW_TOP
     floor_from_top = FLOOR_Y - NORMAL_TOP        # 평소 화면에서 바닥선까지
-    scale = floor_from_top / (src.height * a.floor)
+    scale = floor_from_top / (src.height * floor_frac)
     new_h = max(1, int(round(src.height * scale)))
     new_w = max(1, int(round(src.width * scale)))
     im = src.resize((new_w, new_h), Image.LANCZOS)

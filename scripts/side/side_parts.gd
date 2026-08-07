@@ -32,8 +32,13 @@ static func _rect(parent: Node, pos: Vector2, size: Vector2, col: Color, name :=
 ## ─── 발판 ───
 ## 위는 풀·아래는 흙. 이 두 겹이 있어야 "딛는 곳" 으로 읽힌다.
 ## one_way 면 아래에서 뛰어올라 통과할 수 있다.
+## show_art 가 false 면 충돌만 두고 아무것도 그리지 않는다.
+##
+## 그려 받은 배경에는 바닥이 이미 그려져 있다. 그 위에 코드로 또 바닥을
+## 깔면 그림 위에 색 띠가 하나 더 얹힌다 — 복도에서 실제로 갈색 카펫
+## 위에 파란 띠가 그어졌다. 딛는 자리는 있어야 하니 충돌만 남긴다.
 static func platform(parent: Node, x: float, y: float, w: float, h: float,
-		one_way := false, top := GRASS, body := SOIL) -> StaticBody2D:
+		one_way := false, top := GRASS, body := SOIL, show_art := true) -> StaticBody2D:
 	var b := StaticBody2D.new()
 	b.name = "Platform"
 	b.position = Vector2(x, y)
@@ -48,6 +53,9 @@ static func platform(parent: Node, x: float, y: float, w: float, h: float,
 	cs.one_way_collision = one_way
 	b.add_child(cs)
 	parent.add_child(b)
+
+	if not show_art:
+		return b
 
 	var art := Node2D.new()
 	art.name = "Art"
