@@ -490,6 +490,19 @@ func _build_traveling() -> void:
 	# 중간 소식
 	body.add_child(_make_message_row())
 
+	# 같이 걷기 — 옆에서 보는 맵으로 들어간다.
+	#
+	# 떠나 있는 동안 화면에서 할 수 있는 일이 기다리는 것뿐이었다.
+	# 여기가 그 자리다 — 지금 그곳을 같이 걸어 본다.
+	var walk := Button.new()
+	walk.name = "WalkBtn"
+	walk.text = "🚶 같이 걷기"
+	walk.custom_minimum_size = Vector2(320, 88)
+	walk.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	walk.add_theme_font_size_override("font_size", 32)
+	walk.pressed.connect(_go_walk)
+	body.add_child(walk)
+
 
 	var hint := Label.new()
 	hint.name = "Hint"
@@ -509,6 +522,14 @@ func _build_traveling() -> void:
 	peek.add_theme_color_override("font_color", Color(0.70, 0.68, 0.85))
 	peek.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(peek)
+
+## 옆에서 보는 산책 맵으로 간다. 지금 가 있는 막의 풍경 위를 걷는다.
+func _go_walk() -> void:
+	var d := TravelState.get_destination(str(TravelState.trip.get("dest_id", "")))
+	SideMap.next_chapter = str(d.get("chapter", "korea"))
+	SideMap.return_to = "res://scenes/travel/TravelHub.tscn"
+	SceneTransition.go_to("res://scenes/side/SideMap.tscn", "hopeful")
+
 
 ## 하늘 한 조각으로 세 가지를 한꺼번에 말한다.
 ##   색     — 여행지 팔레트(어디에 있는가) 를 지금 시각의 빛(몇 시인가) 으로 조명한다
