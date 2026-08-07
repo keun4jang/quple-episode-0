@@ -58,7 +58,8 @@ func _ready() -> void:
 	_build_walker()
 	_build_camera()
 	_sync_backdrop()
-	add_child(SideTouch.new())
+	_touch = SideTouch.new()
+	add_child(_touch)
 	if _title != null:
 		_title.text = map_title()
 	AudioManager.play_bgm("episode0")
@@ -75,6 +76,7 @@ const BACKDROP_TOP := -240.0
 
 var _backdrop: TextureRect
 var _backdrop_factor := Indoor.BACKDROP_FACTOR
+var _touch: SideTouch
 
 func use_backdrop(map_name: String) -> bool:
 	_backdrop = Indoor.backdrop(self, map_name)
@@ -85,9 +87,10 @@ func use_backdrop(map_name: String) -> bool:
 func _sync_backdrop() -> void:
 	if _backdrop == null:
 		return
-	var vp := get_viewport_rect().size
+	# 줌이 1이 아니면 화면이 실제로 보는 폭은 vp/zoom 이다.
+	var half_w := get_viewport_rect().size.x * 0.5 / CAM_ZOOM
 	_backdrop.position = Vector2(
-		_cam.global_position.x * (1.0 - _backdrop_factor) - vp.x * 0.5,
+		_cam.global_position.x * (1.0 - _backdrop_factor) - half_w,
 		BACKDROP_TOP)
 
 
@@ -152,6 +155,8 @@ func _refresh_prompt() -> void:
 		return
 	var r := _live_spot()
 	_prompt.text = ("▲  " + str(r["label"])) if not r.is_empty() else ""
+	if _touch != null:
+		_touch.highlight_interact(not r.is_empty())
 
 
 ## 지금 할 수 있는 일. 없으면 빈 사전.
@@ -262,11 +267,20 @@ func _follow_partner(delta: float) -> void:
 ## 처음엔 캐릭터를 계속 따라 올려다봤더니, 화면에 창밖 도시만 가득하고
 ## 천장도 바닥도 안 보여서 어디에 서 있는지 알 수 없었다. 세로로는
 ## 캐릭터를 좇되 방을 벗어나지 않게 묶어 둔다.
-const CAM_Y_MIN := 300.0
-const CAM_Y_MAX := 560.0
+const CAM_Y_MIN := 380.0
+const CAM_Y_MAX := 480.0
+## 카메라를 이만큼 뒤로 뺀다. 1.0 이면 캐릭터가 화면의 1/5 을 차지해서
+## 방보다 캐릭터를 보는 화면이 됐다. 뒤로 빼면 방이 넓어 보이고 앞이
+## 더 멀리 보인다.
+##
+## 주의: 값을 더 낮추려면 배경 그림의 세로(1340px)와 가로 여유
+## (import-indoor-bg.py 의 SCREEN_W)도 같이 늘려야 한다. 보이는 범위가
+## 그림보다 커지면 가장자리에 검은 띠가 생긴다.
+const CAM_ZOOM := 0.88
 
 func _build_camera() -> void:
 	_cam = Camera2D.new()
+	_cam.zoom = Vector2(CAM_ZOOM, CAM_ZOOM)
 	_cam.position_smoothing_enabled = true
 	_cam.position_smoothing_speed = 6.0
 	_cam.limit_left = 0
@@ -302,6 +316,18 @@ func _build_ui() -> void:
 	_title.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	cl.add_child(_title)
 
+	# 설정. 옆맵 안에서는 소리 조절도, 메인으로 나가는 길도 이것뿐이다.
+	# 메이플처럼 오른쪽 위 구석. 왼쪽 위는 곳 이름이 쓴다.
+	var gear := Button.new()
+	gear.name = "SettingsBtn"
+	gear.text = "⚙ 설정"
+	gear.add_theme_font_size_override("font_size", 30)
+	gear.custom_minimum_size = Vector2(150, 84)
+	gear.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	gear.position = Vector2(-174, 20)
+	gear.pressed.connect(_open_settings)
+	cl.add_child(gear)
+
 	_prompt = _mk_label(36, Color("#FDFBD4"))
 	_prompt.position = Vector2(-600, 66)
 	_prompt.size = Vector2(1200, 48)
@@ -334,6 +360,15 @@ func _move_dialogue_to_top() -> void:
 	p.offset_right = -420.0
 	p.offset_top = 120.0
 	p.offset_bottom = 262.0
+
+
+func _open_settings() -> void:
+	var sv: Node = get_tree().get_first_node_in_group("settings_ui")
+	if sv == null:
+		sv = load("res://scenes/ui/SettingsUI.tscn").instantiate()
+		add_child(sv)
+		await get_tree().process_frame
+	sv.open()
 
 
 func _mk_label(size: int, col: Color) -> Label:

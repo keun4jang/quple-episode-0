@@ -127,10 +127,21 @@ func _ready() -> void:
 	if touch == null:
 		for c in map.get_children():
 			if c is SideTouch: touch = c
-	ck("터치 버튼이 있다", touch != null)
+	ck("터치 조작이 있다", touch != null)
 	if touch != null:
-		for a in ["move_left", "move_right", "move_up", "move_down", "jump"]:
+		# 방향은 조이스틱, 버튼은 점프와 조사 둘이다.
+		ck("  조이스틱이 있다", touch._stick_base != null)
+		for a in ["jump", "interact"]:
 			ck("  %s 버튼" % a, touch._btns.has(a))
+		# 스틱을 오른쪽으로 민 것처럼 넣어 본다
+		touch._stick_finger = 0
+		touch._stick_update(touch._stick_center + Vector2(200, 0))
+		ck("  스틱 오른쪽 → 걷기", Input.is_action_pressed("move_right"))
+		touch._stick_update(touch._stick_center + Vector2(0, -200))
+		ck("  스틱 위 → 오르기", Input.is_action_pressed("move_up"))
+		ck("  위로 밀면 걷기는 풀린다", not Input.is_action_pressed("move_right"))
+		touch._stick_release()
+		ck("  놓으면 전부 풀린다", not Input.is_action_pressed("move_up"))
 
 	print("\n[8] 0편 맵이 옆에서 보는 판으로 갈아끼워졌는가")
 	# 맵을 부르는 곳이 열 군데 넘게 흩어져 있어서, 길목 한 곳에서 바꾼다.
