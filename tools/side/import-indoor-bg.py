@@ -38,8 +38,24 @@ MAPS = {
     "office": 4200,
     "hallway": 3400,
 }
-PARALLAX = 0.40
 SCREEN_W = 2600
+
+## 배경이 카메라를 따라 흐르는 정도. 맵마다 다르다.
+##
+## 실내는 벽이 코앞이라 크게 잡고, 회사 앞의 밤도시는 아득히 멀어서
+## 거의 안 움직여야 한다. 이 값이 side_episode.gd 쪽과 맞아야 하므로
+## 한쪽만 고치면 배경 폭이 모자라 끝에서 검은 띠가 생긴다.
+PARALLAX = {"front": 0.12, "lobby": 0.40, "office": 0.40, "hallway": 0.40}
+
+## 하늘만 갈아 끼우는 맵. 바닥선이 없으니 찾지 않는다.
+##
+## 회사 앞은 건물도 인도도 코드가 그린다. 그림은 그 뒤에 걸리는 먼
+## 밤도시일 뿐이라, 바닥선을 찾아 맞추려 들면 하늘 한가운데를 바닥으로
+## 잡고 그림을 엉뚱하게 키운다.
+SKY_ONLY = {"front"}
+## 하늘 그림의 아래 끝이 놓일 높이. 인도(860) 보다 조금 위여야 도시가
+## 인도 뒤에서 끊긴다.
+SKY_BOTTOM = 900
 
 
 def _rows(im, step=6):
@@ -137,6 +153,11 @@ def main():
             print(f"  위아래 단색 여백을 잘랐다 (위 {cut_top}px, 아래 {cut_bot}px)"
                   f" → {src.width}x{src.height}")
 
+    if a.map in SKY_ONLY:
+        canvas = _fit_sky(src)
+        _save(canvas, a)
+        return
+
     floor_frac = a.floor
     if floor_frac is None:
         floor_frac = find_floor(src) or 0.82
@@ -171,17 +192,34 @@ def main():
         canvas.paste(tail, (0, bottom))
         print(f"  아래 {view_h - bottom}px 를 바닥색으로 늘렸다")
 
+    _save(canvas, a)
+
+
+## 하늘만 쓰는 맵. 보이는 세로 범위를 채우되, 도시의 밑동이 인도 뒤에서
+## 끊기도록 아래쪽에 조금 여유를 둔다.
+def _fit_sky(src):
+    view_h = VIEW_BOTTOM - VIEW_TOP
+    sky_h = SKY_BOTTOM - VIEW_TOP
+    scale = sky_h / src.height
+    im = src.resize((max(1, int(src.width * scale)), sky_h), Image.LANCZOS)
+    canvas = Image.new("RGBA", (im.width, view_h), (0, 0, 0, 255))
+    canvas.paste(im, (0, 0), im)
+    # 남은 아래쪽은 마지막 줄로 채운다. 인도가 그 위에 덮인다.
+    tail = im.crop((0, sky_h - 4, im.width, sky_h)).resize((im.width, view_h - sky_h))
+    canvas.paste(tail, (0, sky_h))
+    print(f"  하늘만 갈아 끼운다 (바닥선을 찾지 않는다)")
+    return canvas
+
+
+def _save(canvas, a):
     if a.dim != 1.0:
         canvas = ImageEnhance.Brightness(canvas).enhance(a.dim)
-
-    need_w = int(MAPS[a.map] * PARALLAX + SCREEN_W)
+    need_w = int(MAPS[a.map] * PARALLAX[a.map] + SCREEN_W)
     canvas = widen(canvas, need_w)
-
     os.makedirs(OUT, exist_ok=True)
     path = f"{OUT}/{a.map}-room.png"
     canvas.convert("RGB").save(path)
     print(f"  ✓ {path}  {canvas.width}x{canvas.height}")
-    print(f"    바닥선이 어긋나 보이면 --floor 값을 조금 바꿔 다시 넣어라.")
 
 
 if __name__ == "__main__":

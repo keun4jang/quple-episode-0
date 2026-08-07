@@ -30,6 +30,13 @@ const LAMP := Color("#FFD76D")
 ## 바깥 풍경보다 크게 잡는다 — 너무 작으면 벽이 따라오지 않아 방이
 ## 미끄러지는 것처럼 보인다.
 const BACKDROP_FACTOR := 0.40
+## 맵마다 다른 값. 회사 앞의 밤도시는 아득히 멀어서 거의 안 움직여야 한다.
+## `tools/side/import-indoor-bg.py` 의 PARALLAX 와 같은 값이어야 한다 —
+## 한쪽만 고치면 그림 폭이 모자라 맵 끝에서 검은 띠가 생긴다.
+const BACKDROP_FACTORS := {"front": 0.12}
+
+static func backdrop_factor(map_name: String) -> float:
+	return float(BACKDROP_FACTORS.get(map_name, BACKDROP_FACTOR))
 
 static func backdrop(parent: Node, map_name: String) -> TextureRect:
 	var path := "res://assets/side/%s-room.png" % map_name

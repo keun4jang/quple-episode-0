@@ -74,9 +74,11 @@ func _ready() -> void:
 const BACKDROP_TOP := -240.0
 
 var _backdrop: TextureRect
+var _backdrop_factor := Indoor.BACKDROP_FACTOR
 
 func use_backdrop(map_name: String) -> bool:
 	_backdrop = Indoor.backdrop(self, map_name)
+	_backdrop_factor = Indoor.backdrop_factor(map_name)
 	return _backdrop != null
 
 
@@ -85,7 +87,7 @@ func _sync_backdrop() -> void:
 		return
 	var vp := get_viewport_rect().size
 	_backdrop.position = Vector2(
-		_cam.global_position.x * (1.0 - Indoor.BACKDROP_FACTOR) - vp.x * 0.5,
+		_cam.global_position.x * (1.0 - _backdrop_factor) - vp.x * 0.5,
 		BACKDROP_TOP)
 
 

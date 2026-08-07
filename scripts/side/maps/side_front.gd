@@ -26,26 +26,56 @@ func build() -> void:
 	if not use_backdrop("front"):
 		IndoorParts.skyline(self, 3600.0, FLOOR_Y, 11)
 
-	# 회사 건물. 오른쪽에 서 있고, 4층 창 하나에만 불이 켜져 있다.
+	# 쿼카전자. 이 건물만은 코드가 그린다.
+	#
+	# 그림으로 뽑으면 좌우로 이어 붙일 때 여러 채가 된다. 그런데 이
+	# 건물은 하나뿐이어야 하고, 그 4층의 불 켜진 창 하나가 0편의 시작이다.
+	#
+	# 색은 뒤의 밤도시보다 **진하고 또렷하게** 잡는다. 뒤가 안개에 잠긴
+	# 그림이라, 같은 톤으로 두면 건물이 배경에 녹아 어디가 회사인지
+	# 알 수 없다. 가까운 것은 흐리지 않아야 가까워 보인다.
 	var b := Node2D.new()
 	b.z_index = -20
 	add_child(b)
-	_rect(b, Vector2(2200, FLOOR_Y - 980), Vector2(1300, 980), Color("#26324C"))
-	_rect(b, Vector2(2200, FLOOR_Y - 980), Vector2(1300, 26), Color("#33415F"))
+	_rect(b, Vector2(2200, FLOOR_Y - 980), Vector2(1300, 980), Color("#222C46"))
+	_rect(b, Vector2(2200, FLOOR_Y - 980), Vector2(1300, 22), Color("#39476A"))
+	_rect(b, Vector2(2200, FLOOR_Y - 980), Vector2(14, 980), Color("#2C3856"))
 	for row in range(5):
 		for col in range(5):
 			# 4층 왼쪽 끝 하나만 켜져 있다. 그 창이 이 이야기의 시작이다.
 			var lit := row == 1 and col == 0
-			_rect(b, Vector2(2270 + col * 240, FLOOR_Y - 900 + row * 170),
-				Vector2(150, 110), Color("#FFE7A8") if lit else Color("#1B2540"))
-	_rect(b, Vector2(2180, FLOOR_Y - 300), Vector2(1340, 24), Color("#3A4A6A"))
+			var wx := 2270 + col * 240
+			var wy := FLOOR_Y - 900 + row * 170
+			if lit:
+				# 켜진 창은 빛이 새어 나와야 눈에 띈다. 창만 노랗게
+				# 칠하면 스티커처럼 붙어 보인다.
+				_rect(b, Vector2(wx - 90, wy - 80), Vector2(330, 270),
+					Color(1, 0.87, 0.55, 0.10))
+				_rect(b, Vector2(wx - 40, wy - 34), Vector2(230, 178),
+					Color(1, 0.87, 0.55, 0.13))
+			_rect(b, Vector2(wx, wy), Vector2(150, 110),
+				Color("#FFE7A8") if lit else Color("#1A2338"))
+	# 1층 입구. 유리문 너머로 로비 불빛이 조금 비친다.
+	_rect(b, Vector2(2180, FLOOR_Y - 300), Vector2(1340, 20), Color("#39476A"))
+	_rect(b, Vector2(2600, FLOOR_Y - 250), Vector2(340, 250), Color("#2E3C5C"))
+	_rect(b, Vector2(2620, FLOOR_Y - 232), Vector2(300, 232), Color("#54658A"))
+	_rect(b, Vector2(2560, FLOOR_Y - 300), Vector2(420, 300), Color(1, 0.9, 0.66, 0.07))
 
-	# 회사 앞은 먼 하늘만 그림으로 바꾸므로 인도는 늘 코드가 그린다.
+	# 인도. 하늘만 그림으로 바꾸므로 여기는 늘 코드가 그린다.
 	Parts.platform(self, -200, FLOOR_Y, 4000, 320, false,
-		Color("#4C5570"), Color("#333B52"))
+		Color("#5A6480"), Color("#333B52"))
+	# 보도블록 이음매. 한 줄씩 그어 두면 걸을 때 지나가는 것이 보여
+	# 실제로 나아가고 있다는 느낌이 난다.
+	var pave := Node2D.new()
+	pave.z_index = -2
+	add_child(pave)
+	for px in range(-200, 3900, 170):
+		_rect(pave, Vector2(px, FLOOR_Y + 26), Vector2(3, 40), Color(0, 0, 0, 0.13))
+	_rect(pave, Vector2(-200, FLOOR_Y + 24), Vector2(4200, 3), Color(0, 0, 0, 0.16))
+
 	# 가로등. 밤길이 새까맣기만 하면 걸어갈 마음이 안 난다.
-	for x in [700.0, 1900.0, 3100.0]:
-		_lamp(x)
+	for lx in [700.0, 1900.0, 3100.0]:
+		_lamp(lx)
 
 	# 첫 사진 자리
 	_photo_glow = Node2D.new()
@@ -132,13 +162,25 @@ func _flash() -> void:
 	tw.tween_callback(cl.queue_free)
 
 
+## 가로등. 밤길에서 유일하게 따뜻한 것이라 대충 그리면 티가 크게 난다.
 func _lamp(x: float) -> void:
 	var n := Node2D.new()
 	n.z_index = -10
 	add_child(n)
-	_rect(n, Vector2(x - 9, FLOOR_Y - 420), Vector2(18, 420), Color("#3D4A66"))
-	_rect(n, Vector2(x - 52, FLOOR_Y - 448), Vector2(104, 30), Color("#FFD76D"))
-	_rect(n, Vector2(x - 200, FLOOR_Y - 430), Vector2(400, 440), Color(1, 0.86, 0.5, 0.06))
+	_rect(n, Vector2(x - 8, FLOOR_Y - 430), Vector2(16, 430), Color("#2B3550"))
+	_rect(n, Vector2(x - 16, FLOOR_Y - 14), Vector2(32, 14), Color("#232C44"))
+	# 등갓과 알
+	_rect(n, Vector2(x - 46, FLOOR_Y - 462), Vector2(92, 16), Color("#2B3550"))
+	_rect(n, Vector2(x - 36, FLOOR_Y - 446), Vector2(72, 20), Color("#FFE3A0"))
+	# 빛. 위는 넓게, 아래로 갈수록 좁아지게 겹쳐 원뿔을 흉내 낸다.
+	for i in range(5):
+		var t := float(i) / 4.0
+		var half := lerpf(150.0, 42.0, t)
+		_rect(n, Vector2(x - half, FLOOR_Y - 440 + t * 220.0),
+			Vector2(half * 2.0, 240.0 - t * 40.0), Color(1, 0.88, 0.58, 0.035))
+	# 바닥에 고이는 빛
+	_rect(n, Vector2(x - 170, FLOOR_Y - 20), Vector2(340, 24), Color(1, 0.88, 0.58, 0.10))
+	_rect(n, Vector2(x - 100, FLOOR_Y - 14), Vector2(200, 16), Color(1, 0.88, 0.58, 0.10))
 
 
 func _rect(p: Node, pos: Vector2, size: Vector2, col: Color) -> void:
