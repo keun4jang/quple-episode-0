@@ -56,6 +56,20 @@ func walk_to(x: float, secs := 26.0) -> bool:
 	Input.action_release("move_left"); Input.action_release("move_right")
 	return false
 
+## 조건이 참이 될 때까지 선택을 되풀이 누른다.
+##
+## 대사창이 열려 있으면 선택은 "대사 넘기기" 다 — 사람도 대사를 닫고
+## 한 번 더 누른다. 시뮬레이션도 똑같이 한다. 처음에 한 번만 눌렀더니
+## 문 앞에서 대사만 닫고 서 있었다.
+func press_until(cond: Callable, tries := 4) -> bool:
+	for i in range(tries):
+		await press_select()
+		await get_tree().create_timer(0.8).timeout
+		if cond.call():
+			return true
+	return false
+
+
 ## 선택 버튼을 누른 것과 같은 입력.
 func press_select() -> void:
 	var ev := InputEventAction.new()
@@ -67,10 +81,18 @@ func press_select() -> void:
 	up.action = "interact"
 	Input.parse_input_event(up)
 
+## 이 스크립트가 붙은 씬은 current_scene 이라 장면을 바꾸는 순간 해제된다.
+## 그래서 씬 자신은 일하지 않고, root 바로 밑에 러너를 만들어 넘긴다 —
+## 러너는 current_scene 이 아니므로 장면이 몇 번 바뀌어도 살아남는다.
+var _is_runner := false
+
 func _ready() -> void:
-	# 씬이 바뀌어도 죽지 않게 root 로 옮겨 탄다
-	if get_parent() != get_tree().root:
-		get_tree().root.add_child.call_deferred(self.duplicate())
+	if not _is_runner:
+		var runner := Node.new()
+		runner.set_script(get_script())
+		runner._is_runner = true
+		get_tree().root.add_child.call_deferred(runner)
+		return
 	await get_tree().process_frame
 	Episode0State.reset()
 	TravelState.reset()
@@ -89,8 +111,9 @@ func run() -> void:
 
 	say("문까지 걸어가 안으로 들어간다")
 	ck("문까지 걸었다", await walk_to(2760))
-	await press_select()
-	ck("로비로 들어왔다", await wait_map("로비"))
+	ck("로비로 들어왔다", await press_until(func():
+		var m := map()
+		return m != null and m.map_title().contains("로비")) and await wait_map("로비"))
 	ck("상태: 애인 찾기", Episode0State.current_state == Episode0State.State.FIND_PARTNER)
 	await shot("로비")
 
@@ -102,15 +125,14 @@ func run() -> void:
 	ck("2층에 올라왔다", map().walker.global_position.y < 500.0)
 	await shot("로비2층")
 	ck("사무실 문까지", await walk_to(3150))
-	await press_select()
-	ck("사무실에 들어왔다", await wait_map("사무실"))
+	ck("사무실에 들어왔다", await press_until(func():
+		var m := map()
+		return m != null and m.map_title().contains("사무실")) and await wait_map("사무실"))
 	await shot("사무실")
 
 	say("애인에게 말을 건다")
 	ck("애인 자리까지", await walk_to(1360))
-	await press_select()
-	await get_tree().create_timer(2.4).timeout
-	ck("선택지가 떴다", map().choice_box.visible)
+	ck("선택지가 떴다", await press_until(func(): return map().choice_box.visible, 5))
 	await shot("선택지")
 	map().choice_box.choice_made.emit(0)
 	ck("복도로 넘어왔다", await wait_map("복도"))
@@ -118,32 +140,28 @@ func run() -> void:
 
 	say("대표실 문 앞에서 듣는다")
 	ck("문 앞까지", await walk_to(3000))
-	await press_select()
+	ck("엿듣기가 시작됐다", await press_until(func(): return map()._listening, 4))
 	# 대사 4줄 x 2.2초
-	ck("사무실로 돌아왔다", await wait_map("사무실", 16.0))
+	ck("사무실로 돌아왔다", await wait_map("사무실", 20.0))
 	ck("상태: 애인에게 돌아가기", Episode0State.current_state == Episode0State.State.RETURN_TO_PARTNER)
 
 	say("애인과 이야기하고 물품 셋을 챙긴다")
 	ck("애인 자리까지", await walk_to(1360))
-	await press_select()
-	await get_tree().create_timer(2.4).timeout
-	ck("상태: 물품 챙기기", Episode0State.current_state == Episode0State.State.COLLECT_TRAVEL_ITEMS)
+	ck("상태: 물품 챙기기", await press_until(func():
+		return Episode0State.current_state == Episode0State.State.COLLECT_TRAVEL_ITEMS, 5))
 	await shot("물품챙기기_HUD")
 
 	ck("카메라 자리까지", await walk_to(2340))
-	await press_select()
-	ck("카메라 챙김", Episode0State.has_camera)
+	ck("카메라 챙김", await press_until(func(): return Episode0State.has_camera))
 	ck("수첩 자리까지", await walk_to(3000))
-	await press_select()
-	ck("수첩 챙김", Episode0State.has_notebook)
+	ck("수첩 챙김", await press_until(func(): return Episode0State.has_notebook))
 	say("사다리로 선반 위 가방까지")
 	ck("사다리 밑까지", await walk_to(3380))
 	Input.action_press("move_up")
 	await get_tree().create_timer(2.6).timeout
 	Input.action_release("move_up")
 	ck("선반까지", await walk_to(3700, 12.0))
-	await press_select()
-	ck("가방 챙김", Episode0State.has_travel_bag)
+	ck("가방 챙김", await press_until(func(): return Episode0State.has_travel_bag))
 	await shot("셋다챙김")
 
 	# 선반에서 내려온다
@@ -154,23 +172,23 @@ func run() -> void:
 
 	say("애인에게 보고하고 로비에서 사원증을 반납한다")
 	ck("애인 자리까지", await walk_to(1360))
-	await press_select()
-	await get_tree().create_timer(1.0).timeout
-	ck("상태: 사원증 반납", Episode0State.current_state == Episode0State.State.RETURN_BADGE)
+	ck("상태: 사원증 반납", await press_until(func():
+		return Episode0State.current_state == Episode0State.State.RETURN_BADGE, 5))
 	ck("로비 문까지", await walk_to(180))
-	await press_select()
-	ck("로비로 돌아왔다", await wait_map("로비"))
+	ck("로비로 돌아왔다", await press_until(func():
+		var m := map()
+		return m != null and m.map_title().contains("로비")) and await wait_map("로비"))
 	ck("반납함까지", await walk_to(1500))
-	await press_select()
-	await get_tree().create_timer(1.0).timeout
-	ck("상태: 합류", Episode0State.current_state == Episode0State.State.PARTNER_JOINED)
+	ck("상태: 합류", await press_until(func():
+		return Episode0State.current_state == Episode0State.State.PARTNER_JOINED, 5))
 	ck("파트너가 나타났다", map().partner != null)
 	await shot("합류")
 
 	say("둘이 함께 밖으로 나가 첫 사진을 찍는다")
 	ck("바깥 문까지", await walk_to(280))
-	await press_select()
-	ck("회사 앞으로 나왔다", await wait_map("쿼카전자 앞"))
+	ck("회사 앞으로 나왔다", await press_until(func():
+		var m := map()
+		return m != null and m.map_title().contains("쿼카전자 앞")) and await wait_map("쿼카전자 앞"))
 	await get_tree().create_timer(4.0).timeout   # 도착 대사
 	ck("사진 자리까지", await walk_to(1500))
 	await shot("사진자리")
