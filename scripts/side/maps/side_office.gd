@@ -92,6 +92,7 @@ func _pick(id: String) -> void:
 			Episode0State.has_travel_bag = true
 			await say("여행 가방을 챙겼어요.", 0.0)
 	_refresh_items()
+	_refresh_hud()
 
 
 ## 이미 챙긴 것은 치운다. 남아 있으면 몇 개 남았는지 알 수 없다.

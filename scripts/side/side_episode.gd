@@ -28,6 +28,8 @@ var _spots: Array = []          # [{area, label, cb, once, done}]
 var _here: Dictionary = {}      # 지금 겹쳐 있는 자리
 var _prompt: Label
 var _title: Label
+var _objective: Label
+var _items_row: Label
 var _map_w := 4200.0
 var _start_x := 300.0
 ## 파트너가 따라오는가. 합류한 뒤로는 늘 붙어 다닌다.
@@ -317,6 +319,32 @@ func _build_ui() -> void:
 	cl.add_child(_title)
 
 	# 설정. 옆맵 안에서는 소리 조절도, 메인으로 나가는 길도 이것뿐이다.
+	# 목표 표시 — 메이플의 퀘스트 트래커 자리(왼쪽 위).
+	#
+	# 다른 게임들과 나란히 놓고 보면 우리 옆맵에 없던 것이 이것이다.
+	# 지금 뭘 해야 하는지가 화면에 없으면, 대사를 한 번 놓친 사람은
+	# 맵을 헤매는 수밖에 없다. 3D 쪽의 바람 노트가 하던 일을 여기서 한다.
+	_objective = Label.new()
+	_objective.add_theme_font_size_override("font_size", 30)
+	_objective.add_theme_color_override("font_color", Color("#FDFBD4"))
+	_objective.add_theme_color_override("font_outline_color", Color(0.07, 0.06, 0.11))
+	_objective.add_theme_constant_override("outline_size", 8)
+	_objective.position = Vector2(24, 20)
+	cl.add_child(_objective)
+
+	# 수집 진행 — 메이플이 "몬스터 11/26" 을 띄우는 그 자리다.
+	# 여행 물품을 챙기는 동안에만 나타난다.
+	_items_row = Label.new()
+	_items_row.add_theme_font_size_override("font_size", 30)
+	_items_row.add_theme_color_override("font_color", Color("#FFE7A8"))
+	_items_row.add_theme_color_override("font_outline_color", Color(0.07, 0.06, 0.11))
+	_items_row.add_theme_constant_override("outline_size", 8)
+	_items_row.position = Vector2(24, 66)
+	cl.add_child(_items_row)
+
+	Episode0State.state_changed.connect(func(_s): _refresh_hud())
+	_refresh_hud()
+
 	# 메이플처럼 오른쪽 위 구석. 왼쪽 위는 곳 이름이 쓴다.
 	var gear := Button.new()
 	gear.name = "SettingsBtn"
@@ -360,6 +388,24 @@ func _move_dialogue_to_top() -> void:
 	p.offset_right = -420.0
 	p.offset_top = 120.0
 	p.offset_bottom = 262.0
+
+
+## 목표와 수집 현황을 새로 쓴다. 상태가 바뀔 때와 물건을 주울 때 부른다.
+func _refresh_hud() -> void:
+	if _objective != null:
+		var obj := Episode0State.get_objective()
+		_objective.text = ("🎯 " + obj) if obj != "" else ""
+	if _items_row != null:
+		var st := Episode0State.current_state
+		if st == Episode0State.State.COLLECT_TRAVEL_ITEMS \
+				or (st == Episode0State.State.RETURN_BADGE
+					and not Episode0State.all_items_collected()):
+			_items_row.text = "📷%s  📓%s  🎒%s" % [
+				"✓" if Episode0State.has_camera else "…",
+				"✓" if Episode0State.has_notebook else "…",
+				"✓" if Episode0State.has_travel_bag else "…"]
+		else:
+			_items_row.text = ""
 
 
 func _open_settings() -> void:
