@@ -140,20 +140,36 @@ static func floor_slab(parent: Node, x: float, y: float, w: float, h := 320.0) -
 	return SideParts.platform(parent, x, y, w, h, false, FLOOR_TOP, FLOOR_BODY)
 
 
+## 그려 받은 배경 위에 놓을 때 쓰는 색.
+##
+## 코드로 그린 방은 푸른 회색이었다. 그림이 걸리면 그 색 그대로 둔 가구가
+## 따로 논다 — 실제로 사무실 그림을 넣자마자 책상만 파랗게 떠 보였다.
+## 그림에서 뽑은 나무·천 색으로 갈아입힌다.
+const WARM_TOP := Color("#B99C82")
+const WARM_LEG := Color("#8E7461")
+const WARM_MON := Color("#5A4A44")
+
 ## 책상. 위에 물건을 올릴 수 있게 윗면 높이를 돌려준다.
-static func desk(parent: Node, x: float, floor_y: float, w := 300.0, lit := false) -> float:
+##
+## warm 은 그려 받은 배경 위에 놓는가다. 배경이 코드로 그린 것이면
+## 원래의 푸른 회색이 맞고, 그림이면 나무색이 맞다.
+static func desk(parent: Node, x: float, floor_y: float, w := 300.0, lit := false,
+		warm := false) -> float:
 	var n := Node2D.new()
 	n.name = "Desk"
 	parent.add_child(n)
 	var h := 150.0
 	var top := floor_y - h
-	_box(n, Vector2(x, top), Vector2(w, 18), Color("#4E627E"))
-	_box(n, Vector2(x + 14, top + 18), Vector2(18, h - 18), Color("#3A4A63"))
-	_box(n, Vector2(x + w - 32, top + 18), Vector2(18, h - 18), Color("#3A4A63"))
+	var c_top := WARM_TOP if warm else Color("#4E627E")
+	var c_leg := WARM_LEG if warm else Color("#3A4A63")
+	var c_mon := WARM_MON if warm else Color("#222E44")
+	_box(n, Vector2(x, top), Vector2(w, 18), c_top)
+	_box(n, Vector2(x + 14, top + 18), Vector2(18, h - 18), c_leg)
+	_box(n, Vector2(x + w - 32, top + 18), Vector2(18, h - 18), c_leg)
 	# 모니터
 	var mx := x + w * 0.5
-	_box(n, Vector2(mx - 8, top - 26), Vector2(16, 26), Color("#4A5568"))
-	_box(n, Vector2(mx - 62, top - 108), Vector2(124, 84), Color("#222E44"))
+	_box(n, Vector2(mx - 8, top - 26), Vector2(16, 26), c_leg)
+	_box(n, Vector2(mx - 62, top - 108), Vector2(124, 84), c_mon)
 	_box(n, Vector2(mx - 54, top - 100), Vector2(108, 68),
 		Color("#8FD0E4") if lit else Color("#2C3A52"))
 	if lit:
@@ -164,9 +180,11 @@ static func desk(parent: Node, x: float, floor_y: float, w := 300.0, lit := fals
 
 
 ## 문. 지나갈 수 있는 자리. 실제 판정은 SideParts.door 가 만든다.
-static func door_frame(parent: Node, x: float, floor_y: float, tint := GLASS) -> void:
+static func door_frame(parent: Node, x: float, floor_y: float, tint := GLASS,
+		warm := false) -> void:
 	var n := Node2D.new()
 	parent.add_child(n)
-	_box(n, Vector2(x - 92, floor_y - 268), Vector2(184, 268), Color("#243147"))
+	_box(n, Vector2(x - 92, floor_y - 268), Vector2(184, 268),
+		WARM_LEG if warm else Color("#243147"))
 	_box(n, Vector2(x - 74, floor_y - 248), Vector2(148, 248), tint)
 	_box(n, Vector2(x - 60, floor_y - 232), Vector2(120, 120), Color(1, 1, 1, 0.10))

@@ -141,7 +141,7 @@ func set_spot_label(a: Area2D, label: String) -> void:
 
 ## 다른 맵으로 나가는 문.
 func door(x: float, label: String, path: String, style := "normal") -> Area2D:
-	Indoor.door_frame(self, x, FLOOR_Y)
+	Indoor.door_frame(self, x, FLOOR_Y, Indoor.GLASS, _backdrop != null)
 	return spot(x, label, func(): SceneTransition.go_to(path, style))
 
 

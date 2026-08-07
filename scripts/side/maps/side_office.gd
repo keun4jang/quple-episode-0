@@ -25,14 +25,18 @@ func build() -> void:
 
 	# 애인의 책상. 여기만 모니터가 켜져 있다 —
 	# 불 꺼진 사무실에서 그 빛 하나가 "아직 남아 있다" 를 말한다.
-	IndoorParts.desk(self, 1180, FLOOR_Y, 360, true)
+	var painted := _backdrop != null
+	IndoorParts.desk(self, 1180, FLOOR_Y, 360, true, painted)
 	_partner_spot = spot(1360.0, "애인에게 말 걸기", talk_to_partner)
 	if partner == null and not Episode0State.partner_joined:
 		_stand_partner(1420.0)
 
-	# 다른 자리들 — 불이 꺼져 있다
-	IndoorParts.desk(self, 300, FLOOR_Y, 320, false)
-	IndoorParts.desk(self, 2200, FLOOR_Y, 320, false)
+	# 다른 자리들 — 불이 꺼져 있다.
+	# 그림에는 칸막이가 이미 그려져 있으니, 그때는 빈 책상을 더 놓지 않는다.
+	# 놓으면 그림 속 가구와 겹쳐 사무실이 창고처럼 빽빽해진다.
+	if not painted:
+		IndoorParts.desk(self, 300, FLOOR_Y, 320, false)
+		IndoorParts.desk(self, 2200, FLOOR_Y, 320, false)
 
 	# 여행 물품 셋
 	_item("camera", 2340.0, FLOOR_Y - 168.0, "카메라", Color("#C9D6E4"))

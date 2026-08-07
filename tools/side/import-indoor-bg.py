@@ -22,10 +22,12 @@ from PIL import Image, ImageEnhance
 
 OUT = "assets/side"
 
-# 화면이 실제로 보는 세로 범위. side_episode.gd 의 카메라 설정에서 나온 값이다.
-#   보이는 위쪽 = CAM_Y_MIN - 화면절반 = 300 - 540 = -240
-#   보이는 아래쪽 = CAM_Y_MAX + 화면절반 = 560 + 540 = 1100
+# 화면이 보는 세로 범위. side_episode.gd 의 카메라 설정에서 나온 값이다.
+#   카메라가 제일 높이 올라갔을 때 = CAM_Y_MIN - 화면절반 = 300 - 540 = -240
+#   카메라가 평소에 있을 때       = CAM_Y_MAX - 화면절반 = 560 - 540 =   20
+#   아래쪽                        = CAM_Y_MAX + 화면절반 = 560 + 540 = 1100
 VIEW_TOP = -240
+NORMAL_TOP = 20
 VIEW_BOTTOM = 1100
 FLOOR_Y = 860
 
@@ -68,23 +70,31 @@ def main():
     print(f"  받은 그림  {src.width}x{src.height}")
 
     # 세로 맞추기 — 그림의 바닥선이 화면의 바닥선과 겹치도록 키운다.
+    #
+    # 기준을 **평소 카메라 높이**로 잡는다. 카메라가 제일 높이 올라갔을 때를
+    # 기준으로 잡았더니 그림이 24% 더 커져서, 대부분의 시간 동안 천장이
+    # 화면 위로 잘려 나갔다. 방인데 천장이 안 보이면 방으로 안 읽힌다.
+    # 카메라가 올라가는 경우(로비 2층)는 위쪽을 늘려 메운다.
     view_h = VIEW_BOTTOM - VIEW_TOP
-    floor_from_top = FLOOR_Y - VIEW_TOP          # 화면에서 바닥선까지
-    # 그림에서 바닥선 위쪽이 차지하는 비율이 a.floor 이므로,
-    # 그 부분이 floor_from_top 픽셀이 되도록 전체를 키운다.
+    floor_from_top = FLOOR_Y - NORMAL_TOP        # 평소 화면에서 바닥선까지
     scale = floor_from_top / (src.height * a.floor)
     new_h = max(1, int(round(src.height * scale)))
     new_w = max(1, int(round(src.width * scale)))
     im = src.resize((new_w, new_h), Image.LANCZOS)
 
-    # 화면이 보는 만큼만 남기고, 모자라면 위아래를 늘려 채운다.
     canvas = Image.new("RGBA", (new_w, view_h), (0, 0, 0, 255))
-    canvas.paste(im, (0, 0), im)
-    if new_h < view_h:
-        # 아래가 비면 마지막 줄을 늘려 깐다. 바닥 아래는 어차피 안 보인다.
-        tail = im.crop((0, new_h - 4, new_w, new_h)).resize((new_w, view_h - new_h))
-        canvas.paste(tail, (0, new_h))
-        print(f"  아래 {view_h - new_h}px 를 바닥색으로 채웠다")
+    head = NORMAL_TOP - VIEW_TOP                 # 위로 남겨 둘 여백
+    canvas.paste(im, (0, head), im)
+    if head > 0:
+        # 위를 첫 줄로 늘려 메운다. 카메라가 올라갔을 때만 보이는 자리다.
+        cap = im.crop((0, 0, new_w, 4)).resize((new_w, head))
+        canvas.paste(cap, (0, 0))
+        print(f"  위 {head}px 를 천장색으로 늘렸다 (카메라가 올라갔을 때만 보인다)")
+    bottom = head + new_h
+    if bottom < view_h:
+        tail = im.crop((0, new_h - 4, new_w, new_h)).resize((new_w, view_h - bottom))
+        canvas.paste(tail, (0, bottom))
+        print(f"  아래 {view_h - bottom}px 를 바닥색으로 늘렸다")
 
     if a.dim != 1.0:
         canvas = ImageEnhance.Brightness(canvas).enhance(a.dim)
