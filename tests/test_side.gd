@@ -178,6 +178,25 @@ func _ready() -> void:
 		ck("  할 수 있는 일이 있다", m._spots.size() >= 2, "%d 곳" % m._spots.size())
 		ck("  곳 이름이 있다", m.map_title() != "", m.map_title())
 		ck("  대사창이 아래 조작을 덮지 않는다", _dialogue_clear(m))
+		# 터치 선택 버튼이 실제로 일을 시키는가 — 사무실에서 애인 앞에 서서
+		# SideTouch._press 를 부르면 대사창이 떠야 한다. action_press 만으로는
+		# 이벤트가 없어서 안 떴다 (폰에서 문이 안 열리던 원인).
+		if m.map_title().contains("사무실") and m.walker != null:
+			m.walker.global_position = Vector2(1360, m.FLOOR_Y - 10)
+			await get_tree().create_timer(0.6).timeout
+			var st2: SideTouch = m._touch
+			st2._press(7, "interact")
+			st2._release(7)
+			await get_tree().create_timer(0.8).timeout
+			ck("  터치 선택 → 말 걸기가 된다", m.dialogue_box.visible)
+		# 맵 끝 벽 — 캐릭터를 맵 밖 40px 에 두고 왼쪽으로 밀면 벽에 막혀야 한다
+		if m.walker != null:
+			m.walker.global_position = Vector2(30, m.FLOOR_Y - 10)
+			Input.action_press("move_left")
+			await get_tree().create_timer(0.8).timeout
+			Input.action_release("move_left")
+			ck("  왼쪽 끝 벽에 막힌다", m.walker.global_position.x > -80.0,
+				"x=%.0f" % m.walker.global_position.x)
 		m.queue_free()
 		await get_tree().process_frame
 

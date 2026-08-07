@@ -30,6 +30,8 @@ var _prompt: Label
 var _title: Label
 var _objective: Label
 var _items_row: Label
+## 화면 밖의 갈 곳을 가리키는 가장자리 화살표.
+var _edge_arrow: Label
 var _map_w := 4200.0
 var _start_x := 300.0
 ## 파트너가 따라오는가. 합류한 뒤로는 늘 붙어 다닌다.
@@ -58,6 +60,7 @@ func _ready() -> void:
 	_build_ui()
 	build()
 	_build_walker()
+	_build_walls()
 	_build_camera()
 	_sync_backdrop()
 	_touch = SideTouch.new()
@@ -94,6 +97,25 @@ func _sync_backdrop() -> void:
 	_backdrop.position = Vector2(
 		_cam.global_position.x * (1.0 - _backdrop_factor) - half_w,
 		BACKDROP_TOP)
+
+
+## 맵 양 끝의 보이지 않는 벽.
+##
+## 카메라는 끝에서 멈추는데 캐릭터는 계속 걸어 나가서, 화면 밖 그림도
+## 없는 곳까지 가 버릴 수 있었다. 걷다 만나는 것이 낭떠러지가 아니라
+## 벽이어야 안심하고 끝까지 걸어 본다.
+func _build_walls() -> void:
+	for x in [-40.0, _map_w + 40.0]:
+		var wall := StaticBody2D.new()
+		wall.name = "EdgeWall"
+		wall.position = Vector2(x, FLOOR_Y - 400)
+		wall.collision_layer = Parts.L_SOLID
+		var cs := CollisionShape2D.new()
+		var rs := RectangleShape2D.new()
+		rs.size = Vector2(80, 1400)
+		cs.shape = rs
+		wall.add_child(cs)
+		add_child(wall)
 
 
 ## 맵 크기와 들어서는 자리. build() 안에서 부른다.
@@ -149,9 +171,36 @@ func set_spot_label(a: Area2D, label: String) -> void:
 	_refresh_prompt()
 
 
-## 다른 맵으로 나가는 문.
+## 다른 맵으로 나가는 문. 포탈처럼 빛나야 문인 줄 안다 —
+## 문틀만 그려 두니 배경 그림에 묻혀서 지나가는 사람이 못 알아봤다.
 func door(x: float, label: String, path: String, style := "normal") -> Area2D:
 	Indoor.door_frame(self, x, FLOOR_Y, Indoor.GLASS, _backdrop != null)
+
+	# 숨쉬는 빛무리
+	var glow := ColorRect.new()
+	glow.color = Color(1.0, 0.9, 0.55, 0.16)
+	glow.size = Vector2(300, 340)
+	glow.position = Vector2(x - 150, FLOOR_Y - 320)
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow.z_index = -1
+	add_child(glow)
+	var tw := create_tween().set_loops()
+	tw.tween_property(glow, "color:a", 0.30, 1.1).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(glow, "color:a", 0.12, 1.1).set_trans(Tween.TRANS_SINE)
+
+	# 위아래로 까딱이는 화살표. 메이플 포탈 위의 그 화살표다.
+	var arrow := Label.new()
+	arrow.text = "▼"
+	arrow.add_theme_font_size_override("font_size", 44)
+	arrow.add_theme_color_override("font_color", Color("#FFE7A8"))
+	arrow.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.05))
+	arrow.add_theme_constant_override("outline_size", 8)
+	arrow.position = Vector2(x - 22, FLOOR_Y - 360)
+	add_child(arrow)
+	var tw2 := create_tween().set_loops()
+	tw2.tween_property(arrow, "position:y", FLOOR_Y - 336.0, 0.55).set_trans(Tween.TRANS_SINE)
+	tw2.tween_property(arrow, "position:y", FLOOR_Y - 360.0, 0.55).set_trans(Tween.TRANS_SINE)
+
 	return spot(x, label, func(): SceneTransition.go_to(path, style))
 
 
@@ -301,6 +350,7 @@ func _process(delta: float) -> void:
 	_cam.global_position = _cam.global_position.lerp(want, clampf(delta * 4.0, 0.0, 1.0))
 	_sync_backdrop()
 	_follow_partner(delta)
+	_update_edge_arrow()
 
 
 func _cam_y() -> float:
@@ -344,6 +394,19 @@ func _build_ui() -> void:
 	_items_row.add_theme_constant_override("outline_size", 8)
 	_items_row.position = Vector2(24, 66)
 	cl.add_child(_items_row)
+
+	# 화면 끝 안내 화살표 — 메이플의 퀘스트 화살표 자리.
+	#
+	# 회사 앞에서 시작하면 들어갈 문이 화면 밖 1300px 너머다. 포탈이
+	# 아무리 빛나도 화면에 없으면 소용이 없다 — 어느 쪽으로 가야 하는지를
+	# 화면 가장자리가 말해 줘야 한다.
+	_edge_arrow = Label.new()
+	_edge_arrow.add_theme_font_size_override("font_size", 40)
+	_edge_arrow.add_theme_color_override("font_color", Color("#FFE7A8"))
+	_edge_arrow.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.05))
+	_edge_arrow.add_theme_constant_override("outline_size", 8)
+	_edge_arrow.visible = false
+	cl.add_child(_edge_arrow)
 
 	Episode0State.state_changed.connect(func(_s): _refresh_hud())
 	_refresh_hud()
@@ -391,6 +454,42 @@ func _move_dialogue_to_top() -> void:
 	p.offset_right = -420.0
 	p.offset_top = 120.0
 	p.offset_bottom = 262.0
+
+
+## 갈 수 있는 자리 중 화면 밖에 있는 가장 가까운 곳을 가장자리에서 가리킨다.
+##
+## 이미 화면 안에 보이거나 캐릭터가 그 위에 서 있으면 숨긴다 —
+## 화살표는 "안 보이는 것" 을 가리킬 때만 값어치가 있다.
+func _update_edge_arrow() -> void:
+	if _edge_arrow == null or walker == null or _cam == null:
+		return
+	var half_w := get_viewport_rect().size.x * 0.5 / CAM_ZOOM
+	var view_l := _cam.global_position.x - half_w
+	var view_r := _cam.global_position.x + half_w
+	var best_x := 0.0
+	var best_d := 1e12
+	for rec in _spots:
+		if rec["locked"] or (rec["once"] and rec["done"]):
+			continue
+		var sx: float = (rec["area"] as Area2D).global_position.x
+		if sx > view_l and sx < view_r:
+			continue                      # 화면 안이면 화살표가 필요 없다
+		var d := absf(sx - walker.global_position.x)
+		if d < best_d:
+			best_d = d
+			best_x = sx
+	if best_d > 1e11:
+		_edge_arrow.visible = false
+		return
+	_edge_arrow.visible = true
+	var vp := get_viewport().get_visible_rect().size
+	var bob := sin(Time.get_ticks_msec() * 0.006) * 10.0
+	if best_x > walker.global_position.x:
+		_edge_arrow.text = "▶"
+		_edge_arrow.position = Vector2(vp.x - 96 + bob, vp.y * 0.42)
+	else:
+		_edge_arrow.text = "◀"
+		_edge_arrow.position = Vector2(56 + bob, vp.y * 0.42)
 
 
 ## 목표와 수집 현황을 새로 쓴다. 상태가 바뀔 때와 물건을 주울 때 부른다.

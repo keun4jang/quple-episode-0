@@ -136,6 +136,15 @@ func _hit_button(pos: Vector2) -> String:
 func _press(finger: int, action: String) -> void:
 	_touch[finger] = action
 	Input.action_press(action)
+	# action_press 는 눌림 "상태"만 바꾼다. 문·말걸기·줍기는 상태가 아니라
+	# **눌린 순간의 이벤트**(_unhandled_input)를 듣는다. 이벤트를 같이
+	# 만들어 주지 않으면 — 실제로 폰에서 문 앞에 서서 선택을 아무리
+	# 눌러도 안 들어가졌다. 시뮬레이터는 이벤트를 직접 넣어서 통과했고,
+	# 그래서 이 구멍이 시뮬에는 안 걸렸다.
+	var ev := InputEventAction.new()
+	ev.action = action
+	ev.pressed = true
+	Input.parse_input_event(ev)
 	(_btns[action] as TextureButton).modulate = Color(1, 1, 1, 0.95)
 
 
@@ -146,6 +155,9 @@ func _release(finger: int) -> void:
 	_touch.erase(finger)
 	if not _touch.values().has(action):
 		Input.action_release(action)
+		var ev := InputEventAction.new()
+		ev.action = action
+		Input.parse_input_event(ev)
 		(_btns[action] as TextureButton).modulate = Color(1, 1, 1, 0.5)
 		if action == "interact":
 			highlight_interact(false)
