@@ -23,10 +23,11 @@ func build() -> void:
 		IndoorParts.room(self, 3400.0, FLOOR_Y, 300.0, 620.0, 520.0)
 		IndoorParts.ceiling_lights(self, 3400.0, 120.0, 700.0)
 		IndoorParts.floor_pools(self, 3400.0, FLOOR_Y, 700.0)
+	var painted := _backdrop != null
 	IndoorParts.floor_slab(self, -200, FLOOR_Y, 3800)
 
 	# 안내 데스크
-	IndoorParts.desk(self, 900, FLOOR_Y, 420, false)
+	IndoorParts.desk(self, 900, FLOOR_Y, 420, false, painted)
 
 	# 사원증 반납함
 	var bx := 1500.0
@@ -39,11 +40,17 @@ func build() -> void:
 
 	# 2층 통로와 엘리베이터
 	Parts.platform(self, 2100, UPPER_Y, 1300, 40, true,
-		IndoorParts.FLOOR_TOP, IndoorParts.FLOOR_BODY)
+		IndoorParts.WARM_TOP if painted else IndoorParts.FLOOR_TOP,
+		IndoorParts.WARM_LEG if painted else IndoorParts.FLOOR_BODY)
 	# 엘리베이터 바닥면이 1층 바닥과 딱 맞아야 걸어 타진다.
 	Parts.elevator(self, 2260, UPPER_Y + 10, FLOOR_Y - 10)
 	# 계단으로도 올라갈 수 있게 둔다. 엘리베이터를 못 찾아 갇히면 안 된다.
-	Parts.stairs(self, 2600, UPPER_Y, 620, FLOOR_Y - UPPER_Y, 9, true)
+	#
+	# 색은 반드시 실내 것으로 준다. 기본값이 풀·흙이라 그대로 두면 로비
+	# 한가운데에 초록 계단이 선다 — 실제로 그렇게 나왔다.
+	Parts.stairs(self, 2600, UPPER_Y, 620, FLOOR_Y - UPPER_Y, 9, true,
+		IndoorParts.WARM_TOP if painted else IndoorParts.FLOOR_TOP,
+		IndoorParts.WARM_LEG if painted else IndoorParts.FLOOR_BODY)
 
 	door(280.0, "회사 밖으로", "res://scenes/maps/CompanyFront3D.tscn")
 	var d := door(3150.0, "사무실로", "res://scenes/maps/Office3D.tscn")

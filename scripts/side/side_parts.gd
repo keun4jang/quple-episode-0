@@ -76,7 +76,7 @@ static func platform(parent: Node, x: float, y: float, w: float, h: float,
 ## 비스듬한 발판. 진짜 층계를 하나씩 놓으면 걸을 때마다 덜컹거려서,
 ## 겉모습만 층계로 그리고 실제로 밟는 것은 매끈한 경사면으로 둔다.
 static func stairs(parent: Node, x: float, y: float, w: float, h: float,
-		steps := 6, up_right := true) -> StaticBody2D:
+		steps := 6, up_right := true, top := GRASS, body := SOIL) -> StaticBody2D:
 	var b := StaticBody2D.new()
 	b.name = "Stairs"
 	b.position = Vector2(x, y)
@@ -96,8 +96,8 @@ static func stairs(parent: Node, x: float, y: float, w: float, h: float,
 	for i in range(steps):
 		var sx := i * sw
 		var sy := (h - (i + 1) * sh) if up_right else (i * sh)
-		_draw_box(art, Vector2(sx, sy), Vector2(sw + 2, h + 40 - sy), SOIL)
-		_draw_box(art, Vector2(sx, sy), Vector2(sw + 2, 16), GRASS)
+		_draw_box(art, Vector2(sx, sy), Vector2(sw + 2, h + 40 - sy), body)
+		_draw_box(art, Vector2(sx, sy), Vector2(sw + 2, 16), top)
 	return b
 
 
