@@ -170,7 +170,23 @@ func _animate_walk(delta: float) -> void:
 		left_arm.rotation.x = lerp(left_arm.rotation.x, deg_to_rad(-25.0), delta * 6.0)
 		left_arm.rotation.z = lerp(left_arm.rotation.z, deg_to_rad(-30.0), delta * 6.0)
 
+const USE_SHEET := true
+const SHEET_PREFIX := "res://assets/mascots/sheet/partner"
+
+var _doll: Node3D = null
+
+
 func _build_meshes() -> void:
+	if USE_SHEET and ResourceLoader.exists(SHEET_PREFIX + "-front.png"):
+		$BodyPivot.visible = false
+		var d := PaperDoll.new()
+		d.name = "PaperDoll"
+		d.prefix = SHEET_PREFIX
+		d.height = 1.10
+		add_child(d)
+		_doll = d
+		return
+
 	# 그림 속 파트너도 스웨터를 입지 않았다. 온몸이 갈색 털이고,
 	# 알아보게 하는 것은 몸 색이 아니라 **분홍 니트 목도리**다.
 	# 색은 도안(docs/refs/partner-turnaround.jpg)에서 뽑았다.

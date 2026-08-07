@@ -239,7 +239,20 @@ func _on_area_entered(area: Area3D) -> void:
 func _on_area_exited(area: Area3D) -> void:
 	nearby_interactables.erase(area)
 
+## 도안 그림을 그대로 세울지, 구를 쌓아 만들지.
+##
+## 구를 쌓는 쪽은 도안을 재서 여기까지 맞춰 왔지만 "비슷하다" 에서 멈췄다.
+## 그림을 쓰면 화면에 나오는 것이 도안 그 자체다. 되돌리려면 false 하나면 된다.
+const USE_SHEET := true
+const SHEET_PREFIX := "res://assets/mascots/sheet/leader"
+
+var _doll: Node3D = null
+
+
 func _build_meshes() -> void:
+	if USE_SHEET and ResourceLoader.exists(SHEET_PREFIX + "-front.png"):
+		_build_sheet()
+		return
 	_build_quokka(self, {
 		# 그림 속 쿼카는 스웨터를 입지 않았다. 온몸이 갈색 털이고 배만 밝다.
 		# 예전엔 몸통 전체가 크림이라 기저귀를 찬 것처럼 보였고, 소매가 몸통과
@@ -256,6 +269,18 @@ func _build_meshes() -> void:
 	})
 	# 애니메이션이 참조하는 눈/꼬리 노드 보관
 	_tail_mesh = get_node_or_null("BodyPivot/_Tail")
+
+
+## 삼면도를 세운다. 쌓아 만든 몸은 통째로 감춘다 —
+## 지우지는 않는다. 애니메이션 코드가 그 노드들을 붙잡고 있다.
+func _build_sheet() -> void:
+	$BodyPivot.visible = false
+	var d := PaperDoll.new()
+	d.name = "PaperDoll"
+	d.prefix = SHEET_PREFIX
+	d.height = 1.15
+	add_child(d)
+	_doll = d
 
 func _build_quokka(_unused, c: Dictionary) -> void:
 	var fur = c.fur

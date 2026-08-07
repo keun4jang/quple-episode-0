@@ -60,8 +60,10 @@ func _build_floor_ring() -> void:
 	var mi := MeshInstance3D.new()
 	mi.name = "FloorRing"
 	var t := TorusMesh.new()
-	var r := _reach()
-	t.inner_radius = maxf(r - 0.09, 0.14)
+	# 콜리전 범위를 그대로 그리면 원이 사람보다 크다. 닿는 거리를 말하되
+	# **발밑을 가리키는 표시**로 읽히게 줄인다.
+	var r := minf(_reach() * 0.55, 0.62)
+	t.inner_radius = maxf(r - 0.07, 0.10)
 	t.outer_radius = r
 	t.rings = 40
 	t.ring_segments = 6
