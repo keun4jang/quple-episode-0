@@ -213,9 +213,9 @@ func _ready() -> void:
 			office_door = r
 	ck("사무실 문이 있다", not office_door.is_empty())
 	if not office_door.is_empty():
-		var dy: float = (office_door["area"] as Area2D).position.y
-		ck("  판정이 2층 높이에 있다", absf(dy - lob.UPPER_Y) < 1.0,
-			"y=%.0f (2층 %.0f)" % [dy, lob.UPPER_Y])
+		var door_y: float = (office_door["area"] as Area2D).position.y
+		ck("  판정이 2층 높이에 있다", absf(door_y - lob.UPPER_Y) < 1.0,
+			"y=%.0f (2층 %.0f)" % [door_y, lob.UPPER_Y])
 		# 그림도 같은 높이인가 — 문틀은 fy-268 에서 시작한다
 		var found := false
 		for c in lob.get_children():
