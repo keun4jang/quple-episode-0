@@ -20,12 +20,19 @@ const TW := preload("res://scripts/ui/text_wrap.gd")
 
 const D := preload("res://scripts/ui/design.gd")
 const MoodPalette := preload("res://scripts/systems/mood_palette.gd")
-const COUPLE_TEX := "res://assets/mascots/quica-couple-splash.png"
+## 돌아온 둘. 삼면도에서 잘라 둔 그림을 그대로 쓴다.
+##
+## 예전에는 커플 스플래시 한 장을 썼는데, 그 파일은 APK 에서 **빠지는**
+## 목록에 있었다. 그러니 폰에서는 돌아오는 장면에 아무도 없었다 —
+## 코어 루프에서 제일 중요한 순간인데. 게다가 그 그림은 다른 화면들과
+## 화풍도 달랐다.
+const LEADER_TEX := "res://assets/mascots/sheet/leader-front.png"
+const PARTNER_TEX := "res://assets/mascots/sheet/partner-front.png"
 ## 그림 안에서 발이 닿는 높이 (이미지 위쪽부터의 비율).
-## 그래야 발이 지평선에 붙는다 — 그림 한가운데를 기준으로 잡으면 공중에 뜬다.
-const FOOT_FRAC := 0.78
+## 컷아웃은 발바닥이 아래 끝에 딱 맞게 잘려 있다.
+const FOOT_FRAC := 0.98
 ## 그림 안에서 둘이 실제로 차지하는 세로 비율 (위아래 여백을 뺀 값)
-const FIGURE_FRAC := 0.51
+const FIGURE_FRAC := 0.96
 
 ## 걸어오는 데 걸리는 시간. 서두르면 사건이 아니라 알림이 된다.
 const WALK_SEC := 2.6
@@ -129,10 +136,18 @@ func _build() -> void:
 	# 커지고 작아지는 기준점은 발밑이다. 가운데를 잡으면 땅을 파고든다.
 	_couple.pivot_offset = Vector2(_couple.size.x / 2.0, _couple.size.y * FOOT_FRAC)
 	_couple.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tex := load(COUPLE_TEX)
-	if tex:
-		_couple.texture = tex
+	# 둘을 나란히 세운다. 한 장짜리 그림 대신 각자를 놓으니 간격도 잡힌다.
+	_couple.texture = load(LEADER_TEX)
 	_walker.add_child(_couple)
+	var mate := TextureRect.new()
+	mate.name = "Partner"
+	mate.texture = load(PARTNER_TEX)
+	mate.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mate.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mate.size = _couple.size * 0.94
+	mate.position = _couple.position + Vector2(_couple.size.x * 0.52, _couple.size.y * 0.06)
+	_walker.add_child(mate)
 
 	# 짐 — 걸음이 끝나면 문 앞에 툭 내려놓는다
 	_bag = Label.new()

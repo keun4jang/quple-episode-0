@@ -132,7 +132,58 @@ func _ready() -> void:
 		for a in ["move_left", "move_right", "move_up", "move_down", "jump"]:
 			ck("  %s 버튼" % a, touch._btns.has(a))
 
+	print("\n[8] 0편 맵이 옆에서 보는 판으로 갈아끼워졌는가")
+	# 맵을 부르는 곳이 열 군데 넘게 흩어져 있어서, 길목 한 곳에서 바꾼다.
+	# 그 표가 빠지면 어떤 문은 옛 3D 맵으로 새어 나간다.
+	var pairs := {
+		"res://scenes/maps/CompanyFront3D.tscn": "res://scenes/side/Front.tscn",
+		"res://scenes/maps/CompanyLobby3D.tscn": "res://scenes/side/Lobby.tscn",
+		"res://scenes/maps/Office3D.tscn": "res://scenes/side/Office.tscn",
+		"res://scenes/maps/BossDoorHallway3D.tscn": "res://scenes/side/Hallway.tscn",
+	}
+	for old in pairs:
+		ck("%s → 옆맵" % old.get_file(), SceneTransition.route(old) == pairs[old],
+			SceneTransition.route(old))
+	ck("모르는 경로는 그대로 둔다",
+		SceneTransition.route("res://scenes/travel/TravelHub.tscn")
+			== "res://scenes/travel/TravelHub.tscn")
+
+	print("\n[9] 네 맵이 실제로 서는가")
+	Episode0State.reset()
+	for spec in [{"p": "res://scenes/side/Front.tscn", "n": "회사 앞"},
+			{"p": "res://scenes/side/Lobby.tscn", "n": "로비"},
+			{"p": "res://scenes/side/Office.tscn", "n": "사무실"},
+			{"p": "res://scenes/side/Hallway.tscn", "n": "복도"}]:
+		var m: Node = load(str(spec["p"])).instantiate()
+		add_child(m)
+		await get_tree().create_timer(0.5).timeout
+		ck("%s 가 선다" % spec["n"], m.walker != null)
+		if m.walker != null:
+			ck("  바닥을 딛는다", m.walker.state == SideWalker.State.GROUND,
+				"state=%d y=%.0f" % [m.walker.state, m.walker.global_position.y])
+			# 바닥이 없으면 캐릭터가 끝없이 떨어진다. 화면으로는 한동안 안 보인다.
+			ck("  아래로 새지 않는다", m.walker.global_position.y < m.FLOOR_Y + 60.0,
+				"y=%.0f" % m.walker.global_position.y)
+		ck("  할 수 있는 일이 있다", m._spots.size() >= 2, "%d 곳" % m._spots.size())
+		ck("  곳 이름이 있다", m.map_title() != "", m.map_title())
+		ck("  대사창이 아래 조작을 덮지 않는다", _dialogue_clear(m))
+		m.queue_free()
+		await get_tree().process_frame
+
 	_done()
+
+
+## 대사창이 화면 아래쪽 조작 버튼 자리를 침범하지 않는가.
+## 겹치면 대사를 읽는 동안 걷지도 뛰지도 못한다.
+func _dialogue_clear(m: Node) -> bool:
+	var db = m.dialogue_box
+	if db == null:
+		return false
+	var p := db.get_node_or_null("PanelRect") as Control
+	if p == null:
+		return false
+	return p.anchor_top < 0.5 and p.offset_top < 400.0
+
 
 func _done() -> void:
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])

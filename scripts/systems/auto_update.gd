@@ -19,6 +19,14 @@ extends Node
 
 signal update_ready(version: String)      ## 새 버전을 받아 다음 실행에 적용될 때
 signal update_failed(reason: String)
+## 아래 둘은 **사람이 직접 확인 버튼을 눌렀을 때**를 위한 것이다.
+## 부팅 때 자동으로 도는 확인은 조용해야 하지만, 손으로 누른 확인은
+## 반드시 답을 돌려줘야 한다 — 아무 반응이 없으면 눌린 건지 알 수 없다.
+signal check_started()
+signal up_to_date(version: String)
+
+## 지금 확인이 돌고 있는가. 버튼을 두 번 누르는 것을 막는다.
+var checking := false
 
 ## 사용자 저장소만 바라본다. 임의의 주소에서 코드를 받아 실행하면 안 된다.
 const MANIFEST_URL := "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/manifest.json"
@@ -160,9 +168,28 @@ func _rollback() -> void:
 
 # ── 갱신 확인 ──────────────────────────────────────────────────────────
 
-func _check_for_update() -> void:
+## 사람이 설정에서 "업데이트 확인" 을 눌렀을 때.
+##
+## 부팅 확인과 다른 점이 둘 있다. 에디터에서도 돌고(개발 중에 눌러서
+## 확인할 수 있어야 한다), 최신이면 최신이라고 **말해 준다.** 자동
+## 확인은 최신일 때 아무 말도 하지 않는다 — 그게 맞지만, 버튼을 눌렀는데
+## 아무 일도 없으면 고장으로 보인다.
+func check_now() -> bool:
+	if checking:
+		return false
+	checking = true
+	check_started.emit()
+	_manual = true
+	_check_for_update(true)
+	return true
+
+## 이번 확인이 손으로 누른 것인가.
+var _manual := false
+
+
+func _check_for_update(force := false) -> void:
 	var url := MANIFEST_URL_OVERRIDE if MANIFEST_URL_OVERRIDE != "" else MANIFEST_URL
-	if MANIFEST_URL_OVERRIDE == "" and OS.has_feature("editor") \
+	if not force and MANIFEST_URL_OVERRIDE == "" and OS.has_feature("editor") \
 			and OS.get_environment("QUPLE_UPDATE") == "":
 		return          # 개발 중에는 조용히 있는다
 	_http = HTTPRequest.new()
@@ -170,20 +197,30 @@ func _check_for_update() -> void:
 	add_child(_http)
 	_http.request_completed.connect(_on_manifest, CONNECT_ONE_SHOT)
 	if _http.request(url) != OK:
+		checking = false
 		update_failed.emit("manifest 요청 실패")
 
 
 func _on_manifest(_r: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
 	if code != 200:
-		update_failed.emit("manifest HTTP %d" % code)
+		checking = false
+		update_failed.emit("연결에 실패했어요 (HTTP %d)" % code)
 		return
 	var m = JSON.parse_string(body.get_string_from_utf8())
 	if typeof(m) != TYPE_DICTIONARY or not m.has("version") or not m.has("url"):
-		update_failed.emit("manifest 형식 오류")
+		checking = false
+		update_failed.emit("서버 응답을 읽을 수 없어요")
 		return
 	if not is_newer(str(m["version"]), current_version):
+		checking = false
+		up_to_date.emit(current_version)
 		return
+	latest_version = str(m["version"])
 	_download(m)
+
+
+## 서버에 있는 가장 새 버전. 확인하기 전에는 비어 있다.
+var latest_version := ""
 
 
 ## "0.2.0" 이 "0.1.9" 보다 새로운가. 자리수가 달라도 맞게 비교한다.
@@ -207,25 +244,29 @@ func _download(m: Dictionary) -> void:
 		http.queue_free()
 		_on_downloaded(code, m))
 	if http.request(str(m["url"])) != OK:
-		update_failed.emit("내려받기 요청 실패")
+		checking = false
+		update_failed.emit("내려받기를 시작하지 못했어요")
 
 
 func _on_downloaded(code: int, m: Dictionary) -> void:
 	if code != 200:
 		_discard_tmp()
-		update_failed.emit("내려받기 HTTP %d" % code)
+		checking = false
+		update_failed.emit("내려받기에 실패했어요 (HTTP %d)" % code)
 		return
 
 	var f := FileAccess.open(PCK_TMP, FileAccess.READ)
 	if f == null:
-		update_failed.emit("받은 파일을 열 수 없다")
+		checking = false
+		update_failed.emit("받은 파일을 열 수 없어요")
 		return
 	var size := f.get_length()
 	f.close()
 
 	if size == 0 or size > MAX_PCK_BYTES:
 		_discard_tmp()
-		update_failed.emit("파일 크기가 이상하다 (%d 바이트)" % size)
+		checking = false
+		update_failed.emit("받은 파일이 이상해요 (%d 바이트)" % size)
 		return
 
 	# 받은 내용이 서버가 말한 것과 같은지 확인한다.
@@ -234,7 +275,8 @@ func _on_downloaded(code: int, m: Dictionary) -> void:
 		var got := FileAccess.get_sha256(PCK_TMP)
 		if got != str(m["sha256"]):
 			_discard_tmp()
-			update_failed.emit("해시 불일치")
+			checking = false
+			update_failed.emit("받은 파일이 손상됐어요")
 			return
 
 	var d := DirAccess.open("user://")
@@ -242,12 +284,14 @@ func _on_downloaded(code: int, m: Dictionary) -> void:
 		d.remove("patch.pck")
 	if d.rename("patch.pck.tmp", "patch.pck") != OK:
 		_discard_tmp()
-		update_failed.emit("파일 교체 실패")
+		checking = false
+		update_failed.emit("파일을 바꿔 놓지 못했어요")
 		return
 
 	_state["pck_version"] = str(m["version"])
 	_state["boot_pending"] = false
 	_write_state()
+	checking = false
 	print("[AutoUpdate] 새 내용 ", m["version"], " 준비됨. 다음 실행에 적용된다.")
 	update_ready.emit(str(m["version"]))
 

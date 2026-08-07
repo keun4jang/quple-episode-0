@@ -46,7 +46,31 @@ func _ready() -> void:
 	overlay.color = Color(0, 0, 0, 0)
 	layer = 10
 
-func go_to(path: String, style: String = "normal") -> void:
+## 0편 맵을 옆에서 보는 판으로 갈아끼운다.
+##
+## 맵을 부르는 곳이 열 군데 넘게 흩어져 있다. 전부 고치는 대신 지나가는
+## 길목 한 곳에서 바꾼다 — 되돌릴 때도 이 표만 비우면 되고, 3D 씬은
+## 지우지 않고 그대로 남아 있다. 저장 파일에 적힌 옛 경로도 여기서
+## 자연히 새 맵으로 이어진다.
+const SIDE_MAPS := {
+	"res://scenes/maps/CompanyFront3D.tscn": "res://scenes/side/Front.tscn",
+	"res://scenes/maps/CompanyLobby3D.tscn": "res://scenes/side/Lobby.tscn",
+	"res://scenes/maps/Office3D.tscn": "res://scenes/side/Office.tscn",
+	"res://scenes/maps/BossDoorHallway3D.tscn": "res://scenes/side/Hallway.tscn",
+}
+## false 로 두면 예전 3D 맵으로 돌아간다.
+const USE_SIDE_MAPS := true
+
+
+## 이 경로로 실제로 열 씬. 저장·복원하는 쪽에서도 쓴다.
+static func route(path: String) -> String:
+	if USE_SIDE_MAPS and SIDE_MAPS.has(path):
+		return SIDE_MAPS[path]
+	return path
+
+
+func go_to(raw_path: String, style: String = "normal") -> void:
+	var path := route(raw_path)
 	if is_transitioning:
 		return
 	is_transitioning = true
