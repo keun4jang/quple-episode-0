@@ -192,7 +192,14 @@ func run() -> void:
 	await get_tree().create_timer(4.0).timeout   # 도착 대사
 	ck("사진 자리까지", await walk_to(1500))
 	await shot("사진자리")
-	await press_select()
-	await get_tree().create_timer(8.0).timeout   # 찰칵 + 저장 + 클리어 연출
+	# 사진이 찍히는 것과 클리어는 다른 순간이다. 찍힌 뒤 "찰칵 → 앨범 →
+	# 저장" 연출이 5초쯤 흐르고 나서야 클리어가 된다. 그 사이에 계속
+	# 누르며 클리어를 기다리면 연출 시간에 걸려 미달로 판정된다.
+	ck("사진이 찍혔다", await press_until(func():
+		return Episode0State.first_photo_taken, 4))
+	var t := 0.0
+	while t < 14.0 and Episode0State.current_state != Episode0State.State.CLEAR:
+		await get_tree().create_timer(0.5).timeout
+		t += 0.5
 	ck("0편 클리어", Episode0State.current_state == Episode0State.State.CLEAR)
 	await shot("클리어")
