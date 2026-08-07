@@ -118,9 +118,12 @@ func spot(x: float, label: String, cb: Callable, once := false, w := 190.0) -> A
 	a.collision_mask = WALKER_LAYER
 	var cs := CollisionShape2D.new()
 	var rs := RectangleShape2D.new()
-	rs.size = Vector2(w, 260)
+	# 세로를 캐릭터 키(175)보다 넉넉히 잡는다. 260 이었을 때 책상 위
+	# 물건의 판정이 바닥에 선 캐릭터의 머리와 8px 차이로 안 겹쳐서,
+	# 앞에 서 있는데도 "선택" 이 안 떴다.
+	rs.size = Vector2(w, 320)
 	cs.shape = rs
-	cs.position = Vector2(0, -130)
+	cs.position = Vector2(0, -150)
 	a.add_child(cs)
 	add_child(a)
 	var rec := {"area": a, "label": label, "cb": cb, "once": once, "done": false, "locked": false}

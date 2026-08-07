@@ -44,7 +44,7 @@ func walk_to(x: float, secs := 26.0) -> bool:
 	var t := 0.0
 	while t < secs:
 		var dx := x - m.walker.global_position.x
-		if absf(dx) < 90.0:
+		if absf(dx) < 55.0:
 			Input.action_release("move_left")
 			Input.action_release("move_right")
 			await get_tree().create_timer(0.35).timeout

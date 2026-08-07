@@ -74,9 +74,12 @@ func _item(id: String, x: float, y: float, label: String, col: Color) -> void:
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	glow.z_index = -1
 	art.add_child(glow)
-	var s := spot(x, label + " 챙기기", func(): _pick(id), true)
-	# 자리는 물건 높이에 맞춘다. 선반 위 물건을 바닥에서 집으면 안 된다.
-	s.position.y = y + 10.0
+	var s := spot(x, label + " 챙기기", func(): _pick(id), true, 240.0)
+	# 판정은 물건 높이가 아니라 **사람이 서는 바닥** 기준이다. 물건 높이에
+	# 붙였더니 바닥에 선 캐릭터와 겹치지 않아 책상 위 카메라를 못 집었다.
+	# 선반 위 가방만 예외 — 그건 선반 바닥이 서는 자리다.
+	if y < FLOOR_Y - 300.0:
+		s.position.y = y + 10.0
 	_items[id] = {"spot": s, "art": art}
 
 
