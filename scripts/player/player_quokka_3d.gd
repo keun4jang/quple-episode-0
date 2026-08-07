@@ -244,10 +244,13 @@ func _build_meshes() -> void:
 		# 그림 속 쿼카는 스웨터를 입지 않았다. 온몸이 갈색 털이고 배만 밝다.
 		# 예전엔 몸통 전체가 크림이라 기저귀를 찬 것처럼 보였고, 소매가 몸통과
 		# 같은 색이라 팔이 실루엣에서 통째로 사라졌다.
-		"body": "#B8784F",   # 갈색 털(몸통)
-		"fur": "#B8784F",    # 갈색 털(머리/팔다리/귀)
-		"belly": "#F2E4C6",  # 크림 배
-		"sleeve": "#A96C45", # 팔(몸통보다 한 단계 어둡게 — 옆 실루엣이 살아난다)
+		# 색은 도안(docs/refs/leader-turnaround.jpg)에서 뽑았다.
+		# 예전 #B8784F 는 너무 주황이라 화면에서 당근처럼 보였다.
+		"body": "#AC7E63",   # 갈색 털(몸통)
+		"fur": "#AC7E63",    # 갈색 털(머리/귀)
+		"belly": "#DCC5A8",  # 크림 배
+		"sleeve": "#9C6E55", # 팔(한 단계 어둡게 — 옆 실루엣이 산다)
+		"foot": "#8A6047",   # 발(제일 어둡게)
 		"pack": "#4A7DAD",   # 배낭
 		"mat": "#6FB8C8",    # 돌돌 만 매트
 	})
@@ -272,7 +275,7 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 	# 서로 맞물려 있으므로 하나하나 줄이지 않고 피벗을 통째로 줄인다.
 	# 그림의 목 잘록한 지점(위에서 48%)이 생기도록 위치도 함께 올린다.
 	$BodyPivot/HeadPivot.position = Vector3(0, 0.50, 0)
-	$BodyPivot/HeadPivot.scale = Vector3(0.86, 0.86, 0.86)
+	$BodyPivot/HeadPivot.scale = Vector3(0.80, 0.80, 0.80)
 	_set_sphere($BodyPivot/HeadPivot/HeadMesh, 0.35, 0.36, fur)
 	$BodyPivot/HeadPivot/HeadMesh.scale = Vector3(1.05, 0.98, 1.0)
 
@@ -280,24 +283,26 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 
 	# ── 귀 : 머리 위쪽 옆에 붙임 + 분홍 안쪽 ──
 	# 귀를 바깥으로 눕힌다. 똑바로 세우면 머리 실루엣이 하트가 된다.
-	$BodyPivot/HeadPivot/LeftEarPivot.position = Vector3(-0.19, 0.22, 0.02)
-	$BodyPivot/HeadPivot/RightEarPivot.position = Vector3(0.19, 0.22, 0.02)
-	$BodyPivot/HeadPivot/LeftEarPivot.rotation_degrees = Vector3(0, 0, 20)
-	$BodyPivot/HeadPivot/RightEarPivot.rotation_degrees = Vector3(0, 0, -20)
-	_set_sphere($BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh, 0.12, 0.13, fur)
-	_set_sphere($BodyPivot/HeadPivot/RightEarPivot/RightEarMesh, 0.12, 0.13, fur)
-	$BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh.scale = Vector3(0.9, 1.0, 0.7)
-	$BodyPivot/HeadPivot/RightEarPivot/RightEarMesh.scale = Vector3(0.9, 1.0, 0.7)
+	# 도안 실측: 귀는 머리 **옆**이 아니라 위에 얹혀 있다. 중심이 머리 반경의
+	# 절반쯤 바깥이고, 머리 꼭대기보다 더 올라온다. 앞뒤로 눌린 원반 모양이다.
+	$BodyPivot/HeadPivot/LeftEarPivot.position = Vector3(-0.168, 0.275, -0.01)
+	$BodyPivot/HeadPivot/RightEarPivot.position = Vector3(0.168, 0.275, -0.01)
+	$BodyPivot/HeadPivot/LeftEarPivot.rotation_degrees = Vector3(0, 0, 9)
+	$BodyPivot/HeadPivot/RightEarPivot.rotation_degrees = Vector3(0, 0, -9)
+	_set_sphere($BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh, 0.145, 0.16, fur)
+	_set_sphere($BodyPivot/HeadPivot/RightEarPivot/RightEarMesh, 0.145, 0.16, fur)
+	$BodyPivot/HeadPivot/LeftEarPivot/LeftEarMesh.scale = Vector3(0.95, 1.05, 0.55)
+	$BodyPivot/HeadPivot/RightEarPivot/RightEarMesh.scale = Vector3(0.95, 1.05, 0.55)
 	# 분홍 안쪽은 살짝만 보이게. z 로 앞에 내밀면 눈처럼 읽힌다.
-	_child_sphere($BodyPivot/HeadPivot/LeftEarPivot, 0.045, 0.05, "#F2A6AE", Vector3(0, 0.01, 0.012), Vector3(0.8, 1.0, 0.6))
-	_child_sphere($BodyPivot/HeadPivot/RightEarPivot, 0.045, 0.05, "#F2A6AE", Vector3(0, 0.01, 0.012), Vector3(0.8, 1.0, 0.6))
+	_child_sphere($BodyPivot/HeadPivot/LeftEarPivot, 0.072, 0.080, "#C99A86", Vector3(0, 0.005, 0.032), Vector3(0.78, 0.90, 0.5))
+	_child_sphere($BodyPivot/HeadPivot/RightEarPivot, 0.072, 0.080, "#C99A86", Vector3(0, 0.005, 0.032), Vector3(0.78, 0.90, 0.5))
 	# 귀 털 뭉치
 
 	# ── 주둥이(밝은 털) : 얼굴 아래쪽 둥근 입주변 ──
 	var muzzle = MeshInstance3D.new()
-	_set_sphere_mi(muzzle, 0.16, 0.15, _shade(fur, 0.22))
-	muzzle.position = Vector3(0, -0.07, 0.26)
-	muzzle.scale = Vector3(1.25, 0.85, 0.8)
+	_set_sphere_mi(muzzle, 0.155, 0.148, _shade(c.belly, -0.06))
+	muzzle.position = Vector3(0, -0.065, 0.245)
+	muzzle.scale = Vector3(1.20, 0.88, 0.62)
 	$BodyPivot/HeadPivot.add_child(muzzle)
 
 	# ── 눈 : 검은 눈 하나 + 하이라이트 둘 ──
@@ -318,24 +323,18 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 	_child_sphere($BodyPivot/HeadPivot, 0.013, 0.015, "#FFFFFF", Vector3(0.172, 0.030, 0.330), Vector3.ONE)
 
 	# ── 코 ──
-	_set_sphere($BodyPivot/HeadPivot/NoseMesh, 0.034, 0.04, "#3A2418")
-	$BodyPivot/HeadPivot/NoseMesh.position = Vector3(0, 0.0, 0.34)
-	$BodyPivot/HeadPivot/NoseMesh.scale = Vector3(1.2, 0.9, 0.9)
+	_set_sphere($BodyPivot/HeadPivot/NoseMesh, 0.048, 0.056, "#6B4A38")
+	$BodyPivot/HeadPivot/NoseMesh.position = Vector3(0, -0.01, 0.315)
+	$BodyPivot/HeadPivot/NoseMesh.scale = Vector3(1.15, 0.95, 1.0)
 
-	# ── 미소(입) : 코 아래 작은 어두운 곡선 ──
-	var mouth = MeshInstance3D.new()
-	_set_sphere_mi(mouth, 0.05, 0.05, "#5A3A28")
-	mouth.position = Vector3(0, -0.09, 0.33)
-	mouth.scale = Vector3(1.4, 0.45, 0.4)
-	$BodyPivot/HeadPivot.add_child(mouth)
 
-	# ── 볼터치 : 눈 아래 옆쪽 ──
-	_set_sphere($BodyPivot/HeadPivot/LeftCheekMesh, 0.06, 0.06, "#FFB3BA")
-	_set_sphere($BodyPivot/HeadPivot/RightCheekMesh, 0.06, 0.06, "#FFB3BA")
-	$BodyPivot/HeadPivot/LeftCheekMesh.position = Vector3(-0.22, -0.03, 0.23)
-	$BodyPivot/HeadPivot/RightCheekMesh.position = Vector3(0.22, -0.03, 0.23)
-	$BodyPivot/HeadPivot/LeftCheekMesh.scale = Vector3(1.0, 0.7, 0.5)
-	$BodyPivot/HeadPivot/RightCheekMesh.scale = Vector3(1.0, 0.7, 0.5)
+
+	# 볼터치는 뺐다 — 도안에 없다. 분홍 점 두 개가 붙으면 쿼카가 아니라
+	# 곰인형으로 보인다.
+	$BodyPivot/HeadPivot/LeftCheekMesh.visible = false
+	$BodyPivot/HeadPivot/RightCheekMesh.visible = false
+
+	_build_face_lines(c)
 
 	# ── 팔 : 어깨에서 몸 옆으로 내려옴(스웨터 소매) + 손 ──
 	$BodyPivot/LeftArmPivot.position = Vector3(-0.32, 0.08, 0.04)
@@ -385,6 +384,43 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 		matroll.rotation_degrees = Vector3(0, 0, 90)
 		$BodyPivot/BackpackPivot.add_child(matroll)
 
+## 눈썹·입·발.
+##
+## 도안에는 있고 모델에는 없던 것들이다. 눈썹이 없으면 표정이 안 생기고
+## (`set_emotion` 이 눈 크기만 바꾸던 이유가 이것이다), 입이 점 하나면
+## 웃는지 알 수 없고, 발이 없으면 몸이 바닥에서 잘린 것처럼 보인다.
+##
+## 곡선은 작은 구를 호를 따라 늘어놓아 만든다. 이 크기(화면 100px)에서는
+## 메시를 깎는 것보다 정확하고, 표정마다 호의 방향만 바꾸면 된다.
+func _build_face_lines(c: Dictionary) -> void:
+	var head := $BodyPivot/HeadPivot
+
+	# 눈썹 — 눈 위 짧은 호, 바깥이 살짝 처진다
+	for sx in [-1.0, 1.0]:
+		for i in range(5):
+			var t := float(i) / 4.0 - 0.5           # -0.5 .. 0.5
+			var bx: float = sx * (0.14 + t * sx * 0.085)
+			var by: float = 0.175 - absf(t) * 0.022
+			var d := _child_sphere(head, 0.023, 0.026, "#5E4030",
+				Vector3(bx, by, 0.275), Vector3(1.0, 0.75, 0.6))
+			d.name = "Brow%s%d" % ["L" if sx < 0.0 else "R", i]
+
+	# 입 — 코 아래 웃는 호
+	for i in range(7):
+		var u := float(i) / 6.0 - 0.5
+		var mx := u * 0.135
+		var my := -0.088 - (0.25 - u * u) * 0.10
+		var m := _child_sphere(head, 0.019, 0.022, "#5E3A2C",
+			Vector3(mx, my, 0.285), Vector3(1.0, 0.85, 0.6))
+		m.name = "Mouth%d" % i
+
+	# 발 — 도안은 몸 아래로 둥근 발이 살짝 나온다
+	for sx in [-1.0, 1.0]:
+		var f := _child_sphere($BodyPivot, 0.105, 0.09, c.get("foot", c.fur),
+			Vector3(sx * 0.145, -0.335, 0.075), Vector3(1.0, 0.62, 1.25))
+		f.name = "Foot%s" % ["L" if sx < 0.0 else "R"]
+
+
 ## 리더를 리더로 알아보게 하는 것들 — 초록 모자와 목에 건 카메라.
 ##
 ## 그림 속 리더는 행성 배지가 달린 초록 캡을 쓰고 카메라를 목에 걸고 있다.
@@ -400,7 +436,7 @@ func _build_gear() -> void:
 	var cm := SphereMesh.new(); cm.radius = 0.255; cm.height = 0.30
 	crown.mesh = cm
 	var cmat := StandardMaterial3D.new()
-	cmat.albedo_color = Color("#5E8C52"); cmat.roughness = 0.85
+	cmat.albedo_color = Color("#7E9670"); cmat.roughness = 0.85
 	crown.material_override = cmat
 	crown.position = Vector3(0, 0.255, -0.015)
 	crown.scale = Vector3(1.0, 0.66, 1.0)
@@ -431,22 +467,22 @@ func _build_gear() -> void:
 	# 카메라 — 몸통 + 렌즈 + 어깨끈
 	var body_p := $BodyPivot
 	var cam_body := MeshInstance3D.new()
-	var cbm := BoxMesh.new(); cbm.size = Vector3(0.15, 0.10, 0.06)
+	var cbm := BoxMesh.new(); cbm.size = Vector3(0.165, 0.115, 0.065)
 	cam_body.mesh = cbm
 	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color("#3A322C"); dark.roughness = 0.6
+	dark.albedo_color = Color("#C8C4BE"); dark.roughness = 0.45
 	cam_body.material_override = dark
-	cam_body.position = Vector3(0, 0.10, 0.285)
+	cam_body.position = Vector3(0, 0.115, 0.30)
 	body_p.add_child(cam_body)
 
 	var lens := MeshInstance3D.new()
 	var lm := CylinderMesh.new()
-	lm.top_radius = 0.038; lm.bottom_radius = 0.042; lm.height = 0.05
+	lm.top_radius = 0.042; lm.bottom_radius = 0.046; lm.height = 0.05
 	lens.mesh = lm
 	var lmat := StandardMaterial3D.new()
-	lmat.albedo_color = Color("#6B6259"); lmat.roughness = 0.35
+	lmat.albedo_color = Color("#4A423C"); lmat.roughness = 0.30
 	lens.material_override = lmat
-	lens.position = Vector3(0, 0.10, 0.325)
+	lens.position = Vector3(0, 0.115, 0.345)
 	lens.rotation_degrees = Vector3(90, 0, 0)
 	body_p.add_child(lens)
 
