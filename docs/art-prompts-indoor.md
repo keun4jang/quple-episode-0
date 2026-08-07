@@ -66,6 +66,12 @@ python3 tools/side/import-indoor-bg.py --map office --file ~/받은그림.png
 나머지 셋을 뽑는다. 정면 단면이 제대로 나오는지, 바닥선이 수평인지는
 넣어 보기 전에는 알 수 없다.
 
+**같은 대화창에서 이어 뽑는다.** 사무실이 맞게 나왔으면 그 창에서 다음 것을
+부탁하는 편이 화풍이 훨씬 잘 붙는다.
+
+**아래쪽은 비워 달라고 한다.** 캐릭터와 코드로 그린 가구가 그 위에 놓인다.
+사무실 그림이 잘 맞은 것도 아래를 비워 둔 덕이 컸다.
+
 ### 공통 앞머리 (네 개 모두 앞에 붙인다)
 
 ```
@@ -105,13 +111,24 @@ Quiet, empty, a little lonely — everyone has gone home.
 ### 2. 로비 — `--map lobby`
 
 ```
-The ground-floor lobby of a small office building at night, seen from the side.
+The double-height entrance hall of a small office building at night, seen from
+the side.
 
-A tall wall with big glass panes looking out onto a dark street. Polished pale
-stone floor with soft reflections. Warm ceiling downlights, only some of them
-on. A row of slim columns. Higher ceiling than an office floor — this is an
-entrance hall. Calm, clean, slightly cold, with one or two warm pools of light.
+A tall wall of glass looking out onto a dark street, running the full height of
+the space. Polished pale stone floor with soft reflections. Slim columns rising
+the whole way up. Warm ceiling downlights near the very top, only some of them
+lit. Calm, clean, slightly cold, with one or two warm pools of light on the
+floor.
+
+This is a two-storey open volume — the ceiling belongs at the very top of the
+image and the middle stays open and airy. Keep the upper-middle band uncluttered.
+Keep the lower third simple and uncluttered.
 ```
+
+**로비만 다른 조건: 천장이 높아야 한다.**
+2층 통로와 엘리베이터가 이 공간 **안에서** 위로 올라간다. 통로는 그림의
+위에서 약 30% 지점에 그려진다. 사무실처럼 천장이 낮으면 2층이 천장을
+뚫고 올라간 꼴이 된다. **2층까지 트인 홀**이어야 한다.
 
 **이 맵에 있는 것:** 안내 데스크, 사원증 반납함, 엘리베이터, 계단, 2층 통로,
 바깥 문, 사무실 문. 전부 코드가 그린다.
