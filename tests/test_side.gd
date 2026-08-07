@@ -204,7 +204,7 @@ func _ready() -> void:
 	# 그림은 1층에, 들어가는 자리는 2층에 있던 적이 있다. 1층에서 빛나는
 	# 문 앞에 서도 아무 일이 없고, 문이 하나도 없는 2층 끝에서야 열렸다.
 	Episode0State.reset()
-	var lob: Node = load("res://scenes/side/Lobby.tscn").instantiate()
+	var lob: SideEpisode = load("res://scenes/side/Lobby.tscn").instantiate()
 	add_child(lob)
 	await get_tree().create_timer(0.8).timeout
 	var office_door: Dictionary = {}
@@ -227,7 +227,7 @@ func _ready() -> void:
 	# 1층에서 걸어도 문이 안 열려야 정상 (그림이 거기 없으므로)
 	lob.walker.global_position = Vector2(3150, lob.FLOOR_Y - 10)
 	await get_tree().create_timer(0.6).timeout
-	var live := lob._live_spot()
+	var live: Dictionary = lob._live_spot()
 	ck("  1층 같은 x 에서는 안 열린다",
 		live.is_empty() or not str(live.get("label", "")).contains("사무실"),
 		str(live.get("label", "-")))
@@ -239,7 +239,7 @@ func _ready() -> void:
 	SaveManager.clear_save()
 	Episode0State.reset()
 	Episode0State.advance_to(Episode0State.State.FIND_PARTNER)
-	var off: Node = load("res://scenes/side/Office.tscn").instantiate()
+	var off: SideEpisode = load("res://scenes/side/Office.tscn").instantiate()
 	add_child(off)
 	await get_tree().create_timer(0.8).timeout
 	ck("맵에 들어서면 저장된다", SaveManager.has_save())
