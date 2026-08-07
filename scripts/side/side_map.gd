@@ -36,6 +36,7 @@ func _ready() -> void:
 	_build_terrain()
 	_build_walker()
 	_build_camera()
+	_build_walls()
 	_build_background()
 	_sync_layers()
 	_build_hud()
@@ -131,8 +132,18 @@ func _build_terrain() -> void:
 	# 문 — 다음 맵으로
 	var d := Parts.door(t, 5100, FLOOR_Y, "다음 길")
 	d.collision_mask = WALKER_LAYER
-	d.body_entered.connect(func(b): if b is SideWalker: _door_body = d; _say("위를 누르면 다음 길로"))
+	d.body_entered.connect(func(b): if b is SideWalker: _door_body = d; _say("선택을 누르면 다음 길로"))
 	d.body_exited.connect(func(b): if b is SideWalker: _door_body = null; _say(""))
+	# 문 빛무리 — 0편 포탈과 같은 문법
+	var glow := ColorRect.new()
+	glow.color = Color(1.0, 0.9, 0.55, 0.16)
+	glow.size = Vector2(320, 360)
+	glow.position = Vector2(5100 - 160, FLOOR_Y - 340)
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(glow)
+	var gt := create_tween().set_loops()
+	gt.tween_property(glow, "color:a", 0.30, 1.1).set_trans(Tween.TRANS_SINE)
+	gt.tween_property(glow, "color:a", 0.12, 1.1).set_trans(Tween.TRANS_SINE)
 
 
 # ─────────────────────────────── 캐릭터 ───────────────────────────────
@@ -198,6 +209,21 @@ func _puff(at: Vector2) -> void:
 
 # ─────────────────────────────── 카메라 ───────────────────────────────
 
+## 0편 옆맵과 같은 이유의 같은 장치들. (side_episode.gd 참고)
+func _build_walls() -> void:
+	for x in [-340.0, MAP_W + 340.0]:
+		var wall := StaticBody2D.new()
+		wall.name = "EdgeWall"
+		wall.position = Vector2(x, FLOOR_Y - 400)
+		wall.collision_layer = Parts.L_SOLID
+		var cs := CollisionShape2D.new()
+		var rs := RectangleShape2D.new()
+		rs.size = Vector2(80, 1600)
+		cs.shape = rs
+		wall.add_child(cs)
+		add_child(wall)
+
+
 func _build_camera() -> void:
 	_cam = Camera2D.new()
 	_cam.name = "Cam"
@@ -227,7 +253,7 @@ var _door_body: Area2D = null
 func _at_door(_d: float) -> void:
 	if _door_body == null:
 		return
-	if Input.is_action_just_pressed("move_up"):
+	if Input.is_action_just_pressed("move_up") or Input.is_action_just_pressed("interact"):
 		_say("다음 길로! (이 예시에서는 처음으로 돌아가요)")
 		walker.global_position = Vector2(240, FLOOR_Y - 10)
 		walker.velocity = Vector2.ZERO
@@ -252,7 +278,7 @@ func _build_hud() -> void:
 	_hint.position = Vector2(-600, 40)
 	_hint.size = Vector2(1200, 44)
 	cl.add_child(_hint)
-	_say("좌우로 걷고, 점프로 뛰고, 위아래로 사다리와 엘리베이터를 탄다")
+	_say("스틱으로 걷고, 점프로 뛰고, 스틱 위아래로 사다리와 엘리베이터를 탄다")
 
 	# 돌아가는 길. 없으면 폰에서 이 화면에 갇힌다.
 	var back := Button.new()

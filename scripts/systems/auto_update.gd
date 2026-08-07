@@ -114,15 +114,14 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	l.add_theme_color_override("font_color", col)
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.65))
 	l.add_theme_constant_override("outline_size", 6)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	# 오른쪽 위에 붙인다. 예전에는 preset 만 걸고 position 을 줬는데,
-	# 그러면 폭이 0 이라 글자가 화면 밖 오른쪽으로 흘러나갔다 — 메인화면 구석에
-	# "쿼플 v0.1.2…" 가 잘린 채 찍혀 있던 게 이것이다.
-	l.anchor_left = 1.0; l.anchor_right = 1.0
-	l.anchor_top = 0.0;  l.anchor_bottom = 0.0
-	# 가로모드 폰은 오른쪽 위가 카메라 홀·둥근 모서리다. 안전영역 안으로 들인다.
-	l.offset_left = -620.0; l.offset_right = -72.0
-	l.offset_top = 40.0;    l.offset_bottom = 158.0
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 아래 가운데. 오른쪽 위는 옆맵의 설정 버튼 자리가 되면서 배지와
+	# 정면으로 겹쳤다 — 실제 폰 캡처에 "쿼플 v0.1.44" 와 "설정" 이
+	# 포개져 찍혔다. 아래 가운데는 어느 화면에서도 비어 있다.
+	l.anchor_left = 0.0; l.anchor_right = 1.0
+	l.anchor_top = 1.0;  l.anchor_bottom = 1.0
+	l.offset_left = 0.0; l.offset_right = 0.0
+	l.offset_top = -64.0; l.offset_bottom = -12.0
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(l)
 	var tw := create_tween()
