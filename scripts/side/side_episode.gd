@@ -208,7 +208,9 @@ func _refresh_prompt() -> void:
 	if _prompt == null:
 		return
 	var r := _live_spot()
-	_prompt.text = ("▲  " + str(r["label"])) if not r.is_empty() else ""
+	# 기호를 "선택" 으로 바꾼다. ▲ 는 십자 방향키 시절의 흔적이라,
+	# 밝아지는 버튼과 화면의 기호가 서로 다른 곳을 가리키고 있었다.
+	_prompt.text = ("선택 ·  " + str(r["label"])) if not r.is_empty() else ""
 	if _touch != null:
 		_touch.highlight_interact(not r.is_empty())
 
@@ -306,12 +308,23 @@ func _follow_partner(delta: float) -> void:
 		return
 	var want := walker.global_position.x - walker.facing * FOLLOW_GAP
 	var dx := want - partner.position.x
-	if absf(dx) > 12.0:
+	var walking := absf(dx) > 12.0
+	if walking:
 		partner.position.x += clampf(dx, -420.0, 420.0) * clampf(delta * 3.2, 0.0, 1.0)
 		partner.flip_h = dx < 0.0
-		partner.position.y = FLOOR_Y + sin(Time.get_ticks_msec() * 0.010) * 5.0
-	else:
-		partner.position.y = FLOOR_Y + sin(Time.get_ticks_msec() * 0.0022) * 2.0
+
+	# 세로도 따라와야 한다.
+	#
+	# 예전에는 y 를 늘 1층 바닥(FLOOR_Y)으로 두었다. 그래서 엘리베이터로
+	# 2층에 올라가면 파트너만 541px 아래 남아, 통로 밑 허공을 나란히
+	# 걸어가는 그림이 됐다 — 합류가 로비에서 일어나고 바로 다음 목적지가
+	# 2층 문이라, 하필 합류 직후에 제일 먼저 보이는 장면이었다.
+	#
+	# 물리로 굴리지 않는 그림이므로 층을 "따라 붙는다". 리더가 사다리나
+	# 엘리베이터로 올라가면 파트너도 부드럽게 그 높이로 올라온다.
+	var bob := sin(Time.get_ticks_msec() * (0.010 if walking else 0.0022)) * (5.0 if walking else 2.0)
+	var want_y := walker.global_position.y + bob
+	partner.position.y += (want_y - partner.position.y) * clampf(delta * 3.0, 0.0, 1.0)
 
 
 # ─────────────────────────────── 카메라 ───────────────────────────────
@@ -365,7 +378,7 @@ func _build_ui() -> void:
 	cl.layer = 9
 	add_child(cl)
 
-	_title = _mk_label(28, Color("#CFC9E8"))
+	_title = _mk_label(30, Color("#CFC9E8"))
 	_title.position = Vector2(-600, 20)
 	_title.size = Vector2(1200, 40)
 	_title.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -382,7 +395,7 @@ func _build_ui() -> void:
 	_objective.add_theme_color_override("font_color", Color("#FDFBD4"))
 	_objective.add_theme_color_override("font_outline_color", Color(0.07, 0.06, 0.11))
 	_objective.add_theme_constant_override("outline_size", 8)
-	_objective.position = Vector2(24, 20)
+	_objective.position = Vector2(48, 44)
 	cl.add_child(_objective)
 
 	# 수집 진행 — 메이플이 "몬스터 11/26" 을 띄우는 그 자리다.
@@ -392,7 +405,7 @@ func _build_ui() -> void:
 	_items_row.add_theme_color_override("font_color", Color("#FFE7A8"))
 	_items_row.add_theme_color_override("font_outline_color", Color(0.07, 0.06, 0.11))
 	_items_row.add_theme_constant_override("outline_size", 8)
-	_items_row.position = Vector2(24, 66)
+	_items_row.position = Vector2(48, 92)
 	cl.add_child(_items_row)
 
 	# 화면 끝 안내 화살표 — 메이플의 퀘스트 화살표 자리.
@@ -416,9 +429,12 @@ func _build_ui() -> void:
 	gear.name = "SettingsBtn"
 	gear.text = "⚙ 설정"
 	gear.add_theme_font_size_override("font_size", 30)
-	gear.custom_minimum_size = Vector2(150, 84)
+	# 높이 84 는 이 화면이 스스로 쓰는 하한(점프 160, 선택 236)의 절반이라
+	# 손가락에 안 맞았다. 여백도 조작 버튼과 같은 48 로 맞춘다 — 20/36 은
+	# 노치와 둥근 모서리에 물린다.
+	gear.custom_minimum_size = Vector2(168, 116)
 	gear.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	gear.position = Vector2(-174, 20)
+	gear.position = Vector2(-216, 48)
 	gear.pressed.connect(_open_settings)
 	cl.add_child(gear)
 
@@ -435,6 +451,13 @@ func _build_ui() -> void:
 	_move_dialogue_to_top()
 	choice_box = load("res://scenes/ui/ChoiceBox.tscn").instantiate()
 	add_child(choice_box)
+	# 선택지가 떠 있는 동안에는 조작을 감춘다.
+	#
+	# 선택지 패널은 화면을 가로지르는데 그 위에 조이스틱·점프·선택이
+	# 그대로 떠 있었다. 버튼이 터치를 먼저 가로채기 때문에, 두 번째
+	# 선택지를 눌러도 버튼이 먹고 **첫 번째가 골라졌다** — 이야기 분기가
+	# 손가락이 아니라 우연으로 정해지고 있었다.
+	choice_box.visibility_changed.connect(_on_choice_visibility)
 
 
 ## 대사창을 위로 올린다.
@@ -502,12 +525,26 @@ func _refresh_hud() -> void:
 		if st == Episode0State.State.COLLECT_TRAVEL_ITEMS \
 				or (st == Episode0State.State.RETURN_BADGE
 					and not Episode0State.all_items_collected()):
-			_items_row.text = "📷%s  📓%s  🎒%s" % [
-				"✓" if Episode0State.has_camera else "…",
-				"✓" if Episode0State.has_notebook else "…",
-				"✓" if Episode0State.has_travel_bag else "…"]
+			# 이모지 대신 이름으로 쓴다. 📓 는 기기 폰트에 없어 깨진 네모로
+			# 나왔고, "…" 은 처음 본 사람에게 "아직" 인지 "여러 개" 인지
+			# 알 수 없는 기호였다.
+			_items_row.text = "카메라 %s   수첩 %s   가방 %s" % [
+				"✓" if Episode0State.has_camera else "·",
+				"✓" if Episode0State.has_notebook else "·",
+				"✓" if Episode0State.has_travel_bag else "·"]
 		else:
 			_items_row.text = ""
+
+
+## 선택지가 열리면 조작을 감추고, 닫히면 되돌린다.
+func _on_choice_visibility() -> void:
+	if _touch == null or choice_box == null:
+		return
+	_touch.visible = not choice_box.visible
+	if choice_box.visible:
+		# 감추기 전에 눌린 것들을 놓아 준다. 안 그러면 감춰진 채로
+		# 계속 걷는다 — 선택지를 고르고 나면 혼자 벽으로 걸어가 있다.
+		_touch.release_all()
 
 
 func _open_settings() -> void:

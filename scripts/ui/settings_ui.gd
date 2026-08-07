@@ -208,8 +208,15 @@ func _set_update_state(busy: bool, msg: String, col: Color) -> void:
 
 func _go_home() -> void:
 	# 나가기 전에 저장한다. 여기까지 온 걸 잃게 하면 안 된다.
+	#
+	# 다만 0편을 이미 깼다면 지금 화면을 저장하지 않는다. 깬 사람이
+	# 0편 맵을 구경하다 나가면 그 자리가 이어하기로 굳어서, 다음에
+	# 켤 때 또 그 빈 맵으로 돌아온다.
 	if SaveManager.has_method("autosave") and get_tree().current_scene != null:
-		SaveManager.autosave(get_tree().current_scene.scene_file_path)
+		var here := get_tree().current_scene.scene_file_path
+		var is_ep0 := here.contains("/side/") or here.contains("/maps/")
+		if not (Episode0State.episode0_cleared and is_ep0):
+			SaveManager.autosave(here)
 	close()
 	SceneTransition.go_to("res://scenes/menu/MainMenu3D.tscn")
 

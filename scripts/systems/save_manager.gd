@@ -151,7 +151,30 @@ func set_flag(key: String, value) -> void:
 func has_backup() -> bool:
 	return _is_valid(BACKUP_PATH)
 
-func get_current_scene(fallback: String = "res://scenes/travel/TravelHub.tscn") -> String:
+## 0편을 깼으면 이어하기는 언제나 여행 허브다.
+##
+## 예전에는 저장된 경로를 그대로 돌려줬다. 그런데 0편의 마지막 저장은
+## "회사 앞" 이고, 클리어 뒤 그 위를 덮어쓰는 곳이 없었다. 그래서 한 번
+## 깬 사람은 이어하기를 누를 때마다 **할 일이 하나도 없는 밤 11시 회사
+## 앞**으로 돌아왔다. 사진 자리는 잠겨 있고 목표는 "0편 완료" 이고,
+## 나가는 길은 설정→메인화면뿐인데 그 버튼이 같은 경로를 다시 저장해서
+## 영영 빠져나올 수 없었다.
+##
+## 저장 파일을 고치는 대신 여기서 판단한다 — 이미 그렇게 갇힌 저장
+## 파일을 들고 있는 사람도 이번 갱신만 받으면 풀려난다.
+const HUB := "res://scenes/travel/TravelHub.tscn"
+
+func get_current_scene(fallback: String = HUB) -> String:
+	if Episode0State.episode0_cleared:
+		var raw := _raw_current_scene(fallback)
+		# 0편 맵으로 돌아가려는 저장은 무시한다. 0편은 이미 끝났다.
+		if raw.contains("/side/") or raw.contains("/maps/"):
+			return HUB
+		return raw
+	return _raw_current_scene(fallback)
+
+
+func _raw_current_scene(fallback: String) -> String:
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) != OK:
 		return fallback

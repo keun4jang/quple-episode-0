@@ -47,7 +47,10 @@ func _fit_to_text(text: String) -> String:
 	var tc := get_tree().get_first_node_in_group("touch_controls")
 	if tc != null and tc.visible and ("_buttons" in tc):
 		for a in tc._buttons:
-			var b: Button = tc._buttons[a]
+			# BaseButton 으로 받는다. 3D 조작은 Button, 옆맵 조작은
+			# TextureButton 이라 Button 으로 받으면 옆맵에서 대입이 죽고,
+			# 그 자리에서 함수가 끊겨 **대사 글자가 한 글자도 안 찍혔다.**
+			var b: BaseButton = tc._buttons[a]
 			if b != null and b.is_visible_in_tree():
 				right_limit = minf(right_limit, b.get_global_rect().position.x - 20.0)
 	# 가운데에 두면서 오른쪽 끝이 저 선을 넘지 않는 최대 폭

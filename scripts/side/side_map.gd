@@ -114,9 +114,13 @@ func _build_terrain() -> void:
 	Parts.platform(t, 620, FLOOR_Y - 470, 900, 40, true)
 	Parts.ladder(t, 700, FLOOR_Y - 470, 470)
 
-	# 공중 발판 — 점프로만 닿는다
-	Parts.platform(t, 1650, FLOOR_Y - 300, 300, 34, true)
-	Parts.platform(t, 2060, FLOOR_Y - 520, 300, 34, true)
+	# 공중 발판 — 점프로만 닿는다.
+	#
+	# 처음엔 300px 위에 두었는데 실제 점프 최고 높이는 262.8px 이라
+	# 37px 이 모자랐다. 아무리 뛰어도 안 올라가서 "점프로만 닿는다" 는
+	# 주석만 맞고 화면은 틀린 상태였다. 여유 60px 을 두고 내린다.
+	Parts.platform(t, 1650, FLOOR_Y - 200, 300, 34, true)
+	Parts.platform(t, 2060, FLOOR_Y - 420, 300, 34, true)
 
 	# 엘리베이터 — 계단 위 층에서 더 높은 곳으로.
 	#
@@ -254,7 +258,7 @@ func _at_door(_d: float) -> void:
 	if _door_body == null:
 		return
 	if Input.is_action_just_pressed("move_up") or Input.is_action_just_pressed("interact"):
-		_say("다음 길로! (이 예시에서는 처음으로 돌아가요)")
+		_say("아직 다음 길은 준비 중이에요. 처음 자리로 돌아갈게요")
 		walker.global_position = Vector2(240, FLOOR_Y - 10)
 		walker.velocity = Vector2.ZERO
 
@@ -278,7 +282,7 @@ func _build_hud() -> void:
 	_hint.position = Vector2(-600, 40)
 	_hint.size = Vector2(1200, 44)
 	cl.add_child(_hint)
-	_say("스틱으로 걷고, 점프로 뛰고, 스틱 위아래로 사다리와 엘리베이터를 탄다")
+	_say("스틱으로 걷고, 점프로 뛰어요. 스틱을 위아래로 밀면 사다리와 엘리베이터를 타요")
 
 	# 돌아가는 길. 없으면 폰에서 이 화면에 갇힌다.
 	var back := Button.new()

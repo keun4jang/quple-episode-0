@@ -62,16 +62,21 @@ func build() -> void:
 	_rect(b, Vector2(2560, FLOOR_Y - 300), Vector2(420, 300), Color(1, 0.9, 0.66, 0.07))
 
 	# 인도. 하늘만 그림으로 바꾸므로 여기는 늘 코드가 그린다.
+	# 인도는 배경보다 확실히 진해야 한다. 하늘 그림이 뿌옇게 밝아지면서
+	# 인도(#5A6480)와 안개(#617094)의 밝기 차가 4/255 로 붙어, 발밑에
+	# 바닥이 있다는 것이 안 보였다.
 	Parts.platform(self, -200, FLOOR_Y, 4000, 320, false,
-		Color("#5A6480"), Color("#333B52"))
+		Color("#3E465E"), Color("#262C3E"))
 	# 보도블록 이음매. 한 줄씩 그어 두면 걸을 때 지나가는 것이 보여
 	# 실제로 나아가고 있다는 느낌이 난다.
 	var pave := Node2D.new()
 	pave.z_index = -2
 	add_child(pave)
 	for px in range(-200, 3900, 170):
-		_rect(pave, Vector2(px, FLOOR_Y + 26), Vector2(3, 40), Color(0, 0, 0, 0.13))
-	_rect(pave, Vector2(-200, FLOOR_Y + 24), Vector2(4200, 3), Color(0, 0, 0, 0.16))
+		_rect(pave, Vector2(px, FLOOR_Y + 26), Vector2(3, 40), Color(0, 0, 0, 0.22))
+	_rect(pave, Vector2(-200, FLOOR_Y + 24), Vector2(4200, 3), Color(0, 0, 0, 0.26))
+	# 인도 앞턱에 밝은 줄 하나. 바닥선이 어디인지 한눈에 말해 준다.
+	_rect(pave, Vector2(-200, FLOOR_Y - 2), Vector2(4200, 5), Color(1, 1, 1, 0.20))
 
 	# 가로등. 밤길이 새까맣기만 하면 걸어갈 마음이 안 난다.
 	for lx in [700.0, 1900.0, 3100.0]:
@@ -104,7 +109,7 @@ func on_enter() -> void:
 		_refresh_photo_stage()
 		await get_tree().create_timer(0.8).timeout
 		await say("애인: \"오늘이 그 언젠가야.\"", 2.4)
-		await say("빛나는 자리에 서서 눌러요.", 0.0)
+		await say("빛나는 자리에 서서 '선택' 을 눌러 볼까요.", 0.0)
 
 
 func _process(delta: float) -> void:
@@ -142,7 +147,10 @@ func _try_photo() -> void:
 
 	Episode0State.advance_to(Episode0State.State.CLEAR)
 	SaveManager.mark_episode0_cleared()
-	SaveManager.autosave("res://scenes/maps/CompanyFront3D.tscn")
+	# 이어하기 자리를 여행 허브로 옮긴다. 0편은 끝났고, 이 화면에는
+	# 이제 할 일이 없다 — 여기를 저장해 두면 다음에 켤 때 빈 밤거리에
+	# 떨어진다.
+	SaveManager.autosave("res://scenes/travel/TravelHub.tscn")
 	var cs := load("res://scenes/ui/ClearScreen.tscn") as PackedScene
 	if cs != null:
 		add_child(cs.instantiate())

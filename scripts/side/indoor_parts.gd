@@ -142,6 +142,12 @@ static func floor_pools(parent: Node, w: float, floor_y: float, gap := 620.0) ->
 		x += gap
 
 
+## 그림 위에 놓을 때 쓰는 금속색. 청회색 금속은 나무·크림 그림 위에서
+## 혼자 다른 게임에서 온 것처럼 보인다.
+const WARM_METAL := Color("#9A8270")
+const WARM_METAL_HI := Color("#B49B86")
+const WARM_METAL_DK := Color("#6E5A4C")
+
 ## 바닥. 옆에서 보는 실내는 바닥선 하나로 층이 정해진다.
 ##
 ## painted 면 그리지 않고 딛는 자리만 남긴다 — 바닥은 그림에 이미 있다.
@@ -180,21 +186,37 @@ static func desk(parent: Node, x: float, floor_y: float, w := 300.0, lit := fals
 	var mx := x + w * 0.5
 	_box(n, Vector2(mx - 8, top - 26), Vector2(16, 26), c_leg)
 	_box(n, Vector2(mx - 62, top - 108), Vector2(124, 84), c_mon)
+	var c_off := Color("#3A2E2B") if warm else Color("#2C3A52")
 	_box(n, Vector2(mx - 54, top - 100), Vector2(108, 68),
-		Color("#8FD0E4") if lit else Color("#2C3A52"))
+		Color("#8FD0E4") if lit else c_off)
 	if lit:
-		var g := _box(n, Vector2(mx - 220, top - 260), Vector2(440, 400),
-			Color(0.56, 0.82, 0.9, 0.07))
-		g.z_index = -1
+		# 켜진 모니터는 이 화면에서 **가장 밝은 것**이어야 한다. 밤 사무실에
+		# 홀로 남은 불빛이 이야기의 전부인데, 0.07 은 창밖 도시 불빛에도
+		# 졌다. 빛무리를 세 겹으로 겹쳐 책상과 바닥까지 닿게 한다.
+		for spec in [[440.0, 400.0, 0.10], [260.0, 250.0, 0.10], [150.0, 150.0, 0.10]]:
+			var gw: float = spec[0]
+			var gh: float = spec[1]
+			var g := _box(n, Vector2(mx - gw * 0.5, top - gh * 0.62), Vector2(gw, gh),
+				Color(0.56, 0.82, 0.9, spec[2]))
+			g.z_index = -1
 	return top
 
 
 ## 문. 지나갈 수 있는 자리. 실제 판정은 SideParts.door 가 만든다.
+## 그림 위에 놓는 문의 판. 유리 청록(GLASS)을 그대로 두면 따뜻한 벽에
+## 청록 사각형 하나가 박혀 **화면에 뚫린 구멍**처럼 보인다 — 복도처럼
+## 어두운 맵에서는 그 구멍이 문틈 빛보다 밝아서, 가장 밝아야 할 것이
+## 가장 밝지 않게 된다.
+const WARM_GLASS := Color("#7A6558")
+
 static func door_frame(parent: Node, x: float, floor_y: float, tint := GLASS,
 		warm := false) -> void:
 	var n := Node2D.new()
 	parent.add_child(n)
+	var panel := tint
+	if warm and tint == GLASS:
+		panel = WARM_GLASS         # 부르는 쪽이 색을 고르지 않았을 때만 갈아입는다
 	_box(n, Vector2(x - 92, floor_y - 268), Vector2(184, 268),
 		WARM_LEG if warm else Color("#243147"))
-	_box(n, Vector2(x - 74, floor_y - 248), Vector2(148, 248), tint)
+	_box(n, Vector2(x - 74, floor_y - 248), Vector2(148, 248), panel)
 	_box(n, Vector2(x - 60, floor_y - 232), Vector2(120, 120), Color(1, 1, 1, 0.10))

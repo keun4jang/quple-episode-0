@@ -33,10 +33,15 @@ func build() -> void:
 	var bx := 1500.0
 	var n := Node2D.new()
 	add_child(n)
-	_rect(n, Vector2(bx - 70, FLOOR_Y - 210), Vector2(140, 210), Color("#46587A"))
-	_rect(n, Vector2(bx - 54, FLOOR_Y - 190), Vector2(108, 26), Color("#1B2438"))
-	_rect(n, Vector2(bx - 46, FLOOR_Y - 140), Vector2(92, 60), Color("#7FA6C4"))
-	_badge_spot = spot(bx, "사원증 반납함", _return_badge)
+	# 반납함도 그림에 맞춘다. 남색 상자에 형광 하늘색 화면이 박혀 있으면
+	# 크림·나무 톤 로비에서 그것만 튀어 캐릭터에게 갈 시선을 뺏는다.
+	_rect(n, Vector2(bx - 70, FLOOR_Y - 210), Vector2(140, 210),
+		IndoorParts.WARM_LEG if painted else Color("#46587A"))
+	_rect(n, Vector2(bx - 54, FLOOR_Y - 190), Vector2(108, 26),
+		Color("#3A2E2B") if painted else Color("#1B2438"))
+	_rect(n, Vector2(bx - 46, FLOOR_Y - 140), Vector2(92, 60),
+		Color("#C7A98C") if painted else Color("#7FA6C4"))
+	_badge_spot = spot(bx, "사원증 반납하기", _return_badge)
 
 	# 2층 통로와 엘리베이터
 	Parts.platform(self, 2100, UPPER_Y, 1300, 40, true,
@@ -70,7 +75,7 @@ func on_enter() -> void:
 
 func _return_badge() -> void:
 	if Episode0State.current_state < Episode0State.State.RETURN_BADGE:
-		await say("사원증 반납함이에요. 아직은 반납할 때가 아니에요.", 0.0)
+		await say("사원증 반납함이에요. 회사를 나설 때 여기에 넣으면 돼요.", 0.0)
 		return
 	if Episode0State.badge_returned:
 		await say("사원증은 이미 반납했어요.", 0.0)

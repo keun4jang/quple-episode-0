@@ -137,7 +137,8 @@ static func ladder(parent: Node, x: float, top_y: float, height: float, width :=
 
 ## ─── 엘리베이터 ───
 ## 위·아래 두 층을 오간다. 안에서 위나 아래를 누르면 움직인다.
-static func elevator(parent: Node, x: float, top_y: float, bottom_y: float, w := 240.0) -> AnimatableBody2D:
+static func elevator(parent: Node, x: float, top_y: float, bottom_y: float, w := 240.0,
+		body_col := METAL, hi_col := Color("#9FB0C6"), rail_col := Color("#5E6C80")) -> AnimatableBody2D:
 	var b := AnimatableBody2D.new()
 	b.name = "Elevator"
 	b.position = Vector2(x, bottom_y)
@@ -155,10 +156,10 @@ static func elevator(parent: Node, x: float, top_y: float, bottom_y: float, w :=
 
 	var art := Node2D.new()
 	b.add_child(art)
-	_draw_box(art, Vector2(-w * 0.5, -10), Vector2(w, 22), METAL)
-	_draw_box(art, Vector2(-w * 0.5, -10), Vector2(w, 7), Color("#9FB0C6"))
-	_draw_box(art, Vector2(-w * 0.5 + 6, -150), Vector2(10, 142), Color("#5E6C80"))
-	_draw_box(art, Vector2(w * 0.5 - 16, -150), Vector2(10, 142), Color("#5E6C80"))
+	_draw_box(art, Vector2(-w * 0.5, -10), Vector2(w, 22), body_col)
+	_draw_box(art, Vector2(-w * 0.5, -10), Vector2(w, 7), hi_col)
+	_draw_box(art, Vector2(-w * 0.5 + 6, -150), Vector2(10, 142), rail_col)
+	_draw_box(art, Vector2(w * 0.5 - 16, -150), Vector2(10, 142), rail_col)
 
 	var rider := Area2D.new()
 	rider.name = "Rider"

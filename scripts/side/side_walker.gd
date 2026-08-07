@@ -147,7 +147,18 @@ func _walk(delta: float) -> void:
 	# 그냥 지나가기만 해도 붙으면 사다리 앞을 못 지나간다.
 	if _ladder_here() != null:
 		var want_up := Input.is_action_pressed("move_up")
-		var want_down := Input.is_action_pressed("move_down") and not on_floor
+		# 아래로 잡는 조건에서 "공중일 때만" 을 뺐다.
+		#
+		# 사다리 꼭대기에 서면 늘 바닥을 딛고 있으므로, 그 조건 때문에
+		# 아래를 아무리 눌러도 안 내려갔다 — 올라갈 땐 위 하나면 되는데
+		# 내려올 땐 아래+점프라는 숨은 조작이 필요했고 화면 어디에도
+		# 그런 안내가 없었다.
+		#
+		# 대신 **사다리를 실제로 밟고 있을 때만** 받는다. 사다리 옆을
+		# 지나가며 아래를 눌렀다고 매달리면 안 된다.
+		var lad := _ladder_here()
+		var over_ladder := absf(global_position.x - lad.global_position.x) < 46.0
+		var want_down := Input.is_action_pressed("move_down") and (not on_floor or over_ladder)
 		if want_up or want_down:
 			_enter_ladder()
 			return
@@ -168,6 +179,16 @@ func _walk(delta: float) -> void:
 			g *= fall_multiplier           # 내려올 땐 빨리 떨어진다
 		velocity.y += g * delta
 
+	# 아래 + 점프 = 발판 아래로 내려서기.
+	#
+	# 점프보다 **먼저** 본다. 뒤에 두었더니 점프로 올라가던 속도를
+	# 낙하로 덮어써서, 스틱을 비스듬히 아래로 민 채 점프하면 뛰는 대신
+	# 떨어졌다. 스틱은 대각선에서 아래가 쉽게 켜지므로 자주 걸렸다.
+	if on_floor and Input.is_action_pressed("move_down") and _buffer > 0.0:
+		_buffer = 0.0
+		_drop_through()
+		return
+
 	# 점프
 	if _buffer > 0.0 and _coyote > 0.0:
 		velocity.y = _jump_velocity()
@@ -179,10 +200,7 @@ func _walk(delta: float) -> void:
 	if Input.is_action_just_released("jump") and velocity.y < 0.0:
 		velocity.y *= short_hop_cut
 
-	# 아래 + 점프 = 발판 아래로 내려서기
-	if on_floor and Input.is_action_pressed("move_down") and Input.is_action_just_pressed("jump"):
-		_drop_through()
-		return
+
 
 	_fall_speed_last = velocity.y
 	move_and_slide()

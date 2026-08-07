@@ -24,7 +24,8 @@ func _fit_panel() -> void:
 	var tc := get_tree().get_first_node_in_group("touch_controls")
 	if tc != null and tc.visible and ("_buttons" in tc):
 		for a in tc._buttons:
-			var b: Button = tc._buttons[a]
+			# 3D 는 Button, 옆맵은 TextureButton — 공통 조상으로 받는다.
+			var b: BaseButton = tc._buttons[a]
 			if b != null and b.is_visible_in_tree():
 				right_limit = minf(right_limit, b.get_global_rect().position.x - 20.0)
 	var half: float = maxf(right_limit - vp.x * 0.5, 200.0)

@@ -6,6 +6,7 @@ extends SideEpisode
 ## 흩어 놓고, 하나는 사다리를 타야 닿는 선반 위에 둔다.
 
 var _partner_spot: Area2D
+var _hall_door: Area2D
 var _items := {}          # 이름 -> {spot, art}
 
 
@@ -43,17 +44,22 @@ func build() -> void:
 	_item("notebook", 3000.0, FLOOR_Y - 20.0, "수첩", Color("#E5C98C"))
 	# 가방은 선반 위. 사다리를 타야 닿는다.
 	Parts.platform(self, 3300, FLOOR_Y - 420, 620, 34, true,
-		IndoorParts.FLOOR_TOP, IndoorParts.FLOOR_BODY)
+		IndoorParts.WARM_TOP if painted else IndoorParts.FLOOR_TOP,
+		IndoorParts.WARM_LEG if painted else IndoorParts.FLOOR_BODY)
 	Parts.ladder(self, 3380, FLOOR_Y - 420, 420)
 	_item("bag", 3700.0, FLOOR_Y - 420.0, "여행 가방", Color("#D98E62"))
 
 	door(180.0, "로비로", "res://scenes/maps/CompanyLobby3D.tscn")
-	door(4020.0, "복도로", "res://scenes/maps/BossDoorHallway3D.tscn", "tense")
+	_hall_door = door(4020.0, "복도로", "res://scenes/maps/BossDoorHallway3D.tscn", "tense")
 	_refresh_items()
+	_refresh_gates()
 
 
 func on_enter() -> void:
 	AudioManager.play_ambient("room")
+	Episode0State.state_changed.connect(func(_s):
+		_refresh_items()
+		_refresh_gates())
 
 
 # ─────────────────────────────── 물품 ───────────────────────────────
@@ -98,6 +104,17 @@ func _pick(id: String) -> void:
 	_refresh_hud()
 
 
+## 아직 갈 때가 아닌 곳은 잠근다.
+##
+## 애인에게 말을 걸기 전에 복도로 가서 엿들으면, 상태가 훌쩍 뛰어
+## **0편의 전환점인 선택 장면("지금 같이 나가자 / 조금만 더")이 영영
+## 안 나온다.** 진행도는 되돌아오지 않으므로 애초에 못 가게 막는다.
+func _refresh_gates() -> void:
+	if _hall_door != null:
+		lock_spot(_hall_door, Episode0State.current_state
+			< Episode0State.State.EAVESDROP_BOSS)
+
+
 ## 이미 챙긴 것은 치운다. 남아 있으면 몇 개 남았는지 알 수 없다.
 func _refresh_items() -> void:
 	var have := {
@@ -105,10 +122,13 @@ func _refresh_items() -> void:
 		"notebook": Episode0State.has_notebook,
 		"bag": Episode0State.has_travel_bag,
 	}
+	# 챙길 때가 되기 전에는 보이지도, 주워지지도 않는다. 미리 주워 버리면
+	# 정작 "여행 물품 3가지 챙기기" 가 떴을 때 주울 것이 하나도 없다.
+	var open := Episode0State.current_state >= Episode0State.State.COLLECT_TRAVEL_ITEMS
 	for id in _items:
 		var got: bool = have.get(id, false)
-		_items[id]["art"].visible = not got
-		lock_spot(_items[id]["spot"], got)
+		_items[id]["art"].visible = open and not got
+		lock_spot(_items[id]["spot"], got or not open)
 
 
 # ─────────────────────────────── 애인 ───────────────────────────────

@@ -32,9 +32,11 @@ const OBJECTIVES := {
 	State.COLLECT_TRAVEL_ITEMS: "여행 물품 3가지 챙기기",
 	State.RETURN_BADGE: "로비에서 사원증 반납하기",
 	State.PARTNER_JOINED: "둘이 함께 회사 밖으로 나가기",
-	State.FIRST_PHOTO: "회사 앞에서 첫 사진 찍기",
+	State.FIRST_PHOTO: "쿼카전자 앞에서 첫 사진 찍기",
 	State.ALBUM_CREATED: "앨범 확인하기",
-	State.CLEAR: "0편 완료",
+	# 클리어는 할 일이 아니라 상태다. 목표 칩에 남겨 두면 다 끝낸 사람에게
+	# 계속 무언가 남은 것처럼 보인다.
+	State.CLEAR: "",
 }
 
 func get_objective() -> String:

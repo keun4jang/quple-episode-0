@@ -46,7 +46,7 @@ func build() -> void:
 	_rect(n, Vector2(DOOR_X - 60, FLOOR_Y - 430), Vector2(120, 46),
 		Color("#6A5350") if painted else Color("#46587A"))
 
-	spot(DOOR_X, "문 앞에서 들어보기", _eavesdrop, false, 260.0)
+	spot(DOOR_X, "대표실 문 앞에서 들어보기", _eavesdrop, false, 260.0)
 	door(180.0, "사무실로 돌아가기", "res://scenes/maps/Office3D.tscn")
 
 
@@ -67,6 +67,11 @@ func _process(delta: float) -> void:
 ## 엿듣기 — 0편의 감정 전환점
 func _eavesdrop() -> void:
 	if _listening:
+		return
+	# 아직 이 장면을 볼 때가 아니면 듣지 않는다. 사무실 문을 잠가 두었지만,
+	# 저장에서 바로 이 맵으로 들어오는 길도 있으므로 여기서도 지킨다.
+	if Episode0State.current_state < Episode0State.State.EAVESDROP_BOSS:
+		await say("아직은 그냥 지나치는 게 좋겠어요.", 0.0)
 		return
 	_listening = true
 	for line in [

@@ -14,9 +14,11 @@ class_name SideTouch
 const STICK_R := 130
 ## 스틱을 이만큼 기울여야 방향으로 친다. 작으면 스치기만 해도 걷는다.
 const DEAD := 0.32
-## 위아래는 더 세게 밀어야 한다. 걷다가 손이 조금 올라간 것을
-## 사다리 타기로 받으면 안 된다.
+## 위아래로 치려면 이만큼은 밀어야 한다.
 const DEAD_Y := 0.55
+## 그리고 가로보다 세로가 이 배 이상 커야 한다. 1.4 면 수평에서 약
+## 55도 위로 올라가야 "위" 로 친다 — 걷는 손짓과 오르는 손짓이 갈린다.
+const VERT_BIAS := 1.4
 ## 큰 버튼(선택) 반지름. 메이플의 공격 버튼 자리다 — 우리 게임의 그 자리는
 ## 공격이 아니라 **선택**이다. 문에 들어가고, 말을 걸고, 물건을 줍는다.
 const MAIN_R := 118
@@ -30,12 +32,21 @@ var _stick_center := Vector2.ZERO
 var _stick_finger := -1
 
 var _btns: Dictionary = {}       # action -> TextureButton
+## 바깥에서 부르는 이름. 3D 쪽 TouchControls 와 맞춰 둔다 — 대사창이
+## "버튼을 피해 폭을 줄이는" 계산에 이 이름으로 접근한다.
+var _buttons: Dictionary:
+	get: return _btns
 var _touch: Dictionary = {}      # finger -> action
 var _held: Dictionary = {}       # 스틱이 누르고 있는 액션들
 
 
 func _ready() -> void:
 	add_to_group("side_touch")
+	# 3D 쪽 조작과 같은 그룹에도 든다. 대사창·선택지·앨범이 이 그룹을 찾아
+	# **조작을 피하거나 감춘다.** 옆맵만 다른 이름을 쓰는 바람에 그 회피가
+	# 통째로 죽어 있었고, 선택지 패널이 화면 끝까지 자라 버튼을 덮었다 —
+	# 두 번째 선택지를 누르면 버튼이 먼저 먹어서 첫 번째가 골라졌다.
+	add_to_group("touch_controls")
 	layer = 8
 	_build()
 	get_viewport().size_changed.connect(_place)
@@ -171,11 +182,15 @@ func _stick_update(pos: Vector2) -> void:
 		v = v.normalized()
 	_knob_to(v * STICK_R)
 
+	# 축을 따로 보면 대각선에서 위아래가 너무 쉽게 켜진다. 최대로 기울인
+	# 45도에서 세로 성분이 0.707 이라, 수평에서 33도만 내려가도 "아래" 가
+	# 됐다 — 걸으면서 점프하려다 발판 아래로 떨어지는 일이 잦았다.
+	# 그래서 위아래는 **각도로** 판단한다: 세로에 가까울 때만 받는다.
 	var want := {}
 	if v.x < -DEAD: want["move_left"] = true
 	elif v.x > DEAD: want["move_right"] = true
-	if v.y < -DEAD_Y: want["move_up"] = true
-	elif v.y > DEAD_Y: want["move_down"] = true
+	if v.length() > DEAD_Y and absf(v.y) > absf(v.x) * VERT_BIAS:
+		want["move_up" if v.y < 0.0 else "move_down"] = true
 
 	for a in ["move_left", "move_right", "move_up", "move_down"]:
 		if want.has(a) and not _held.has(a):
@@ -199,11 +214,20 @@ func _knob_to(offset: Vector2) -> void:
 	_stick_knob.position = _stick_center + offset - Vector2(r, r)
 
 
-func _exit_tree() -> void:
-	for a in _held:
-		Input.action_release(a)
-	for f in _touch:
+## 누르고 있던 것을 전부 놓는다. 조작을 감추기 전에 반드시 불러야 한다 —
+## 감춰진 버튼은 손을 떼는 것을 볼 수 없어서, 누른 채로 사라지면 그대로
+## 눌린 상태가 남는다.
+func release_all() -> void:
+	_stick_release()
+	for f in _touch.keys():
 		Input.action_release(_touch[f])
+	_touch.clear()
+	for a in _btns:
+		(_btns[a] as TextureButton).modulate = Color(1, 1, 1, 0.5)
+
+
+func _exit_tree() -> void:
+	release_all()
 
 
 # ─────────────────────────────── 그리기 ───────────────────────────────
