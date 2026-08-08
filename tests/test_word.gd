@@ -116,6 +116,70 @@ func _scene_tests() -> void:
 	sc2.queue_free()
 	await get_tree().process_frame
 
+	await _hint_tests()
+
+
+## 힌트 — 답이 흐리게 미리 써 있고, 틀릴수록 진해진다
+func _hint_tests() -> void:
+	print("\n[힌트]")
+	# 아래 단계일수록 답이 더 잘 보여야 한다
+	var a: Array = SpellBar.HINT_ALPHA
+	ok(a[0] > a[1] and a[1] > a[2] and a[2] > a[3],
+		"단계가 올라갈수록 힌트가 흐려진다")
+	ok(float(a[WordData.Tier.MOUNTAIN]) == 0.0, "산 단계는 처음엔 안 보인다")
+
+	for tier in [WordData.Tier.SPROUT, WordData.Tier.MOUNTAIN]:
+		WordDex.reset()
+		WordDex.tier = tier
+		var sc := preload("res://scenes/word/WordScene.tscn").instantiate()
+		sc.instant = true
+		add_child(sc)
+		await get_tree().process_frame
+		await get_tree().process_frame
+
+		var slot := _first_blank(sc.spell)
+		ok(slot != null, "%s: 빈칸이 있다" % WordData.TIER_NAMES[tier])
+		var ghost := slot.get_node_or_null("Ghost") as Label if slot else null
+		ok(ghost != null, "%s: 빈칸에 답이 깔려 있다" % WordData.TIER_NAMES[tier])
+		if ghost != null:
+			ok(ghost.text == "fire"[_first_blank_index(tier)].to_upper(),
+				"%s: 깔린 글자가 정답이다" % WordData.TIER_NAMES[tier])
+			var before: float = ghost.modulate.a
+			# 틀린 철자를 눌러 본다
+			var w := _find_key(sc.spell, "A")
+			if w == null:
+				w = _find_key(sc.spell, "O")
+			if w == null:
+				w = _find_key(sc.spell, "S")
+			if w == null:
+				# 새싹까지는 방해 철자를 안 준다 — 틀릴 수가 없다
+				ok(tier <= WordData.Tier.SPROUT,
+					"%s: 방해 철자가 없어 틀릴 일이 없다" % WordData.TIER_NAMES[tier])
+			if w != null:
+				w.pressed.emit()
+				await get_tree().create_timer(0.3).timeout
+				ok(ghost.modulate.a > before,
+					"%s: 틀리면 힌트가 진해진다" % WordData.TIER_NAMES[tier])
+			# 정답을 놓으면 흐린 글자는 가려진다
+			_solve(sc.spell, tier)
+			await get_tree().process_frame
+			ok(not ghost.visible, "%s: 글자를 놓으면 힌트가 사라진다"
+				% WordData.TIER_NAMES[tier])
+		sc.queue_free()
+		await get_tree().process_frame
+
+
+func _first_blank_index(tier: int) -> int:
+	var b := WordData.blank_slots("fire", tier)
+	return b[0] if b.size() > 0 else 0
+
+
+func _first_blank(bar: SpellBar) -> Button:
+	for b in _all_buttons(bar):
+		if not b.disabled and b.text == "" and b.get_node_or_null("Ghost") != null:
+			return b
+	return null
+
 
 ## 단계에 맞게 정답을 눌러 준다
 func _solve(bar: SpellBar, tier: int) -> void:
