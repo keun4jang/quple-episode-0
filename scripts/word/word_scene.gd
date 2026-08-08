@@ -4,8 +4,11 @@ extends Control
 ##   막힌 곳을 만난다 → 무슨 마법이 필요한지 보인다 → 철자를 놓는다
 ##   → 마법이 터진다 → 길이 열린다 → 도감에 남는다
 ##
-## 한 단어가 한 사건이다. 이 흐름 하나가 재미없으면 단어를 400개 넣어도
-## 소용없으므로, 먼저 이것만 끝까지 만든다.
+## 한 단어가 한 사건이다.
+##
+## 막는 것과 풀리는 것은 장면마다 달라야 한다. 얼음은 **녹고**, 불은
+## **꺼지고**, 강은 **건넌다**. 같은 그림에 단어만 갈아 끼우면 세 번째에
+## 들킨다. 그래서 look.kind 로 갈라 놓았다.
 
 signal scene_cleared(word: String)
 
@@ -14,11 +17,22 @@ signal scene_cleared(word: String)
 ## 테스트에서 연출을 기다리지 않고 넘기려고 쓴다.
 @export var instant := false
 
+## 화면을 위아래로 나눈다. 위는 장면, 아래는 마법 거는 자리.
+##
+## 처음엔 한 화면에 다 얹었더니 쿼카가 철자 칸 위에 올라앉았다. 아이가
+## 누를 곳과 볼 곳은 겹치면 안 된다.
+const GROUND := 424.0        # 발이 닿는 선
+const HORIZON := 330.0       # 하늘과 눈밭의 경계
+const PANEL_TOP := 430.0     # 여기부터 아래는 마법 칸
+const MASCOT := Vector2(152, 212)
+const VP := Vector2(1280, 720)
+
 var data: Dictionary = {}
 var spell: SpellBar
 
 var _bg: Node2D
-var _ice: ColorRect
+var _block: Node2D          # 길을 막은 것
+var _block_kind := "ice"
 var _leader: TextureRect
 var _partner: TextureRect
 var _face: FaceCut
@@ -28,7 +42,7 @@ var _prompt: Label
 var _dex_chip: Label
 var _flash: ColorRect
 var _panel: ColorRect
-var _ice_shadow: ColorRect
+var _flames: Array[Polygon2D] = []
 var _t := 0.0
 var _done := false
 
@@ -38,8 +52,10 @@ func _ready() -> void:
 	data = WordData.scene_by_id(scene_id)
 	if data.is_empty():
 		data = WordData.SCENES[0]
+	_block_kind = String(data.get("look", {}).get("kind", "ice"))
 
 	_build_background()
+	_build_block()
 	_build_characters()
 	_build_bubble()
 	_build_spell()
@@ -52,65 +68,35 @@ func _ready() -> void:
 
 # ── 배경 ──────────────────────────────────────────────────────────────
 #
-# 픽셀 화풍으로 갈아입기 전이라 도형으로 그린다. 색은 기존 팔레트에서
-# 가져와 나중에 픽셀 변환을 그대로 태울 수 있게 둔다.
+# 픽셀 화풍으로 갈아입기 전이라 도형으로 그린다. 색은 장면 데이터에서
+# 가져오므로, 나중에 그림으로 바꿔도 배치는 그대로 쓸 수 있다.
 
-## 화면을 위아래로 나눈다. 위는 장면, 아래는 마법 거는 자리.
-##
-## 처음엔 한 화면에 다 얹었더니 쿼카가 철자 칸 위에 올라앉았다. 아이가
-## 누를 곳과 볼 곳은 겹치면 안 된다.
-const GROUND := 424.0        # 발이 닿는 선
-const HORIZON := 330.0       # 하늘과 눈밭의 경계
-const PANEL_TOP := 430.0     # 여기부터 아래는 마법 칸
+func _look(key: String, fallback: String) -> Color:
+	return Color(String(data.get("look", {}).get(key, fallback)))
+
 
 func _build_background() -> void:
-	var vp := Vector2(1280, 720)
 	_bg = Node2D.new()
 	add_child(_bg)
 
-	_rect(_bg, Vector2.ZERO, Vector2(vp.x, HORIZON), Color("#8FB6D6"))          # 하늘
-	_rect(_bg, Vector2(0, HORIZON), Vector2(vp.x, vp.y), Color("#E4EEF4"))       # 눈밭
-	# 멀리 보이는 산
+	_rect(_bg, Vector2.ZERO, Vector2(VP.x, HORIZON), _look("sky", "#8FB6D6"))
+	_rect(_bg, Vector2(0, HORIZON), VP, _look("ground", "#E4EEF4"))
 	for i in 3:
 		var p := Polygon2D.new()
 		var x := 180.0 + i * 420.0
 		p.polygon = PackedVector2Array([
 			Vector2(x - 300, HORIZON), Vector2(x, 90.0 + i * 30.0),
 			Vector2(x + 300, HORIZON)])
-		p.color = Color("#A9C6DC").darkened(i * 0.05)
+		p.color = _look("hill", "#A9C6DC").darkened(i * 0.05)
 		_bg.add_child(p)
 
-	# 길을 막은 얼음 벽. 화면 안에 온전히 들어와야 "막혔다"가 읽힌다.
-	_ice = ColorRect.new()
-	_ice.color = Color("#5FBBD8")
-	_ice.size = Vector2(250, 290)
-	_ice.position = Vector2(940, GROUND - _ice.size.y)
-	_ice.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_ice)
-	# 결. 밝은 줄을 넣어야 벽이 아니라 **얼음**으로 보인다.
-	for i in 4:
-		var st := ColorRect.new()
-		st.color = Color(1, 1, 1, 0.30)
-		st.size = Vector2(20, _ice.size.y)
-		st.position = Vector2(26 + i * 58, 0)
-		st.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_ice.add_child(st)
-	# 눈밭에 지는 그림자. 이게 없으면 벽이 공중에 떠 보인다.
-	var sh := ColorRect.new()
-	sh.color = Color(0.44, 0.56, 0.66, 0.35)
-	sh.size = Vector2(300, 22)
-	sh.position = Vector2(915, GROUND - 8)
-	sh.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(sh)
-	_ice_shadow = sh
-
 	# 아래 판. 마법 칸이 배경에 묻히지 않게 바닥을 깔아 준다.
+	# 대사만 나올 때는 숨긴다 — 빈 검은 판이 화면 절반을 먹으면 안 된다.
 	_panel = ColorRect.new()
-	_panel.color = Color(0.16, 0.13, 0.18, 0.82)
+	_panel.color = Color(0.16, 0.13, 0.18, 0.30)
 	_panel.position = Vector2(0, PANEL_TOP)
-	_panel.size = Vector2(vp.x, vp.y - PANEL_TOP)
+	_panel.size = Vector2(VP.x, VP.y - PANEL_TOP)
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.visible = false
 	add_child(_panel)
 
 	_flash = ColorRect.new()
@@ -129,10 +115,101 @@ func _rect(p: Node, pos: Vector2, to: Vector2, col: Color) -> void:
 	p.add_child(r)
 
 
-const MASCOT := Vector2(152, 212)
+# ── 길을 막은 것 ──────────────────────────────────────────────────────
+
+func _build_block() -> void:
+	_block = Node2D.new()
+	add_child(_block)
+	match _block_kind:
+		"fire": _build_fire()
+		"gap": _build_gap()
+		_: _build_ice()
+
+
+## 얼음 벽 — 녹는다
+func _build_ice() -> void:
+	var wall := ColorRect.new()
+	wall.name = "Wall"
+	wall.color = Color("#5FBBD8")
+	wall.size = Vector2(250, 290)
+	wall.position = Vector2(940, GROUND - wall.size.y)
+	wall.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_block.add_child(wall)
+	# 결. 밝은 줄을 넣어야 벽이 아니라 **얼음**으로 보인다.
+	for i in 4:
+		var st := ColorRect.new()
+		st.color = Color(1, 1, 1, 0.30)
+		st.size = Vector2(20, wall.size.y)
+		st.position = Vector2(26 + i * 58, 0)
+		st.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wall.add_child(st)
+	_shadow(915, 300)
+
+
+## 불타는 덤불 — 꺼진다
+func _build_fire() -> void:
+	var bush := Polygon2D.new()
+	bush.name = "Bush"
+	bush.polygon = PackedVector2Array([
+		Vector2(920, GROUND), Vector2(950, GROUND - 90),
+		Vector2(1010, GROUND - 130), Vector2(1080, GROUND - 95),
+		Vector2(1120, GROUND - 30), Vector2(1140, GROUND)])
+	bush.color = Color("#3F5136")
+	_block.add_child(bush)
+
+	_flames.clear()
+	for i in 5:
+		var f := Polygon2D.new()
+		var x := 950.0 + i * 42.0
+		var h := 90.0 + (i % 3) * 34.0
+		f.polygon = PackedVector2Array([
+			Vector2(x - 22, GROUND - 90), Vector2(x, GROUND - 90 - h),
+			Vector2(x + 22, GROUND - 90)])
+		f.color = Color("#FF8A3D") if i % 2 == 0 else Color("#FFC24A")
+		_block.add_child(f)
+		_flames.append(f)
+	_shadow(915, 240)
+
+
+## 강 — 디딤돌이 자라 건넌다
+##
+## 땅보다 아래로 파면 아래 판(PANEL_TOP)까지 6px 밖에 안 남아 강이 안
+## 보였다. 그래서 **발밑 앞쪽으로 눕혀** 그린다 — 위에서 비스듬히 보는 강.
+const RIVER_H := 74.0
+
+func _build_gap() -> void:
+	var top := GROUND - RIVER_H
+	var water := Polygon2D.new()
+	water.name = "Water"
+	water.color = Color("#4E93C4")
+	# 왼쪽 끝이 수직이면 네모 스티커처럼 보인다. 비스듬히 흘러 나가게 한다.
+	water.polygon = PackedVector2Array([
+		Vector2(940, top), Vector2(VP.x, top),
+		Vector2(VP.x, GROUND), Vector2(830, GROUND)])
+	_block.add_child(water)
+	for i in 4:
+		var w := ColorRect.new()
+		w.color = Color(1, 1, 1, 0.24)
+		w.size = Vector2(86, 5)
+		w.position = Vector2(990 + i * 74, top + 18 + (i % 2) * 28)
+		w.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_block.add_child(w)
+
+
+func _shadow(x: float, w: float) -> void:
+	var sh := ColorRect.new()
+	sh.name = "Shadow"
+	sh.color = Color(0.30, 0.34, 0.30, 0.28)
+	sh.size = Vector2(w, 20)
+	sh.position = Vector2(x, GROUND - 8)
+	sh.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_block.add_child(sh)
+
+
+# ── 캐릭터 ────────────────────────────────────────────────────────────
 
 func _build_characters() -> void:
-	# 얼음 벽 앞에 선다. 둘과 벽 사이가 비어 있어야 "막혔다"가 보인다.
+	# 막힌 것 앞에 선다. 둘과 벽 사이가 비어 있어야 "막혔다"가 보인다.
 	_leader = _mascot("res://assets/mascots/sheet/leader-front.png", 580.0)
 	_partner = _mascot("res://assets/mascots/sheet/partner-front.png", 720.0)
 
@@ -193,14 +270,14 @@ func _build_spell() -> void:
 	_prompt.add_theme_font_size_override("font_size", 40)
 	_prompt.add_theme_color_override("font_color", Color("#FFF2C8"))
 	_prompt.position = Vector2(0, PANEL_TOP + 8)
-	_prompt.size = Vector2(1280, 48)
+	_prompt.size = Vector2(VP.x, 48)
 	_prompt.visible = false
 	add_child(_prompt)
 
 	spell = SpellBar.new()
 	spell.name = "SpellBar"
 	spell.position = Vector2(0, PANEL_TOP + 54)
-	spell.size = Vector2(1280, 720 - PANEL_TOP - 64)
+	spell.size = Vector2(VP.x, VP.y - PANEL_TOP - 64)
 	spell.visible = false
 	spell.completed.connect(_on_spell_completed)
 	add_child(spell)
@@ -212,7 +289,7 @@ func _build_hud() -> void:
 	_dex_chip.add_theme_font_size_override("font_size", 40)
 	_dex_chip.add_theme_color_override("font_color", Color("#3A2C2C"))
 	_dex_chip.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_dex_chip.position = Vector2(1280 - 260, 20)
+	_dex_chip.position = Vector2(VP.x - 260, 20)
 	_dex_chip.size = Vector2(230, 52)
 	_dex_chip.z_index = 15
 	add_child(_dex_chip)
@@ -245,7 +322,7 @@ func _show_spell() -> void:
 	_prompt.text = String(data.get("prompt", ""))
 	_prompt.visible = true
 	spell.visible = true
-	_panel.visible = true
+	create_tween().tween_property(_panel, "color:a", 0.82, 0.2)
 	if WordDex.tier == WordData.Tier.SEED:
 		spell.setup_choices(data.get("choices", []), String(data["word"]))
 	else:
@@ -261,7 +338,7 @@ func _on_spell_completed(word: String) -> void:
 	_done = true
 	spell.visible = false
 	_prompt.visible = false
-	_panel.visible = false
+	create_tween().tween_property(_panel, "color:a", 0.30, 0.25)
 	_bubble.visible = false
 	_face.visible = false
 
@@ -271,7 +348,7 @@ func _on_spell_completed(word: String) -> void:
 	SaveManager.save_now()
 
 	if instant:
-		_melt_now()
+		_clear_now()
 		scene_cleared.emit(word)
 		return
 	await _cast(word)
@@ -303,17 +380,58 @@ func _cast(word: String) -> void:
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.parallel().tween_property(_flash, "color:a", 0.6, 0.18)
 	tw.tween_property(_flash, "color:a", 0.0, 0.5)
-	# 얼음이 녹는다
-	tw.parallel().tween_property(_ice, "size:y", 0.0, 0.6) \
-		.set_ease(Tween.EASE_IN)
-	tw.parallel().tween_property(_ice, "position:y", _ice.position.y + _ice.size.y, 0.6)
-	tw.parallel().tween_property(_ice, "modulate:a", 0.0, 0.6)
-	tw.parallel().tween_property(_ice_shadow, "modulate:a", 0.0, 0.6)
+	_play_clear(tw)
 	tw.tween_property(big, "modulate:a", 0.0, 0.35)
 	await tw.finished
 	big.queue_free()
+	_show_dex_chip(word)
 
-	# 배운 단어가 도감에 들어갔다고 알려 준다
+
+## 막은 것이 사라지는 방식. 장면마다 다르다.
+func _play_clear(tw: Tween) -> void:
+	match _block_kind:
+		"fire":
+			# 불만 꺼진다. 덤불은 그을린 채 남는다 — 흔적이 있어야 겪은 일이 된다.
+			for f in _flames:
+				tw.parallel().tween_property(f, "scale", Vector2(1.0, 0.0), 0.5)
+				tw.parallel().tween_property(f, "modulate:a", 0.0, 0.5)
+			var bush := _block.get_node_or_null("Bush") as Polygon2D
+			if bush != null:
+				tw.parallel().tween_property(bush, "color", Color("#2A2622"), 0.5)
+		"gap":
+			# 물은 그대로 두고 디딤돌이 **자라 오른다**. 건너는 장면이라야 한다.
+			_grow_steps(tw)
+		_:
+			var wall := _block.get_node_or_null("Wall") as ColorRect
+			if wall != null:
+				tw.parallel().tween_property(wall, "size:y", 0.0, 0.6) \
+					.set_ease(Tween.EASE_IN)
+				tw.parallel().tween_property(wall, "position:y",
+					wall.position.y + wall.size.y, 0.6)
+				tw.parallel().tween_property(wall, "modulate:a", 0.0, 0.6)
+	var sh := _block.get_node_or_null("Shadow") as ColorRect
+	if sh != null and _block_kind != "fire":
+		tw.parallel().tween_property(sh, "modulate:a", 0.0, 0.6)
+
+
+func _grow_steps(tw: Tween) -> void:
+	# 강 위에서 **자라 오른다.** 물이 사라지는 게 아니라 건널 길이 생긴다.
+	for i in 3:
+		var s := ColorRect.new()
+		s.name = "Step%d" % i
+		s.color = Color("#7BA85F")
+		s.size = Vector2(96, 0)
+		s.position = Vector2(890 + i * 118, GROUND - 14)
+		s.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_block.add_child(s)
+		tw.parallel().tween_property(s, "size:y", 46.0, 0.5) \
+			.set_delay(i * 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		tw.parallel().tween_property(s, "position:y", GROUND - 60.0, 0.5) \
+			.set_delay(i * 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+
+
+## 배운 단어가 도감에 들어갔다고 알려 준다
+func _show_dex_chip(word: String) -> void:
 	var chip := Label.new()
 	chip.text = "📖 %s  %s" % [word, String(data.get("ko", ""))]
 	chip.add_theme_font_size_override("font_size", 42)
@@ -329,15 +447,30 @@ func _cast(word: String) -> void:
 	t2.tween_property(chip, "modulate:a", 0.0, 0.4)
 
 
-func _melt_now() -> void:
-	if _ice != null:
-		_ice.visible = false
-	if _ice_shadow != null:
-		_ice_shadow.visible = false
+## 테스트용 — 연출 없이 결과 상태로
+func _clear_now() -> void:
+	match _block_kind:
+		"fire":
+			for f in _flames:
+				f.visible = false
+		"gap":
+			pass
+		_:
+			var wall := _block.get_node_or_null("Wall")
+			if wall != null:
+				(wall as CanvasItem).visible = false
+	var sh := _block.get_node_or_null("Shadow")
+	if sh != null:
+		(sh as CanvasItem).visible = false
 
 
 func _process(delta: float) -> void:
-	# 추울 때 파트너가 떤다. 표정만으로는 부족하다.
 	_t += delta
-	if _partner != null and not _done:
-		_partner.position.x = 720.0 + sin(_t * 22.0) * 2.0
+	# 아직 막혀 있는 동안에만 움직인다. 풀린 뒤에도 떨면 이상하다.
+	if _done:
+		return
+	if _partner != null and _block_kind == "ice":
+		_partner.position.x = 720.0 + sin(_t * 22.0) * 2.0     # 추워서 떤다
+	for i in _flames.size():
+		var f := _flames[i]
+		f.scale.y = 1.0 + sin(_t * 7.0 + i * 1.3) * 0.16       # 불이 흔들린다

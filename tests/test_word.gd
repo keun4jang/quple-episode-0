@@ -12,6 +12,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_data_tests()
 	await _scene_tests()
+	await _all_scene_tests()
+	await _minigame_tests()
+	await _chapter_tests()
 	_save_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
@@ -210,6 +213,154 @@ func _all_buttons(n: Node) -> Array[Button]:
 			out.append(c)
 		out.append_array(_all_buttons(c))
 	return out
+
+
+# ── 세 장면 ───────────────────────────────────────────────────────────
+#
+# 장면마다 막는 것과 풀리는 것이 달라야 한다. 같은 그림에 단어만 갈아
+# 끼우면 세 번째에 들킨다.
+
+func _all_scene_tests() -> void:
+	print("\n[세 장면]")
+	var kinds := {}
+	var words := {}
+	var skies := {}
+	for s in WordData.SCENES:
+		kinds[s["look"]["kind"]] = true
+		words[s["word"]] = true
+		skies[s["look"]["sky"]] = true
+	ok(WordData.SCENES.size() >= 3, "장면이 셋 이상")
+	ok(kinds.size() == WordData.SCENES.size(), "막는 방식이 장면마다 다르다")
+	ok(words.size() == WordData.SCENES.size(), "단어가 겹치지 않는다")
+	ok(skies.size() == WordData.SCENES.size(), "하늘색이 장면마다 다르다")
+
+	# 고르기 보기에 정답이 반드시 있어야 한다 (씨앗 단계가 막히면 안 된다)
+	var all_ok := true
+	for s in WordData.SCENES:
+		var found := false
+		for c in s.get("choices", []):
+			if String(c.get("word", "")) == s["word"]:
+				found = true
+		if not found:
+			all_ok = false
+	ok(all_ok, "보기 안에 정답이 있다")
+
+	# 방해 철자가 정답 철자와 겹치면 잘못 눌러도 통과해 버린다
+	var clean := true
+	for s in WordData.SCENES:
+		for e in s.get("extra", []):
+			if String(s["word"]).to_upper().contains(String(e).to_upper()):
+				clean = false
+	ok(clean, "방해 철자가 정답 철자와 안 겹친다")
+
+	# 셋 다 실제로 끝까지 돈다
+	WordDex.reset()
+	WordDex.tier = WordData.Tier.TREE
+	for s in WordData.SCENES:
+		var sc := preload("res://scenes/word/WordScene.tscn").instantiate()
+		sc.scene_id = s["id"]
+		sc.instant = true
+		add_child(sc)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		_solve_word(sc.spell, String(s["word"]), WordData.Tier.TREE)
+		await get_tree().process_frame
+		ok(WordDex.knows(String(s["word"])),
+			"%s: %s 배움" % [s["id"], s["word"]])
+		sc.queue_free()
+		await get_tree().process_frame
+	ok(WordDex.count() == WordData.SCENES.size(), "도감에 세 단어가 다 있다")
+
+
+func _solve_word(bar: SpellBar, word: String, tier: int) -> void:
+	for i in WordData.blank_slots(word, tier):
+		var k := _find_key(bar, word[i].to_upper())
+		if k != null:
+			k.pressed.emit()
+
+
+# ── 미니게임 ──────────────────────────────────────────────────────────
+
+func _minigame_tests() -> void:
+	print("\n[미니게임]")
+	var m := WordData.minigame_by_id("ice_smash")
+	ok(not m.is_empty(), "얼음 깨기가 있다")
+	ok(WordDex.knows(String(m["word"])) or true, "이미 배운 단어를 쓴다")
+	ok(float(m["seconds"]) <= 40.0, "40초를 안 넘는다")
+
+	var mg := preload("res://scenes/word/Minigame.tscn").instantiate()
+	mg.instant = true
+	var got := [-1]
+	mg.minigame_done.connect(func(n): got[0] = n)
+	add_child(mg)
+	await get_tree().process_frame
+	mg.run_instant(5)
+	await get_tree().process_frame
+	ok(got[0] == 5, "녹인 개수를 알려 준다")
+	ok(mg.missed == 0, "놓친 게 없으면 0")
+	mg.queue_free()
+	await get_tree().process_frame
+
+	# 놓쳐도 잃는 게 없다 — 도감도 진행도 그대로다
+	var before := WordDex.count()
+	var mg2 := preload("res://scenes/word/Minigame.tscn").instantiate()
+	mg2.instant = true
+	add_child(mg2)
+	await get_tree().process_frame
+	mg2._add_chunk()
+	mg2._blocked(mg2._chunks[0])
+	await get_tree().process_frame
+	ok(mg2.missed == 1, "놓친 것은 센다")
+	ok(WordDex.count() == before, "놓쳐도 잃는 게 없다")
+	mg2.queue_free()
+	await get_tree().process_frame
+
+
+# ── 챕터 한 줄기 ──────────────────────────────────────────────────────
+
+func _chapter_tests() -> void:
+	print("\n[챕터]")
+	var c: Array[String] = WordData.CHAPTER_1
+	ok(c.size() == 4, "1장은 네 걸음")
+	var games := 0
+	for s in c:
+		if WordData.is_minigame(s):
+			games += 1
+	ok(games == 1, "미니게임은 하나")
+	ok(WordData.is_minigame(c[c.size() - 1]), "미니게임이 단어 셋 뒤에 온다")
+	for s in c:
+		if not WordData.is_minigame(s):
+			ok(not WordData.scene_by_id(s).is_empty(), "차례에 있는 %s 장면이 실제로 있다" % s)
+
+	# 처음부터 끝까지 실제로 이어서 돈다
+	WordDex.reset()
+	WordDex.tier = WordData.Tier.TREE
+	var ch := preload("res://scenes/word/Chapter.tscn").instantiate()
+	ch.instant = true
+	var done := [false]
+	ch.chapter_done.connect(func(): done[0] = true)
+	add_child(ch)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var guard := 0
+	while not done[0] and guard < 40:
+		guard += 1
+		var step: Node = ch._current
+		if step == null:
+			await get_tree().process_frame
+			continue
+		if step.has_method("run_instant"):
+			step.run_instant(3)
+		elif step.get("spell") != null:
+			_solve_word(step.spell, String(step.data["word"]), WordData.Tier.TREE)
+		await get_tree().process_frame
+		await get_tree().process_frame
+
+	ok(done[0], "1장이 처음부터 끝까지 돈다")
+	ok(WordDex.count() == 3, "1장을 돌면 단어 셋을 배운다")
+	ch.queue_free()
+	await get_tree().process_frame
 
 
 # ── 저장 ──────────────────────────────────────────────────────────────
