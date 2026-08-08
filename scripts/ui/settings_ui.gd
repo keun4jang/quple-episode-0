@@ -20,8 +20,71 @@ func _ready() -> void:
 	close_btn.pressed.connect(close)
 	reset_btn.pressed.connect(_on_reset)
 	_add_home_button()
+	_add_tier_row()
 	_add_update_row()
 	_make_scrollable()
+
+
+## 난이도. 이야기는 어느 단계든 같고 마법 거는 방법만 다르다.
+##
+## 초1과 중3을 한 게임에 담으려면 길을 나누는 수밖에 없다. 형이 하던 걸
+## 동생이 씨앗 단계로 똑같이 할 수 있어야 한다.
+func _add_tier_row() -> void:
+	var body := close_btn.get_parent()
+	if body == null:
+		return
+	var box := VBoxContainer.new()
+	box.name = "TierBox"
+	box.add_theme_constant_override("separation", 6)
+	body.add_child(box)
+	box.get_parent().move_child(box, 0)
+
+	var title := Label.new()
+	title.text = "난이도"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 32)
+	box.add_child(title)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	box.add_child(row)
+
+	_tier_btns.clear()
+	for i in WordData.TIER_NAMES.size():
+		var b := Button.new()
+		b.text = WordData.TIER_NAMES[i]
+		b.tooltip_text = WordData.TIER_HINTS[i]
+		b.custom_minimum_size = Vector2(120, 96)
+		b.toggle_mode = true
+		b.add_theme_font_size_override("font_size", 34)
+		b.pressed.connect(_on_tier_pick.bind(i))
+		row.add_child(b)
+		_tier_btns.append(b)
+
+	_tier_hint = Label.new()
+	_tier_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_tier_hint.add_theme_font_size_override("font_size", 28)
+	_tier_hint.add_theme_color_override("font_color", Color(0.78, 0.76, 0.88))
+	box.add_child(_tier_hint)
+	_refresh_tier()
+
+
+var _tier_btns: Array[Button] = []
+var _tier_hint: Label
+
+
+func _on_tier_pick(i: int) -> void:
+	WordDex.set_tier(i)
+	SaveManager.save_now()
+	_refresh_tier()
+
+
+func _refresh_tier() -> void:
+	for i in _tier_btns.size():
+		_tier_btns[i].button_pressed = (i == WordDex.tier)
+	if _tier_hint != null:
+		_tier_hint.text = WordData.TIER_HINTS[WordDex.tier] + " · 이야기는 모두 같아요"
 
 
 ## 설정창이 화면을 넘치지 않게 한다.
@@ -229,6 +292,7 @@ func open() -> void:
 	if _update_btn != null and not _update_btn.disabled:
 		_update_btn.text = "업데이트 확인"
 	reset_btn.text = "기록 초기화"
+	_refresh_tier()
 	visible = true
 	panel.scale = Vector2(0.9, 0.9)
 	panel.pivot_offset = panel.size / 2.0

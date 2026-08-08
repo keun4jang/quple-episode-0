@@ -12,10 +12,10 @@ config_version=5
 
 config/name="쿼플"
 config/description="쿼카 커플의 힐링 여행"
+config/version="0.1.47"
 run/main_scene="res://scenes/menu/MainMenu3D.tscn"
 config/features=PackedStringArray("4.3")
 config/icon="res://assets/icon/icon-512.png"
-config/version="0.1.47"
 
 [autoload]
 
@@ -23,6 +23,7 @@ AutoUpdate="*res://scripts/systems/auto_update.gd"
 Episode0State="*res://scripts/systems/episode0_state.gd"
 TravelState="*res://scripts/systems/travel_state.gd"
 SaveManager="*res://scripts/systems/save_manager.gd"
+WordDex="*res://scripts/systems/word_dex.gd"
 AudioManager="*res://scripts/systems/audio_manager.gd"
 SceneTransition="*res://scenes/systems/SceneTransition.tscn"
 
@@ -30,14 +31,13 @@ SceneTransition="*res://scenes/systems/SceneTransition.tscn"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
-window/handheld/orientation=4
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/handheld/orientation=4
 
 [gui]
 
 theme/custom="res://assets/themes/quple_bold.tres"
-
 input_devices/pointing/emulate_touch_from_mouse=false
 
 [input]

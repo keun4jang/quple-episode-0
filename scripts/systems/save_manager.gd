@@ -36,6 +36,7 @@ func autosave(current_scene: String, player_pos: Vector3 = Vector3.ZERO) -> void
 	cfg.set_value("game", "player_position", player_pos)
 	cfg.set_value("episode0", "data", Episode0State.to_dict())
 	cfg.set_value("travel", "data", TravelState.to_dict())
+	cfg.set_value("words", "data", WordDex.to_dict())
 	if cfg.save(TEMP_PATH) == OK and _is_valid(TEMP_PATH):
 		var da := DirAccess.open("user://")
 		if da:
@@ -68,6 +69,7 @@ func save_game(current_scene: String = "") -> void:
 		cfg.set_value("game", "current_scene", "res://scenes/travel/TravelHub.tscn")
 	cfg.set_value("episode0", "data", Episode0State.to_dict())
 	cfg.set_value("travel", "data", TravelState.to_dict())
+	cfg.set_value("words", "data", WordDex.to_dict())
 
 	# ① 임시 파일에 먼저
 	if cfg.save(TEMP_PATH) != OK:
@@ -115,6 +117,7 @@ func save_now() -> void:
 ##
 ## 안드로이드는 백그라운드로 갈 때 APPLICATION_PAUSED 를 준다. 그 뒤에
 ## 시스템이 언제 앱을 죽일지는 알 수 없으므로, 여기서 반드시 써 둔다.
+##
 ## 창을 왔다 갔다 하면 FOCUS_OUT 이 연달아 오므로 잠깐 사이에 두 번은 안 쓴다.
 var _last_auto := 0.0
 
@@ -159,6 +162,8 @@ func load_game() -> bool:
 		return false
 	Episode0State.from_dict(cfg.get_value("episode0", "data", {}))
 	TravelState.from_dict(cfg.get_value("travel", "data", {}))
+	# 단어 도감은 나중에 붙었다. 예전 저장본에는 없으므로 빈 값으로 받는다.
+	WordDex.from_dict(cfg.get_value("words", "data", {}))
 	# 백업에서 살렸으면 정상 저장본으로 다시 써둔다.
 	# 이때 백업을 덮으면 안 된다 — 깨진 파일이 백업이 되어버린다.
 	if path == BACKUP_PATH:
@@ -234,3 +239,4 @@ func clear_save() -> void:
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
 	Episode0State.reset()
 	TravelState.reset()
+	WordDex.reset()
