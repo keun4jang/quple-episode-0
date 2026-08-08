@@ -89,6 +89,48 @@ func save_game(current_scene: String = "") -> void:
 		da.rename(TEMP_PATH.get_file(), SAVE_PATH.get_file())
 	game_saved.emit()
 
+## 지금 화면을 그대로 저장한다. 어디서 불러도 안전하다.
+##
+## 0편을 이미 깬 사람이 0편 맵을 구경하다 저장되면 그 자리가 이어하기로
+## 굳어서, 다음에 켤 때 또 그 빈 맵으로 돌아온다. 그래서 그 경우만 뺀다.
+func save_now() -> void:
+	var scene := get_tree().current_scene if get_tree() != null else null
+	if scene == null or not is_instance_valid(scene):
+		return
+	var here := scene.scene_file_path
+	if here == "":
+		return
+	var is_ep0 := here.contains("/side/") or here.contains("/maps/")
+	if Episode0State.episode0_cleared and is_ep0:
+		save_game()          # 진행도만 저장하고 위치는 건드리지 않는다
+		return
+	save_game(here)
+
+
+## 앱이 물러나거나 꺼질 때 저장한다.
+##
+## 지금까지 저장은 "무슨 일이 일어났을 때"만 됐다 — 여행 출발, 사진 받기,
+## 맵 이동. 그래서 도감을 열어 보다가 홈 버튼을 누르면 그 사이에 한 일이
+## 사라졌다. 폰에서 앱이 죽는 건 거의 다 이 순간이다.
+##
+## 안드로이드는 백그라운드로 갈 때 APPLICATION_PAUSED 를 준다. 그 뒤에
+## 시스템이 언제 앱을 죽일지는 알 수 없으므로, 여기서 반드시 써 둔다.
+## 창을 왔다 갔다 하면 FOCUS_OUT 이 연달아 오므로 잠깐 사이에 두 번은 안 쓴다.
+var _last_auto := 0.0
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_APPLICATION_PAUSED, \
+		NOTIFICATION_APPLICATION_FOCUS_OUT, \
+		NOTIFICATION_WM_CLOSE_REQUEST, \
+		NOTIFICATION_WM_GO_BACK_REQUEST:
+			var now := Time.get_unix_time_from_system()
+			if now - _last_auto < 2.0:
+				return
+			_last_auto = now
+			save_now()
+
+
 ## 저장 파일이 온전한가
 func _is_valid(path: String) -> bool:
 	var c := ConfigFile.new()
