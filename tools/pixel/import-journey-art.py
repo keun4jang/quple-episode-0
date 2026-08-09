@@ -33,6 +33,10 @@ UNIT = 8          # 1유닛 = 8px  (캐릭터 3유닛 = 24px)
 TILE = 16         # 바닥 타일 한 칸
 ## 바닥 타일에 남길 결의 세기 (0~255 기준 표준편차). 넘으면 눌러 준다.
 TILE_NOISE = 5.0
+## **너무 밋밋해도 안 된다.** 카펫이나 잔모래처럼 결이 고운 그림은 16px 로
+## 줄이는 순간 평균으로 뭉개져 고유색 한 개짜리 판이 된다. 그러면 바닥이
+## 아니라 색 띠(color bar)로 보인다. 이 아래로 떨어지면 결을 넣어 준다.
+TILE_GRAIN_MIN = 2.6
 
 # ── 팔레트 ────────────────────────────────────────────────────────────
 #
@@ -368,6 +372,26 @@ def flatten_ground(im: Image.Image, noise: float = TILE_NOISE) -> Image.Image:
     return Image.fromarray(a.astype("uint8"), "RGBA")
 
 
+def grain_ground(im: Image.Image, floor: float = TILE_GRAIN_MIN) -> Image.Image:
+    """너무 평평한 바닥에 아주 옅은 결을 넣는다.
+
+    무작위를 쓰지 않는다 — 다시 돌릴 때마다 바닥이 달라지면 안 된다.
+    칸 좌표로 정해지는 값을 쓴다. 세기는 눈에 "무늬"로 안 보일 만큼만:
+    바닥은 걸어 다니는 곳이지 쳐다보는 곳이 아니다.
+    """
+    a = np.asarray(im.convert("RGBA")).astype(float)
+    rgb = a[..., :3]
+    y = 0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2]
+    if float(y.std()) >= floor:
+        return im
+    h, w = y.shape
+    xs, ys = np.meshgrid(np.arange(w), np.arange(h))
+    n = ((xs * 73856093) ^ (ys * 19349663)) % 1000
+    d = (n / 999.0 - 0.5) * (floor * 3.2)
+    a[..., :3] = (rgb + d[..., None]).clip(0, 255)
+    return Image.fromarray(a.astype("uint8"), "RGBA")
+
+
 # ── 턴어라운드 → 걷기 시트 ────────────────────────────────────────────
 #
 # 제미나이에 걷기 프레임을 통째로 시키면 프레임마다 얼굴이 달라진다.
@@ -533,7 +557,9 @@ SHEETS = [
         "out": OUT_TILES,
         "names": ["office-carpet", "lobby-marble", "basalt",
                   "granite-step", "clay-earth", "slate-path"],
-        "noise": {"lobby-marble": 1.6, "granite-step": 2.2, "slate-path": 1.8},
+        # 무늬가 또렷한 셋만 조금 눌러 준다. 더 누르면 재질이 사라져
+        # 색 띠(color bar)가 된다 — 실제로 한 번 그렇게 만들었다.
+        "noise": {"lobby-marble": 3.4, "granite-step": 3.6, "slate-path": 3.6},
     },
     {
         "id": "g3",
@@ -722,6 +748,7 @@ def run_sheet(sheet: dict, pal: Image.Image) -> list:
             noise = sheet.get("noise", {}).get(name, TILE_NOISE)
             tile = flatten_ground(
                 to_pixel(cell.convert("RGBA"), TILE, TILE, pal), noise)
+            tile = grain_ground(tile)
             out = os.path.join(sheet["out"], name + ".png")
             tile.save(out)
             made.append(out)
