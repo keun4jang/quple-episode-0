@@ -1,11 +1,12 @@
 # 제미나이 프롬프트 — 첫 여행지 (바닷가 마을)
 
 > `docs/redesign-journey.md` 13절의 **최소 버전**에 필요한 그림.
-> 여행지 한 곳(숙소·마을길·바닷가) + 인연 셋.
+> 여행지 한 곳(숙소·마을길·바닷가) + 인연 셋 + **고향집** + 쿼카컴퍼니.
+> 이야기는 `docs/story-journey.md`.
 
 ## 0. 먼저 읽을 것
 
-### 왜 5장으로 몰아서 받나
+### 왜 몰아서 받나
 
 낱장으로 18개를 받으면 **화풍이 전부 따로 논다.** 선 굵기도, 색감도, 그림자 방향도
 매번 달라진다. 탑다운 게임은 그것들이 한 화면에 동시에 보이므로 바로 티가 난다.
@@ -13,7 +14,7 @@
 그래서 **한 장에 여러 개를 격자로 몰아 받는다.** 같은 생성 안에서는 화풍이 유지된다.
 자르는 건 내가 한다 (PIL, 무료).
 
-### 다섯 장
+### 일곱 장
 
 | | 무엇 | 우선순위 |
 |---|---|---|
@@ -22,8 +23,13 @@
 | **C** | 자연물 6종 (나무·바위·풀숲) | |
 | **D** | 소품 6종 (벤치·가로등·표지판·화분·담장·부두) | |
 | **E** | 인연 3명 (붙박이 2 · 여행자 1) | ⭐ |
+| **F** | 쿼카컴퍼니 (사무실·로비·회사 앞) | 프롤로그용 |
+| **G** | 고향집 (집·마당·가족 3명) | ⭐⭐ 제일 중요 |
 
-**A · B · E 만 있어도 걸어 다니는 화면이 나온다.** 나머지는 나중에 줘도 된다.
+**A · B · E 만 있어도 걸어 다니는 화면이 나온다.** C · D · F 는 나중에 줘도 된다.
+
+**G(고향집)는 우선순위가 제일 높다.** `docs/story-journey.md` 8절대로
+고향집을 먼저 만들어 이 게임이 뭉클한지부터 볼 것이기 때문이다.
 
 ### 내가 할 일 (그림 받은 뒤)
 
@@ -45,7 +51,7 @@ AI가 그린 "픽셀풍"은 픽셀 격자가 안 맞아서 쓸 수가 없다.
 
 ## 1. 모든 프롬프트에 붙일 머리말
 
-**아래 블록을 다섯 장 전부의 맨 앞에 그대로 붙여 주세요.** 이게 화풍을 묶어 줍니다.
+**아래 블록을 일곱 장 전부의 맨 앞에 그대로 붙여 주세요.** 이게 화풍을 묶어 줍니다.
 
 ```
 A cozy top-down game art asset sheet, 3/4 overhead view (like Stardew Valley
@@ -235,3 +241,127 @@ Each fully separated on the magenta background. Front view only.
 A · B · E 세 장만 오면 **걸어 다니는 화면**을 바로 만들 수 있습니다.
 그동안 저는 이 그림들을 받아 자르고 16px 격자에 맞추는 도구
 (`tools/pixel/import-journey-art.py`)를 미리 만들어 두겠습니다.
+
+
+---
+
+## 10. F장 — 쿼카컴퍼니 (프롤로그)
+
+> `docs/story-journey.md` 3절. 밤 11시 사무실에서 걸어 나오는 장면.
+>
+> **톤이 중요합니다.** 무섭거나 우울한 회사가 아닙니다. 그냥 **내 자리가 아니었던 곳**
+> 입니다. 악당스러운 연출(붉은 조명, 감옥 같은 구도)을 넣지 말아 주세요.
+
+```
+(머리말 + 이어서 — 단 색 규칙만 아래로 바꿉니다)
+
+OVERRIDE the palette rule for this sheet only: use muted desaturated colors —
+cool grey, dim blue-grey, tired beige, with small warm points of light from
+monitors and desk lamps. Still gentle, never harsh or scary.
+
+Create a 3x2 grid of six office objects, seen from a 3/4 overhead game camera.
+Scale reference: a small animal character is about 3 units tall.
+
+1. An office desk with a monitor (screen glowing faint blue), a keyboard,
+   and a paper cup, about 2 units tall
+2. An office swivel chair, seen from behind, 2 units tall
+3. A tall grey filing cabinet, 4 units tall
+4. A row of three large office windows showing a night city view outside —
+   small distant building lights on a dark blue sky
+5. A reception desk with a small potted plant on it, 2 units tall
+6. A wall-mounted return box with a narrow slot, like a mailbox,
+   1 unit tall, mounted on a short section of wall
+
+Each object separate on the magenta background, clear gaps, none cropped.
+```
+
+**한 장 더 (선택)** — 회사 건물 바깥 모습. 없어도 됩니다.
+
+```
+(머리말 + 이어서)
+
+A single large office building seen from a 3/4 overhead game camera, at night.
+About 30 units tall but shown from the street level so we mainly see the lower
+three floors and the entrance. Plain grey-blue glass and concrete, a revolving
+door at the base, a few lit windows scattered above. Calm and ordinary —
+not intimidating, not dystopian. On magenta background, nothing cropped.
+```
+
+---
+
+## 11. G장 — 고향집 ⭐⭐
+
+> `docs/story-journey.md` 5절. **이 게임에서 제일 중요한 장소입니다.**
+>
+> 실제 지명은 안 씁니다. **이름 없는 시골** — 누구의 고향이든 될 수 있게.
+
+### G-1. 집과 마당
+
+```
+(머리말 + 이어서)
+
+Create four objects for a small rural family home, seen from a 3/4 overhead
+game camera. Scale reference: a small animal character is about 3 units tall.
+
+1. A small old countryside house, one story, about 7 units tall.
+   Low tiled roof, warm weathered wood and pale plaster walls, a sliding
+   paper door in the middle, one window with a soft warm light inside,
+   and a low porch step in front. Humble and well-kept, not run-down.
+
+2. A persimmon tree with a few orange fruits, about 8 units tall,
+   slightly leaning.
+
+3. A low wide wooden platform bench (a flat raised deck you can sit or lie
+   on), about 1 unit tall and 4 units wide, seen from the 3/4 angle.
+
+4. A small vegetable garden patch — neat rows of low green leafy vegetables
+   in dark soil, about 5 units wide.
+
+Each object separate on the magenta background, clear gaps, none cropped.
+```
+
+### G-2. 가족 3명
+
+```
+(머리말 + 이어서)
+
+Create three quokka family characters standing side by side, each FACING THE
+VIEWER (front view), full body, arms relaxed at their sides.
+
+They must all clearly be quokkas — small round marsupials with a naturally
+gentle upturned mouth, small rounded ears, plump body, short arms.
+Soft rounded chibi style, roughly 3 heads tall.
+
+1. Mother. Slightly plump, soft grey-brown fur, wearing a faded floral apron
+   over simple clothes, hair pinned back. Calm face, warm but not smiling
+   too widely.
+
+2. Father. Sturdier build, darker brown fur, wearing a worn work jacket and
+   a flat cap, holding nothing. Quiet, reserved expression.
+
+3. Younger sibling. Smaller and slimmer, lighter fur, wearing a loose hoodie
+   and shorts. Bright, direct, slightly cheeky expression.
+
+All three the same height in the image so proportions can be compared.
+Each fully separated on the magenta background. Front view only.
+```
+
+**받은 뒤 내가 할 일**: 정면 한 장으로 옆·뒤 방향과 걷기 프레임을 만듭니다.
+
+### G-3. 마당 바닥 (선택)
+
+```
+(머리말 + 이어서)
+
+Create a 2x2 grid of four SEAMLESS TILING ground texture patches, each
+512x512 pixels, viewed straight from directly above, with magenta gaps
+between them.
+
+Each must tile seamlessly — left edge continues into right edge, top into
+bottom. Keep the pattern even and calm.
+
+1. Dry packed earth of a rural yard, warm pale brown, faint broom marks
+2. Dark tilled farm soil in low parallel furrows
+3. Coarse country grass, slightly yellowed, uneven
+4. Flat grey stone slabs of an old stepping path
+```
