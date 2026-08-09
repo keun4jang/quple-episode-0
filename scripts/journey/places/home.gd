@@ -15,7 +15,7 @@ func _init() -> void:
 	legend = {
 		"g": "grass",         # 바깥 풀밭
 		".": "dry-grass",     # 마당과 풀밭 사이, 밟혀서 누런 데
-		"y": "dirt",          # 마당. 비질한 마른 흙
+		"y": "clay-earth",    # 마당. 비질한 황토
 		"s": "stone-slab",    # 집 앞 디딤돌
 		"f": "tilled-soil",   # 밭고랑
 	}

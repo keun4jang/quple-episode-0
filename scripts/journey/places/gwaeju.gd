@@ -10,7 +10,7 @@ func place_name() -> String:
 
 func _init() -> void:
 	legend = {
-		"c": "cobble",       # 옛 돌길
+		"c": "slate-path",   # 옛 돌길
 		"s": "stone-slab",   # 능 앞 박석
 		"g": "grass",        # 잔디 무덤
 		".": "dry-grass",

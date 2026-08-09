@@ -343,7 +343,7 @@ def center_crop(im: Image.Image) -> Image.Image:
     return im.crop((m, m, w - m, h - m))
 
 
-def flatten_ground(im: Image.Image) -> Image.Image:
+def flatten_ground(im: Image.Image, noise: float = TILE_NOISE) -> Image.Image:
     """바닥 타일은 **거의 평평해야** 한다.
 
     처음엔 가장자리끼리 섞어 이음매를 지웠다. 그런데 그 섞임이 타일마다
@@ -362,8 +362,8 @@ def flatten_ground(im: Image.Image) -> Image.Image:
     rgb = a[..., :3]
     mean = rgb.reshape(-1, 3).mean(axis=0)
     std = float(np.sqrt(((rgb - mean) ** 2).mean()))
-    if std > TILE_NOISE:
-        rgb = mean + (rgb - mean) * (TILE_NOISE / std)
+    if std > noise:
+        rgb = mean + (rgb - mean) * (noise / std)
     a[..., :3] = rgb.clip(0, 255)
     return Image.fromarray(a.astype("uint8"), "RGBA")
 
@@ -523,6 +523,17 @@ SHEETS = [
         "mode": "grid",
         "out": OUT_TILES,
         "names": ["grass", "sand", "dirt", "cobble", "water", "deck"],
+    },
+    {
+        # Q장 — 여섯 곳이 다 같은 색이라 갈라 주려고 받은 바닥.
+        # 쿼울 실내 둘(카펫·대리석)과, 여행지를 구별해 주는 넷.
+        "id": "q",
+        "file": "q-floors.jpg",
+        "mode": "grid",
+        "out": OUT_TILES,
+        "names": ["office-carpet", "lobby-marble", "basalt",
+                  "granite-step", "clay-earth", "slate-path"],
+        "noise": {"lobby-marble": 1.6, "granite-step": 2.2, "slate-path": 1.8},
     },
     {
         "id": "g3",
@@ -705,7 +716,12 @@ def run_sheet(sheet: dict, pal: Image.Image) -> list:
             # 정사각 가운데만 쓰고, 팔레트를 입힌 뒤에 결을 눌러 준다
             side = min(cell.size)
             cell = center_crop(cell.crop((0, 0, side, side)))
-            tile = flatten_ground(to_pixel(cell.convert("RGBA"), TILE, TILE, pal))
+            # 무늬가 또렷한 바닥(대리석 줄눈·기와 골·화강암 소용돌이)은 더
+            # 눌러 준다. 16px 에서는 무늬 하나가 칸 하나를 차지해서, 깔아
+            # 놓으면 무늬가 아니라 **격자**로 읽힌다.
+            noise = sheet.get("noise", {}).get(name, TILE_NOISE)
+            tile = flatten_ground(
+                to_pixel(cell.convert("RGBA"), TILE, TILE, pal), noise)
             out = os.path.join(sheet["out"], name + ".png")
             tile.save(out)
             made.append(out)

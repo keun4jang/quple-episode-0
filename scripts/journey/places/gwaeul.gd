@@ -15,9 +15,9 @@ func place_name() -> String:
 
 func _init() -> void:
 	legend = {
-		"o": "stone-slab",   # 사무실 바닥
-		"l": "cobble",       # 로비
-		"c": "cobble",
+		"o": "office-carpet",  # 30층 사무실. 실내다
+		"l": "lobby-marble",   # 1층 로비
+		"c": "lobby-marble",
 		".": "dirt",         # 회사 앞 새벽 거리
 		"g": "grass",
 	}

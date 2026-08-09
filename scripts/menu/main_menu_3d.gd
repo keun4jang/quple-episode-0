@@ -30,6 +30,7 @@ func _ready() -> void:
 		_capture_shot()
 
 	_build_ui_decorations()
+	_add_subtitle()
 
 func _process(delta: float) -> void:
 	_t += delta
@@ -299,6 +300,36 @@ func _on_quit() -> void:
 	get_tree().quit()
 
 # ─── 배경 별 (3D 앰비언트) ───
+## 로고 아래 한 줄.
+##
+## 예전엔 이 문구가 **로고 그림에 구워져** 있었다 — "쿼카 커플의 힐링
+## 여행". 그림이라 고칠 수가 없어서, 커플을 접은 뒤로도 첫 화면에 그대로
+## 떠 있었다. 그림에서 그 줄을 떼어내고 여기서 글자로 그린다.
+## (`CLAUDE.md`: 포스터는 글자 없는 그림이어야 하고 문구는 코드로 렌더한다)
+func _add_subtitle() -> void:
+	var logo := get_node_or_null("UILayer/Control/LogoImage") as Control
+	if logo == null:
+		return
+	var l := Label.new()
+	l.name = "Subtitle"
+	l.text = "혼자 떠나는 쿼카의 힐링 여행"
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", 28)
+	l.add_theme_color_override("font_color", Color(0.42, 0.36, 0.30))
+	l.add_theme_color_override("font_outline_color", Color(1, 0.99, 0.95, 0.75))
+	l.add_theme_constant_override("outline_size", 6)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	l.anchor_left = logo.anchor_left
+	l.anchor_right = logo.anchor_right
+	l.offset_left = logo.offset_left - 60.0
+	l.offset_right = logo.offset_right + 60.0
+	l.offset_top = logo.offset_bottom + 4.0
+	l.offset_bottom = l.offset_top + 40.0
+	l.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	logo.get_parent().add_child(l)
+
+
 # 배경 별(3D 발광 구체 135개)은 지웠다.
 #
 # 포스터가 알파 없는 불투명 그림이고 화면을 덮도록 늘어난다. 그 뒤에

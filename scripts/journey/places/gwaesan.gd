@@ -12,8 +12,8 @@ func _init() -> void:
 	legend = {
 		"w": "water",
 		"d": "deck",         # 부두
-		"c": "cobble",       # 비탈 골목
-		"s": "stone-slab",   # 계단참
+		"c": "granite-step", # 비탈 골목
+		"s": "granite-step", # 계단참
 		"g": "grass",
 		".": "dry-grass",
 	}

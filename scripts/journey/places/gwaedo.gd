@@ -15,7 +15,7 @@ func _init() -> void:
 		"g": "grass",
 		"d": "dirt",        # 붉은 흙길
 		".": "dry-grass",
-		"c": "cobble",
+		"c": "basalt",      # 검은 현무암. 이 섬의 색이다
 	}
 
 
