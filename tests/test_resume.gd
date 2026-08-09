@@ -63,6 +63,26 @@ func _ready() -> void:
 	var target := SaveManager.get_current_scene()
 	ck("가리키는 씬이 실제로 있다", ResourceLoader.exists(target), target)
 
+	print("\n[5] 메인화면의 시작 버튼이 부르는 것들이 실제로 있다")
+	# 여기 있던 `has_cleared_episode0()` 가 옛 게임과 함께 지워졌는데
+	# 부르는 쪽은 남아 있었다. 그래서 **새 게임을 시작할 수가 없었다** —
+	# 눌러도 스크립트 오류만 나고 화면은 그대로였다. 테스트 185개가
+	# 전부 통과하는 동안 정문이 잠겨 있었다.
+	for fn in ["has_seen_prologue", "mark_prologue_done", "has_save",
+			"save_game", "save_now", "clear_save", "get_current_scene"]:
+		ck("SaveManager.%s() 가 있다" % fn, SaveManager.has_method(fn))
+	var menu := load("res://scripts/menu/main_menu_3d.gd") as GDScript
+	ck("메인화면 스크립트가 읽힌다", menu != null)
+
+	SaveManager.clear_save()
+	ck("처음엔 프롤로그를 안 본 것으로 친다",
+		SaveManager.has_seen_prologue() == false)
+	SaveManager.mark_prologue_done()
+	ck("프롤로그를 지나면 표시가 남는다", SaveManager.has_seen_prologue())
+	SaveManager.clear_save()
+	ck("기록을 지우면 프롤로그도 다시 나온다",
+		SaveManager.has_seen_prologue() == false)
+
 	SaveManager.clear_save()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(1 if fail_n > 0 else 0)

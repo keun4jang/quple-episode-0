@@ -29,6 +29,9 @@ var _touch: Dictionary = {}      # finger id → 화면 좌표
 var _base_dist := 0.0
 var _base_zoom := 1.0
 var _step := DEFAULT_STEP
+## 이 지도에서 허용되는 가장 낮은 배율. `set_bounds()` 가 정한다.
+var _floor_zoom := 0.0
+var _bounds := Rect2()
 
 
 func _ready() -> void:
@@ -46,7 +49,24 @@ func _wanted() -> float:
 		var vp := get_viewport_rect().size
 		if vp.y > vp.x:                    # 세로로 들었다
 			z = maxf(STEPS[0], z - 1.0)
-	return z
+	return maxf(z, _floor_zoom)
+
+
+## 지도보다 넓게 보이지 않게 막는 가장 낮은 배율.
+##
+## 지도 밖에는 아무것도 없다 — 엔진 기본 회색이 그대로 드러난다.
+## 초광각 폰(2400x1080)에서 2배로 축소하면 보이는 세계가 가로 800px 인데
+## 가장 큰 지도가 720px 이라 왼쪽에 288px 짜리 회색 띠가 났다.
+## `limit_*` 로는 못 막는다 — 보이는 영역이 한계보다 크면 엔진이 한쪽으로
+## 붙이고 반대쪽을 비운다. 애초에 그만큼 축소되지 않게 막아야 한다.
+func _recalc_floor() -> void:
+	if _bounds.size.x <= 0.0 or _bounds.size.y <= 0.0:
+		return
+	var vp := get_viewport_rect().size
+	_floor_zoom = maxf(vp.x / _bounds.size.x, vp.y / _bounds.size.y)
+	var want := _wanted()
+	if absf(zoom.x - want) > 0.001:
+		zoom = Vector2.ONE * want
 
 
 func _process(delta: float) -> void:
@@ -105,7 +125,8 @@ func _update_pinch() -> void:
 	if p.size() < 2:
 		return
 	var d := maxf(1.0, (p[0] as Vector2).distance_to(p[1] as Vector2))
-	var z := clampf(_base_zoom * (d / _base_dist), STEPS[0] * 0.8,
+	var z := clampf(_base_zoom * (d / _base_dist),
+		maxf(STEPS[0] * 0.8, _floor_zoom),
 		STEPS[STEPS.size() - 1] * 1.2)
 
 	# 확대 중심은 **두 손가락 사이**다. 화면 한가운데를 기준으로 잡으면
@@ -124,13 +145,17 @@ func _screen_to_world(p: Vector2) -> Vector2:
 
 ## 손을 떼면 가까운 눈금에 붙는다.
 func _snap_to_step() -> void:
-	var best := 0
+	var best := -1
 	var gap := INF
 	for i in STEPS.size():
+		if float(STEPS[i]) < _floor_zoom - 0.001:
+			continue                       # 이 지도에서는 너무 넓다
 		var d: float = absf(zoom.x - float(STEPS[i]))
 		if d < gap:
 			gap = d
 			best = i
+	if best < 0:
+		best = STEPS.size() - 1
 	_step = best
 	_tween_zoom(_wanted())
 
@@ -150,10 +175,14 @@ func _tween_zoom(z: float) -> void:
 
 ## 지도 크기에 맞춰 카메라가 밖으로 안 나가게 막는다.
 func set_bounds(rect: Rect2) -> void:
+	_bounds = rect
 	limit_left = int(rect.position.x)
 	limit_top = int(rect.position.y)
 	limit_right = int(rect.end.x)
 	limit_bottom = int(rect.end.y)
+	_recalc_floor()
+	if not get_viewport().size_changed.is_connected(_recalc_floor):
+		get_viewport().size_changed.connect(_recalc_floor)
 
 
 ## 지금 배율 (테스트용)

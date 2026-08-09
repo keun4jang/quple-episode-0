@@ -2,22 +2,19 @@ extends Node3D
 
 @onready var camera: Camera3D = $Camera3D
 var _t := 0.0
-var _star_meshes: Array = []
-var _star_phases: Array = []
 
 # 가로 화면용 배경. 예전 포스터는 1080x1920 **세로**라, 초광각 폰에 채우면
-# 세로로 70% 가 잘려 나가면서 쿼카 두 마리의 머리가 통째로 날아갔다.
+# 세로로 70% 가 잘려 나가면서 쿼카의 머리가 통째로 날아갔다.
 # 이건 처음부터 가로로 그린 것이고, 오른쪽 절반이 비어 있어 버튼 기둥이 앉는다.
 const POSTER_PATH    := "res://assets/splash/menu-bg-wide.png"
-const COUPLE_3D_PATH := "res://assets/mascots/quica-hero-diorama.png"
+const HERO_3D_PATH := "res://assets/mascots/quica-hero-diorama.png"
 
 func _ready() -> void:
-	_build_bg_stars()
 	_inject_poster_background()
 	# 캐릭터+디오라마는 no-text 포스터 에셋에 포함(구조: 포스터 우선 + 코드 UI).
 	# Blender 히어로 런타임 오버레이는 디버그용으로만 유지.
 	if OS.get_environment("QUPLE_DEBUG_HERO") != "":
-		_inject_mascot_couple()
+		_inject_mascot_hero()
 
 	var cont = $UILayer/Control/VBox/ContinueBtn
 	cont.disabled = not SaveManager.has_save()
@@ -36,13 +33,6 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	# 별 반짝임
-	for i in range(_star_meshes.size()):
-		var sm: MeshInstance3D = _star_meshes[i]
-		if sm and is_instance_valid(sm):
-			var mat = sm.material_override as StandardMaterial3D
-			if mat:
-				mat.emission_energy_multiplier = 3.5 + sin(_t * _star_phases[i] + i) * 2.2
 	# 로고 숨쉬기. 라벨 7겹으로 쌓던 가짜 입체를 그림 한 장으로 바꿨다.
 	var logo = get_node_or_null("UILayer/Control/LogoImage")
 	if logo:
@@ -135,7 +125,7 @@ func _add_title_scrim(ctrl: Control) -> void:
 ##
 ## KEEP_ASPECT_COVERED 는 **가운데**를 잘라낸다. 우리 포스터는 세로 3:2 이고
 ## 폰은 가로 2.2:1 이라 세로로 70% 가 잘려 나가는데, 그 가운데 띠에 얼굴이
-## 없다 — 쿼카 두 마리의 머리가 통째로 날아갔다.
+## 없다 — 쿼카의 머리가 통째로 날아갔다.
 ## 그래서 직접 계산하고, 자르는 위치를 위쪽으로 당긴다.
 const POSTER_BIAS := 0.5   # 0=위 정렬, 0.5=가운데
 
@@ -153,21 +143,21 @@ func _fit_poster(bg: TextureRect) -> void:
 	bg.position = Vector2((view.x - out.x) * 0.5, (view.y - out.y) * POSTER_BIAS)
 
 
-# ─── 3D 마스코트 커플 주입 ───
-func _inject_mascot_couple() -> void:
+# ─── 3D 마스코트 히어로 주입 (디버그 전용) ───
+func _inject_mascot_hero() -> void:
 	var ctrl = get_node_or_null("UILayer/Control")
 	if not ctrl:
 		return
 	# 여기도 같은 이유로 load() 를 쓴다 (내보낸 앱에는 OS 파일 경로가 없다)
-	if not ResourceLoader.exists(COUPLE_3D_PATH):
+	if not ResourceLoader.exists(HERO_3D_PATH):
 		return
-	var tex = load(COUPLE_3D_PATH) as Texture2D
+	var tex = load(HERO_3D_PATH) as Texture2D
 	if tex == null:
 		return
 
 	# 히어로 디오라마: 캐릭터+행성 통합 에셋을 중앙 히어로로 배치 (y13~70%)
 	var wrap = Control.new()
-	wrap.name = "MascotCoupleWrap"
+	wrap.name = "MascotHeroWrap"
 	wrap.anchor_left = 0.5; wrap.anchor_right = 0.5
 	wrap.anchor_top = 0.105; wrap.anchor_bottom = 0.63
 	wrap.set_offset(SIDE_LEFT,  -440)
@@ -195,7 +185,7 @@ func _inject_mascot_couple() -> void:
 
 	# 3) 히어로 본체 (캐릭터+행성 통합)
 	var rect = TextureRect.new()
-	rect.name = "MascotCouple3D"
+	rect.name = "MascotHero3D"
 	rect.texture = tex
 	rect.expand_mode = TextureRect.EXPAND_FIT_HEIGHT_PROPORTIONAL
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -233,8 +223,8 @@ func _capture_shot() -> void:
 
 # ─── 스토리 전환 ───
 func _on_start() -> void:
-	# 0편을 이미 클리어했다면 건너뛸지 물어본다
-	if SaveManager.has_cleared_episode0():
+	# 프롤로그(쿼카컴퍼니)를 이미 지나온 적이 있으면 건너뛸지 물어본다
+	if SaveManager.has_seen_prologue():
 		_ask_skip_prologue()
 		return
 	_start_new(false)
@@ -262,7 +252,7 @@ func _ask_skip_prologue() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 24)
 	var t := Label.new()
-	t.text = "0편을 이미 보셨어요"
+	t.text = "프롤로그를 이미 보셨어요"
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.add_theme_font_size_override("font_size", 46)
 	t.add_theme_color_override("font_color", Color(1, 0.95, 0.80))
@@ -282,7 +272,7 @@ func _ask_skip_prologue() -> void:
 	v.add_child(skip)
 
 	var play := Button.new()
-	play.text = "0편부터 다시 보기"
+	play.text = "처음부터 다시 보기"
 	play.custom_minimum_size = Vector2(0, 92)
 	play.add_theme_font_size_override("font_size", 44)
 	play.pressed.connect(func(): AudioManager.ui_click(); _start_new(false))
@@ -309,24 +299,15 @@ func _on_quit() -> void:
 	get_tree().quit()
 
 # ─── 배경 별 (3D 앰비언트) ───
-func _build_bg_stars() -> void:
-	var gold = 2.399963
-	for i in range(55):
-		var ang = float(i) * gold
-		var t = float(i) / 55.0
-		var pos = Vector3(cos(ang) * (6.0 + t * 6.0), 1.0 + t * 9.0, -8.0 - t * 8.0)
-		var r = 0.08 + fmod(float(i) * 0.005, 0.05)
-		var sm = _emit_sphere(self, pos, r, "#FFFFFF", 5.0 + fmod(float(i) * 0.07, 3.5))
-		_star_meshes.append(sm); _star_phases.append(1.2 + fmod(float(i) * 0.73, 2.5))
-	var pcols = ["#FFD6E8", "#C8D6FF", "#E8D6FF", "#FFE8C8", "#D6FFE8"]
-	for i in range(80):
-		var ang = float(i) * gold * 1.3; var t = float(i) / 80.0
-		var pos = Vector3(cos(ang) * (5.0 + t * 7.0), -2.0 + t * 11.0, -7.0 - t * 8.0)
-		var r = 0.028 + fmod(float(i) * 0.0006, 0.032)
-		var sm = _emit_sphere(self, pos, r, pcols[i % pcols.size()], 2.8 + fmod(float(i) * 0.033, 2.2))
-		_star_meshes.append(sm); _star_phases.append(0.8 + fmod(float(i) * 0.61, 3.0))
+# 배경 별(3D 발광 구체 135개)은 지웠다.
+#
+# 포스터가 알파 없는 불투명 그림이고 화면을 덮도록 늘어난다. 그 뒤에
+# 있는 별은 **한 번도 보인 적이 없다.** 그런데 `_process` 가 매 프레임
+# 135개 머티리얼의 발광 세기를 고쳐 쓰고 있었다 — 안 보이는 것을 위해
+# 폰이 계속 더워졌다. 포스터가 없을 때 깔리는 그라데이션도 불투명이라
+# 어느 쪽으로도 드러날 자리가 없다.
 
-# ── UI 장식 (반짝이 레이블) ──
+
 ## 만든사람. 게임을 만든 도구와 저작권 표시를 남기는 자리이기도 하다 —
 ## 폰트와 곡이 전부 자유 라이선스라 출처를 밝혀야 한다.
 func _add_credits_button() -> void:
@@ -335,7 +316,7 @@ func _add_credits_button() -> void:
 		return
 	var src: Button = row.get_node_or_null("SettingsBtn")
 	var b := Button.new()
-	b.text = "🎬 만든사람"
+	b.text = "만든사람"
 	b.focus_mode = Control.FOCUS_NONE
 	if src != null:
 		b.custom_minimum_size = src.custom_minimum_size
@@ -371,7 +352,7 @@ func _show_credits() -> void:
 
 	var lines := [
 		["쿼플", 54, Color(1, 0.93, 0.78)],
-		["쿼카 커플의 힐링 여행", 30, Color(1, 0.86, 0.62)],
+		["혼자 떠나는 쿼카의 힐링 여행", 30, Color(1, 0.86, 0.62)],
 		["", 18, Color.WHITE],
 		["기획 · 개발 · 아트", 26, Color(0.82, 0.86, 0.96)],
 		["Godot 4.3 · Blender · Python", 24, Color(0.72, 0.78, 0.90)],
@@ -405,12 +386,12 @@ func _build_ui_decorations() -> void:
 	# 절반이 화면 밖(y 940)에 있었고, 남은 것도 버튼 위에 얹혔다.
 	# 오른쪽 버튼 기둥(x 700 이상)은 비워 둔다.
 	var sparks = [
-		{"pos": Vector2(96, 128), "size": 26, "txt": "✦"},
-		{"pos": Vector2(612, 96), "size": 22, "txt": "✦"},
-		{"pos": Vector2(74, 430), "size": 20, "txt": "★"},
-		{"pos": Vector2(640, 400), "size": 18, "txt": "★"},
-		{"pos": Vector2(150, 604), "size": 22, "txt": "✦"},
-		{"pos": Vector2(520, 640), "size": 18, "txt": "✦"},
+		{"pos": Vector2(96, 128), "size": 26, "txt": "*"},
+		{"pos": Vector2(612, 96), "size": 22, "txt": "*"},
+		{"pos": Vector2(74, 430), "size": 20, "txt": "*"},
+		{"pos": Vector2(640, 400), "size": 18, "txt": "*"},
+		{"pos": Vector2(150, 604), "size": 22, "txt": "*"},
+		{"pos": Vector2(520, 640), "size": 18, "txt": "*"},
 	]
 	for sd in sparks:
 		var lbl = Label.new()
@@ -420,12 +401,3 @@ func _build_ui_decorations() -> void:
 		lbl.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		lbl.position = sd.pos; lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ctrl.add_child(lbl)
-
-func _emit_sphere(parent: Node3D, pos: Vector3, r: float, hex: String, energy: float) -> MeshInstance3D:
-	var mi = MeshInstance3D.new()
-	var sm = SphereMesh.new(); sm.radius = r; sm.height = r * 2.0; mi.mesh = sm
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(hex); mat.emission_enabled = true
-	mat.emission = Color(hex); mat.emission_energy_multiplier = energy
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mi.material_override = mat; mi.position = pos; parent.add_child(mi); return mi

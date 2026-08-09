@@ -159,6 +159,21 @@ func set_flag(key: String, value) -> void:
 	cfg.save(SAVE_PATH)
 
 
+## 프롤로그(쿼카컴퍼니)를 한 번이라도 지나온 적이 있는가.
+##
+## 메인화면의 "새 여행 시작" 이 이걸 보고 건너뛸지 물어본다. 표시는
+## 저장본과 함께 살고 함께 죽는다 — 기록을 지우면 프롤로그도 다시 나온다.
+## 그게 맞다. "처음부터" 를 골랐는데 처음이 빠져 있으면 안 된다.
+const PROLOGUE_FLAG := "prologue_done"
+
+func has_seen_prologue() -> bool:
+	return bool(get_flag(PROLOGUE_FLAG, false))
+
+
+func mark_prologue_done() -> void:
+	set_flag(PROLOGUE_FLAG, true)
+
+
 ## 백업이 있는가 (설정 화면에서 안내용)
 func has_backup() -> bool:
 	return _is_valid(BACKUP_PATH)

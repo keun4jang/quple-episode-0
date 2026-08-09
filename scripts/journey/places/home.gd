@@ -131,12 +131,14 @@ func on_built() -> void:
 
 	# 엄마의 첫마디는 **언제 왔느냐**에 따라 다르다
 	# (`docs/story-journey.md` 5절). 벌이 아니라 그냥 다른 것이다.
-	var mom := put_folk(Vector2i(17, 12), "mom", "엄마", "mom", [
-		[_mom_greeting(), "밥은 먹었니."],
+	# `once` 를 따로 안 준다. 첫 만남에 그걸 쓰고 나면 말을 건 순간 마음이
+	# 한 칸 올라 있어서, 0칸 대사를 **영영 못 듣는다.** 첫마디는 이미
+	# 0칸 줄이 들고 있으니 그대로 두면 된다.
+	put_folk(Vector2i(17, 12), "mom", "엄마", "mom", [
+		[_mom_greeting(), "…들어와서 밥부터 먹어."],
 		["밥은 먹었니.", "국 데워 놨다."],
 		["얼굴이 좀 폈네.", "천천히 있다 가."],
 	], Vector2.DOWN)
-	mom.once = [_mom_greeting(), "…들어와서 밥부터 먹어."]
 
 	put_folk(Vector2i(11, 21), "dad", "아빠", "dad", [
 		["…왔냐."],
@@ -146,7 +148,7 @@ func on_built() -> void:
 
 	put_folk(Vector2i(32, 15), "sibling", "동생", "sibling", [
 		["어, 왔어?", "회사는 어쩌고?"],
-		["형(누나) 요즘 뭐 하고 다녀?"],
+		["요즘 뭐 하고 다녀?"],
 		["나도 언젠가 그렇게 다녀 볼래."],
 	], Vector2.LEFT)
 
@@ -175,6 +177,6 @@ func _deck_lines() -> Array:
 		]
 	var out: Array = ["평상에 앉아 엽서를 꺼냈다."]
 	for id in cards:
-		out.append("✉  %s" % cards[id])
+		out.append(JourneyState.postcard_text(id))
 	out.append("혼자 떠났는데, 쿼플이 이만큼이었다.")
 	return out

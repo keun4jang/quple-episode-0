@@ -52,6 +52,12 @@ func _on_back() -> void:
 ## 열려 있는 것 중 가장 위를 닫는다. 닫았으면 true.
 ##
 ## 순서가 곧 "위" 다. 전체 화면을 덮는 것부터 닫는다.
+##
+## 여기 적힌 이름은 **지금 살아 있는 그룹이어야 한다.** 한동안
+## `stats_ui` · `album_ui` · `wind_note` · `choice_box` · `dialogue_box`
+## 다섯을 찾고 있었는데, 그 UI 들은 옛 게임과 함께 지워진 뒤였다.
+## 그래서 뒤로가기가 아무것도 못 닫고, 그 누름이 그대로 종료 카운터에
+## 쌓여 배낭을 닫으려다 앱이 꺼졌다. 그룹을 지울 땐 여기도 같이 본다.
 func _close_topmost() -> bool:
 	var tree := get_tree()
 
@@ -65,32 +71,22 @@ func _close_topmost() -> bool:
 		settings.close()
 		return true
 
-	var stats := tree.get_first_node_in_group("stats_ui")
-	if stats != null and stats.visible and stats.has_method("_close"):
-		stats._close()
+	# 여행판이 떠 있으면 먼저 닫는다. 화면을 통째로 덮는다.
+	var board := tree.get_first_node_in_group("travel_board")
+	if board != null and board.visible and board.has_method("close"):
+		board.close()
 		return true
 
-	var album := tree.get_first_node_in_group("album_ui")
-	if album != null and album.visible:
-		album.visible = false
+	# 대화 중이면 대화를 끝낸다.
+	var say := tree.get_first_node_in_group("journey_say")
+	if say != null and say.has_method("is_busy") and say.is_busy():
+		if say.has_method("close"):
+			say.close()
 		return true
 
-	# 바람 노트는 펼친 상태만 닫는다. 왼쪽 위 작은 표시는 항상 떠 있는 게 맞다.
-	var wind := tree.get_first_node_in_group("wind_note")
-	if wind != null:
-		var full := wind.get_node_or_null("Full")
-		if full != null and full.visible:
-			full.visible = false
-			return true
-
-	# 선택지는 뒤로가기로 못 넘긴다. 골라야 이야기가 나아간다.
-	var choice := tree.get_first_node_in_group("choice_box")
-	if choice != null and choice.visible:
-		return true
-
-	var dialogue := tree.get_first_node_in_group("dialogue_box")
-	if dialogue != null and dialogue.has_method("is_open") and dialogue.is_open():
-		dialogue.hide_box()
+	# 배낭·사진첩·편지·쿼플첩은 한 창이다.
+	var hud := tree.get_first_node_in_group("journey_hud")
+	if hud != null and hud.has_method("close_bag") and hud.close_bag():
 		return true
 
 	return false

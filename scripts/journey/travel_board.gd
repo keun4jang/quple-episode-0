@@ -28,6 +28,7 @@ var _from := ""
 
 func _ready() -> void:
 	layer = 12
+	add_to_group("travel_board")
 	visible = false
 	_build()
 
@@ -112,7 +113,7 @@ func open(from_place: String) -> void:
 		var been := JourneyState.visited.has(name)
 		# 다녀온 곳은 조용히 표시한다. 안 가 본 곳을 굳이 부추기지 않는다.
 		var tail := "  ·  " + String(entry[1]) if String(entry[1]) != "" else ""
-		b.text = ("🏡 " if name == "고향" else "") + name + tail
+		b.text = name + tail
 		b.custom_minimum_size = Vector2(0, 84)
 		b.add_theme_font_size_override("font_size", 32)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -127,10 +128,21 @@ func close() -> void:
 	closed.emit()
 
 
+## 씬 경로로 여행지 이름을 되찾는다.
+func _place_name_of(path: String) -> String:
+	for n in PLACES:
+		if String(PLACES[n][0]) == path:
+			return n
+	return ""
+
+
 func _pick(path: String) -> void:
 	visible = false
 	# 내가 떠나면 여행자도 떠난다.
-	JourneyState.move_wanderer()
-	SaveManager.save_now()
+	JourneyState.move_wanderer(_place_name_of(path), _from)
+	# **도착지**를 적어야 한다. `save_now()` 는 지금 씬을 보는데, 여기서는
+	# 아직 떠나기 전 장소다. 그대로 두면 앱이 죽었을 때 이어하기가 방금
+	# 떠나온 곳으로 되돌아간다.
+	SaveManager.save_game(path)
 	chose.emit(path)
 	get_tree().change_scene_to_file(path)

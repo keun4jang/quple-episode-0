@@ -28,7 +28,12 @@ const MINUTES_PER_SECOND := 2.0
 ## 글자 → 바닥 그림. 하위 클래스가 채운다.
 var legend: Dictionary = {}
 ## 지나갈 수 없는 바닥 글자
-var solid_tiles: Array[String] = []
+## 걸어 들어갈 수 없는 바닥. 타일 **이름**으로 적는다 ("water" 등).
+##
+## 한동안 이 목록이 선언만 되고 아무도 안 봤다. 그래서 바다가 그림일
+## 뿐이었고, 쿼릉에서 위로 계속 걸으면 백사장을 지나 바다 한복판까지
+## 걸어 들어갔다. 기본값을 여기 둔다 — 물은 어디서나 물이다.
+var solid_tiles: Array[String] = ["water"]
 
 var walker: QuoWalker
 var cam: JourneyCamera
@@ -108,6 +113,7 @@ func _ready() -> void:
 	_build_walker()
 	_build_camera()
 	_build_ui()
+	_start_sound()
 	on_built()
 	if place_name() == "고향":
 		JourneyState.came_home()
@@ -293,6 +299,7 @@ func _check_pickups() -> void:
 		var item: String = a.get_meta("item")
 		var t: Vector2i = a.get_meta("tile")
 		JourneyState.pick(item)
+		AudioManager.pickup()
 		JourneyState.mark_taken(place_name(), t)
 		picked_up.emit(item)
 		_pop(a)
@@ -311,7 +318,13 @@ func _pop(a: Node2D) -> void:
 
 
 ## 지도 밖으로 못 나가게 벽을 두른다.
+## 지도 바깥 테두리 + 걸을 수 없는 바닥.
+##
+## 물 칸은 하나씩 몸을 세우지 않고 **가로줄로 이어 붙인다.** 쿼릉 바다가
+## 200칸이 넘는데 칸마다 StaticBody2D 를 만들면 그것만으로 저사양 폰에
+## 부담이 된다. 이어 붙이면 줄 수만큼(보통 10~20개)이면 된다.
 func _build_walls() -> void:
+	_build_solid_floor()
 	var w := float(_size.x * TILE)
 	var h := float(_size.y * TILE)
 	var th := 16.0
@@ -329,6 +342,33 @@ func _build_walls() -> void:
 		cs.position = spec[0]
 		body.add_child(cs)
 		add_child(body)
+
+
+func _build_solid_floor() -> void:
+	if solid_tiles.is_empty():
+		return
+	var body := StaticBody2D.new()
+	body.name = "SolidFloor"
+	add_child(body)
+	for y in _grid.size():
+		var row: String = _grid[y]
+		var run := -1
+		for x in range(row.length() + 1):
+			var solid := false
+			if x < row.length():
+				var ch := row[x]
+				solid = legend.has(ch) and solid_tiles.has(String(legend[ch]))
+			if solid and run < 0:
+				run = x
+			elif not solid and run >= 0:
+				var cs := CollisionShape2D.new()
+				var r := RectangleShape2D.new()
+				r.size = Vector2((x - run) * TILE, TILE)
+				cs.shape = r
+				cs.position = Vector2((run + (x - run) * 0.5) * TILE,
+					(y + 0.5) * TILE)
+				body.add_child(cs)
+				run = -1
 
 
 func _build_walker() -> void:
@@ -389,6 +429,15 @@ func _build_ui() -> void:
 	board.name = "Board"
 	add_child(board)
 
+	# 설정. 여행 중에도 소리를 줄이고 메인화면으로 나갈 수 있어야 한다.
+	#
+	# 지금까지 설정은 메인화면 씬에만 붙어 있었다. 여행에 들어가면
+	# 볼륨·기록 초기화·업데이트 확인이 전부 사라지고, 나가는 길도 없어서
+	# 앱을 죽이는 것 말고는 메인화면으로 돌아갈 방법이 없었다.
+	# `settings_ui.gd` 의 "메인화면으로" 버튼은 그동안 아무도 못 여는
+	# 기능이었다 — 여행 씬에 설정이 없었으니까.
+	_add_settings()
+
 	var stop := depart_tile()
 	_has_stop = stop.x >= 0
 	if _has_stop:
@@ -408,6 +457,87 @@ func _build_ui() -> void:
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fl.add_child(_fade)
+
+
+# ── 소리 ──────────────────────────────────────────────────────────────
+#
+# 소리 만드는 코드는 처음부터 잘 짜여 있었는데 **부르는 쪽이 없었다.**
+# 옛 게임을 지울 때 호출부만 같이 날아간 것으로 보인다. 걸어 다니는 게
+# 전부인 게임에 발소리가 없었고, 환경음은 한 번도 난 적이 없는데
+# 설정창의 슬라이더는 그 크기를 조절하고 있었다.
+
+## 이 여행지에 깔리는 곡. 여행지 파일에서 덮어쓸 수 있다.
+func bgm_track() -> String:
+	match place_name():
+		"쿼울": return "room"
+		"고향": return "gohyang"
+		"쿼주": return "gaeguri"
+		_:      return "doraji"
+
+
+## 배경에 계속 나는 소리.
+func ambient_kind() -> String:
+	match place_name():
+		"쿼울": return "room"
+		"쿼주": return "wind"
+		"고향": return "wind"
+		_:      return "wave"
+
+
+func _start_sound() -> void:
+	AudioManager.play_bgm(bgm_track())
+	AudioManager.play_ambient(ambient_kind())
+
+
+## 발소리. 걸음 사이 간격만큼 띄워서 낸다 — 매 프레임 내면 잡음이 된다.
+const STEP_GAP := 0.34
+var _step_t := 0.0
+
+func _tick_footsteps(delta: float) -> void:
+	if walker == null or walker.velocity.length_squared() < 4.0:
+		_step_t = STEP_GAP           # 멈춰 있으면 다음 걸음은 바로 난다
+		return
+	_step_t -= delta
+	if _step_t <= 0.0:
+		_step_t = STEP_GAP
+		AudioManager.footstep()
+
+
+const SETTINGS_SCENE := "res://scenes/ui/SettingsUI.tscn"
+
+func _add_settings() -> void:
+	if get_tree().get_first_node_in_group("settings_ui") != null:
+		return
+	if not ResourceLoader.exists(SETTINGS_SCENE):
+		return
+	var sv = load(SETTINGS_SCENE).instantiate()
+	add_child(sv)
+
+	# 여는 버튼. 오른쪽 위 — 엄지가 잘 안 닿는 자리가 맞다.
+	# 여행 중에 자주 누를 것이 아니고, 아래 두 모서리는 배낭과 사진이 쓴다.
+	var cl := CanvasLayer.new()
+	cl.layer = 6
+	add_child(cl)
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cl.add_child(root)
+	var b := Button.new()
+	b.name = "SettingsBtn"
+	b.text = "설정"
+	b.add_theme_font_size_override("font_size", 26)
+	b.custom_minimum_size = Vector2(96, 72)
+	b.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	b.offset_left = -128
+	b.offset_top = 24
+	b.offset_right = -32
+	b.offset_bottom = 96
+	b.modulate.a = 0.72
+	b.pressed.connect(func() -> void:
+		var sv2 = get_tree().get_first_node_in_group("settings_ui")
+		if sv2 != null and sv2.has_method("open"):
+			sv2.open())
+	root.add_child(b)
 
 
 ## 시간이 흐른다. 대화 중이거나 배낭을 열어 두면 멈춘다 —
@@ -434,6 +564,7 @@ func _take_photo() -> void:
 		return
 	var subject := _what_is_near()
 	JourneyState.take_photo(place_name(), subject)
+	AudioManager.shutter()
 	if hud != null:
 		hud.flash()
 	SaveManager.save_now()
@@ -522,6 +653,7 @@ func go_to_sleep() -> void:
 		return
 	_sleeping = true
 	walker.stop()
+	AudioManager.sit_rustle()
 	var tw := create_tween()
 	tw.tween_property(_fade, "color:a", 1.0, 0.6)
 	tw.tween_callback(func():
@@ -560,6 +692,13 @@ func talk_to_near() -> void:
 func _unhandled_input(e: InputEvent) -> void:
 	if say != null and say.is_busy():
 		return
+	# 배낭이나 여행판이 떠 있으면 화면 뒤로 말이 걸리면 안 된다.
+	if (hud != null and hud.bag_open()) or (board != null and board.visible) \
+			or _sleeping:
+		return
+	# 확대하려고 댄 두 번째 손가락이 대화를 열어 버리곤 했다.
+	if touch != null and touch.has_method("is_multi") and touch.is_multi():
+		return
 	# e 는 InputEvent 라 e.pressed 가 Variant 다. 타입을 적어 준다 —
 	# 안 적으면 추론이 안 돼 파일 전체가 컴파일에 실패한다.
 	var tap: bool = (e is InputEventScreenTouch and e.pressed) \
@@ -568,7 +707,14 @@ func _unhandled_input(e: InputEvent) -> void:
 		or e.is_action_pressed("ui_accept")
 	if not tap:
 		return
-	if _near != null:
+	# 정류장·잠자리 위에 서 있으면 그쪽이 먼저다.
+	#
+	# 예전엔 `_near` 를 늘 먼저 봤는데, 프롤로그의 "회사 앞" 자리가
+	# 정류장 바로 위 칸에 있어서 **아무리 눌러도 출발판이 안 열렸다.**
+	# 같은 한 줄만 무한히 반복됐다. 다만 **사람은 예외다** — 인연이
+	# 옆에 서 있는데 말도 없이 떠나 버리면 그게 더 이상하다.
+	var spot_only: bool = _near != null and _near.is_spot
+	if _near != null and not (spot_only and (_can_sleep() or _can_depart())):
 		talk_to_near()
 		get_viewport().set_input_as_handled()
 	elif _can_sleep():
@@ -589,6 +735,8 @@ func _process(delta: float) -> void:
 	_check_pickups()
 	_update_near()
 	_tick_clock(delta)
+	if not blocked:
+		_tick_footsteps(delta)
 
 
 # ── 도우미 ────────────────────────────────────────────────────────────
@@ -605,14 +753,39 @@ func world_of(t: Vector2i) -> Vector2:
 ##
 ## 재회일 때는 대사가 통째로 달라진다. 마음 칸을 따라가지 않고
 ## "어? 너 여기 웬일이야?"가 먼저 나온다 — 그게 이 게임의 한 순간이다.
+## 다시 만났을 때 주고받는 말.
+##
+## 여행지마다 같은 네 줄을 복사해 뒀었다. 네 곳에서 똑같이 놀라고
+## 똑같이 "우리 이쯤 되면 쿼플인가" 를 세 번 들으면, 이 게임의 심장이
+## 그냥 반복되는 문구가 된다. **쿼플은 한 번만 나온다** —
+## `docs/world-quo.md` 1절: 뜻을 설명하지 않고, 인연이 한 번 쓰고 만다.
+##
+## 그래서 몇 번째 재회인지에 따라 다르게 말한다. 마지막에만 그 말이 나온다.
+const REUNION := [
+	[["그", "어? 너 여기 웬일이야?"], ["나", "…아니 진짜로 또 만났네요."]],
+	[["그", "또 만났네."], ["나", "이쯤 되면 우연이 아닌 것 같은데요."]],
+	[["그", "…또 너야?"], ["나", "저도 방금 놀랐어요."],
+		["그", "우리 이쯤 되면 쿼플인가."]],
+]
+
+
 func put_wanderer(sheet: String, who: String, folk_id: String,
-		lines: Array, reunion: Array) -> Folk:
+		lines: Array, flavour: Array) -> Folk:
 	var t := wanderer_tile()
 	if t.x < 0 or not JourneyState.wanderer_here(place_name()):
 		return null
 	var f := put_folk(t, sheet, who, folk_id, lines, Vector2.DOWN, true)
 	if JourneyState.is_reunion(place_name()):
-		f.once = reunion
+		# 몇 번째 다시 만남인가. 처음 만난 곳은 빼고 센다.
+		var nth: int = clampi(JourneyState.wanderer_seen.size() - 1,
+			0, REUNION.size() - 1)
+		var once: Array = []
+		for pair in REUNION[nth]:
+			once.append([who if String(pair[0]) == "그" else "나", pair[1]])
+		# 그 자리에서만 할 수 있는 말 한 줄. 여기가 어딘지가 드러난다.
+		for l in flavour:
+			once.append([who, l])
+		f.once = once
 		# 다시 만난 것 자체가 사건이다. 말을 안 걸어도 한 칸 는다.
 		JourneyState.warm(folk_id)
 	JourneyState.meet_wanderer(place_name())

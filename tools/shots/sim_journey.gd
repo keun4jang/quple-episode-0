@@ -23,6 +23,16 @@ func _ready() -> void:
 	ok(place.place_name() == "쿼릉", "쿼릉에 도착했다")
 	ok(JourneyState.places_visited() == 1, "다녀온 곳 하나")
 
+	# 여행 중에도 나가는 길이 있어야 한다. 한동안 여행에 들어가면
+	# 설정이 통째로 사라져서 앱을 죽이는 것 말고는 메인화면으로 돌아갈
+	# 방법이 없었다.
+	ok(get_tree().get_first_node_in_group("settings_ui") != null,
+		"여행 중에도 설정을 열 수 있다")
+	var _hud = get_tree().get_first_node_in_group("journey_hud")
+	ok(_hud != null and _hud.has_method("try_touch"),
+		"걸으면서도 배낭·사진 버튼이 눌린다")
+	ok(place.solid_tiles.has("water"), "바다에는 못 들어간다")
+
 	# 조개를 주우러 걸어간다
 	var pick := Vector2i(place.pickups()[0][0], place.pickups()[0][1])
 	await _walk_to(pick, 22.0)
@@ -46,7 +56,14 @@ func _ready() -> void:
 	# 떠난다 → 쿼주에서 재회
 	await _walk_to(place.depart_tile(), 26.0)
 	ok(place._can_depart(), "정류장에 섰다")
-	JourneyState.move_wanderer()
+	# 재회는 **떠날 때마다** 일어나지 않는다. 매번 마주치면 우연이 아니라
+	# 따라다니는 것이 된다 (`journey_state.gd` 의 `move_wanderer`).
+	# 세 번째 떠남에서 겹친다 — 여기서는 그 박자를 앞당겨 확인한다.
+	JourneyState.move_wanderer("쿼주", "쿼릉")
+	JourneyState.move_wanderer("쿼산", "쿼주")
+	JourneyState.move_wanderer("쿼주", "쿼산")
+	ok(JourneyState.wanderer_place == "쿼주",
+		"세 번째 떠남에서 여행자와 겹친다 (%s)" % JourneyState.wanderer_place)
 	await _go("res://scenes/journey/Gwaeju.tscn")
 	ok(JourneyState.is_reunion("쿼주") == false, "도착하면 이미 만난 것으로 친다")
 	await _walk_to(place.wanderer_tile(), 22.0)

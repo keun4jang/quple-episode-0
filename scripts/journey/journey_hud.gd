@@ -16,8 +16,10 @@ var _hint: Label
 var _cam_btn: TextureButton
 var _tabs: HBoxContainer
 var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 쿼플첩
-var _dot: Label                   # 안 읽은 편지 표시
+var _dot: Control                 # 안 읽은 편지 표시 (직접 그린 점)
 var _flash: ColorRect
+var _root: Control
+var _buttons_hidden := false
 
 ## 아이템 이름 → 사람이 읽는 이름
 const NAMES := {
@@ -38,8 +40,11 @@ func _ready() -> void:
 func _build() -> void:
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root = root
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	_apply_safe_area()
+	get_viewport().size_changed.connect(_apply_safe_area)
 
 	# 시각 — 왼쪽 위, 얇게
 	_clock = Label.new()
@@ -98,15 +103,21 @@ func _build() -> void:
 	root.add_child(_cam_btn)
 
 	# 안 읽은 편지가 있으면 배낭에 점이 하나 붙는다. 숫자도 느낌표도 안 쓴다.
-	_dot = Label.new()
-	_dot.text = "●"
-	_dot.add_theme_font_size_override("font_size", 28)
-	_dot.add_theme_color_override("font_color", Color("#E4785F"))
+	# 점은 글자가 아니라 **직접 그린다.** 본문 폰트(PoorStory)에 ● 가 없어서
+	# 글자로 쓰면 폰에서 네모 상자가 뜬다. 도형은 폰트를 안 탄다.
+	_dot = Control.new()
+	_dot.custom_minimum_size = Vector2(22, 22)
+	_dot.size = Vector2(22, 22)
 	_dot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_dot.offset_left = -44
-	_dot.offset_top = -132
+	_dot.offset_left = -46
+	_dot.offset_top = -134
+	_dot.offset_right = -24
+	_dot.offset_bottom = -112
 	_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dot.visible = false
+	_dot.draw.connect(func() -> void:
+		_dot.draw_circle(Vector2(11, 11), 11.0, Color(0.16, 0.13, 0.18))
+		_dot.draw_circle(Vector2(11, 11), 8.5, Color("#E4785F")))
 	root.add_child(_dot)
 
 	# 사진 찍을 때 화면이 한 번 하얘진다
@@ -170,6 +181,7 @@ func _build_bag(root: Control) -> void:
 
 
 func toggle_bag() -> void:
+	AudioManager.page_turn()
 	_bag_panel.visible = not _bag_panel.visible
 	if _bag_panel.visible:
 		_refill_bag()
@@ -256,6 +268,7 @@ func _fill_photos() -> void:
 			p.get("time", ""), p.get("subject", "")]
 		l.add_theme_font_size_override("font_size", 26)
 		l.add_theme_color_override("font_color", Color("#E4DCCF"))
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_bag_grid.add_child(l)
 
 
@@ -270,6 +283,7 @@ func _fill_letters() -> void:
 		l.text = "엄마 (%d일째)\n  %s" % [int(m.get("day", 1)), m.get("text", "")]
 		l.add_theme_font_size_override("font_size", 28)
 		l.add_theme_color_override("font_color", Color("#FFF2C8"))
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_bag_grid.add_child(l)
 
 
@@ -282,7 +296,8 @@ func _fill_postcards() -> void:
 		return
 	for id in JourneyState.postcards:
 		var l := Label.new()
-		l.text = "✉  %s" % JourneyState.postcards[id]
+		l.text = JourneyState.postcard_text(id)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.add_theme_font_size_override("font_size", 30)
 		l.add_theme_color_override("font_color", Color("#E4DCCF"))
 		_bag_grid.add_child(l)
@@ -302,4 +317,70 @@ func _process(_delta: float) -> void:
 	if _clock != null:
 		_clock.text = "%s   %d일째" % [JourneyState.time_text(), JourneyState.day]
 	if _dot != null:
-		_dot.visible = JourneyState.unread_letters() > 0 and not bag_open()
+		_dot.visible = JourneyState.unread_letters() > 0 and not bag_open() \
+			and not _buttons_hidden
+
+
+# ── 안전영역 ──────────────────────────────────────────────────────────
+#
+# 지금까지 화면 가장자리를 그냥 썼다. 몰입 모드(`immersive_mode=true`)라
+# 앱이 화면 전체를 받는데, 그 안에는 펀치홀·둥근 모서리·제스처 바가
+# 같이 들어 있다. 배낭 버튼이 아래에서 48px 였으니 제스처 바와 겹쳤다 —
+# 배낭을 누르려다 홈으로 나가는 오작동이 난다.
+#
+# HUD 를 통째로 안전영역만큼 안쪽으로 민다. 안전영역을 못 읽는 데스크톱
+# 에서는 0 이 나와 지금과 똑같이 보인다.
+
+func _apply_safe_area() -> void:
+	if _root == null:
+		return
+	var win := DisplayServer.window_get_size()
+	if win.x <= 0 or win.y <= 0:
+		return
+	var safe := DisplayServer.get_display_safe_area()
+	var canvas := get_viewport().get_visible_rect().size
+	var kx := canvas.x / float(win.x)
+	var ky := canvas.y / float(win.y)
+	_root.offset_left   =  maxf(0.0, float(safe.position.x)) * kx
+	_root.offset_top    =  maxf(0.0, float(safe.position.y)) * ky
+	_root.offset_right  = -maxf(0.0, float(win.x - (safe.position.x + safe.size.x))) * kx
+	_root.offset_bottom = -maxf(0.0, float(win.y - (safe.position.y + safe.size.y))) * ky
+
+
+## 대화 중에는 배낭·사진 버튼을 치운다.
+##
+## 대화창이 화면 아래를 통째로 쓰기 때문에 버튼이 그 뒤에 숨어 있었고,
+## 창이 탭을 먹어서 눌리지도 않았다. 안 보이는 버튼을 남겨 두느니
+## 대화 동안은 아예 비켜 준다 — 대화 중에 사진을 찍을 일도 없다.
+func set_buttons_visible(on: bool) -> void:
+	_buttons_hidden = not on
+	if _bag_btn != null:
+		_bag_btn.visible = on
+	if _cam_btn != null:
+		_cam_btn.visible = on
+
+
+## 걷는 손가락과 상관없이 버튼을 눌러 준다.
+##
+## `TextureButton` 은 **터치에서 흉내낸 마우스**로만 눌리는데, 엔진은 그
+## 흉내를 첫 번째 손가락 하나에만 건다. 그 손가락은 걷기가 쓰고 있으니
+## 걸으면서 다른 손가락으로 셔터를 누르면 아무 일도 안 일어났다.
+## 걷기 쪽(`journey_touch`)이 손가락을 집기 전에 여기로 먼저 물어본다.
+func try_touch(pos: Vector2) -> bool:
+	if _buttons_hidden:
+		return false
+	if _bag_panel != null and _bag_panel.visible:
+		return false                       # 배낭이 열려 있으면 창이 알아서 받는다
+	for b in [_cam_btn, _bag_btn]:
+		if b != null and b.visible and b.get_global_rect().has_point(pos):
+			b.pressed.emit()
+			return true
+	return false
+
+
+## 뒤로가기가 부른다. 열려 있던 배낭을 닫고 닫았는지 알려 준다.
+func close_bag() -> bool:
+	if _bag_panel != null and _bag_panel.visible:
+		toggle_bag()
+		return true
+	return false

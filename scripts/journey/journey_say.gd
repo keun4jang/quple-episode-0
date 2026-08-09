@@ -15,8 +15,10 @@ const SPEED := 0.028          # 한 글자에 걸리는 시간
 var _panel: PanelContainer
 var _who: Label
 var _line: Label
-var _more: Label
+var _more: Control
 var _queue: Array[String] = []
+var _who_queue: Array[String] = []
+var _default_who := ""
 var _full := ""
 var _shown := 0
 var _t := 0.0
@@ -51,9 +53,11 @@ func _build() -> void:
 	_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_panel.offset_left = 40
 	_panel.offset_right = -40
-	_panel.offset_top = -170
-	_panel.offset_bottom = -34
 	root.add_child(_panel)
+	# 높이는 여기서 정하지 않는다. `_fit()` 이 내용에 맞춰 위로 늘린다 —
+	# 예전엔 136px 로 못 박아 놨는데 내용이 180px 이라 창이 화면 아래로
+	# 잘려 나갔다. 두 줄짜리 대사면 더 나갔다.
+	_panel.resized.connect(_fit)
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
@@ -72,23 +76,66 @@ func _build() -> void:
 	_line.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	box.add_child(_line)
 
-	_more = Label.new()
-	_more.text = "▼"
-	_more.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_more.add_theme_font_size_override("font_size", 24)
-	_more.add_theme_color_override("font_color", Color("#8C7B68"))
+	# "다음" 표시는 글자가 아니라 **직접 그린 세모**다.
+	# 본문 폰트(PoorStory)에 ▼ 가 없어서 글자로 쓰면 폰에서 네모 상자가 뜬다.
+	_more = Control.new()
+	_more.custom_minimum_size = Vector2(0, 22)
+	_more.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_more.visible = false
+	_more.draw.connect(func() -> void:
+		var w := _more.size.x
+		var pts := PackedVector2Array([
+			Vector2(w - 30, 6), Vector2(w - 10, 6), Vector2(w - 20, 18)])
+		_more.draw_colored_polygon(pts, Color("#8C7B68")))
 	box.add_child(_more)
 
 
+## 창을 내용에 맞춰 위로 늘린다. 아래 여백은 기기 안전영역 바깥으로 안 나간다.
+func _fit() -> void:
+	if _panel == null:
+		return
+	var need: float = maxf(_panel.get_combined_minimum_size().y, 136.0)
+	var bottom := 34.0 + _safe_bottom()
+	_panel.offset_bottom = -bottom
+	_panel.offset_top = -(bottom + need)
+
+
+## 아래쪽 제스처 바·둥근 모서리를 피한다. 캔버스 단위로 돌려준다.
+func _safe_bottom() -> float:
+	var win := DisplayServer.window_get_size()
+	if win.y <= 0:
+		return 0.0
+	var safe := DisplayServer.get_display_safe_area()
+	var px: float = maxf(0.0, float(win.y - (safe.position.y + safe.size.y)))
+	var canvas := get_viewport().get_visible_rect().size.y
+	return px * (canvas / float(win.y))
+
+
 ## 여러 줄을 한 번에 준다. 다 넘기면 finished.
+##
+## 줄 하나는 두 가지 모양 중 하나다 —
+##   `"대사"`              말한 사람은 `who`
+##   `["누구", "대사"]`    그 줄만 다른 사람이 말한다
+##
+## 두 번째가 필요한 이유: 재회도 인사도 **주고받는 말**인데, 이름 하나만
+## 찍혀 있으면 혼잣말로 읽힌다. 경비 아저씨의 "오늘도 늦었네" 와
+## 쿼카의 "…네. 근데 오늘이 마지막이에요." 는 서로 다른 사람이 해야 한다.
 func say(who: String, lines: Array) -> void:
-	_who.text = who
+	_default_who = who
 	_queue.clear()
+	_who_queue.clear()
 	for l in lines:
-		_queue.append(String(l))
+		if l is Array and l.size() >= 2:
+			_who_queue.append(String(l[0]))
+			_queue.append(String(l[1]))
+		else:
+			_who_queue.append(who)
+			_queue.append(String(l))
 	_busy = true
 	visible = true
+	var hud := get_tree().get_first_node_in_group("journey_hud")
+	if hud != null and hud.has_method("set_buttons_visible"):
+		hud.set_buttons_visible(false)
 	_next()
 
 
@@ -96,13 +143,27 @@ func is_busy() -> bool:
 	return _busy
 
 
+## 안드로이드 뒤로가기가 부른다. 남은 줄을 버리고 대화를 끝낸다.
+func close() -> void:
+	if not _busy:
+		return
+	_queue.clear()
+	_who_queue.clear()
+	_shown = _full.length()
+	_next()
+
+
 func _next() -> void:
 	if _queue.is_empty():
 		_busy = false
 		visible = false
+		var hud := get_tree().get_first_node_in_group("journey_hud")
+		if hud != null and hud.has_method("set_buttons_visible"):
+			hud.set_buttons_visible(true)
 		finished.emit()
 		return
 	_full = _queue.pop_front()
+	_who.text = _who_queue.pop_front() if not _who_queue.is_empty() else _default_who
 	_shown = 0
 	_t = 0.0
 	_line.text = ""
@@ -119,12 +180,14 @@ func _process(delta: float) -> void:
 	_line.text = _full.substr(0, _shown)
 	if _shown >= _full.length():
 		_more.visible = true
+		_more.queue_redraw()
 
 
 ## 한 번 누르면 마저 찍고, 다 찍혔으면 다음 줄로.
 func advance() -> void:
 	if not _busy:
 		return
+	AudioManager.touch_tap()
 	if _shown < _full.length():
 		_shown = _full.length()
 		_line.text = _full

@@ -15,7 +15,10 @@ var _finger := -1
 var _origin := Vector2.ZERO
 var _now := Vector2.ZERO
 var _dir := Vector2.ZERO
-var _extra := 0            # 두 번째 이상의 손가락 수
+## 지금 화면에 닿아 있는 손가락. index → 위치.
+var _down: Dictionary = {}
+## 두 손가락이 닿은 뒤로는 다 뗄 때까지 걷지 않는다.
+var _pinch_lock := false
 
 
 func _ready() -> void:
@@ -29,24 +32,47 @@ func direction() -> Vector2:
 	return _dir
 
 
+## 두 손가락 이상이 닿아 있나. 확대하려던 손가락이 대화를 열면 안 된다.
+func is_multi() -> bool:
+	return _pinch_lock or _down.size() >= 2
+
+
+## 손가락 수를 세는 대신 **누가 닿아 있는지**를 들고 있는다.
+##
+## 예전엔 `_extra` 라는 숫자만 셌는데, 두 손가락 중 **먼저 댄 쪽을 떼면**
+## 그 숫자가 0 으로 돌아갔다. 남은 손가락은 아직 화면에 있는데 걷기가
+## 다시 열려서, 화면을 오므리는 중에 쿼카가 걸어갔다.
+## 그래서 두 손가락이 닿은 순간 잠그고, **다 뗄 때까지** 안 푼다.
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventScreenTouch:
 		if e.pressed:
-			if _finger == -1 and _extra == 0:
+			# HUD 버튼(배낭·사진)이 먼저다. 터치→마우스 흉내는 첫 손가락
+			# 하나에만 걸리는데 그 손가락을 걷기가 쓰고 있어서, 걸으면서
+			# 셔터를 누르면 아무 일도 안 일어났다. 직접 눌러 준다.
+			var hud := get_tree().get_first_node_in_group("journey_hud")
+			if hud != null and hud.has_method("try_touch") and hud.try_touch(e.position):
+				get_viewport().set_input_as_handled()
+				return
+			_down[e.index] = e.position
+			if _down.size() >= 2:
+				_pinch_lock = true
+				_release()
+			elif not _pinch_lock:
 				_finger = e.index
 				_origin = e.position
 				_now = e.position
-			else:
-				_extra += 1
-				_release()          # 두 손가락 = 확대. 걷기는 놓는다
 		else:
+			_down.erase(e.index)
 			if e.index == _finger:
 				_release()
-			elif _extra > 0:
-				_extra -= 1
-	elif e is InputEventScreenDrag and e.index == _finger:
-		_now = e.position
-		_recalc()
+			if _down.is_empty():
+				_pinch_lock = false
+	elif e is InputEventScreenDrag:
+		if _down.has(e.index):
+			_down[e.index] = e.position
+		if e.index == _finger and not _pinch_lock:
+			_now = e.position
+			_recalc()
 
 
 func _release() -> void:

@@ -90,7 +90,7 @@ func _arm_boot_watchdog() -> void:
 	_state["boot_pending"] = false
 	_state.erase("boot_fail_count")
 	_write_state()
-	print("[AutoUpdate] 부팅 확인 — 이 팩을 유지한다")
+	print("[AutoUpdate] 부팅 확인 - 이 팩을 유지한다")
 	update_ready.connect(_show_update_toast)
 
 
@@ -115,13 +115,16 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.65))
 	l.add_theme_constant_override("outline_size", 6)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# 아래 가운데. 오른쪽 위는 옆맵의 설정 버튼 자리가 되면서 배지와
-	# 정면으로 겹쳤다 — 실제 폰 캡처에 "쿼플 v0.1.44" 와 "설정" 이
-	# 포개져 찍혔다. 아래 가운데는 어느 화면에서도 비어 있다.
+	# **위 가운데.** 여기 말고 갈 데가 없다 —
+	#   오른쪽 위: 여행 화면의 설정 버튼과 겹친다 (실제 폰 캡처에
+	#              "쿼플 v0.1.44" 와 "설정" 이 포개져 찍혔다)
+	#   아래 가운데: 대화창이 화면 아래를 통째로 쓴다. 부팅 직후 말을
+	#              걸면 판 위에 버전이 찍힌다
+	#   왼쪽 위: 시각이 있다
 	l.anchor_left = 0.0; l.anchor_right = 1.0
-	l.anchor_top = 1.0;  l.anchor_bottom = 1.0
+	l.anchor_top = 0.0;  l.anchor_bottom = 0.0
 	l.offset_left = 0.0; l.offset_right = 0.0
-	l.offset_top = -64.0; l.offset_bottom = -12.0
+	l.offset_top = 18.0; l.offset_bottom = 86.0
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(l)
 	var tw := create_tween()

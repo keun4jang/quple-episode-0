@@ -294,7 +294,14 @@ func _talk_tests() -> void:
 
 	# 하루
 	print("\n[하루]")
+	# 앞 검사에서 여행지를 띄워 놓고 왔으므로 시계가 이미 굴러갔다.
+	# (예전엔 시계가 int 라 영영 안 움직여서 이 줄 없이도 통과했다.)
+	JourneyState.minutes = JourneyState.DAY_START
 	ok(JourneyState.minutes == JourneyState.DAY_START, "아침 6시에 시작")
+	JourneyState.advance_time(0.05)
+	ok(JourneyState.minutes > JourneyState.DAY_START,
+		"1분이 안 되는 시간도 쌓인다 (%f)" % JourneyState.minutes)
+	JourneyState.minutes = JourneyState.DAY_START
 	ok(JourneyState.time_text().begins_with("오전"), "시각을 읽을 수 있다")
 	ok(JourneyState.night_amount() == 0.0, "아침엔 안 어둡다")
 	JourneyState.minutes = 21 * 60
@@ -409,6 +416,29 @@ func _reunion_tests() -> void:
 		"여행자가 네 곳을 다 돈다 (%d)" % seen.size())
 	ok(not seen.has("고향"), "남의 고향에는 안 간다")
 
+	# 목록 순서대로 여행하는 **가장 평범한 진행**에서 재회가 일어나는가.
+	#
+	# 한동안 여기서 한 번도 안 만났다. 떠날 때마다 여행자를 한 칸 밀었더니
+	# 플레이어와 나란히 돌면서 늘 한 칸 앞섰다. 게임의 심장이 안 뛰었다.
+	JourneyState.reset()
+	var route := JourneyState.WANDERER_STOPS
+	var met := 0
+	var reunions := 0
+	var at := "쿼울"
+	for i in 12:
+		var dest: String = route[i % route.size()]
+		JourneyState.move_wanderer(dest, at)
+		at = dest
+		if JourneyState.wanderer_here(dest):
+			if JourneyState.is_reunion(dest):
+				reunions += 1
+			met += 1
+			JourneyState.meet_wanderer(dest)
+	ok(met >= 3, "차례대로 다녀도 여행자를 만난다 (%d번)" % met)
+	ok(reunions >= 2, "그중 처음 보는 곳에서의 재회가 있다 (%d번)" % reunions)
+	ok(met < 12, "그렇다고 갈 때마다 있지는 않다 (%d/12)" % met)
+	JourneyState.reset()
+
 	# 진짜 재회 — 쿼릉에서 만나고, 떠났다가, 다른 데서 다시 만난다
 	JourneyState.reset()
 	var first: Place = preload("res://scenes/journey/Gwaeleung.tscn").instantiate()
@@ -443,14 +473,26 @@ func _reunion_tests() -> void:
 			rac2 = c
 	ok(rac2 != null, "쿼주에서 다시 만난다")
 	ok(rac2 != null and not rac2.once.is_empty(), "재회 대사가 따로 있다")
-	ok(rac2 != null and String(rac2.once[0]).contains("웬일"),
-		"첫마디가 \"어? 너 여기 웬일이야?\"")
+	# 재회 대사는 [누가, 무슨 말] 짝으로 온다. 주고받는 말이라 이름이 붙는다.
+	var head: Array = rac2.once[0] if rac2 != null and not rac2.once.is_empty() \
+		else ["", ""]
+	ok(String(head[1]).contains("웬일"), "첫마디가 \"어? 너 여기 웬일이야?\"")
+	ok(String(head[0]) == "배낭 멘 너구리", "누가 한 말인지 적혀 있다")
+	var voices := {}
+	for l in rac2.once:
+		voices[String((l as Array)[0])] = true
+	ok(voices.size() >= 2, "혼잣말이 아니라 주고받는다 (%d명)" % voices.size())
+	var quople := 0
+	for l in rac2.once:
+		if String((l as Array)[1]).contains("쿼플"):
+			quople += 1
+	ok(quople == 0, "첫 재회에서는 쿼플이라는 말이 안 나온다")
 	ok(JourneyState.heart("raccoon") == heart0 + 1,
 		"다시 만난 것만으로 마음이 는다")
 
 	# 재회 대사는 한 번만
 	var said := rac2.lines()
-	ok(String(said[0]).contains("웬일"), "재회 대사를 먼저 한다")
+	ok(String((said[0] as Array)[1]).contains("웬일"), "재회 대사를 먼저 한다")
 	ok(rac2.once.is_empty(), "재회 대사는 한 번만")
 	second.queue_free()
 	await get_tree().process_frame
@@ -482,15 +524,22 @@ func _extras_tests() -> void:
 	JourneyState.reset()
 	ok(JourneyState.unread_letters() == 0, "처음엔 편지가 없다")
 
-	# 여행지 세 곳마다 한 통
-	for name in ["쿼릉", "쿼주"]:
-		JourneyState.visit(name)
-		JourneyState.maybe_letter()
-	ok(JourneyState.letters.is_empty(), "두 곳까지는 안 온다")
-	JourneyState.visit("쿼산")
+	# 편지는 **떠난 횟수**로 센다. 여행지가 넷뿐이라 "다녀온 곳 수"로 세면
+	# 아무리 다녀도 한 통에서 멈춘다 (`journey_state.gd` 의 `maybe_letter`).
+	JourneyState.visit("쿼릉")
 	JourneyState.maybe_letter()
-	ok(JourneyState.letters.size() == 1, "세 곳째에 한 통 온다")
-	ok(JourneyState.unread_letters() == 1, "안 읽은 걸로 뜬다")
+	ok(JourneyState.letters.is_empty(), "한 번 만에는 안 온다")
+	JourneyState.visit("쿼주")
+	JourneyState.maybe_letter()
+	ok(JourneyState.letters.size() == 1, "두 번째 도착에 한 통 온다")
+	# 같은 곳에 다시 가도 떠난 것이다 — 여기서 편지가 멈추면 안 된다
+	for i in 8:
+		JourneyState.visit("쿼릉")
+		JourneyState.maybe_letter()
+	ok(JourneyState.letters.size() == JourneyState.LETTERS.size(),
+		"다니다 보면 다섯 통이 다 온다 (%d)" % JourneyState.letters.size())
+	ok(JourneyState.unread_letters() == JourneyState.LETTERS.size(),
+		"안 읽은 걸로 뜬다 (%d)" % JourneyState.unread_letters())
 
 	# 안 읽어도 벌이 없다. 다만 고향에 가면 다 읽은 것으로 친다
 	JourneyState.came_home()
@@ -498,7 +547,8 @@ func _extras_tests() -> void:
 
 	# 같은 편지를 두 번 보내지 않는다
 	JourneyState.maybe_letter()
-	ok(JourneyState.letters.size() == 1, "같은 편지를 두 번 안 보낸다")
+	ok(JourneyState.letters.size() == JourneyState.LETTERS.size(),
+		"같은 편지를 두 번 안 보낸다")
 
 	print("\n[사진]")
 	var p: Place = preload("res://scenes/journey/Gwaeleung.tscn").instantiate()

@@ -24,6 +24,21 @@ KEYSTORE_PASS=${QUPLE_KEYSTORE_PASS:-quple2026}   # 개발용 임시값. 출시 
 
 TARGET=${1:-all}
 
+# APK 버전을 project.godot 에 맞춘다.
+#
+# 여기가 손으로 적은 값(0.1.0 / code 1)에 굳어 있었다. project.godot 이
+# 0.1.47 인데 폰에 깔린 APK 는 0.1.0 이었고, versionCode 가 1 에 멈춰
+# 있으면 스토어 업로드가 막히고 같은 코드끼리 덮어 깔 때 기기가 거부한다.
+# 팩 갱신과 달리 이건 APK 를 새로 내야 고쳐지므로, 빌드할 때마다 맞춘다.
+#
+# code 는 X.Y.Z 를 자릿수로 눌러 담는다 (0.1.47 → 147). 늘 커진다.
+VER=$(grep -oP 'config/version="\K[^"]+' project.godot)
+IFS=. read -r VMA VMI VPA <<<"$VER"
+VCODE=$(( VMA * 10000 + VMI * 100 + VPA ))
+echo "→ APK 버전 $VER (code $VCODE)"
+sed -i -E "s|^version/code=.*|version/code=$VCODE|; s|^version/name=.*|version/name=\"$VER\"|" \
+	export_presets.cfg
+
 die() { echo "✗ $*" >&2; exit 1; }
 
 # --- 사전 점검 -------------------------------------------------------------

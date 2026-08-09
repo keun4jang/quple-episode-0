@@ -17,16 +17,30 @@ signal bumped(what: Node)
 var sprite: QuoSprite
 var _input := Vector2.ZERO
 var _shape: CollisionShape2D
+var _shadow: Node2D
+var _outline_node: Node2D
 
 
 func _ready() -> void:
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	y_sort_enabled = true
 
+	# 발밑 그림자를 **먼저** 깐다. 이게 없으면 캐릭터가 바닥에 얹혀 있지
+	# 않고 공중에 붙어 있는 것처럼 보인다.
+	_shadow = Node2D.new()
+	_shadow.name = "Shadow"
+	_shadow.z_index = -1
+	_shadow.draw.connect(func() -> void:
+		# 발끝이 원점이다. 그림자는 발 바로 밑에 얕게 눌려 앉는다.
+		_shadow.draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.36))
+		_shadow.draw_circle(Vector2(0, -3.0), 7.0, Color(0.12, 0.09, 0.14, 0.28)))
+	add_child(_shadow)
+
 	sprite = QuoSprite.new()
 	sprite.name = "Sprite"
 	add_child(sprite)
 	sprite.load_sheet(sheet)
+	_build_outline()
 
 	# 발 근처만 막는다. 몸통 전체로 막으면 나무 뒤로 못 지나가고,
 	# 탑다운에서 위쪽은 "머리 위 공간"이라 부딪히면 안 된다.
@@ -58,13 +72,57 @@ func _physics_process(delta: float) -> void:
 	# 그림은 실제로 가는 쪽을 본다. 넣어 준 방향을 그대로 쓰면 벽에
 	# 붙어 있을 때 안 가면서 걷는 시늉을 한다.
 	sprite.drive(velocity / maxf(speed, 1.0), delta)
+	_sync_outline()
 
 
 func face(dir: Vector2) -> void:
 	sprite.face(dir)
+	_sync_outline()
 
 
 func stop() -> void:
 	_input = Vector2.ZERO
 	velocity = Vector2.ZERO
 	sprite.drive(Vector2.ZERO, 0.0)
+
+
+# ── 테두리 ────────────────────────────────────────────────────────────
+#
+# 밝은 캐릭터가 밝은 바닥 위에 서면 통째로 묻힌다. 갈매기 몸빛
+# (206,153,107)은 갑판·나무바닥과 명도차가 **1.02:1** 이었다 — 1.0 이
+# "완전히 같은 밝기"이니 사실상 안 보인다는 뜻이다.
+#
+# 그림을 다시 칠하지 않고 **어두운 복사본 네 장을 1px 씩 밀어** 뒤에
+# 깐다. 픽셀 그림에서 흔히 쓰는 방법이고 셰이더가 없어 저사양에서도 싸다.
+#
+# 노드를 네 개 두지 않고 한 노드가 네 번 그린다. 부모가 Y 정렬이라
+# 자식은 z_index 가 아니라 **y 값과 트리 순서**로 겹치는데, 노드를 여러
+# 개 두면 그중 일부가 본체 앞으로 올라와 캐릭터를 까맣게 덮는다.
+# 스프라이트보다 **먼저** 놓인 노드 하나면 언제나 뒤에 깔린다.
+const OUTLINE_COLOR := Color(0.16, 0.13, 0.18, 0.85)
+const OUTLINE_STEPS := [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]
+
+func _build_outline() -> void:
+	_outline_node = Node2D.new()
+	_outline_node.name = "Outline"
+	_outline_node.draw.connect(_draw_outline)
+	add_child(_outline_node)
+	# 스프라이트보다 앞자리에 둔다 — 먼저 그려야 뒤에 깔린다.
+	move_child(_outline_node, sprite.get_index())
+
+
+func _draw_outline() -> void:
+	if sprite == null or sprite.texture == null:
+		return
+	var r := sprite.region_rect
+	if sprite.flip_h:
+		r = Rect2(r.position.x + r.size.x, r.position.y, -r.size.x, r.size.y)
+	for d in OUTLINE_STEPS:
+		_outline_node.draw_texture_rect_region(sprite.texture,
+			Rect2(sprite.offset + d, sprite.region_rect.size), r, OUTLINE_COLOR)
+
+
+## 걸으면 칸이 바뀐다. 테두리도 같이 다시 그린다.
+func _sync_outline() -> void:
+	if _outline_node != null:
+		_outline_node.queue_redraw()

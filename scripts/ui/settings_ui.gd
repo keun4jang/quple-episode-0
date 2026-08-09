@@ -191,7 +191,7 @@ func _on_update_failed(reason: String) -> void:
 	# 사람이 누르지 않았는데 뜬 실패는 굳이 보여 주지 않는다.
 	if _update_btn == null or not visible:
 		return
-	# 실패 색으로 산호를 쓰면 안 된다 — 파트너 스카프 색이라 UI 에서는 금지다.
+	# 실패 색으로 산호를 쓰면 안 된다 — 쿼카 스카프 색이라 UI 에서는 금지다.
 	_set_update_state(false, reason + "\n인터넷 연결을 확인해 주세요",
 		Color(1.0, 0.86, 0.62))
 

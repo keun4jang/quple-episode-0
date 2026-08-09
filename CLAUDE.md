@@ -30,8 +30,12 @@
 전역 테마가 이미 적용돼 있으므로 새 UI를 만들 때 따로 신경 쓸 필요는 없다.
 
 - 테마: `assets/themes/quple_bold.tres` (`project.godot` 의 `gui/theme/custom` 에 등록)
-- 폰트: `assets/fonts/Jua.ttf` (둥근 한글, OFL) + `variation_embolden = 0.55`
+- 폰트: `assets/fonts/PoorStory.ttf` (둥근 한글, OFL) + `variation_embolden = 0.85`
 - 더 굵게 필요하면: `assets/fonts/BlackHanSans.ttf` (OFL)
+
+**폰트에 없는 글자를 쓰지 않는다.** 없으면 폰에서 네모 상자가 뜬다.
+`▼ ● ★ ⚙ ✉ ✕ ✦ — 🏡 🎬` 는 PoorStory 에 없다. 세모·점 같은 표시는
+글자 말고 **직접 그린다** (`draw_colored_polygon` / `draw_circle`).
 
 새 Label/Button 에 폰트를 개별 지정하지 말 것. 전역 테마를 덮어써서 굵기가 깨진다.
 크기만 `theme_override_font_sizes/font_size` 로 조절한다.

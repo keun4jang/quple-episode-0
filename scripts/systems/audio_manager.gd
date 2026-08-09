@@ -68,7 +68,7 @@ func _bgm_db() -> float:
 # ── 배경음악 ────────────────────────────────────────────────────────────
 
 ## 배경음악을 튼다. 같은 곡이면 아무것도 하지 않는다.
-##   "menu" / "episode0" / "travel" / "room"
+##   "arirang" / "doraji" / "gohyang" / "gaeguri" / "room"
 func play_bgm(track: String) -> void:
 	if track == _bgm_current and _bgm_player and _bgm_player.playing:
 		return
@@ -499,12 +499,6 @@ const BGM_TRACKS := {
 		"lh": "ballad", "rubato": 0.012,
 	},
 	# 선율이 없는 곡 — 즉흥으로 조용히 친다
-	"episode0": {
-		"melody": "", "root": 220.00, "dur": 26.0, "octave": 1,
-		"chords": [[0, 4, 7], [9, 12, 16], [5, 9, 12], [7, 11, 14]],
-		"lh": "sparse", "rubato": 0.028,
-		"scale": [0, 2, 4, 7, 9, 12], "notes_per_bar": 2,
-	},
 	"room": {
 		"melody": "", "root": 220.00, "dur": 20.0, "octave": 1,
 		"chords": [[0, 4, 7], [5, 9, 12], [0, 4, 7], [7, 11, 14]],
