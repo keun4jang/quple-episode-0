@@ -320,6 +320,32 @@ def save_walk_sheet(name: str, views: dict, out_dir: str) -> str:
     return path
 
 
+def run_mascot(sheet: dict, pal: Image.Image) -> list:
+    """주인공. 새로 그릴 필요가 없다 — 기존 3D 렌더에 앞·옆·뒤가 이미 있다.
+
+    투명 배경 PNG 라 마젠타를 뺄 일도 없다. 픽셀로 내려서 같은 걷기 시트로
+    묶기만 하면 인연들과 나란히 선다.
+    """
+    os.makedirs(sheet["out"], exist_ok=True)
+    crops = {}
+    for key, path in sheet["views"].items():
+        if not os.path.exists(path):
+            print("  건너뜀 (파일 없음): %s" % path)
+            return []
+        im = Image.open(path).convert("RGBA")
+        bb = im.getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox()
+        crops[key] = im.crop(bb) if bb else im
+
+    name, units = sheet["names"][0]
+    scale = (units * UNIT) / crops["down"].height
+    views = {k: to_pixel(c, max(1, round(c.width * scale)),
+                         max(1, round(c.height * scale)), pal)
+             for k, c in crops.items()}
+    out = save_walk_sheet(name, views, sheet["out"])
+    print("    %-10s 3방향 x %d프레임  →  %s" % (name, WALK_FRAMES, out))
+    return [out]
+
+
 def run_turnaround(sheet: dict, pal: Image.Image) -> list:
     """3행 x N열 턴어라운드에서 앞·옆·뒤를 골라 걷기 시트를 만든다."""
     path = os.path.join(SRC, sheet["file"])
@@ -415,6 +441,18 @@ SHEETS = [
         "names": [("mom", 3), ("dad", 3.2), ("sibling", 2.7)],
     },
     {
+        "id": "hero",
+        "file": "(기존 3D 렌더)",
+        "mode": "mascot",
+        "out": OUT_SPRITES,
+        "views": {
+            "down": "assets/mascots/sheet/leader-front.png",
+            "side": "assets/mascots/sheet/leader-side.png",
+            "up": "assets/mascots/sheet/leader-back.png",
+        },
+        "names": [("hero", 3)],
+    },
+    {
         "id": "h",
         "file": "h-family-turn.jpg",
         "mode": "turnaround",
@@ -432,6 +470,45 @@ SHEETS = [
         "names": [("seal", 3), ("seagull", 2.9), ("raccoon", 3)],
     },
     {
+        "id": "b",
+        "file": "b-buildings.jpg",
+        "mode": "objects",
+        "out": OUT_SPRITES,
+        "names": [("guesthouse", 9), ("shop", 6), ("lighthouse", 12)],
+    },
+    {
+        "id": "c",
+        "file": "c-nature.jpg",
+        "mode": "objects",
+        "out": OUT_SPRITES,
+        "names": [("pine", 8), ("tree", 7), ("beach-grass", 2),
+                  ("boulder", 3), ("pebbles", 1.2), ("shrub", 2)],
+    },
+    {
+        "id": "d",
+        "file": "d-props.jpg",
+        "mode": "objects",
+        "out": OUT_SPRITES,
+        "names": [("bench", 2), ("street-lamp", 5), ("signpost", 4),
+                  ("flower-pots", 1.6), ("fence", 2), ("dock", 2)],
+    },
+    {
+        "id": "f",
+        "file": "f-office.jpg",
+        "mode": "objects",
+        "out": OUT_SPRITES,
+        "names": [("desk", 2), ("office-chair", 2), ("cabinet", 4),
+                  ("office-window", 5), ("reception", 2), ("return-box", 1.4)],
+    },
+    {
+        "id": "j",
+        "file": "j-hero-turn.jpg",
+        "mode": "turnaround",
+        "out": OUT_SPRITES,
+        "columns": (1, 2, 3),
+        "names": [("hero", 3)],
+    },
+    {
         "id": "e",
         "file": "e-folk.jpg",
         "mode": "objects",
@@ -442,6 +519,8 @@ SHEETS = [
 
 
 def run_sheet(sheet: dict, pal: Image.Image) -> list:
+    if sheet["mode"] == "mascot":
+        return run_mascot(sheet, pal)
     path = os.path.join(SRC, sheet["file"])
     if not os.path.exists(path):
         print("  건너뜀 (파일 없음): %s" % path)
@@ -449,6 +528,9 @@ def run_sheet(sheet: dict, pal: Image.Image) -> list:
     im = Image.open(path).convert("RGB")
     os.makedirs(sheet["out"], exist_ok=True)
     made = []
+
+    if sheet["mode"] == "mascot":
+        return run_mascot(sheet, pal)
 
     if sheet["mode"] == "turnaround":
         return run_turnaround(sheet, pal)
