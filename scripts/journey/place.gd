@@ -14,10 +14,16 @@ extends Node2D
 ## 그려진다 — 나무 뒤로 걸어 들어가면 가려진다.
 
 signal picked_up(item: String)
+signal talked(folk_id: String)
+signal slept(day: int)
 
 const TILE := 16
 ## 이만큼 가까우면 줍는다. 한 칸 조금 안쪽.
 const PICK_RANGE := 12.0
+## 이만큼 가까우면 말을 걸 수 있다. 줍기보다 넉넉하게.
+const TALK_RANGE := 26.0
+## 실제 1초에 게임 시간이 얼마나 흐르나. 하루(18시간)가 약 9분.
+const MINUTES_PER_SECOND := 2.0
 
 ## 글자 → 바닥 그림. 하위 클래스가 채운다.
 var legend: Dictionary = {}
@@ -34,6 +40,16 @@ var _size := Vector2i.ZERO
 var _grid: Array = []            # 행 문자열
 var _tiles: Dictionary = {}      # 이름 → Texture2D
 var _loose: Array[Node2D] = []   # 아직 안 주운 것
+var _folk: Array[Folk] = []
+var _near: Folk = null
+var _mark: Label                 # 말 걸 수 있는 사람 위에 뜨는 표시
+var _night: CanvasModulate
+var _sleep_at := Vector2.ZERO
+var _has_bed := false
+var _fade: ColorRect
+var _sleeping := false
+var say: JourneySay
+var hud: JourneyHud
 
 
 # ── 하위 클래스가 채우는 것 ───────────────────────────────────────────
@@ -60,6 +76,10 @@ func pickups() -> Array:
 func spawn_tile() -> Vector2i:
 	return Vector2i(2, 2)
 
+## 잘 수 있는 자리 (숙소 문, 집 문). 없으면 (-1, -1).
+func sleep_tile() -> Vector2i:
+	return Vector2i(-1, -1)
+
 ## 지도가 다 깔린 뒤. 인연을 세우거나 사건을 붙인다.
 func on_built() -> void:
 	pass
@@ -76,6 +96,7 @@ func _ready() -> void:
 	_build_walls()
 	_build_walker()
 	_build_camera()
+	_build_ui()
 	on_built()
 
 
@@ -320,10 +341,164 @@ func _build_camera() -> void:
 	add_child(layer)
 
 
-func _process(_delta: float) -> void:
+func _build_ui() -> void:
+	say = JourneySay.new()
+	say.name = "Say"
+	add_child(say)
+
+	hud = JourneyHud.new()
+	hud.name = "Hud"
+	add_child(hud)
+
+	# 말 걸 수 있는 사람 위에 뜨는 표시. 글자로 "말 걸기"라고 쓰지 않는다 —
+	# 가까이 가면 뜨고 멀어지면 사라지는 것만으로 뜻이 통한다.
+	_mark = Label.new()
+	_mark.text = "❢"
+	_mark.add_theme_font_size_override("font_size", 14)
+	_mark.add_theme_color_override("font_color", Color("#FFF2C8"))
+	_mark.add_theme_color_override("font_outline_color", Color("#3A2C2C"))
+	_mark.add_theme_constant_override("outline_size", 4)
+	_mark.visible = false
+	_mark.z_index = 50
+	add_child(_mark)
+
+	# 밤이 오면 화면이 어두워진다. 그림을 다시 그리지 않고 색만 덮는다.
+	_night = CanvasModulate.new()
+	_night.color = Color.WHITE
+	add_child(_night)
+
+	var bed := sleep_tile()
+	_has_bed = bed.x >= 0
+	if _has_bed:
+		_sleep_at = world_of(bed)
+
+	# 잘 때 화면을 덮는 검은 막. CanvasLayer 에 둬야 카메라를 따라다닌다.
+	var fl := CanvasLayer.new()
+	fl.layer = 20
+	add_child(fl)
+	_fade = ColorRect.new()
+	_fade.color = Color(0, 0, 0, 0)
+	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fl.add_child(_fade)
+
+
+## 시간이 흐른다. 대화 중이거나 배낭을 열어 두면 멈춘다 —
+## 읽는 동안 해가 지면 급해진다.
+func _tick_clock(delta: float) -> void:
+	# 시계만 멈춘다. 색은 늘 따라간다 — 처음엔 둘을 같이 멈췄더니
+	# 대화 중에 시간을 건너뛰면 화면이 낮인 채로 굳었다.
+	var paused := (say != null and say.is_busy()) \
+		or (hud != null and hud.bag_open())
+	if not paused:
+		JourneyState.advance_time(delta * MINUTES_PER_SECOND)
+	if _night != null:
+		var n := JourneyState.night_amount()
+		_night.color = Color(1, 1, 1).lerp(Color(0.40, 0.44, 0.66), n)
+
+
+## 가장 가까운 인연을 찾아 표시를 띄운다.
+func _update_near() -> void:
+	_near = null
+	if walker == null:
+		return
+	var best := TALK_RANGE * TALK_RANGE
+	for f in _folk:
+		if not is_instance_valid(f):
+			continue
+		var d := walker.global_position.distance_squared_to(f.global_position)
+		if d < best:
+			best = d
+			_near = f
+	if _mark == null:
+		return
+	var busy := say != null and say.is_busy()
+	if _near != null and not busy:
+		_mark.visible = true
+		_mark.text = "❢"
+		_mark.global_position = _near.global_position + Vector2(-4, -40)
+	elif _can_sleep() and not busy:
+		_mark.visible = true
+		_mark.text = "🌙"
+		_mark.global_position = _sleep_at + Vector2(-6, -34)
+	else:
+		_mark.visible = false
+
+
+## 잘 자리에 서 있나. **밤이 아니어도 잘 수 있다** — 낮잠도 여행이다.
+func _can_sleep() -> bool:
+	if not _has_bed or walker == null:
+		return false
+	return walker.global_position.distance_squared_to(_sleep_at) \
+		< TALK_RANGE * TALK_RANGE
+
+
+## 자고 다음 날. 하루가 끝나는 유일한 방법이다 —
+## 밤을 새워도 벌이 없고, 그냥 밤 풍경을 계속 본다.
+func go_to_sleep() -> void:
+	if _sleeping:
+		return
+	_sleeping = true
+	walker.stop()
+	var tw := create_tween()
+	tw.tween_property(_fade, "color:a", 1.0, 0.6)
+	tw.tween_callback(func():
+		JourneyState.sleep()
+		for f in _folk:
+			if is_instance_valid(f):
+				f.reset_day()
+		walker.global_position = world_of(spawn_tile()))
+	tw.tween_interval(0.5)
+	tw.tween_property(_fade, "color:a", 0.0, 0.7)
+	tw.tween_callback(func():
+		_sleeping = false
+		slept.emit(JourneyState.day))
+
+
+func talk_to_near() -> void:
+	if _near == null or say == null or say.is_busy():
+		return
+	var f := _near
+	# 서로 마주 본다. 등을 보고 말하면 이상하다.
+	var dir := (walker.global_position - f.global_position).normalized()
+	f.face(dir)
+	walker.face(-dir)
+	walker.stop()
+	# **대사를 먼저 고르고** 마음을 올린다. 순서를 바꾸면 처음 만난
+	# 사람이 두 칸째 대사를 하고, 첫인사를 영영 못 듣는다.
+	var what := f.lines()
+	f.on_talked()
+	say.say(f.who, what)
+	talked.emit(f.folk_id)
+
+
+func _unhandled_input(e: InputEvent) -> void:
+	if say != null and say.is_busy():
+		return
+	# e 는 InputEvent 라 e.pressed 가 Variant 다. 타입을 적어 준다 —
+	# 안 적으면 추론이 안 돼 파일 전체가 컴파일에 실패한다.
+	var tap: bool = (e is InputEventScreenTouch and e.pressed) \
+		or (e is InputEventMouseButton and e.pressed
+			and e.button_index == MOUSE_BUTTON_LEFT) \
+		or e.is_action_pressed("ui_accept")
+	if not tap:
+		return
+	if _near != null:
+		talk_to_near()
+		get_viewport().set_input_as_handled()
+	elif _can_sleep():
+		go_to_sleep()
+		get_viewport().set_input_as_handled()
+
+
+func _process(delta: float) -> void:
+	var blocked := (say != null and say.is_busy()) \
+		or (hud != null and hud.bag_open()) or _sleeping
 	if walker != null and touch != null:
-		walker.set_input(touch.direction_with_keys())
+		walker.set_input(Vector2.ZERO if blocked else touch.direction_with_keys())
 	_check_pickups()
+	_update_near()
+	_tick_clock(delta)
 
 
 # ── 도우미 ────────────────────────────────────────────────────────────
@@ -337,10 +512,16 @@ func world_of(t: Vector2i) -> Vector2:
 
 
 ## 인연을 세운다. 걷지 않고 서 있기만 한다.
-func put_folk(t: Vector2i, sheet: String, facing := Vector2.DOWN) -> QuoWalker:
-	var f := QuoWalker.new()
+func put_folk(t: Vector2i, sheet: String, who: String, folk_id: String,
+		lines: Array, facing := Vector2.DOWN, wanderer := false) -> Folk:
+	var f := Folk.new()
 	f.sheet = "res://assets/sprites/%s-walk.png" % sheet
+	f.who = who
+	f.folk_id = folk_id
+	f.wanderer = wanderer
+	f.lines_by_heart = lines
 	f.position = world_of(t)
 	add_child(f)
 	f.face(facing)
+	_folk.append(f)
 	return f

@@ -107,9 +107,46 @@ func spawn_tile() -> Vector2i:
 	return Vector2i(21, 14)
 
 
+## 집 문 앞. 디딤돌 위다.
+func sleep_tile() -> Vector2i:
+	return Vector2i(21, 10)
+
+
 func on_built() -> void:
+	JourneyState.here = place_name()
 	# 엄마는 마당에서 뭘 널고 있고, 아빠는 밭 옆에서 뭘 고치고 있고,
 	# 동생은 평상에 앉아 있다. 셋이 흩어져 있어야 마당이 넓어 보인다.
-	put_folk(Vector2i(17, 12), "mom", Vector2.DOWN)
-	put_folk(Vector2i(11, 21), "dad", Vector2.RIGHT)
-	put_folk(Vector2i(32, 15), "sibling", Vector2.LEFT)
+	#
+	# 대사는 마음 칸마다 다르다. 숫자는 안 보여 주고 **말투로만** 알린다
+	# (`docs/redesign-journey.md` 5절).
+
+	# 엄마의 첫마디는 **언제 왔느냐**에 따라 다르다
+	# (`docs/story-journey.md` 5절). 벌이 아니라 그냥 다른 것이다.
+	var mom := put_folk(Vector2i(17, 12), "mom", "엄마", "mom", [
+		[_mom_greeting(), "밥은 먹었니."],
+		["밥은 먹었니.", "국 데워 놨다."],
+		["얼굴이 좀 폈네.", "천천히 있다 가."],
+	], Vector2.DOWN)
+	mom.once = [_mom_greeting(), "…들어와서 밥부터 먹어."]
+
+	put_folk(Vector2i(11, 21), "dad", "아빠", "dad", [
+		["…왔냐."],
+		["…어."],
+		["이거 손잡이가 헐거워서.", "…다 됐다."],
+	], Vector2.RIGHT)
+
+	put_folk(Vector2i(32, 15), "sibling", "동생", "sibling", [
+		["어, 왔어?", "회사는 어쩌고?"],
+		["형(누나) 요즘 뭐 하고 다녀?"],
+		["나도 언젠가 그렇게 다녀 볼래."],
+	], Vector2.LEFT)
+
+
+## 늦게 올수록 첫마디가 달라진다.
+func _mom_greeting() -> String:
+	var been := JourneyState.places_visited()
+	if been <= 2:
+		return "어? 벌써 왔어? 회사는?"
+	if been <= 8:
+		return "얼굴 좋아졌네."
+	return "…어디 갔다 이제 와."

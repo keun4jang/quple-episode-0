@@ -11,6 +11,8 @@ func _ready() -> void:
 	await _walker_tests()
 	await _place_tests()
 	await _pickup_tests()
+	await _talk_tests()
+	await _place2_tests()
 	await _camera_tests()
 	_touch_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -231,6 +233,135 @@ func _pickup_tests() -> void:
 	ok(JourneyState.is_taken(pname, first), "복원하면 주운 자리도 돌아온다")
 	SaveManager.clear_save()
 	ok(JourneyState.total() == 0, "기록 초기화가 배낭도 비운다")
+
+
+# ── 말 걸기 · 하루 ────────────────────────────────────────────────────
+
+func _talk_tests() -> void:
+	print("\n[말 걸기]")
+	JourneyState.reset()
+	var p: Place = preload("res://scenes/journey/Home.tscn").instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var folk: Array[Folk] = []
+	for c in p.get_children():
+		if c is Folk:
+			folk.append(c)
+	ok(folk.size() == 3, "인연이 셋 (%d)" % folk.size())
+
+	var ids := {}
+	for f in folk:
+		ids[f.folk_id] = true
+		ok(f.who != "", "%s 에게 이름이 있다" % f.folk_id)
+	ok(ids.size() == folk.size(), "인연 열쇠가 겹치지 않는다")
+
+	# 멀리 있으면 못 건다
+	var mom: Folk = folk[0]
+	p.walker.global_position = mom.global_position + Vector2(400, 0)
+	await get_tree().process_frame
+	ok(not p.say.is_busy(), "멀면 말이 안 걸린다")
+
+	# 다가가면 걸린다
+	p.walker.global_position = mom.global_position + Vector2(10, 0)
+	await get_tree().process_frame
+	p.talk_to_near()
+	await get_tree().process_frame
+	ok(p.say.is_busy(), "다가가면 말이 걸린다")
+
+	# 첫인사는 첫 칸 대사여야 한다 (마음을 먼저 올리면 첫인사를 못 듣는다)
+	ok(JourneyState.heart(mom.folk_id) == 1, "말을 걸면 마음이 한 칸 는다")
+
+	# 하루에 한 번만 는다
+	while p.say.is_busy():
+		p.say.advance()
+	await get_tree().process_frame
+	p.talk_to_near()
+	await get_tree().process_frame
+	ok(JourneyState.heart(mom.folk_id) == 1, "하루에 한 번만 는다")
+	while p.say.is_busy():
+		p.say.advance()
+
+	# 최대 다섯 칸
+	for i in 20:
+		JourneyState.warm(mom.folk_id)
+	ok(JourneyState.heart(mom.folk_id) == JourneyState.HEART_MAX,
+		"마음은 다섯 칸까지")
+
+	# 하루
+	print("\n[하루]")
+	ok(JourneyState.minutes == JourneyState.DAY_START, "아침 6시에 시작")
+	ok(JourneyState.time_text().begins_with("오전"), "시각을 읽을 수 있다")
+	ok(JourneyState.night_amount() == 0.0, "아침엔 안 어둡다")
+	JourneyState.minutes = 21 * 60
+	ok(JourneyState.night_amount() > 0.9, "밤엔 어둡다")
+	ok(JourneyState.time_text().begins_with("오후"), "오후로 바뀐다")
+
+	var d0 := JourneyState.day
+	JourneyState.sleep()
+	ok(JourneyState.day == d0 + 1, "자면 다음 날")
+	ok(JourneyState.minutes == JourneyState.DAY_START, "자면 아침으로")
+
+	# 자고 나면 다시 마음이 는다
+	var s0 := JourneyState.heart("sibling")
+	folk[2].reset_day()
+	folk[2].on_talked()
+	ok(JourneyState.heart("sibling") == s0 + 1, "다음 날엔 또 는다")
+
+	ok(p.sleep_tile().x >= 0, "잘 자리가 있다")
+	p.queue_free()
+	await get_tree().process_frame
+
+
+# ── 쿼릉 ──────────────────────────────────────────────────────────────
+
+func _place2_tests() -> void:
+	print("\n[쿼릉]")
+	JourneyState.reset()
+	var p: Place = preload("res://scenes/journey/Gwaeleung.tscn").instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	ok(p.place_name() == "쿼릉", "이름이 쿼로 시작한다")
+	ok(JourneyState.places_visited() == 1, "다녀온 곳으로 센다")
+
+	var sz := p.tile_size()
+	var view := p.get_viewport().get_visible_rect().size / p.cam.zoom
+	ok(sz.x * Place.TILE >= view.x and sz.y * Place.TILE >= view.y,
+		"지도가 화면보다 크다 (%dx%d칸)" % [sz.x, sz.y])
+
+	# 줄 길이가 들쭉날쭉하면 지도 끝에 구멍이 생긴다
+	var widths := {}
+	for line in p.ground_map().split("\n"):
+		var t := line.strip_edges()
+		if t != "":
+			widths[t.length()] = true
+	ok(widths.size() == 1, "지도 줄 길이가 다 같다")
+
+	# 여행자가 하나 있어야 한다 — 재회는 이 게임의 심장이다
+	var wanderers := 0
+	for c in p.get_children():
+		if c is Folk and c.wanderer:
+			wanderers += 1
+	ok(wanderers == 1, "여행자가 하나 있다")
+
+	# 고향과 색이 달라야 한다. 같으면 떠나온 느낌이 안 난다
+	var home: Place = preload("res://scenes/journey/Home.tscn").instantiate()
+	add_child(home)
+	await get_tree().process_frame
+	var same := 0
+	for ch in p.legend:
+		if home.legend.values().has(p.legend[ch]):
+			same += 1
+	ok(same < p.legend.size(), "고향과 바닥이 다르다 (%d/%d 겹침)"
+		% [same, p.legend.size()])
+	home.queue_free()
+
+	ok(p.sleep_tile().x >= 0, "쿼스텔에서 잘 수 있다")
+	p.queue_free()
+	await get_tree().process_frame
 
 
 # ── 카메라 ────────────────────────────────────────────────────────────
