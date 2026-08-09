@@ -110,21 +110,22 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	add_child(cl)
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", 36)
+	l.add_theme_font_size_override("font_size", 28)
 	l.add_theme_color_override("font_color", col)
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.65))
 	l.add_theme_constant_override("outline_size", 6)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# **위 가운데.** 여기 말고 갈 데가 없다 —
-	#   오른쪽 위: 여행 화면의 설정 버튼과 겹친다 (실제 폰 캡처에
-	#              "진짜 행복 v0.1.44" 와 "설정" 이 포개져 찍혔다)
-	#   아래 가운데: 대화창이 화면 아래를 통째로 쓴다. 부팅 직후 말을
-	#              걸면 판 위에 버전이 찍힌다
-	#   왼쪽 위: 시각이 있다
-	l.anchor_left = 0.0; l.anchor_right = 1.0
+	# **왼쪽 위, 시각 바로 아래.** 갈 데를 하나씩 지우고 남은 자리다 —
+	#   오른쪽 위: 여행 화면의 설정 버튼과 겹친다
+	#   아래 가운데: 대화창이 화면 아래를 통째로 쓴다
+	#   아래 양 끝: 사진·배낭 버튼이 있다
+	#   위 가운데: 메인화면의 제목이 있다
+	# 왼쪽 위에는 여행 화면의 시각뿐이고, 그 한 줄 아래는 어디서나 빈다.
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	l.anchor_left = 0.0; l.anchor_right = 0.0
 	l.anchor_top = 0.0;  l.anchor_bottom = 0.0
-	l.offset_left = 0.0; l.offset_right = 0.0
-	l.offset_top = 18.0; l.offset_bottom = 86.0
+	l.offset_left = 28.0; l.offset_right = 620.0
+	l.offset_top = 68.0; l.offset_bottom = 120.0
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(l)
 	var tw := create_tween()

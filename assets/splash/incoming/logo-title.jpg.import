@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b1skdre8276mh"
-path="res://.godot/imported/logo-quple.png-164ad0078beb8960a19a8871450b8067.ctex"
+uid="uid://dxhqv1y1a3kfl"
+path="res://.godot/imported/logo-title.jpg-8d74e84359b7a5247321ef8c39e11d07.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/splash/logo-quple.png"
-dest_files=["res://.godot/imported/logo-quple.png-164ad0078beb8960a19a8871450b8067.ctex"]
+source_file="res://assets/splash/incoming/logo-title.jpg"
+dest_files=["res://.godot/imported/logo-title.jpg-8d74e84359b7a5247321ef8c39e11d07.ctex"]
 
 [params]
 

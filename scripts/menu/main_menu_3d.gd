@@ -35,8 +35,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	# 제목 숨쉬기.
-	var title = get_node_or_null("UILayer/Control/TitleText")
+	# 제목 숨쉬기. 그림이면 그림, 아니면 글자.
+	var title = get_node_or_null("UILayer/Control/LogoImage")
+	if title == null or not title.visible:
+		title = get_node_or_null("UILayer/Control/TitleText")
 	if title:
 		var k: float = 1.0 + sin(_t * 1.4) * 0.012
 		title.scale = Vector2(k, k)
@@ -301,19 +303,25 @@ func _on_quit() -> void:
 	get_tree().quit()
 
 # ─── 배경 별 (3D 앰비언트) ───
-## 제목. **그림이 아니라 글자로 그린다.**
+## 제목.
 ##
-## 로고 그림(`logo-quple.png`)은 "쿼플" 이라는 글자 모양 자체다. 이름이
-## 바뀐 지금 그 그림은 못 쓴다 — 그림이라 고칠 수가 없다. 새 로고가
-## 올 때까지는 게임 폰트로 직접 그린다. 그래도 화면은 완성돼 보여야 한다.
+## 그림이 있으면 그림을 쓰고, 없으면 게임 폰트로 그린다.
 ##
-## 새 로고 그림이 오면 `LogoImage` 에 넣고 이 함수만 지우면 된다.
+## 한동안 글자로만 그렸다. 옛 로고 그림이 "쿼플" 이라는 **글자 모양
+## 자체**여서, 이름이 바뀐 뒤로는 쓸 수가 없었기 때문이다. 새 그림이
+## 왔으니 그림을 쓰되, 못 읽는 경우를 대비해 글자 쪽을 남겨 둔다 —
+## 첫 화면이 비는 것보다 폰트로라도 제목이 있는 편이 낫다.
+const TITLE_PATH := "res://assets/splash/logo-title.png"
+
 func _add_title() -> void:
-	var logo := get_node_or_null("UILayer/Control/LogoImage") as Control
+	var logo := get_node_or_null("UILayer/Control/LogoImage") as TextureRect
 	if logo == null:
 		return
-	logo.visible = false
+	if logo.texture != null:
+		logo.visible = true
+		return
 
+	logo.visible = false
 	var t := Label.new()
 	t.name = "TitleText"
 	t.text = "진짜 행복"
@@ -328,8 +336,8 @@ func _add_title() -> void:
 	t.anchor_right = logo.anchor_right
 	t.offset_left = logo.offset_left
 	t.offset_right = logo.offset_right
-	t.offset_top = logo.offset_top + 24.0
-	t.offset_bottom = logo.offset_bottom
+	t.offset_top = logo.offset_top
+	t.offset_bottom = logo.offset_bottom + 60.0
 	t.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	logo.get_parent().add_child(t)
 
@@ -358,7 +366,7 @@ func _add_subtitle() -> void:
 	l.anchor_right = logo.anchor_right
 	l.offset_left = logo.offset_left - 60.0
 	l.offset_right = logo.offset_right + 60.0
-	l.offset_top = logo.offset_bottom + 4.0
+	l.offset_top = logo.offset_bottom + 18.0
 	l.offset_bottom = l.offset_top + 40.0
 	l.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	logo.get_parent().add_child(l)
