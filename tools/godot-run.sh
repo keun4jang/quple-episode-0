@@ -10,8 +10,8 @@
 #
 # 쓰는 법 — godot 자리에 이걸 넣으면 된다:
 #   tools/godot-run.sh --headless --path . --check-only --script foo.gd
-#   tools/godot-run.sh --path . res://tests/TestTouch.tscn
-#   QUPLE_TOUCH=1 tools/godot-run.sh --render --path . res://tests/_X.tscn
+#   tools/godot-run.sh --path . res://tests/TestJourney.tscn
+#   QUPLE_TOUCH=1 tools/godot-run.sh --render --path . res://scenes/journey/Gwaeleung.tscn
 #
 # --render 를 첫 인자로 주면 xvfb 화면을 띄운다 (해상도는 QUPLE_RES, 기본 2400x1080).
 set -euo pipefail

@@ -57,16 +57,7 @@ func _ready() -> void:
 		SaveManager.get_current_scene())
 	ck("기본 자리가 쿼카컴퍼니다", hub.contains("Gwaeul"), hub)
 
-	print("\n[4] 0편을 깬 기록이 있어도 규칙은 같다")
-	# 예전엔 이 값이 이어하기를 좌우했다. 지금은 안 본다.
-	Episode0State.episode0_cleared = true
-	SaveManager.autosave("res://scenes/journey/Gwaedo.tscn")
-	ck("깬 기록과 상관없이 그 자리로",
-		SaveManager.get_current_scene() == "res://scenes/journey/Gwaedo.tscn",
-		SaveManager.get_current_scene())
-	Episode0State.episode0_cleared = false
-
-	print("\n[5] 갈 수 있는 곳만 가리킨다")
+	print("\n[4] 갈 수 있는 곳만 가리킨다")
 	# 이어하기가 없는 씬을 가리키면 켜자마자 죽는다
 	SaveManager.autosave("res://scenes/journey/Gwaesan.tscn")
 	var target := SaveManager.get_current_scene()

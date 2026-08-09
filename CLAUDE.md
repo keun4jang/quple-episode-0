@@ -58,20 +58,28 @@
 - 화면: 16px 타일 / 내부 480×270 / 두 손가락 확대·축소 (0.5 배율 스냅)
 - 벌이 없다 — 체력·기절·시간제한·돈벌이 압박을 만들지 않는다
 
-`docs/core-loop.md` 의 오프라인 진행(앱을 꺼도 여행이 진행됨)은 **접었다.**
-앉아서 조작하는 게임이 되었기 때문이다.
+오프라인 진행(앱을 꺼도 여행이 진행됨)은 **접었다.** 앉아서 조작하는
+게임이 되었기 때문이다.
 
-### 지난 기획들 (보관, 되살리지 않음)
+### 지난 기획과 코드는 지웠다
 
-`redesign-simple` · `redesign-idle` · `redesign-quokka` · `redesign-kids` ·
-`redesign-magic-english` · `design-hooked` — 전부 `redesign-journey.md` 가 대체한다.
+여러 번 방향을 바꿨고, 2026-08-09 에 **옛 게임을 통째로 지웠다** —
+횡스크롤 0편, 마법영자문, 3D 맵과 옛 여행 화면, 그 시절 UI 와 테스트까지.
+지금 남은 것은 탑다운 여행 하나뿐이다.
+
+지난 기획 문서는 `docs/attic/` 에 남겨 두었다. 되살리려는 게 아니라
+**왜 이렇게 왔는지의 기록**이다. 코드는 git 히스토리에 있다.
 
 ## 실행 / 테스트
 
 ```bash
-godot --path . res://tests/TestCoreLoop.tscn   # 코어 루프 테스트 31개
-godot --path .                                 # 게임 실행
+godot --path .                                    # 게임 실행 (메인 화면부터)
+godot --path . res://scenes/journey/Gwaeul.tscn    # 프롤로그부터
+godot --path . res://tests/TestJourney.tscn        # 여행 테스트
+godot --path . res://tools/shots/SimJourney.tscn   # 처음부터 끝까지 걸어서
 ```
+
+테스트는 `tests/` 에 넷 — TestJourney · TestSave · TestResume · TestUpdate.
 
 ## 에셋 교체
 

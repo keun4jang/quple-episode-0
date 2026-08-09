@@ -51,5 +51,8 @@ input_devices/pointing/emulate_touch_from_mouse=false
 
 ## 검증
 
-`tests/TestTouch.tscn` — 17개. 조이스틱→액션 변환, 아날로그 세기,
+`tests/TestJourney.tscn` — 손가락 조작 검사가 여기 들어 있다.
+(옛 `TestTouch` 는 3D·횡스크롤 시절 것이라 게임과 함께 지웠다.)
+
+옛 설명 — 조이스틱→액션 변환, 아날로그 세기,
 데드존, 손 뗐을 때 정지, 버튼→키, 씬 전환 시 입력 누수까지 확인한다.

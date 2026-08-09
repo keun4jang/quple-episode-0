@@ -11,32 +11,13 @@ var _restoring := false
 
 signal game_saved
 
-const PROFILE_PATH := "user://profile.cfg"
-
-## 0편을 한 번이라도 클리어했는가 (새 게임을 시작해도 유지되는 기록)
-func has_cleared_episode0() -> bool:
-	var c := ConfigFile.new()
-	if c.load(PROFILE_PATH) != OK:
-		return false
-	return bool(c.get_value("progress", "episode0_cleared", false))
-
-func mark_episode0_cleared() -> void:
-	var c := ConfigFile.new()
-	c.load(PROFILE_PATH)
-	c.set_value("progress", "episode0_cleared", true)
-	c.save(PROFILE_PATH)
-
-## 0편 자동 저장. 플레이어 위치까지 함께 남긴다.
-func autosave(current_scene: String, player_pos: Vector3 = Vector3.ZERO) -> void:
+## 지금 자리를 적어 둔다.
+func autosave(current_scene: String) -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)
 	cfg.set_value("game", "version", 1)
 	cfg.set_value("game", "saved_at", int(Time.get_unix_time_from_system()))
 	cfg.set_value("game", "current_scene", current_scene)
-	cfg.set_value("game", "player_position", player_pos)
-	cfg.set_value("episode0", "data", Episode0State.to_dict())
-	cfg.set_value("travel", "data", TravelState.to_dict())
-	cfg.set_value("words", "data", WordDex.to_dict())
 	cfg.set_value("journey", "data", JourneyState.to_dict())
 	if cfg.save(TEMP_PATH) == OK and _is_valid(TEMP_PATH):
 		var da := DirAccess.open("user://")
@@ -47,12 +28,6 @@ func autosave(current_scene: String, player_pos: Vector3 = Vector3.ZERO) -> void
 			da.remove(SAVE_PATH.get_file())
 			da.rename(TEMP_PATH.get_file(), SAVE_PATH.get_file())
 	game_saved.emit()
-
-func get_player_position() -> Vector3:
-	var cfg := ConfigFile.new()
-	if cfg.load(SAVE_PATH) != OK:
-		return Vector3.ZERO
-	return cfg.get_value("game", "player_position", Vector3.ZERO)
 
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
@@ -68,9 +43,6 @@ func save_game(current_scene: String = "") -> void:
 		cfg.set_value("game", "current_scene", current_scene)
 	elif not cfg.has_section_key("game", "current_scene"):
 		cfg.set_value("game", "current_scene", HUB)
-	cfg.set_value("episode0", "data", Episode0State.to_dict())
-	cfg.set_value("travel", "data", TravelState.to_dict())
-	cfg.set_value("words", "data", WordDex.to_dict())
 	cfg.set_value("journey", "data", JourneyState.to_dict())
 
 	# ① 임시 파일에 먼저
@@ -94,19 +66,12 @@ func save_game(current_scene: String = "") -> void:
 	game_saved.emit()
 
 ## 지금 화면을 그대로 저장한다. 어디서 불러도 안전하다.
-##
-## 0편을 이미 깬 사람이 0편 맵을 구경하다 저장되면 그 자리가 이어하기로
-## 굳어서, 다음에 켤 때 또 그 빈 맵으로 돌아온다. 그래서 그 경우만 뺀다.
 func save_now() -> void:
 	var scene := get_tree().current_scene if get_tree() != null else null
 	if scene == null or not is_instance_valid(scene):
 		return
 	var here := scene.scene_file_path
 	if here == "":
-		return
-	var is_ep0 := here.contains("/side/") or here.contains("/maps/")
-	if Episode0State.episode0_cleared and is_ep0:
-		save_game()          # 진행도만 저장하고 위치는 건드리지 않는다
 		return
 	save_game(here)
 
@@ -143,12 +108,13 @@ func _is_valid(path: String) -> bool:
 		return false
 	if not c.has_section_key("game", "version"):
 		return false
-	if not c.has_section_key("episode0", "data"):
+	# 예전엔 episode0·travel 칸을 봤다. 그 시절 게임은 지웠고, 지금 저장본의
+	# 알맹이는 journey 하나다. 예전 저장본은 이 칸이 없으니 자연히 걸러져
+	# 새로 시작하게 된다 — 옛 진행을 옮겨 올 방법이 없으니 그게 맞다.
+	if not c.has_section_key("journey", "data"):
 		return false
-	if not c.has_section_key("travel", "data"):
-		return false
-	var td = c.get_value("travel", "data", null)
-	return td is Dictionary
+	var jd = c.get_value("journey", "data", null)
+	return jd is Dictionary
 
 ## 불러오기. 저장본이 깨졌으면 직전 백업으로 되살린다.
 func load_game() -> bool:
@@ -162,10 +128,6 @@ func load_game() -> bool:
 	var cfg := ConfigFile.new()
 	if cfg.load(path) != OK:
 		return false
-	Episode0State.from_dict(cfg.get_value("episode0", "data", {}))
-	TravelState.from_dict(cfg.get_value("travel", "data", {}))
-	# 단어 도감은 나중에 붙었다. 예전 저장본에는 없으므로 빈 값으로 받는다.
-	WordDex.from_dict(cfg.get_value("words", "data", {}))
 	JourneyState.from_dict(cfg.get_value("journey", "data", {}))
 	# 백업에서 살렸으면 정상 저장본으로 다시 써둔다.
 	# 이때 백업을 덮으면 안 된다 — 깨진 파일이 백업이 되어버린다.
@@ -232,7 +194,4 @@ func clear_save() -> void:
 	for f in [SAVE_PATH, BACKUP_PATH, TEMP_PATH]:
 		if FileAccess.file_exists(f):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
-	Episode0State.reset()
-	TravelState.reset()
-	WordDex.reset()
 	JourneyState.reset()

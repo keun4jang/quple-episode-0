@@ -2,28 +2,11 @@ extends CanvasLayer
 
 ## 씬 전환 페이드.
 ##
-## 페이드 색은 더 이상 하드코딩이 아니라 "도착할 씬의 무드" 에서 뽑는다.
-## 까만 화면으로 뚝 끊기는 것보다 그 세계의 색으로 넘어가는 편이 훨씬 부드럽다.
-## 페이드는 다음 씬을 여는 문이라, 문 너머의 색으로 덮었다가 걷어야 눈이 놀라지 않는다.
-##
-## style 이름(normal / hopeful / tense / dawn)은 그대로 받는다. 호출부가 여럿이고
-## 각 이름이 장면의 감정을 뜻하기 때문에, 이름은 두고 색만 세계에 맞춘다.
+## 예전에는 도착할 씬의 "무드"에서 색을 뽑았다. 3D 시절 이야기고, 그 팔레트는
+## 게임과 함께 지웠다. 지금은 짙은 남색 하나로 덮었다 걷는다 —
+## 순검정은 안 쓴다. 눈이 놀란다.
 
-## class_name 을 쓰지 않는다 — 전역 클래스 캐시는 에디터 스캔에서만 갱신돼서
-## 새로 클론한 환경에서 통째로 죽는다. preload 로 잡는다.
-const MoodPalette := preload("res://scripts/systems/mood_palette.gd")
-
-## 시계를 따라가면 안 되는 씬.
-## 에피소드 0 의 네 씬은 "늦은 밤 야근" 으로 각본이 짜여 있다. 낮에 켰다고
-## 화면이 밝아지면 이야기가 깨지므로 여기 적힌 씬은 고정 무드를 쓴다.
-const FIXED_SCENE_MOODS := {
-	"res://scenes/maps/CompanyFront3D.tscn": "night_office",
-	"res://scenes/maps/CompanyLobby3D.tscn": "night_office_indoor",
-	"res://scenes/maps/Office3D.tscn": "night_office_indoor",
-	"res://scenes/maps/BossDoorHallway3D.tscn": "night_office_indoor",
-}
-
-## style 별 페이드 시간. 기존 값을 그대로 옮겼다 — 길이는 연출의 일부다.
+## style 별 페이드 시간. 길이는 연출의 일부라 그대로 옮겼다.
 const STYLE_DURATION := {
 	"normal": 0.35,
 	"hopeful": 0.4,
@@ -31,14 +14,9 @@ const STYLE_DURATION := {
 	"dawn": 0.6,
 }
 
-## 무드를 못 읽었을 때의 마지막 안전망 (짙은 남색. 순검정은 쓰지 않는다)
-const FALLBACK_FADE := Color(0.08, 0.09, 0.16)
+const FADE_COLOR := Color(0.08, 0.09, 0.16)
 
 var is_transitioning: bool = false
-
-## 무드를 강제로 지정하고 싶을 때 쓴다 (MoodPalette 의 고정 무드 이름).
-## 빈 값이면 씬 경로를 보고 알아서 고른다. 특별한 장면에서만 잠깐 쓰고 되돌릴 것.
-var mood_override: String = ""
 
 @onready var overlay: ColorRect = $Overlay
 
@@ -46,31 +24,9 @@ func _ready() -> void:
 	overlay.color = Color(0, 0, 0, 0)
 	layer = 10
 
-## 0편 맵을 옆에서 보는 판으로 갈아끼운다.
-##
-## 맵을 부르는 곳이 열 군데 넘게 흩어져 있다. 전부 고치는 대신 지나가는
-## 길목 한 곳에서 바꾼다 — 되돌릴 때도 이 표만 비우면 되고, 3D 씬은
-## 지우지 않고 그대로 남아 있다. 저장 파일에 적힌 옛 경로도 여기서
-## 자연히 새 맵으로 이어진다.
-const SIDE_MAPS := {
-	"res://scenes/maps/CompanyFront3D.tscn": "res://scenes/side/Front.tscn",
-	"res://scenes/maps/CompanyLobby3D.tscn": "res://scenes/side/Lobby.tscn",
-	"res://scenes/maps/Office3D.tscn": "res://scenes/side/Office.tscn",
-	"res://scenes/maps/BossDoorHallway3D.tscn": "res://scenes/side/Hallway.tscn",
-}
-## false 로 두면 예전 3D 맵으로 돌아간다.
-const USE_SIDE_MAPS := true
-
-
-## 이 경로로 실제로 열 씬. 저장·복원하는 쪽에서도 쓴다.
-static func route(path: String) -> String:
-	if USE_SIDE_MAPS and SIDE_MAPS.has(path):
-		return SIDE_MAPS[path]
-	return path
-
 
 func go_to(raw_path: String, style: String = "normal") -> void:
-	var path := route(raw_path)
+	var path := raw_path
 	if is_transitioning:
 		return
 	is_transitioning = true
@@ -91,32 +47,23 @@ func go_to(raw_path: String, style: String = "normal") -> void:
 	tween.tween_callback(func(): is_transitioning = false)
 
 ## 이 전환에 쓸 페이드 색.
-## 기본은 도착할 씬의 무드색이다. style 이 붙으면 그 감정 쪽으로 기울이되,
-## 출발점은 언제나 세계의 색이라 시간대가 화면에서 사라지지 않는다.
-func fade_color_for(path: String, style: String = "normal") -> Color:
-	var mood := mood_for_scene(path)
-	var base: Color = mood.get("fade_color", FALLBACK_FADE)
+##
+## 예전엔 시각과 씬의 "무드"에서 뽑았다. 그 팔레트를 지우면서 한 색으로
+## 모았다 — 지금은 여행 화면 자체가 시간에 따라 어두워지므로, 전환까지
+## 색을 맞출 이유가 없다.
+func fade_color_for(_path: String, style: String = "normal") -> Color:
+	var base := FADE_COLOR
 	match style:
 		"hopeful":
-			# 밝게 열리는 느낌은 남기되, 순백으로 튀지 않게 세계의 색을 섞는다.
+			# 밝게 열리는 느낌은 남기되 순백으로 튀지 않게 한다.
 			# 밤에 눈부신 흰 화면이 터지면 힐링이 아니라 놀람이 된다.
 			base = base.lerp(Color(1.0, 0.97, 0.90), 0.72)
 		"dawn":
 			base = base.lerp(Color(1.0, 0.90, 0.75), 0.68)
 		"tense":
-			# 긴장은 시각과 무관한 연출이다. 여기만 색을 고정한다.
-			# (쓰는 곳이 사장실 복도뿐인데, 그 씬들은 어차피 시계를 보지 않는다.)
 			base = Color(0.08, 0.0, 0.0)
 	return Color(base.r, base.g, base.b, 1.0)
 
-## 그 씬이 쓸 무드. 고정 씬이면 고정 무드, 아니면 지금 시각의 무드.
-func mood_for_scene(path: String) -> Dictionary:
-	if mood_override != "" and MoodPalette.has_fixed(mood_override):
-		return MoodPalette.fixed(mood_override)
-	var fixed_name := str(FIXED_SCENE_MOODS.get(path, ""))
-	if fixed_name != "":
-		return MoodPalette.fixed(fixed_name)
-	return MoodPalette.now()
 
 # 방향 슬라이드 전환: direction은 "left"/"right"/"up"/"down"
 func slide_to(scene_path: String, direction: String = "left") -> void:

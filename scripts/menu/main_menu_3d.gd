@@ -292,25 +292,14 @@ func _ask_skip_prologue() -> void:
 	ctrl.add_child(wrap)
 
 func _start_new(skip_prologue: bool) -> void:
-	Episode0State.current_state = Episode0State.State.START
-	Episode0State.has_camera = false; Episode0State.has_notebook = false
-	Episode0State.has_travel_bag = false; Episode0State.badge_returned = false
-	Episode0State.partner_joined = false; Episode0State.first_photo_taken = false
-	Episode0State.album_created = false; Episode0State.episode0_cleared = false
-	Episode0State.memos_found = []
-	TravelState.reset()
+	# 새로 시작하면 쿼카컴퍼니(프롤로그)부터. 건너뛰면 첫 여행지로 간다.
+	JourneyState.reset()
 	if skip_prologue:
-		# 프롤로그를 건너뛰면 0편에서 얻는 것들을 미리 갖춘 채 여행을 시작한다
-		Episode0State.has_camera = true
-		Episode0State.has_notebook = true
-		Episode0State.has_travel_bag = true
-		Episode0State.badge_returned = true
-		Episode0State.partner_joined = true
-		Episode0State.advance_to(Episode0State.State.CLEAR)
-		SaveManager.autosave(SaveManager.HUB)
-		SceneTransition.go_to(SaveManager.HUB, "hopeful")
+		SaveManager.autosave("res://scenes/journey/Gwaeleung.tscn")
+		SceneTransition.go_to("res://scenes/journey/Gwaeleung.tscn", "hopeful")
 	else:
-		SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn")
+		SaveManager.autosave(SaveManager.HUB)
+		SceneTransition.go_to(SaveManager.HUB)
 
 func _on_continue() -> void:
 	SaveManager.load_game()

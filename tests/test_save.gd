@@ -1,80 +1,74 @@
 extends Node
-## 저장 안전성: 손상되어도 기록이 날아가지 않는가
+## 저장·복원. **깨진 저장본이 사람을 가두지 않는 것**이 이 파일의 목적이다.
 
 var pass_n := 0
 var fail_n := 0
-func ck(n: String, c: bool, e := "") -> void:
-	if c: pass_n += 1; print("  ✔ ", n, ("  " + e) if e else "")
-	else: fail_n += 1; print("  ✘ ", n, "  ", e)
 
-func travel(d: String) -> void:
-	if TravelState.start_trip(d):
-		TravelState.trip["arrive_at"] = int(Time.get_unix_time_from_system()) - 1
-		TravelState.collect_arrival()
+func ck(n: String, c: bool, e := "") -> void:
+	if c:
+		pass_n += 1
+		print("  ✔ ", n, ("  " + e) if e else "")
+	else:
+		fail_n += 1
+		print("  ✘ ", n, "  ", e)
+
 
 func _ready() -> void:
-	print("=== 저장 안전성 테스트 ===")
+	print("=== 저장 테스트 ===")
+
+	print("\n[1] 저장하고 불러오면 그대로다")
 	SaveManager.clear_save()
-	Episode0State.has_camera = true
-	Episode0State.has_notebook = true
-	Episode0State.has_travel_bag = true
+	JourneyState.pick("p-shell", 3)
+	JourneyState.warm("raccoon", 2)
+	JourneyState.visit("쿼릉")
+	JourneyState.take_photo("쿼릉", "등대")
+	JourneyState.day = 4
+	SaveManager.save_game("res://scenes/journey/Gwaeleung.tscn")
 
-	print("\n[1] 기본 저장/복원")
-	travel("seoul"); travel("busan")
-	SaveManager.save_game()
-	ck("저장 파일 생성", FileAccess.file_exists(SaveManager.SAVE_PATH))
-	ck("임시 파일은 안 남음", not FileAccess.file_exists(SaveManager.TEMP_PATH))
-	var n0 := TravelState.collection.size()
-	TravelState.reset()
-	ck("불러오기", SaveManager.load_game())
-	ck("기록 복원", TravelState.collection.size() == n0, "%d개" % TravelState.collection.size())
+	JourneyState.reset()
+	ck("초기화하면 빈다", JourneyState.total() == 0)
+	ck("불러오기 성공", SaveManager.load_game())
+	ck("배낭이 돌아온다", JourneyState.count("p-shell") == 3)
+	ck("마음이 돌아온다", JourneyState.heart("raccoon") == 2)
+	ck("다녀온 곳이 돌아온다", JourneyState.places_visited() == 1)
+	ck("사진이 돌아온다", JourneyState.photos.size() == 1)
+	ck("며칠째인지 돌아온다", JourneyState.day == 4)
+	ck("자리가 돌아온다",
+		SaveManager.get_current_scene() == "res://scenes/journey/Gwaeleung.tscn")
 
-	print("\n[2] 두 번째 저장 → 백업 생성")
-	travel("jeju")
-	SaveManager.save_game()
-	ck("백업 생성됨", SaveManager.has_backup())
-	var n1 := TravelState.collection.size()
-	ck("기록 늘어남", n1 == n0 + 1, "%d개" % n1)
-
-	print("\n[3] 저장본이 깨져도 백업으로 복구")
-	# 저장 파일을 일부러 망가뜨린다
+	print("\n[2] 반쯤 쓰인 파일을 진짜 저장본으로 만들지 않는다")
 	var f := FileAccess.open(SaveManager.SAVE_PATH, FileAccess.WRITE)
-	f.store_string("[game]\nversion=2\n이건 깨진 파일입니다 @#$%^&*(")
+	f.store_string("[game]\nversion=2\n")     # journey 칸이 없다
 	f.close()
-	TravelState.reset()
-	Episode0State.reset()
-	ck("깨진 파일 감지", not SaveManager._is_valid(SaveManager.SAVE_PATH))
-	ck("백업에서 복구", SaveManager.load_game())
-	ck("기록이 날아가지 않음", TravelState.collection.size() > 0,
-		"%d개 복구" % TravelState.collection.size())
-	ck("복구 후 저장본 정상화", SaveManager._is_valid(SaveManager.SAVE_PATH))
-	ck("백업도 온전히 유지", SaveManager.has_backup(),
-		"복구가 백업을 덮어쓰지 않아야 한다")
-	# 한 번 더 깨뜨려도 또 복구되는가
-	var f2 := FileAccess.open(SaveManager.SAVE_PATH, FileAccess.WRITE)
-	f2.store_string("또 깨짐 !!!")
-	f2.close()
-	TravelState.reset()
-	ck("두 번째 손상도 복구", SaveManager.load_game() and TravelState.collection.size() > 0,
-		"%d개" % TravelState.collection.size())
+	ck("알맹이 없는 파일은 안 읽는다", not SaveManager._is_valid(SaveManager.SAVE_PATH))
 
-	print("\n[4] 저장본도 백업도 없으면")
+	print("\n[3] 저장본이 깨지면 백업에서 살린다")
 	SaveManager.clear_save()
-	ck("불러오기 실패 처리", not SaveManager.load_game())
-	ck("백업 없음", not SaveManager.has_backup())
+	JourneyState.pick("p-acorn", 1)
+	SaveManager.save_game("res://scenes/journey/Home.tscn")   # ①
+	JourneyState.pick("p-acorn", 1)
+	SaveManager.save_game("res://scenes/journey/Home.tscn")   # ② (①이 백업으로)
+	ck("백업이 생겼다", SaveManager.has_backup())
 
-	print("\n[5] 저장 중 중단되어도 기존 기록은 안전")
-	travel("seoul")
+	var bad := FileAccess.open(SaveManager.SAVE_PATH, FileAccess.WRITE)
+	bad.store_string("깨진 파일")
+	bad.close()
+	JourneyState.reset()
+	ck("깨져도 불러와진다", SaveManager.load_game())
+	ck("백업 시점으로 돌아온다", JourneyState.count("p-acorn") >= 1)
+	ck("살린 뒤 저장본이 온전하다", SaveManager._is_valid(SaveManager.SAVE_PATH))
+
+	print("\n[4] 저장이 아예 없어도 안 죽는다")
+	SaveManager.clear_save()
+	ck("불러오기 실패를 알려 준다", not SaveManager.load_game())
+	ck("갈 자리는 있다", SaveManager.get_current_scene() == SaveManager.HUB)
+
+	print("\n[5] 기록 초기화")
+	JourneyState.pick("p-flower", 1)
 	SaveManager.save_game()
-	var before := TravelState.collection.size()
-	# 임시 파일만 깨진 채 남은 상황을 흉내
-	var t := FileAccess.open(SaveManager.TEMP_PATH, FileAccess.WRITE)
-	t.store_string("깨진 임시 파일")
-	t.close()
-	TravelState.reset()
-	ck("정상 저장본으로 불러옴", SaveManager.load_game())
-	ck("기록 그대로", TravelState.collection.size() == before, "%d개" % TravelState.collection.size())
+	SaveManager.clear_save()
+	ck("파일이 지워진다", not SaveManager.has_save())
+	ck("들고 있던 것도 비워진다", JourneyState.total() == 0)
 
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
-	SaveManager.clear_save()
-	get_tree().quit(0 if fail_n == 0 else 1)
+	get_tree().quit(1 if fail_n > 0 else 0)
