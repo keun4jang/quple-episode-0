@@ -95,31 +95,35 @@ func _inject_poster_background() -> void:
 	ctrl.add_child(fallback)
 	ctrl.move_child(fallback, 0)
 
-## 제목이 얹히는 왼쪽을 살짝 어둡게 깐다.
+## 제목이 얹히는 **위쪽**을 살짝 어둡게 깐다.
 ##
-## 포스터 위에 글자를 그냥 얹으면 쿼카 얼굴과 글자가 서로를 잡아먹는다.
-## 영화 포스터가 늘 하는 것처럼, 제목 쪽만 부드럽게 눌러 준다.
-## 오른쪽은 건드리지 않는다 — 거기는 캐릭터가 주인공이다.
+## 원래는 왼쪽을 눌렀다. 그때는 포스터의 왼쪽이 하늘이었기 때문이다.
+## 새 포스터는 **왼쪽이 쿼카**다 — 그대로 두니 주인공만 3.13:1 로
+## 어두워지고, 정작 제목이 앉는 가운데는 스크림이 이미 투명해진 자리라
+## 아무 도움도 못 받고 있었다.
+##
+## 제목은 위 가운데에 있다. 눌러야 할 곳도 거기다.
 func _add_title_scrim(ctrl: Control) -> void:
 	var g := Gradient.new()
-	g.set_color(0, Color(0.14, 0.12, 0.08, 0.50))
+	g.set_color(0, Color(0.14, 0.12, 0.08, 0.34))
 	g.set_color(1, Color(0.14, 0.12, 0.08, 0.0))
 	var gt := GradientTexture2D.new()
 	gt.gradient = g
-	gt.fill_from = Vector2(0.0, 0.5)
-	gt.fill_to = Vector2(1.0, 0.5)
-	gt.width = 128
-	gt.height = 8
+	gt.fill_from = Vector2(0.5, 0.0)
+	gt.fill_to = Vector2(0.5, 1.0)
+	gt.width = 8
+	gt.height = 128
 
 	var scrim := TextureRect.new()
 	scrim.name = "TitleScrim"
 	scrim.texture = gt
 	scrim.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	scrim.stretch_mode = TextureRect.STRETCH_SCALE
-	scrim.anchor_top = 0.0
-	scrim.anchor_bottom = 1.0
 	scrim.anchor_left = 0.0
-	scrim.anchor_right = 0.62
+	scrim.anchor_right = 1.0
+	scrim.anchor_top = 0.0
+	scrim.anchor_bottom = 0.0
+	scrim.offset_bottom = 300.0
 	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ctrl.add_child(scrim)
 	ctrl.move_child(scrim, 1)
@@ -256,13 +260,13 @@ func _ask_skip_prologue() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 24)
 	var t := Label.new()
-	t.text = "프롤로그를 이미 보셨어요"
+	t.text = "처음 이야기를 이미 보셨어요"
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.add_theme_font_size_override("font_size", 46)
 	t.add_theme_color_override("font_color", Color(1, 0.95, 0.80))
 	v.add_child(t)
 	var d := Label.new()
-	d.text = "프롤로그를 건너뛰고\n바로 여행을 떠날까요?"
+	d.text = "처음 이야기를 건너뛰고\n바로 떠날까요?"
 	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	d.add_theme_font_size_override("font_size", 36)
 	d.add_theme_color_override("font_color", Color(0.88, 0.85, 1.0))
@@ -389,7 +393,7 @@ func _add_credits_button() -> void:
 		return
 	var src: Button = row.get_node_or_null("SettingsBtn")
 	var b := Button.new()
-	b.text = "만든사람"
+	b.text = "만든 사람"
 	b.focus_mode = Control.FOCUS_NONE
 	if src != null:
 		b.custom_minimum_size = src.custom_minimum_size
@@ -430,7 +434,7 @@ func _show_credits() -> void:
 		["기획 · 개발 · 아트", 26, Color(0.82, 0.86, 0.96)],
 		["Godot 4.3 · Blender · Python", 24, Color(0.72, 0.78, 0.90)],
 		["", 18, Color.WHITE],
-		["글꼴  Jua (SIL Open Font License)", 22, Color(0.72, 0.78, 0.90)],
+		["글꼴  PoorStory (SIL Open Font License)", 22, Color(0.72, 0.78, 0.90)],
 		["음악  한국 동요 편곡 (저작권 만료)", 22, Color(0.72, 0.78, 0.90)],
 		["", 18, Color.WHITE],
 		["화면을 누르면 닫혀요", 24, Color(1, 0.86, 0.62)],

@@ -227,6 +227,8 @@ func _build_props() -> void:
 		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		# 발 닿는 칸의 **아래 가운데**가 기준. 그래야 Y 정렬이 맞는다.
 		s.position = Vector2(tx * TILE + TILE * 0.5, (ty + 1) * TILE)
+		if name == "street-lamp":
+			_add_lamp(s.position)
 		s.offset = Vector2(-tex.get_width() / 2.0, -tex.get_height())
 		_props.add_child(s)
 
@@ -490,11 +492,14 @@ func _start_sound() -> void:
 
 
 ## 발소리. 걸음 사이 간격만큼 띄워서 낸다 — 매 프레임 내면 잡음이 된다.
-const STEP_GAP := 0.34
+## 걷기 그림 4프레임이 0.64초 한 바퀴, 그 사이 발이 두 번 닿는다.
+## 그래서 0.32 다 — 0.34 로 두면 2.7초쯤 걸었을 때 소리와 발이 정반대가 된다.
+const STEP_GAP := 0.32
 var _step_t := 0.0
 
 func _tick_footsteps(delta: float) -> void:
-	if walker == null or walker.velocity.length_squared() < 4.0:
+	# **실제로 나아갈 때만** 낸다. 벽에 막혀 제자리걸음이면 소리도 안 난다.
+	if walker == null or not walker.is_moving():
 		_step_t = STEP_GAP           # 멈춰 있으면 다음 걸음은 바로 난다
 		return
 	_step_t -= delta
@@ -522,6 +527,11 @@ func _add_settings() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(root)
+	# 이 버튼은 HUD 와 다른 층에 산다. HUD 의 안전영역 보정이 여기까지
+	# 오지 않아서, 가로 모드에서 펀치홀이 오는 바로 그 자리에 맨살로
+	# 붙어 있었다. 같은 계산을 여기서도 한다.
+	JourneyHud.inset_safe(root)
+	get_viewport().size_changed.connect(func(): JourneyHud.inset_safe(root))
 	var b := Button.new()
 	b.name = "SettingsBtn"
 	b.text = "설정"
@@ -550,8 +560,109 @@ func _tick_clock(delta: float) -> void:
 	if not paused:
 		JourneyState.advance_time(delta * MINUTES_PER_SECOND)
 	if _night != null:
-		var n := JourneyState.night_amount()
-		_night.color = Color(1, 1, 1).lerp(Color(0.40, 0.44, 0.66), n)
+		_night.color = sky_tint(JourneyState.minutes)
+	_tick_lamps()
+
+
+## 밟고 선 바닥이 어두운지 본다.
+##
+## 캐릭터를 배경에서 떼어 놓는 건 사실상 테두리 하나인데, 그 테두리가
+## 어두운 색이라 현무암·밭고랑 위에서는 같이 묻혔다 (1.6:1).
+var _dark_floor := false
+const DARK_TILES := ["basalt", "tilled-soil"]
+
+func _tick_outline() -> void:
+	if walker == null:
+		return
+	var w := walker.global_position
+	var t := Vector2i(int(floor(w.x / TILE)), int(floor((w.y - 1.0) / TILE)))
+	var dark := false
+	if t.y >= 0 and t.y < _grid.size():
+		var row: String = _grid[t.y]
+		if t.x >= 0 and t.x < row.length():
+			var ch := row[t.x]
+			dark = legend.has(ch) and DARK_TILES.has(String(legend[ch]))
+	if dark != _dark_floor:
+		_dark_floor = dark
+		walker.set_on_dark_ground(dark)
+
+
+# ── 하늘빛 ────────────────────────────────────────────────────────────
+#
+# 예전엔 흰색에서 남색으로 곧장 섞었다. 그러면 **따뜻한 구간이 한
+# 프레임도 없다** — 재 보니 R−B 가 첫 순간부터 계속 음수였다. 해가 지는
+# 게 아니라 화면이 파래지기만 했다.
+#
+# 노을은 파래지기 **전에** 한 번 붉어진다. 그 구간이 이 게임에서 제일
+# 예쁠 자리인데 통째로 없었다. 시각별로 색을 찍어 두고 사이를 잇는다.
+const SKY := [
+	[16.0, Color(1.00, 1.00, 1.00)],   # 아직 낮
+	[17.0, Color(1.00, 0.96, 0.88)],   # 볕이 노래진다
+	[18.0, Color(1.00, 0.87, 0.72)],   # 금빛. 가장 따뜻한 지점
+	[18.7, Color(1.00, 0.78, 0.70)],   # 노을 산호빛
+	[19.4, Color(0.82, 0.68, 0.76)],   # 보랏빛 박명
+	[20.0, Color(0.60, 0.58, 0.78)],   # 남빛으로 넘어간다
+	[21.0, Color(0.40, 0.44, 0.66)],   # 밤 도착점
+]
+
+
+func sky_tint(mins: float) -> Color:
+	var h := mins / 60.0
+	if h <= float(SKY[0][0]):
+		return SKY[0][1]
+	for i in range(1, SKY.size()):
+		var t1: float = SKY[i][0]
+		if h <= t1:
+			var t0: float = SKY[i - 1][0]
+			var k: float = (h - t0) / maxf(t1 - t0, 0.0001)
+			return (SKY[i - 1][1] as Color).lerp(SKY[i][1], k)
+	return SKY[SKY.size() - 1][1]
+
+
+# ── 가로등 ────────────────────────────────────────────────────────────
+#
+# 전구가 그림에 이미 그려져 있는데 `CanvasModulate` 가 그것까지 곱한다.
+# 재 보니 **낮보다 밤에 5.7배 어두웠다** — 켜져야 할 때 가장 어두웠다.
+# 빛을 더해서(ADD) 눌린 밝기를 되살린다. 낮에는 세기가 0 이라 꺼져 보인다.
+var _lamps: Array = []
+
+func _add_lamp(at: Vector2) -> void:
+	var l := PointLight2D.new()
+	l.texture = _lamp_glow()
+	l.texture_scale = 3.0
+	l.color = Color(1.0, 0.86, 0.58)
+	l.blend_mode = Light2D.BLEND_MODE_ADD
+	l.position = at + Vector2(0, -22)
+	l.energy = 0.0
+	add_child(l)
+	_lamps.append(l)
+
+
+static var _glow_tex: Texture2D
+
+func _lamp_glow() -> Texture2D:
+	if _glow_tex != null:
+		return _glow_tex
+	var size := 128
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var c := size * 0.5
+	for y in size:
+		for x in size:
+			var d: float = Vector2(x - c, y - c).length() / c
+			var a: float = clampf(1.0 - d, 0.0, 1.0)
+			a = a * a
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	_glow_tex = ImageTexture.create_from_image(img)
+	return _glow_tex
+
+
+func _tick_lamps() -> void:
+	if _lamps.is_empty():
+		return
+	var e: float = smoothstep(0.15, 0.75, JourneyState.night_amount()) * 1.15
+	for l in _lamps:
+		if is_instance_valid(l):
+			l.energy = e
 
 
 ## 사진을 찍는다.
@@ -734,6 +845,7 @@ func _process(delta: float) -> void:
 		walker.set_input(Vector2.ZERO if blocked else touch.direction_with_keys())
 	_check_pickups()
 	_update_near()
+	_tick_outline()
 	_tick_clock(delta)
 	if not blocked:
 		_tick_footsteps(delta)
@@ -762,9 +874,11 @@ func world_of(t: Vector2i) -> Vector2:
 ##
 ## 그래서 몇 번째 재회인지에 따라 다르게 말한다. 마지막에만 그 말이 나온다.
 const REUNION := [
-	[["그", "어? 너 여기 웬일이야?"], ["나", "…아니 진짜로 또 만났네요."]],
-	[["그", "또 만났네."], ["나", "이쯤 되면 우연이 아닌 것 같은데요."]],
-	[["그", "…또 너야?"], ["나", "저도 방금 놀랐어요."],
+	[["그", "어? 여기서 또 봐요?"], ["나", "…아니 진짜로 또 만났네요."]],
+	[["그", "또 만났네요."], ["나", "이쯤 되면 우연이 아닌 것 같은데요."]],
+	# 셋째 재회에서만 말이 놓인다. 말투가 바뀌는 것이 곧 친해졌다는 뜻이다
+	# — 이 게임은 마음 칸을 숫자로 안 보여 주고 말투로만 알린다.
+	[["그", "…또 만났네."], ["나", "저도 방금 놀랐어요."],
 		["그", "나는 이런 게 진짜 행복인 것 같아."]],
 ]
 

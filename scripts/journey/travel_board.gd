@@ -145,4 +145,11 @@ func _pick(path: String) -> void:
 	# 떠나온 곳으로 되돌아간다.
 	SaveManager.save_game(path)
 	chose.emit(path)
-	get_tree().change_scene_to_file(path)
+	# **페이드를 거쳐 간다.** 게임에서 실제로 쓰는 씬 이동은 여기 하나뿐인데,
+	# 이것만 `change_scene_to_file` 로 곧장 넘어가 한 프레임에 툭 바뀌었다.
+	# `SceneTransition` 안의 문 여는 소리도 그래서 한 번도 안 났다.
+	var st := get_node_or_null("/root/SceneTransition")
+	if st != null and st.has_method("go_to"):
+		st.go_to(path, "normal")
+	else:
+		get_tree().change_scene_to_file(path)

@@ -101,7 +101,7 @@ func _show_version_badge() -> void:
 
 
 func _show_update_toast(v: String) -> void:
-	_toast("새 이야기 v%s 를 받았어요\n앱을 다시 켜면 적용돼요" % v, 4.5, Color(1, 0.88, 0.62))
+	_toast("새 이야기를 받았어요 (v%s)\n앱을 다시 켜면 적용돼요" % v, 4.5, Color(1, 0.88, 0.62))
 
 
 func _toast(text: String, secs: float, col: Color) -> void:

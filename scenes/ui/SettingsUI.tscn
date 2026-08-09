@@ -50,9 +50,9 @@ border_width_right = 3
 border_width_bottom = 3
 border_color = Color(1, 0.95, 0.80, 0.40)
 content_margin_left = 36.0
-content_margin_top = 36.0
+content_margin_top = 22.0
 content_margin_right = 36.0
-content_margin_bottom = 36.0
+content_margin_bottom = 22.0
 
 [node name="SettingsUI" type="CanvasLayer"]
 layer = 5
@@ -95,13 +95,13 @@ layout_mode = 2
 
 [node name="Body" type="VBoxContainer" parent="Root/Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 26
+theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Root/Panel/Margin/Body"]
 layout_mode = 2
 text = "설정"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 52
+theme_override_font_sizes/font_size = 42
 theme_override_colors/font_color = Color(1, 0.95, 0.80, 1)
 
 [node name="BgmRow" type="HBoxContainer" parent="Root/Panel/Margin/Body"]
@@ -112,11 +112,11 @@ theme_override_constants/separation = 20
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 text = "배경음"
-theme_override_font_sizes/font_size = 42
+theme_override_font_sizes/font_size = 34
 theme_override_colors/font_color = Color(0.92, 0.90, 1.0, 1)
 
 [node name="Slider" type="HSlider" parent="Root/Panel/Margin/Body/BgmRow"]
-custom_minimum_size = Vector2(0, 50)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 1.0
@@ -131,11 +131,11 @@ theme_override_constants/separation = 20
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 text = "효과음"
-theme_override_font_sizes/font_size = 42
+theme_override_font_sizes/font_size = 34
 theme_override_colors/font_color = Color(0.92, 0.90, 1.0, 1)
 
 [node name="Slider" type="HSlider" parent="Root/Panel/Margin/Body/SfxRow"]
-custom_minimum_size = Vector2(0, 50)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 1.0
@@ -143,10 +143,10 @@ step = 0.05
 value = 0.9
 
 [node name="ResetBtn" type="Button" parent="Root/Panel/Margin/Body"]
-custom_minimum_size = Vector2(0, 88)
+custom_minimum_size = Vector2(0, 74)
 layout_mode = 2
 text = "기록 초기화"
-theme_override_font_sizes/font_size = 42
+theme_override_font_sizes/font_size = 34
 theme_override_colors/font_color = Color(0.992, 0.984, 0.831, 1)
 theme_override_styles/normal = SubResource("SetBtnDanger")
 theme_override_styles/hover = SubResource("SetBtnHover")
@@ -156,14 +156,14 @@ theme_override_styles/pressed = SubResource("SetBtnHover")
 layout_mode = 2
 text = ""
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 36
+theme_override_font_sizes/font_size = 30
 theme_override_colors/font_color = Color(0.95, 0.72, 0.86, 1)
 
 [node name="CloseBtn" type="Button" parent="Root/Panel/Margin/Body"]
-custom_minimum_size = Vector2(0, 96)
+custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 text = "닫기"
-theme_override_font_sizes/font_size = 42
+theme_override_font_sizes/font_size = 34
 theme_override_colors/font_color = Color(0.992, 0.984, 0.831, 1)
 theme_override_styles/normal = SubResource("SetBtn")
 theme_override_styles/hover = SubResource("SetBtnHover")

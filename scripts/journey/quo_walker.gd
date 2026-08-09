@@ -19,6 +19,12 @@ var _input := Vector2.ZERO
 var _shape: CollisionShape2D
 var _shadow: Node2D
 var _outline_node: Node2D
+## 실제로 걷고 있나 (벽에 막혀 제자리면 false). 발소리가 이걸 본다.
+var _moving := false
+
+
+func is_moving() -> bool:
+	return _moving
 
 
 func _ready() -> void:
@@ -69,9 +75,23 @@ func _physics_process(delta: float) -> void:
 		if c != null and c.get_collider() != null:
 			bumped.emit(c.get_collider())
 
-	# 그림은 실제로 가는 쪽을 본다. 넣어 준 방향을 그대로 쓰면 벽에
-	# 붙어 있을 때 안 가면서 걷는 시늉을 한다.
-	sprite.drive(velocity / maxf(speed, 1.0), delta)
+	# 그림은 **실제로 움직인 만큼**만 본다.
+	#
+	# 예전엔 velocity 를 넘겼는데, `MOTION_MODE_FLOATING` 의
+	# `move_and_slide()` 는 벽에 정면으로 막혀도 velocity 를 0 으로
+	# 만들지 않는다. 그래서 벽에 대고 밀면 3초 동안 0px 을 가면서
+	# 걷는 시늉을 하고 발소리도 일곱 번 났다.
+	var moved := get_position_delta()
+	var real := (moved / maxf(delta, 0.0001)) / maxf(speed, 1.0)
+	if real.length() < 0.08:
+		real = Vector2.ZERO
+	else:
+		real = real.limit_length(1.0)
+		# 방향은 가려던 쪽을 쓴다 — 미끄러질 때 그림이 옆으로 홱 돌지 않게.
+		if velocity.length_squared() > 0.001:
+			real = velocity.normalized() * real.length()
+	sprite.drive(real, delta)
+	_moving = real.length() > 0.0
 	_sync_outline()
 
 
@@ -99,7 +119,11 @@ func stop() -> void:
 # 자식은 z_index 가 아니라 **y 값과 트리 순서**로 겹치는데, 노드를 여러
 # 개 두면 그중 일부가 본체 앞으로 올라와 캐릭터를 까맣게 덮는다.
 # 스프라이트보다 **먼저** 놓인 노드 하나면 언제나 뒤에 깔린다.
-const OUTLINE_COLOR := Color(0.16, 0.13, 0.18, 0.85)
+## 어두운 테두리는 밝은 바닥에서만 통한다. 현무암이나 밭고랑처럼 어두운
+## 바닥 위에서는 1.6:1 까지 떨어져 사실상 사라진다 — 그럴 땐 뒤집는다.
+const OUTLINE_DARK := Color(0.16, 0.13, 0.18, 0.85)
+const OUTLINE_LIGHT := Color(0.98, 0.95, 0.88, 0.75)
+var outline_color := OUTLINE_DARK
 const OUTLINE_STEPS := [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]
 
 func _build_outline() -> void:
@@ -119,7 +143,16 @@ func _draw_outline() -> void:
 		r = Rect2(r.position.x + r.size.x, r.position.y, -r.size.x, r.size.y)
 	for d in OUTLINE_STEPS:
 		_outline_node.draw_texture_rect_region(sprite.texture,
-			Rect2(sprite.offset + d, sprite.region_rect.size), r, OUTLINE_COLOR)
+			Rect2(sprite.offset + d, sprite.region_rect.size), r, outline_color)
+
+
+## 밟고 선 바닥이 어두우면 테두리를 밝은 쪽으로 바꾼다.
+func set_on_dark_ground(dark: bool) -> void:
+	var want := OUTLINE_LIGHT if dark else OUTLINE_DARK
+	if want == outline_color:
+		return
+	outline_color = want
+	_sync_outline()
 
 
 ## 걸으면 칸이 바뀐다. 테두리도 같이 다시 그린다.

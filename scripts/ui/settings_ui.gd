@@ -53,8 +53,8 @@ func _make_scrollable() -> void:
 	var root := $Root as Control
 	if root != null:
 		panel.set_anchors_preset(Control.PRESET_CENTER)
-		panel.offset_top = -vp.y * 0.44
-		panel.offset_bottom = vp.y * 0.44
+		panel.offset_top = -vp.y * 0.47
+		panel.offset_bottom = vp.y * 0.47
 
 
 ## 게임 도중에는 여기서 메인화면으로 나갈 수 있어야 한다.
@@ -73,7 +73,7 @@ func _add_home_button() -> void:
 
 	var b := Button.new()
 	b.name = "HomeBtn"
-	b.text = "메인화면으로"
+	b.text = "메인 화면으로"
 	b.custom_minimum_size = close_btn.custom_minimum_size
 	b.add_theme_font_size_override("font_size",
 		close_btn.get_theme_font_size("font_size"))
@@ -110,13 +110,13 @@ func _add_update_row() -> void:
 
 	var box := VBoxContainer.new()
 	box.name = "UpdateBox"
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 4)
 	body.add_child(box)
 	body.move_child(box, reset_btn.get_index())
 
 	_ver_label = Label.new()
 	_ver_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_ver_label.add_theme_font_size_override("font_size", 30)
+	_ver_label.add_theme_font_size_override("font_size", 26)
 	_ver_label.add_theme_color_override("font_color", Color(0.78, 0.76, 0.88))
 	box.add_child(_ver_label)
 
@@ -137,7 +137,7 @@ func _add_update_row() -> void:
 	_update_hint = Label.new()
 	_update_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_update_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_update_hint.add_theme_font_size_override("font_size", 30)
+	_update_hint.add_theme_font_size_override("font_size", 26)
 	_update_hint.add_theme_color_override("font_color", Color(0.86, 0.83, 0.96))
 	box.add_child(_update_hint)
 
@@ -170,7 +170,7 @@ func _on_check_update() -> void:
 
 
 func _on_check_started() -> void:
-	_set_update_state(true, "확인하는 중...", Color(0.86, 0.83, 0.96))
+	_set_update_state(true, "확인하는 중…", Color(0.86, 0.83, 0.96))
 
 
 func _on_up_to_date(v: String) -> void:
@@ -180,7 +180,7 @@ func _on_up_to_date(v: String) -> void:
 ## 받아 놓기만 하고 다음 실행에 적용한다. 돌아가는 중에 갈아끼우면
 ## 이미 올라간 씬과 새 코드가 섞여 재현도 안 되는 버그가 난다.
 func _on_update_ready(v: String) -> void:
-	_set_update_state(false, "v%s 를 받았어요.\n앱을 껐다 켜면 적용돼요" % v,
+	_set_update_state(false, "새 이야기를 받았어요 (v%s)\n앱을 껐다 켜면 적용돼요" % v,
 		Color(1.0, 0.88, 0.52))
 	_refresh_version()
 	if _update_btn != null:
@@ -199,7 +199,7 @@ func _on_update_failed(reason: String) -> void:
 func _set_update_state(busy: bool, msg: String, col: Color) -> void:
 	if _update_btn != null:
 		_update_btn.disabled = busy
-		if not busy and _update_btn.text == "확인하는 중...":
+		if not busy and _update_btn.text == "확인하는 중…":
 			_update_btn.text = "업데이트 확인"
 	if _update_hint != null:
 		_update_hint.text = msg

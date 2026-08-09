@@ -70,7 +70,7 @@ func _ready() -> void:
 	place.talk_to_near()
 	await get_tree().process_frame
 	var first_line := place.say._full
-	ok(first_line.contains("웬일"), "재회 인사를 한다: %s" % first_line)
+	ok(first_line.contains("또 봐요"), "재회 인사를 한다: %s" % first_line)
 	await _clear_say()
 
 	# 세 곳을 채워 편지를 받는다

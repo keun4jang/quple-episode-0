@@ -95,20 +95,14 @@ func _fit() -> void:
 	if _panel == null:
 		return
 	var need: float = maxf(_panel.get_combined_minimum_size().y, 136.0)
-	var bottom := 34.0 + _safe_bottom()
+	var safe := JourneyHud.safe_insets(get_viewport())
+	var bottom := 34.0 + safe.w
 	_panel.offset_bottom = -bottom
 	_panel.offset_top = -(bottom + need)
+	# 좌우도 비켜 준다. 가로로 들면 노치가 짧은 변, 즉 좌우에 온다.
+	_panel.offset_left = 40.0 + safe.x
+	_panel.offset_right = -(40.0 + safe.z)
 
-
-## 아래쪽 제스처 바·둥근 모서리를 피한다. 캔버스 단위로 돌려준다.
-func _safe_bottom() -> float:
-	var win := DisplayServer.window_get_size()
-	if win.y <= 0:
-		return 0.0
-	var safe := DisplayServer.get_display_safe_area()
-	var px: float = maxf(0.0, float(win.y - (safe.position.y + safe.size.y)))
-	var canvas := get_viewport().get_visible_rect().size.y
-	return px * (canvas / float(win.y))
 
 
 ## 여러 줄을 한 번에 준다. 다 넘기면 finished.

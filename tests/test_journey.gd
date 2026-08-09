@@ -476,7 +476,7 @@ func _reunion_tests() -> void:
 	# 재회 대사는 [누가, 무슨 말] 짝으로 온다. 주고받는 말이라 이름이 붙는다.
 	var head: Array = rac2.once[0] if rac2 != null and not rac2.once.is_empty() \
 		else ["", ""]
-	ok(String(head[1]).contains("웬일"), "첫마디가 \"어? 너 여기 웬일이야?\"")
+	ok(String(head[1]).contains("또 봐요"), "첫마디가 \"어? 여기서 또 봐요?\"")
 	ok(String(head[0]) == "배낭 멘 너구리", "누가 한 말인지 적혀 있다")
 	var voices := {}
 	for l in rac2.once:
@@ -487,12 +487,21 @@ func _reunion_tests() -> void:
 		if String((l as Array)[1]).contains("진짜 행복"):
 			quople += 1
 	ok(quople == 0, "첫 재회에서는 제목과 만나는 말이 안 나온다")
+	# 너구리는 늘 존댓말이다. 첫 재회에서 반말이 튀어나오면
+	# 마음이 쌓여 말이 놓인 게 아니라 다른 사람처럼 들린다.
+	var polite := true
+	for l in rac2.once:
+		var who := String((l as Array)[0])
+		var txt := String((l as Array)[1])
+		if who != "나" and not (txt.contains("요") or txt.contains("니다")):
+			polite = false
+	ok(polite, "첫 재회에서는 여행자가 존댓말을 쓴다")
 	ok(JourneyState.heart("raccoon") == heart0 + 1,
 		"다시 만난 것만으로 마음이 는다")
 
 	# 재회 대사는 한 번만
 	var said := rac2.lines()
-	ok(String((said[0] as Array)[1]).contains("웬일"), "재회 대사를 먼저 한다")
+	ok(String((said[0] as Array)[1]).contains("또 봐요"), "재회 대사를 먼저 한다")
 	ok(rac2.once.is_empty(), "재회 대사는 한 번만")
 	second.queue_free()
 	await get_tree().process_frame

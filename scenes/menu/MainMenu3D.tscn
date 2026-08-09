@@ -268,9 +268,9 @@ anchor_top = 0.5
 anchor_right = 0.72
 anchor_bottom = 0.5
 offset_left = -300.0
-offset_top = -50.0
+offset_top = -104.0
 offset_right = 300.0
-offset_bottom = 340.0
+offset_bottom = 350.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -282,16 +282,16 @@ anchor_left = 0.72
 anchor_top = 0.5
 anchor_right = 0.72
 anchor_bottom = 0.5
-offset_left = -270.0
-offset_top = -14.0
-offset_right = 270.0
-offset_bottom = 238.0
+offset_left = -226.0
+offset_top = -34.0
+offset_right = 226.0
+offset_bottom = 182.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 24
+theme_override_constants/separation = 16
 
 [node name="StartBtn" type="Button" parent="UILayer/Control/VBox"]
-custom_minimum_size = Vector2(540, 124)
+custom_minimum_size = Vector2(430, 108)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.22, 0.09, 0.03, 1)
 theme_override_colors/font_hover_color = Color(0.16, 0.05, 0.01, 1)
@@ -302,7 +302,7 @@ theme_override_styles/pressed = SubResource("BtnStartHover")
 text = "새 여행 시작"
 
 [node name="ContinueBtn" type="Button" parent="UILayer/Control/VBox"]
-custom_minimum_size = Vector2(540, 104)
+custom_minimum_size = Vector2(430, 92)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.99, 0.98, 0.86, 1)
 theme_override_font_sizes/font_size = 42
@@ -318,17 +318,17 @@ anchor_left = 0.72
 anchor_top = 0.5
 anchor_right = 0.72
 anchor_bottom = 0.5
-offset_left = -262.0
-offset_top = 248.0
-offset_right = 262.0
-offset_bottom = 336.0
+offset_left = -226.0
+offset_top = 202.0
+offset_right = 226.0
+offset_bottom = 280.0
 grow_horizontal = 2
 grow_vertical = 2
 alignment = 1
-theme_override_constants/separation = 20
+theme_override_constants/separation = 18
 
 [node name="SettingsBtn" type="Button" parent="UILayer/Control/SmallBtnRow"]
-custom_minimum_size = Vector2(166, 88)
+custom_minimum_size = Vector2(138, 78)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.99, 0.97, 0.85, 1)
 theme_override_font_sizes/font_size = 30
@@ -337,7 +337,7 @@ theme_override_styles/hover = SubResource("SmallBtn_Style")
 text = "설정"
 
 [node name="QuitBtn" type="Button" parent="UILayer/Control/SmallBtnRow"]
-custom_minimum_size = Vector2(166, 88)
+custom_minimum_size = Vector2(138, 78)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.99, 0.97, 0.85, 1)
 theme_override_font_sizes/font_size = 30
