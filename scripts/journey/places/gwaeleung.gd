@@ -101,6 +101,15 @@ func sleep_tile() -> Vector2i:
 	return Vector2i(8, 14)
 
 
+## 마을 끝 쿼스 정류장.
+func depart_tile() -> Vector2i:
+	return Vector2i(40, 13)
+
+
+func wanderer_tile() -> Vector2i:
+	return Vector2i(28, 13)
+
+
 func on_built() -> void:
 	JourneyState.here = place_name()
 	JourneyState.visit(place_name())
@@ -124,10 +133,15 @@ func on_built() -> void:
 
 	# 여행자. 다음 여행지에서 다시 만난다 — 1탄의 심장
 	# (`docs/world-quo.md` 4절)
-	put_folk(Vector2i(28, 13), "raccoon", "배낭 멘 너구리", "raccoon", [
+	put_wanderer("raccoon", "배낭 멘 너구리", "raccoon", [
 		["어, 반가워요. 여행 중?", "나도요."],
 		["나는 아무 계획 없이 다녀요.", "그게 편하더라고."],
 		["여긴 이틀만 있다 갈 거예요.", "다음은 아직 안 정했고."],
 		["같이 노을 보러 갈래요?"],
 		["그럼 또 어디선가.", "…진짜로 또 만나겠죠?"],
-	], Vector2.LEFT, true)
+	], [
+		"어? 너 여기 웬일이야?",
+		"…아니 진짜로 또 만났네요.",
+		"바다가 좋아서 돌아왔어요.",
+		"우리 이쯤 되면 쿼플인가.",
+	])

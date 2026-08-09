@@ -13,6 +13,7 @@ func _ready() -> void:
 	await _pickup_tests()
 	await _talk_tests()
 	await _place2_tests()
+	await _reunion_tests()
 	await _camera_tests()
 	_touch_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -362,6 +363,114 @@ func _place2_tests() -> void:
 	ok(p.sleep_tile().x >= 0, "쿼스텔에서 잘 수 있다")
 	p.queue_free()
 	await get_tree().process_frame
+
+
+# ── 떠나기와 재회 ─────────────────────────────────────────────────────
+#
+# 이 게임이 성립하느냐가 여기서 갈린다.
+
+func _reunion_tests() -> void:
+	print("\n[떠나기와 재회]")
+	JourneyState.reset()
+
+	# 다섯 곳이 다 있고 씬도 다 있다
+	var missing: Array[String] = []
+	for name in TravelBoard.PLACES:
+		var path := String(TravelBoard.PLACES[name][0])
+		if not ResourceLoader.exists(path):
+			missing.append(name)
+	ok(missing.is_empty(), "여행지 씬이 다 있다 (%d곳)" % TravelBoard.PLACES.size())
+
+	# 어디서나 떠날 수 있어야 한다. 못 떠나는 곳이 있으면 갇힌다.
+	var stuck: Array[String] = []
+	for name in TravelBoard.PLACES:
+		var p: Place = load(String(TravelBoard.PLACES[name][0])).instantiate()
+		add_child(p)
+		await get_tree().process_frame
+		if p.depart_tile().x < 0:
+			stuck.append(name)
+		# 지도가 화면보다 커야 바깥이 안 드러난다
+		var sz := p.tile_size()
+		var view := p.get_viewport().get_visible_rect().size / p.cam.zoom
+		ok(sz.x * Place.TILE >= view.x and sz.y * Place.TILE >= view.y,
+			"%s 지도가 화면보다 크다 (%dx%d)" % [name, sz.x, sz.y])
+		p.queue_free()
+		await get_tree().process_frame
+	ok(stuck.is_empty(), "어디서나 떠날 수 있다")
+
+	# 여행자는 한 번에 한 곳에만 있다
+	var seen := {}
+	for i in 8:
+		seen[JourneyState.wanderer_place] = true
+		JourneyState.move_wanderer()
+	ok(seen.size() == JourneyState.WANDERER_STOPS.size(),
+		"여행자가 네 곳을 다 돈다 (%d)" % seen.size())
+	ok(not seen.has("고향"), "남의 고향에는 안 간다")
+
+	# 진짜 재회 — 쿼릉에서 만나고, 떠났다가, 다른 데서 다시 만난다
+	JourneyState.reset()
+	var first: Place = preload("res://scenes/journey/Gwaeleung.tscn").instantiate()
+	add_child(first)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var rac: Folk = null
+	for c in first.get_children():
+		if c is Folk and c.wanderer:
+			rac = c
+	ok(rac != null, "쿼릉에서 여행자를 만난다")
+	ok(JourneyState.wanderer_seen.has("쿼릉"), "만난 곳을 기억한다")
+	ok(JourneyState.is_reunion("쿼릉") == false, "첫 만남은 재회가 아니다")
+	first.queue_free()
+	await get_tree().process_frame
+
+	# 떠난다 → 여행자도 옮긴다
+	JourneyState.move_wanderer()
+	ok(JourneyState.wanderer_place == "쿼주", "여행자가 쿼주로 옮겼다")
+	ok(JourneyState.is_reunion("쿼주"), "쿼주에서 만나면 재회다")
+
+	var heart0 := JourneyState.heart("raccoon")
+	var second: Place = preload("res://scenes/journey/Gwaeju.tscn").instantiate()
+	add_child(second)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var rac2: Folk = null
+	for c in second.get_children():
+		if c is Folk and c.wanderer:
+			rac2 = c
+	ok(rac2 != null, "쿼주에서 다시 만난다")
+	ok(rac2 != null and not rac2.once.is_empty(), "재회 대사가 따로 있다")
+	ok(rac2 != null and String(rac2.once[0]).contains("웬일"),
+		"첫마디가 \"어? 너 여기 웬일이야?\"")
+	ok(JourneyState.heart("raccoon") == heart0 + 1,
+		"다시 만난 것만으로 마음이 는다")
+
+	# 재회 대사는 한 번만
+	var said := rac2.lines()
+	ok(String(said[0]).contains("웬일"), "재회 대사를 먼저 한다")
+	ok(rac2.once.is_empty(), "재회 대사는 한 번만")
+	second.queue_free()
+	await get_tree().process_frame
+
+	# 여행자가 없는 곳에는 안 서 있다
+	var third: Place = preload("res://scenes/journey/Gwaedo.tscn").instantiate()
+	add_child(third)
+	await get_tree().process_frame
+	var here := 0
+	for c in third.get_children():
+		if c is Folk and c.wanderer:
+			here += 1
+	ok(here == 0, "여행자가 없는 곳엔 안 서 있다")
+	third.queue_free()
+	await get_tree().process_frame
+
+	# 저장에 남는다
+	var d := JourneyState.to_dict()
+	JourneyState.reset()
+	JourneyState.from_dict(d)
+	ok(JourneyState.wanderer_seen.has("쿼릉") and JourneyState.wanderer_seen.has("쿼주"),
+		"만난 곳들이 저장에 남는다")
 
 
 # ── 카메라 ────────────────────────────────────────────────────────────

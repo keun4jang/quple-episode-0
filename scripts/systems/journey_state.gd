@@ -45,6 +45,47 @@ func warm(folk_id: String, by: int = 1) -> void:
 ## 몇 군데나 다녀왔나 (고향은 안 센다)
 var visited: Dictionary = {}
 
+# ── 여행자 ────────────────────────────────────────────────────────────
+#
+# 붙박이는 그 마을에 산다. **여행자는 나처럼 돌아다닌다.**
+# 부산에서 만난 너구리를 파리에서 다시 만나는 것 — 이 게임은 그 한
+# 순간을 위해 나머지가 다 있다 (`docs/redesign-journey.md` 5절).
+#
+# 우연에 맡기면 영영 안 만날 수도 있다. 그래서 **자리를 정해 놓고 옮긴다.**
+# 플레이어에겐 우연으로 보이지만 실제로는 반드시 일어난다.
+
+## 여행자가 지금 어디 있나
+var wanderer_place := "쿼릉"
+## 어디서 만났었나
+var wanderer_seen: Dictionary = {}
+## 여행자가 갈 수 있는 곳 (고향은 뺀다 — 남의 고향에 갈 리 없다)
+const WANDERER_STOPS := ["쿼릉", "쿼주", "쿼산", "쿼도"]
+
+
+func wanderer_here(place: String) -> bool:
+	return wanderer_place == place
+
+
+## 처음이 아니고, **처음 보는 곳**에서 만났나
+func is_reunion(place: String) -> bool:
+	return not wanderer_seen.is_empty() and not wanderer_seen.has(place) \
+		and wanderer_here(place)
+
+
+func meet_wanderer(place: String) -> void:
+	wanderer_seen[place] = true
+
+
+## 내가 떠나면 그 사람도 떠난다.
+##
+## 내가 가는 곳으로 **따라오게** 하지 않는다. 그건 우연이 아니라 스토킹이다.
+## 대신 목록을 한 칸씩 돌게 두면, 서로 다른 속도로 돌다 언젠가 겹친다.
+func move_wanderer() -> void:
+	var i := WANDERER_STOPS.find(wanderer_place)
+	if i < 0:
+		i = 0
+	wanderer_place = WANDERER_STOPS[(i + 1) % WANDERER_STOPS.size()]
+
 
 func visit(place: String) -> void:
 	if place != "" and place != "고향":
@@ -133,6 +174,8 @@ func to_dict() -> Dictionary:
 		"day": day,
 		"minutes": minutes,
 		"visited": visited.duplicate(),
+		"wanderer_place": wanderer_place,
+		"wanderer_seen": wanderer_seen.duplicate(),
 	}
 
 
@@ -144,6 +187,9 @@ func from_dict(d: Dictionary) -> void:
 	day = maxi(1, int(d.get("day", 1)))
 	minutes = clampf(float(d.get("minutes", DAY_START)), DAY_START, DAY_END)
 	visited = d.get("visited", {}).duplicate() if d.get("visited") is Dictionary else {}
+	wanderer_place = String(d.get("wanderer_place", "쿼릉"))
+	wanderer_seen = d.get("wanderer_seen", {}).duplicate() \
+		if d.get("wanderer_seen") is Dictionary else {}
 
 
 func reset() -> void:
@@ -154,3 +200,5 @@ func reset() -> void:
 	day = 1
 	minutes = DAY_START
 	visited = {}
+	wanderer_place = "쿼릉"
+	wanderer_seen = {}

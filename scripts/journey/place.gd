@@ -48,6 +48,9 @@ var _sleep_at := Vector2.ZERO
 var _has_bed := false
 var _fade: ColorRect
 var _sleeping := false
+var _depart_at := Vector2.ZERO
+var _has_stop := false
+var board: TravelBoard
 var say: JourneySay
 var hud: JourneyHud
 
@@ -78,6 +81,14 @@ func spawn_tile() -> Vector2i:
 
 ## 잘 수 있는 자리 (숙소 문, 집 문). 없으면 (-1, -1).
 func sleep_tile() -> Vector2i:
+	return Vector2i(-1, -1)
+
+## 떠나는 자리 (정류장, 나루). 없으면 (-1, -1).
+func depart_tile() -> Vector2i:
+	return Vector2i(-1, -1)
+
+## 여행자가 여기 있을 때 서는 칸
+func wanderer_tile() -> Vector2i:
 	return Vector2i(-1, -1)
 
 ## 지도가 다 깔린 뒤. 인연을 세우거나 사건을 붙인다.
@@ -367,6 +378,15 @@ func _build_ui() -> void:
 	_night.color = Color.WHITE
 	add_child(_night)
 
+	board = TravelBoard.new()
+	board.name = "Board"
+	add_child(board)
+
+	var stop := depart_tile()
+	_has_stop = stop.x >= 0
+	if _has_stop:
+		_depart_at = world_of(stop)
+
 	var bed := sleep_tile()
 	_has_bed = bed.x >= 0
 	if _has_bed:
@@ -421,6 +441,10 @@ func _update_near() -> void:
 		_mark.visible = true
 		_mark.text = "🌙"
 		_mark.global_position = _sleep_at + Vector2(-6, -34)
+	elif _can_depart() and not busy:
+		_mark.visible = true
+		_mark.text = "🚏"
+		_mark.global_position = _depart_at + Vector2(-6, -34)
 	else:
 		_mark.visible = false
 
@@ -430,6 +454,13 @@ func _can_sleep() -> bool:
 	if not _has_bed or walker == null:
 		return false
 	return walker.global_position.distance_squared_to(_sleep_at) \
+		< TALK_RANGE * TALK_RANGE
+
+
+func _can_depart() -> bool:
+	if not _has_stop or walker == null or board == null or board.visible:
+		return false
+	return walker.global_position.distance_squared_to(_depart_at) \
 		< TALK_RANGE * TALK_RANGE
 
 
@@ -489,11 +520,16 @@ func _unhandled_input(e: InputEvent) -> void:
 	elif _can_sleep():
 		go_to_sleep()
 		get_viewport().set_input_as_handled()
+	elif _can_depart():
+		walker.stop()
+		board.open(place_name())
+		get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:
 	var blocked := (say != null and say.is_busy()) \
-		or (hud != null and hud.bag_open()) or _sleeping
+		or (hud != null and hud.bag_open()) or _sleeping \
+		or (board != null and board.visible)
 	if walker != null and touch != null:
 		walker.set_input(Vector2.ZERO if blocked else touch.direction_with_keys())
 	_check_pickups()
@@ -509,6 +545,24 @@ func tile_size() -> Vector2i:
 
 func world_of(t: Vector2i) -> Vector2:
 	return Vector2(t.x * TILE + TILE * 0.5, (t.y + 1) * TILE)
+
+
+## 여행자를 세운다. **지금 여기 있을 때만.**
+##
+## 재회일 때는 대사가 통째로 달라진다. 마음 칸을 따라가지 않고
+## "어? 너 여기 웬일이야?"가 먼저 나온다 — 그게 이 게임의 한 순간이다.
+func put_wanderer(sheet: String, who: String, folk_id: String,
+		lines: Array, reunion: Array) -> Folk:
+	var t := wanderer_tile()
+	if t.x < 0 or not JourneyState.wanderer_here(place_name()):
+		return null
+	var f := put_folk(t, sheet, who, folk_id, lines, Vector2.DOWN, true)
+	if JourneyState.is_reunion(place_name()):
+		f.once = reunion
+		# 다시 만난 것 자체가 사건이다. 말을 안 걸어도 한 칸 는다.
+		JourneyState.warm(folk_id)
+	JourneyState.meet_wanderer(place_name())
+	return f
 
 
 ## 인연을 세운다. 걷지 않고 서 있기만 한다.

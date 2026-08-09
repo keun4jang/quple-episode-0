@@ -112,6 +112,11 @@ func sleep_tile() -> Vector2i:
 	return Vector2i(21, 10)
 
 
+## 마을 어귀. 여기서 다시 떠난다.
+func depart_tile() -> Vector2i:
+	return Vector2i(21, 22)
+
+
 func on_built() -> void:
 	JourneyState.here = place_name()
 	# 엄마는 마당에서 뭘 널고 있고, 아빠는 밭 옆에서 뭘 고치고 있고,
