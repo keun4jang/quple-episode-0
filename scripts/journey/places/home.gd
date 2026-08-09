@@ -77,6 +77,28 @@ func props() -> Array:
 		[36, 21, "boulder", true],
 		[24, 22, "pebbles", false],
 		[15, 4, "shrub", false],
+
+		# 마당 살림. 시골집 마당에 실제로 있는 것들만 둔다
+		[33, 8, "jars", true],           # 장독대는 볕 드는 쪽
+		[13, 7, "clothesline", true],    # 빨랫줄
+		[28, 6, "pump", true],           # 펌프는 집 옆
+		[7, 9, "firewood", true],        # 장작은 처마 밑
+		[16, 17, "washtub", false],      # 대야는 굴러다닌다
+		[6, 19, "tools", true],          # 연장은 밭 가는 길목
+	]
+
+
+## 감나무 밑에 감이 떨어져 있고, 마당 구석에 이런저런 것이 있다.
+##
+## 여덟 개는 많다. **다섯 개만** 둔다 — 다 줍는 데 1분이면 되고,
+## 다 주웠다는 느낌이 있어야 다음에 왔을 때 다른 게 반갑다.
+func pickups() -> Array:
+	return [
+		[8, 15, "p-persimmon"],      # 감나무 밑
+		[10, 16, "p-persimmon"],
+		[26, 19, "p-flower"],        # 마당 가장자리
+		[34, 18, "p-pebble"],
+		[19, 21, "p-acorn"],         # 밭 쪽
 	]
 
 

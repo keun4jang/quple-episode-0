@@ -13,7 +13,11 @@ extends Node2D
 ## 물건은 발 닿는 칸으로 놓는다. Y 정렬이 있으므로 아래에 있는 것이 앞에
 ## 그려진다 — 나무 뒤로 걸어 들어가면 가려진다.
 
+signal picked_up(item: String)
+
 const TILE := 16
+## 이만큼 가까우면 줍는다. 한 칸 조금 안쪽.
+const PICK_RANGE := 12.0
 
 ## 글자 → 바닥 그림. 하위 클래스가 채운다.
 var legend: Dictionary = {}
@@ -29,6 +33,7 @@ var _props: Node2D
 var _size := Vector2i.ZERO
 var _grid: Array = []            # 행 문자열
 var _tiles: Dictionary = {}      # 이름 → Texture2D
+var _loose: Array[Node2D] = []   # 아직 안 주운 것
 
 
 # ── 하위 클래스가 채우는 것 ───────────────────────────────────────────
@@ -42,6 +47,13 @@ func ground_map() -> String:
 
 ## [(타일x, 타일y, 스프라이트이름, 막는가)]
 func props() -> Array:
+	return []
+
+## 주울 것. [(타일x, 타일y, 아이템이름)]
+##
+## 한 번 주우면 다시 안 생긴다. 같은 자리를 왔다 갔다 하며 퍼 담는 게임이
+## 아니다 — 여행지마다 몇 개씩만 두고, 다음에 오면 다른 게 있게 한다.
+func pickups() -> Array:
 	return []
 
 ## 주인공이 처음 서는 칸
@@ -60,6 +72,7 @@ func _ready() -> void:
 	_read_map()
 	_build_ground()
 	_build_props()
+	_build_pickups()
 	_build_walls()
 	_build_walker()
 	_build_camera()
@@ -188,6 +201,79 @@ func _build_props() -> void:
 			add_child(body)
 
 
+## 주울 것을 뿌린다. 밟으면 주워진다 — 버튼을 안 누른다.
+##
+## 탑다운에서 작은 물건을 줍는 데 버튼을 요구하면, 지나갈 때마다 "여기
+## 뭐 있었나" 하고 되돌아가게 된다. 밟으면 줍는 게 편하고, 벌이 없으니
+## 실수로 주워도 손해가 없다.
+func _build_pickups() -> void:
+	var place := place_name()
+	for entry in pickups():
+		var t := Vector2i(entry[0], entry[1])
+		var item: String = entry[2]
+		if JourneyState.is_taken(place, t):
+			continue
+		var tex := load("res://assets/sprites/%s.png" % item) as Texture2D
+		if tex == null:
+			push_warning("주울 그림이 없다: %s" % item)
+			continue
+
+		var a := Area2D.new()
+		a.name = "pick_%d_%d" % [t.x, t.y]
+		a.position = world_of(t)
+		a.monitoring = false          # 주인공 쪽에서 훑는다
+		var cs := CollisionShape2D.new()
+		var r := RectangleShape2D.new()
+		r.size = Vector2(TILE, TILE)
+		cs.shape = r
+		cs.position = Vector2(0, -TILE * 0.5)
+		a.add_child(cs)
+
+		var s := Sprite2D.new()
+		s.texture = tex
+		s.centered = false
+		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		s.offset = Vector2(-tex.get_width() / 2.0, -tex.get_height())
+		a.add_child(s)
+
+		a.set_meta("item", item)
+		a.set_meta("tile", t)
+		_props.add_child(a)
+		_loose.append(a)
+
+
+## 발밑에 있는 것을 줍는다.
+func _check_pickups() -> void:
+	if walker == null or _loose.is_empty():
+		return
+	var here := walker.global_position
+	for a in _loose.duplicate():
+		if not is_instance_valid(a):
+			_loose.erase(a)
+			continue
+		if here.distance_squared_to(a.global_position) > PICK_RANGE * PICK_RANGE:
+			continue
+		_loose.erase(a)
+		var item: String = a.get_meta("item")
+		var t: Vector2i = a.get_meta("tile")
+		JourneyState.pick(item)
+		JourneyState.mark_taken(place_name(), t)
+		picked_up.emit(item)
+		_pop(a)
+
+
+## 주운 것이 위로 톡 떠올랐다 사라진다. 이게 없으면 그냥 없어진 것 같다.
+func _pop(a: Node2D) -> void:
+	for c in a.get_children():
+		if c is CollisionShape2D:
+			c.queue_free()
+	var tw := create_tween()
+	tw.tween_property(a, "position:y", a.position.y - 10.0, 0.28) \
+		.set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(a, "modulate:a", 0.0, 0.28)
+	tw.tween_callback(a.queue_free)
+
+
 ## 지도 밖으로 못 나가게 벽을 두른다.
 func _build_walls() -> void:
 	var w := float(_size.x * TILE)
@@ -237,6 +323,7 @@ func _build_camera() -> void:
 func _process(_delta: float) -> void:
 	if walker != null and touch != null:
 		walker.set_input(touch.direction_with_keys())
+	_check_pickups()
 
 
 # ── 도우미 ────────────────────────────────────────────────────────────

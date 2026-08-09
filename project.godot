@@ -24,6 +24,7 @@ Episode0State="*res://scripts/systems/episode0_state.gd"
 TravelState="*res://scripts/systems/travel_state.gd"
 SaveManager="*res://scripts/systems/save_manager.gd"
 WordDex="*res://scripts/systems/word_dex.gd"
+JourneyState="*res://scripts/systems/journey_state.gd"
 AudioManager="*res://scripts/systems/audio_manager.gd"
 SceneTransition="*res://scenes/systems/SceneTransition.tscn"
 

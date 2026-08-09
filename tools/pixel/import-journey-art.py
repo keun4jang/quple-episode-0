@@ -629,10 +629,11 @@ SHEETS = [
         "mode": "objects",
         "out": OUT_SPRITES,
         "shape": (2, 4),
-        # 줍는 것들. 발밑에 놓이므로 아주 작다
-        "names": [("p-persimmon", 0.9), ("p-pebble", 0.6), ("p-flower", 1.0),
-                  ("p-pinecone", 0.8), ("p-acorn", 0.7), ("p-feather", 0.9),
-                  ("p-shell", 0.7), ("p-seaglass", 0.6)],
+        # 줍는 것들. 발밑에 놓이므로 작다 — 다만 너무 작으면 형태를 잃는다.
+        # 0.6~1.0 유닛(5~8px)으로 뽑았더니 감인지 도토리인지 구분이 안 갔다.
+        "names": [("p-persimmon", 1.5), ("p-pebble", 1.1), ("p-flower", 1.7),
+                  ("p-pinecone", 1.4), ("p-acorn", 1.3), ("p-feather", 1.5),
+                  ("p-shell", 1.3), ("p-seaglass", 1.1)],
     },
     {
         "id": "m",
@@ -648,10 +649,14 @@ SHEETS = [
         "file": "n-items.jpg",
         "mode": "objects",
         "out": OUT_SPRITES,
-        "shape": (2, 3),
-        # 배낭 안에 들어가는 것. 화면에 아이콘으로도 쓴다
-        "names": [("i-camera", 1.4), ("i-pack", 1.6), ("i-postcard", 1.2),
-                  ("i-notebook", 1.2), ("i-icecream", 1.4), ("i-coin", 0.8)],
+        # 6칸을 부탁했는데 4열 8칸으로 왔다. 수첩 두 권과 동전 두 닢이
+        # 생겼으니 그대로 살려 쓴다 — 수첩은 일기장과 쿼플첩으로 나누고,
+        # 동전은 액면이 다른 쿼원으로 쓴다.
+        "shape": (2, 4),
+        # 아이콘은 세상에 놓이는 게 아니라 화면에 뜨는 것이라 크게 뽑는다.
+        "names": [("i-camera", 2.6), ("i-pack", 3.0), ("i-postcard", 2.2),
+                  ("i-notebook", 2.4), ("i-dexbook", 2.4), ("i-icecream", 2.8),
+                  ("i-coin", 1.8), ("i-coin-big", 2.0)],
     },
     {
         "id": "j",

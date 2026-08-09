@@ -10,6 +10,7 @@ func _ready() -> void:
 	await _sprite_tests()
 	await _walker_tests()
 	await _place_tests()
+	await _pickup_tests()
 	await _camera_tests()
 	_touch_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -165,6 +166,71 @@ func _place_tests() -> void:
 
 	p.queue_free()
 	await get_tree().process_frame
+
+
+# ── 줍기 ──────────────────────────────────────────────────────────────
+
+func _pickup_tests() -> void:
+	print("\n[줍기]")
+	JourneyState.reset()
+	var p: Place = preload("res://scenes/journey/Home.tscn").instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var list := p.pickups()
+	# 이름을 미리 잡아 둔다. 아래에서 p 를 지운 뒤에도 쓴다 —
+	# 지운 노드의 메서드를 부르면 그냥 죽는다 (오류도 안 나고 크래시다).
+	var pname := p.place_name()
+	ok(list.size() > 0, "주울 게 놓여 있다 (%d개)" % list.size())
+
+	var no_art: Array[String] = []
+	for e in list:
+		if not ResourceLoader.exists("res://assets/sprites/%s.png" % e[2]):
+			no_art.append(e[2])
+	ok(no_art.is_empty(), "주울 그림이 다 있다")
+
+	# 첫 번째 것 위로 걸어간다
+	var first := Vector2i(list[0][0], list[0][1])
+	var got: Array[String] = []
+	p.picked_up.connect(func(it): got.append(it))
+	p.walker.global_position = p.world_of(first)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	ok(got.size() == 1, "밟으면 주워진다")
+	ok(JourneyState.count(String(list[0][2])) == 1, "배낭에 들어간다")
+	ok(JourneyState.is_taken(pname, first), "주운 자리를 기억한다")
+
+	# 같은 자리를 다시 밟아도 또 안 생긴다
+	await get_tree().process_frame
+	ok(JourneyState.count(String(list[0][2])) == 1, "두 번 안 주워진다")
+
+	p.queue_free()
+	await get_tree().process_frame
+
+	# 다시 들어와도 이미 주운 건 안 나온다
+	var p2: Place = preload("res://scenes/journey/Home.tscn").instantiate()
+	add_child(p2)
+	await get_tree().process_frame
+	var left := 0
+	for c in p2.get_node("Props").get_children():
+		if c is Area2D:
+			left += 1
+	ok(left == list.size() - 1, "다시 와도 주운 건 없다 (%d/%d)" % [left, list.size()])
+	p2.queue_free()
+	await get_tree().process_frame
+
+	# 저장에 남는다
+	JourneyState.pick("p-shell", 2)
+	var d := JourneyState.to_dict()
+	JourneyState.reset()
+	ok(JourneyState.total() == 0, "초기화하면 배낭이 빈다")
+	JourneyState.from_dict(d)
+	ok(JourneyState.count("p-shell") == 2, "복원하면 개수까지 돌아온다")
+	ok(JourneyState.is_taken(pname, first), "복원하면 주운 자리도 돌아온다")
+	SaveManager.clear_save()
+	ok(JourneyState.total() == 0, "기록 초기화가 배낭도 비운다")
 
 
 # ── 카메라 ────────────────────────────────────────────────────────────

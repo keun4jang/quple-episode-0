@@ -35,7 +35,7 @@
 
 ### 받은 것 (2026-08-09)
 
-A · E · G-1 · G-2 · G-3 · H · I 완료 →
+A~N **전부 완료** →
 `assets/source/journey/` 에 원본, `assets/tiles/` `assets/sprites/` 에 변환본.
 
 **걷기 프레임은 제미나이에 안 시킨다.** 프레임마다 얼굴이 달라져서 이어 붙이면

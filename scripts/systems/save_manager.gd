@@ -37,6 +37,7 @@ func autosave(current_scene: String, player_pos: Vector3 = Vector3.ZERO) -> void
 	cfg.set_value("episode0", "data", Episode0State.to_dict())
 	cfg.set_value("travel", "data", TravelState.to_dict())
 	cfg.set_value("words", "data", WordDex.to_dict())
+	cfg.set_value("journey", "data", JourneyState.to_dict())
 	if cfg.save(TEMP_PATH) == OK and _is_valid(TEMP_PATH):
 		var da := DirAccess.open("user://")
 		if da:
@@ -70,6 +71,7 @@ func save_game(current_scene: String = "") -> void:
 	cfg.set_value("episode0", "data", Episode0State.to_dict())
 	cfg.set_value("travel", "data", TravelState.to_dict())
 	cfg.set_value("words", "data", WordDex.to_dict())
+	cfg.set_value("journey", "data", JourneyState.to_dict())
 
 	# ① 임시 파일에 먼저
 	if cfg.save(TEMP_PATH) != OK:
@@ -164,6 +166,7 @@ func load_game() -> bool:
 	TravelState.from_dict(cfg.get_value("travel", "data", {}))
 	# 단어 도감은 나중에 붙었다. 예전 저장본에는 없으므로 빈 값으로 받는다.
 	WordDex.from_dict(cfg.get_value("words", "data", {}))
+	JourneyState.from_dict(cfg.get_value("journey", "data", {}))
 	# 백업에서 살렸으면 정상 저장본으로 다시 써둔다.
 	# 이때 백업을 덮으면 안 된다 — 깨진 파일이 백업이 되어버린다.
 	if path == BACKUP_PATH:
@@ -240,3 +243,4 @@ func clear_save() -> void:
 	Episode0State.reset()
 	TravelState.reset()
 	WordDex.reset()
+	JourneyState.reset()
