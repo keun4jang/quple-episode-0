@@ -31,6 +31,8 @@ OUT_SPRITES = "assets/sprites"
 
 UNIT = 8          # 1유닛 = 8px  (캐릭터 3유닛 = 24px)
 TILE = 16         # 바닥 타일 한 칸
+## 바닥 타일에 남길 결의 세기 (0~255 기준 표준편차). 넘으면 눌러 준다.
+TILE_NOISE = 5.0
 
 # ── 팔레트 ────────────────────────────────────────────────────────────
 #
@@ -334,29 +336,36 @@ def to_pixel(im: Image.Image, w: int, h: int, pal: Image.Image) -> Image.Image:
     return out
 
 
-def make_seamless(im: Image.Image) -> Image.Image:
-    """이음매를 없앤다.
-
-    제미나이가 "seamless" 를 지켜 주지 않는다. 가장자리가 안쪽보다 어둡거나
-    무늬가 안 이어져서, 그대로 깔면 격자무늬가 보인다.
-
-    가로세로로 절반씩 굴린 그림을 만들어 **가장자리끼리 섞는다.** 굴리면
-    원래의 이음매가 한가운데로 오므로, 두 장을 가장자리 쪽에서 겹치면
-    이음매가 서로를 덮는다.
-    """
+def center_crop(im: Image.Image) -> Image.Image:
+    """가운데만 쓴다. 그림 가장자리는 원본에서도 어두울 때가 많다."""
     w, h = im.size
-    a = np.asarray(im.convert("RGB")).astype(float)
-    rolled = np.roll(np.roll(a, w // 2, axis=1), h // 2, axis=0)
+    m = int(min(w, h) * 0.15)
+    return im.crop((m, m, w - m, h - m))
 
-    # 가장자리에서 1, 가운데에서 0 이 되는 가중치
-    xs = np.abs(np.linspace(-1, 1, w))
-    ys = np.abs(np.linspace(-1, 1, h))
-    wgt = np.maximum(xs[None, :], ys[:, None]) ** 2
-    wgt = wgt[..., None]
 
-    out = a * (1 - wgt * 0.5) + rolled * (wgt * 0.5)
-    return Image.fromarray(out.clip(0, 255).astype("uint8"), "RGB")
+def flatten_ground(im: Image.Image) -> Image.Image:
+    """바닥 타일은 **거의 평평해야** 한다.
 
+    처음엔 가장자리끼리 섞어 이음매를 지웠다. 그런데 그 섞임이 타일마다
+    어두운 테를 만들었고, 깔아 놓으니 테가 이어져 **격자선**이 됐다.
+    칸마다 뒤집고 돌려 봐도 대칭이 맞물려 오히려 더 또렷한 무늬가 됐다.
+
+    16px 로 줄이면 무늬 하나가 칸 하나를 차지한다. 그러면 무엇을 해도
+    규칙적으로 반복된다. 답은 이음매를 감추는 게 아니라 **무늬를 줄이는**
+    것이다 — 평균색 쪽으로 당겨 놓고, 아주 옅은 결만 남긴다.
+
+    **반드시 팔레트를 입힌 뒤에** 불러야 한다. 처음엔 줄이기 전에 눌렀는데,
+    뒤이은 양자화가 미묘한 차이를 서로 다른 팔레트 색으로 갈라놓아 대비가
+    고스란히 되살아났다. 눈으로 안 봤으면 못 찾을 뻔했다.
+    """
+    a = np.asarray(im.convert("RGBA")).astype(float)
+    rgb = a[..., :3]
+    mean = rgb.reshape(-1, 3).mean(axis=0)
+    std = float(np.sqrt(((rgb - mean) ** 2).mean()))
+    if std > TILE_NOISE:
+        rgb = mean + (rgb - mean) * (TILE_NOISE / std)
+    a[..., :3] = rgb.clip(0, 255)
+    return Image.fromarray(a.astype("uint8"), "RGBA")
 
 
 # ── 턴어라운드 → 걷기 시트 ────────────────────────────────────────────
@@ -649,11 +658,10 @@ def run_sheet(sheet: dict, pal: Image.Image) -> list:
             if name is None:
                 continue
             cell = im.crop((x0, y0, x1 + 1, y1 + 1))
-            # 정사각으로 맞춘 뒤 이음매를 지우고 타일 크기로 내린다
+            # 정사각 가운데만 쓰고, 팔레트를 입힌 뒤에 결을 눌러 준다
             side = min(cell.size)
-            cell = cell.crop((0, 0, side, side))
-            cell = make_seamless(cell)
-            tile = to_pixel(cell.convert("RGBA"), TILE, TILE, pal)
+            cell = center_crop(cell.crop((0, 0, side, side)))
+            tile = flatten_ground(to_pixel(cell.convert("RGBA"), TILE, TILE, pal))
             out = os.path.join(sheet["out"], name + ".png")
             tile.save(out)
             made.append(out)
