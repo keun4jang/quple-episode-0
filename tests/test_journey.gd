@@ -14,6 +14,7 @@ func _ready() -> void:
 	await _talk_tests()
 	await _place2_tests()
 	await _reunion_tests()
+	await _extras_tests()
 	await _camera_tests()
 	_touch_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -152,7 +153,7 @@ func _place_tests() -> void:
 	# 가족 셋
 	var folk := 0
 	for c in p.get_children():
-		if c is QuoWalker and c != p.walker:
+		if c is Folk and not c.is_spot:
 			folk += 1
 	ok(folk == 3, "가족 셋이 서 있다 (%d)" % folk)
 
@@ -246,9 +247,10 @@ func _talk_tests() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
+	# 평상·창밖 같은 **자리**는 인연이 아니다
 	var folk: Array[Folk] = []
 	for c in p.get_children():
-		if c is Folk:
+		if c is Folk and not c.is_spot:
 			folk.append(c)
 	ok(folk.size() == 3, "인연이 셋 (%d)" % folk.size())
 
@@ -471,6 +473,131 @@ func _reunion_tests() -> void:
 	JourneyState.from_dict(d)
 	ok(JourneyState.wanderer_seen.has("쿼릉") and JourneyState.wanderer_seen.has("쿼주"),
 		"만난 곳들이 저장에 남는다")
+
+
+# ── 편지 · 사진 · 엽서 · 프롤로그 ─────────────────────────────────────
+
+func _extras_tests() -> void:
+	print("\n[편지]")
+	JourneyState.reset()
+	ok(JourneyState.unread_letters() == 0, "처음엔 편지가 없다")
+
+	# 여행지 세 곳마다 한 통
+	for name in ["쿼릉", "쿼주"]:
+		JourneyState.visit(name)
+		JourneyState.maybe_letter()
+	ok(JourneyState.letters.is_empty(), "두 곳까지는 안 온다")
+	JourneyState.visit("쿼산")
+	JourneyState.maybe_letter()
+	ok(JourneyState.letters.size() == 1, "세 곳째에 한 통 온다")
+	ok(JourneyState.unread_letters() == 1, "안 읽은 걸로 뜬다")
+
+	# 안 읽어도 벌이 없다. 다만 고향에 가면 다 읽은 것으로 친다
+	JourneyState.came_home()
+	ok(JourneyState.unread_letters() == 0, "고향에 가면 다 읽은 것으로 친다")
+
+	# 같은 편지를 두 번 보내지 않는다
+	JourneyState.maybe_letter()
+	ok(JourneyState.letters.size() == 1, "같은 편지를 두 번 안 보낸다")
+
+	print("\n[사진]")
+	var p: Place = preload("res://scenes/journey/Gwaeleung.tscn").instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var n0 := JourneyState.photos.size()
+	p.hud.shutter.emit()
+	await get_tree().process_frame
+	ok(JourneyState.photos.size() == n0 + 1, "사진이 찍힌다")
+	var shot: Dictionary = JourneyState.photos[-1]
+	ok(shot.get("place") == "쿼릉", "어디서 찍었는지 남는다")
+	ok(String(shot.get("time", "")) != "", "몇 시였는지 남는다")
+	ok(String(shot.get("subject", "")) != "", "무엇을 찍었는지 남는다")
+
+	# 사람 옆에서 찍으면 그 사람이 남는다
+	var who: Folk = null
+	for c in p.get_children():
+		if c is Folk and not c.is_spot:
+			who = c
+			break
+	p.walker.global_position = who.global_position + Vector2(8, 0)
+	await get_tree().process_frame
+	p.hud.shutter.emit()
+	await get_tree().process_frame
+	ok(String(JourneyState.photos[-1].get("subject")) == who.who,
+		"사람 옆에서 찍으면 그 사람이 남는다")
+
+	print("\n[엽서]")
+	# 마음을 다 채우면 엽서를 준다
+	JourneyState.hearts[who.folk_id] = JourneyState.HEART_MAX
+	p.walker.global_position = who.global_position + Vector2(8, 0)
+	await get_tree().process_frame
+	p.talk_to_near()
+	await get_tree().process_frame
+	ok(JourneyState.postcards.has(who.folk_id), "마음을 채우면 엽서를 받는다")
+	while p.say.is_busy():
+		p.say.advance()
+	p.queue_free()
+	await get_tree().process_frame
+
+	print("\n[프롤로그]")
+	var pro: Place = preload("res://scenes/journey/Gwaeul.tscn").instantiate()
+	add_child(pro)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	ok(pro.place_name() == "쿼울", "쿼울에서 시작한다")
+	ok(pro.sleep_tile().x < 0, "회사에서는 못 잔다")
+	ok(pro.depart_tile().x >= 0, "회사 앞에서 떠날 수 있다")
+	ok(pro.pickups().is_empty(), "프롤로그에서는 아무것도 안 줍는다")
+	ok(JourneyState.minutes >= 23 * 60, "밤 11시에서 시작한다")
+	ok(not TravelBoard.PLACES.has("쿼울"), "회사로는 돌아갈 수 없다")
+
+	# 창밖·반납함 같은 자리가 있다
+	var spots := 0
+	for c in pro.get_children():
+		if c is Folk and c.is_spot:
+			spots += 1
+	ok(spots >= 3, "말 붙일 자리가 있다 (%d)" % spots)
+	pro.queue_free()
+	await get_tree().process_frame
+
+	print("\n[평상]")
+	JourneyState.reset()
+	var h1: Place = preload("res://scenes/journey/Home.tscn").instantiate()
+	add_child(h1)
+	await get_tree().process_frame
+	var deck: Folk = null
+	for c in h1.get_children():
+		if c is Folk and c.is_spot and c.who == "평상":
+			deck = c
+	ok(deck != null, "평상에 앉을 수 있다")
+	ok(deck != null and String(deck.lines()[0]).contains("평상"), "앉으면 말이 나온다")
+	h1.queue_free()
+	await get_tree().process_frame
+
+	# 엽서를 모으고 앉으면 다른 말이 나온다
+	JourneyState.give_postcard("seal", "가게 할머니")
+	JourneyState.give_postcard("raccoon", "배낭 멘 너구리")
+	var h2: Place = preload("res://scenes/journey/Home.tscn").instantiate()
+	add_child(h2)
+	await get_tree().process_frame
+	var deck2: Folk = null
+	for c in h2.get_children():
+		if c is Folk and c.is_spot and c.who == "평상":
+			deck2 = c
+	var said: Array = deck2.lines()
+	ok(said.size() >= 4, "엽서가 있으면 넘겨 본다 (%d줄)" % said.size())
+	ok(String(said[-1]).contains("쿼플"), "마지막 줄이 제목과 만난다")
+	h2.queue_free()
+	await get_tree().process_frame
+
+	# 저장에 다 남는다
+	var d := JourneyState.to_dict()
+	JourneyState.reset()
+	JourneyState.from_dict(d)
+	ok(JourneyState.postcards.size() == 2, "엽서가 저장에 남는다")
 
 
 # ── 카메라 ────────────────────────────────────────────────────────────

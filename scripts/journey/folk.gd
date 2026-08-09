@@ -11,6 +11,9 @@ extends QuoWalker
 @export var folk_id := ""
 ## 여행자인가 (다른 여행지에서 다시 만날 수 있다)
 @export var wanderer := false
+## 사람이 아니라 **자리**인가 (창밖·반납함·평상).
+## 말은 걸리지만 인연으로 세지 않고 마음도 안 는다.
+@export var is_spot := false
 
 ## 마음 칸별 대사. [칸0줄들, 칸1줄들, ...] — 없는 칸은 마지막 것을 쓴다.
 var lines_by_heart: Array = []

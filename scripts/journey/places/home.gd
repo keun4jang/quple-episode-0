@@ -119,6 +119,10 @@ func depart_tile() -> Vector2i:
 
 func on_built() -> void:
 	JourneyState.here = place_name()
+
+	# 평상. 여기 앉으면 모아 둔 엽서를 한 장씩 넘겨 본다
+	# (`docs/story-journey.md` 6절) — 떠나서 만난 것들을, 떠나온 자리에서.
+	put_spot(Vector2i(31, 15), "평상", _deck_lines())
 	# 엄마는 마당에서 뭘 널고 있고, 아빠는 밭 옆에서 뭘 고치고 있고,
 	# 동생은 평상에 앉아 있다. 셋이 흩어져 있어야 마당이 넓어 보인다.
 	#
@@ -155,3 +159,22 @@ func _mom_greeting() -> String:
 	if been <= 8:
 		return "얼굴 좋아졌네."
 	return "…어디 갔다 이제 와."
+
+
+## 평상에 앉으면 나오는 말. 엽서가 몇 장이냐에 따라 다르다.
+##
+## 엔딩을 따로 만들지 않았다. 이 게임에는 "끝"이 없고, 대신 **평상이
+## 늘 거기 있다.** 언제 앉아도 지금까지의 여행을 넘겨 볼 수 있다.
+func _deck_lines() -> Array:
+	var cards := JourneyState.postcards
+	if cards.is_empty():
+		return [
+			"평상에 앉았다.",
+			"아직 아무한테서도 엽서가 안 왔다.",
+			"…이제 막 떠났으니까.",
+		]
+	var out: Array = ["평상에 앉아 엽서를 꺼냈다."]
+	for id in cards:
+		out.append("✉  %s" % cards[id])
+	out.append("혼자 떠났는데, 쿼플이 이만큼이었다.")
+	return out

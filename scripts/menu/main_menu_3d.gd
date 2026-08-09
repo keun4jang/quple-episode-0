@@ -307,8 +307,8 @@ func _start_new(skip_prologue: bool) -> void:
 		Episode0State.badge_returned = true
 		Episode0State.partner_joined = true
 		Episode0State.advance_to(Episode0State.State.CLEAR)
-		SaveManager.autosave("res://scenes/travel/TravelHub.tscn")
-		SceneTransition.go_to("res://scenes/travel/TravelHub.tscn", "hopeful")
+		SaveManager.autosave(SaveManager.HUB)
+		SceneTransition.go_to(SaveManager.HUB, "hopeful")
 	else:
 		SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn")
 

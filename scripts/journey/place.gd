@@ -109,6 +109,10 @@ func _ready() -> void:
 	_build_camera()
 	_build_ui()
 	on_built()
+	if place_name() == "고향":
+		JourneyState.came_home()
+	else:
+		JourneyState.maybe_letter()
 
 
 func _read_map() -> void:
@@ -360,11 +364,14 @@ func _build_ui() -> void:
 	hud = JourneyHud.new()
 	hud.name = "Hud"
 	add_child(hud)
+	hud.shutter.connect(_take_photo)
 
 	# 말 걸 수 있는 사람 위에 뜨는 표시. 글자로 "말 걸기"라고 쓰지 않는다 —
 	# 가까이 가면 뜨고 멀어지면 사라지는 것만으로 뜻이 통한다.
+	# 표시 글자는 **굵은 한글 폰트에 있는 것만** 쓴다.
+	# 처음엔 ❢ 🌙 🚏 를 썼는데 Jua 에 없어서 흰 네모나 이상한 모양이 떴다.
 	_mark = Label.new()
-	_mark.text = "❢"
+	_mark.text = "!"
 	_mark.add_theme_font_size_override("font_size", 14)
 	_mark.add_theme_color_override("font_color", Color("#FFF2C8"))
 	_mark.add_theme_color_override("font_outline_color", Color("#3A2C2C"))
@@ -417,6 +424,50 @@ func _tick_clock(delta: float) -> void:
 		_night.color = Color(1, 1, 1).lerp(Color(0.40, 0.44, 0.66), n)
 
 
+## 사진을 찍는다.
+##
+## 화면을 그림으로 저장하지 않는다. 남는 건 결국 **어디서 언제 무엇을
+## 봤는지** 한 줄이고, 픽셀 화면을 통째로 담으면 용량만 분다.
+## 지금 눈앞에 뭐가 있는지를 대신 적는다.
+func _take_photo() -> void:
+	if walker == null:
+		return
+	var subject := _what_is_near()
+	JourneyState.take_photo(place_name(), subject)
+	if hud != null:
+		hud.flash()
+	SaveManager.save_now()
+
+
+func _what_is_near() -> String:
+	# 사람이 가까이 있으면 사람을, 없으면 눈에 띄는 물건을 적는다.
+	if _near != null and is_instance_valid(_near):
+		return _near.who
+	var best := ""
+	var gap := 90.0 * 90.0
+	if _props != null:
+		for c in _props.get_children():
+			if not (c is Sprite2D):
+				continue
+			var d := walker.global_position.distance_squared_to(c.global_position)
+			if d < gap:
+				gap = d
+				best = PHOTO_NAMES.get(c.name, "")
+	return best if best != "" else "풍경"
+
+
+## 사진에 적을 이름. 없는 건 "풍경"으로 뭉뚱그린다.
+const PHOTO_NAMES := {
+	"lighthouse": "등대", "guesthouse": "쿼스텔", "shop": "가게",
+	"stall": "좌판", "home-house": "집", "home-persimmon": "감나무",
+	"home-deck": "평상", "home-garden": "밭", "jars": "장독대",
+	"clothesline": "빨랫줄", "pump": "펌프", "parasol": "파라솔",
+	"mailbox": "우체통", "bench": "벤치", "pine": "소나무", "tree": "나무",
+	"boulder": "바위", "net": "그물", "buoy": "부표", "dock": "부두",
+	"street-lamp": "가로등",
+}
+
+
 ## 가장 가까운 인연을 찾아 표시를 띄운다.
 func _update_near() -> void:
 	_near = null
@@ -435,16 +486,16 @@ func _update_near() -> void:
 	var busy := say != null and say.is_busy()
 	if _near != null and not busy:
 		_mark.visible = true
-		_mark.text = "❢"
-		_mark.global_position = _near.global_position + Vector2(-4, -40)
+		_mark.text = "!"
+		_mark.global_position = _near.global_position + Vector2(-3, -40)
 	elif _can_sleep() and not busy:
 		_mark.visible = true
-		_mark.text = "🌙"
-		_mark.global_position = _sleep_at + Vector2(-6, -34)
+		_mark.text = "잠"
+		_mark.global_position = _sleep_at + Vector2(-7, -34)
 	elif _can_depart() and not busy:
 		_mark.visible = true
-		_mark.text = "🚏"
-		_mark.global_position = _depart_at + Vector2(-6, -34)
+		_mark.text = "출발"
+		_mark.global_position = _depart_at + Vector2(-14, -34)
 	else:
 		_mark.visible = false
 
@@ -499,6 +550,9 @@ func talk_to_near() -> void:
 	# 사람이 두 칸째 대사를 하고, 첫인사를 영영 못 듣는다.
 	var what := f.lines()
 	f.on_talked()
+	# 마음을 다 채우면 엽서를 준다. 떠난 뒤에도 편지가 온다는 뜻이다.
+	if f.heart() >= JourneyState.HEART_MAX:
+		JourneyState.give_postcard(f.folk_id, f.who)
 	say.say(f.who, what)
 	talked.emit(f.folk_id)
 
@@ -562,6 +616,23 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 		# 다시 만난 것 자체가 사건이다. 말을 안 걸어도 한 칸 는다.
 		JourneyState.warm(folk_id)
 	JourneyState.meet_wanderer(place_name())
+	return f
+
+
+## 사람이 아닌 것에도 말을 붙인다 (창밖, 반납함, 바다).
+##
+## 눈에 안 보이는 Folk 를 세워 두는 것뿐이다. 표시도 대사도 같은 길을
+## 타므로 따로 만들 게 없다.
+func put_spot(t: Vector2i, what: String, lines: Array) -> Folk:
+	var f := Folk.new()
+	f.who = what
+	f.is_spot = true
+	f.folk_id = ""            # 마음이 안 는다 — 물건이니까
+	f.lines_by_heart = [lines]
+	f.position = world_of(t)
+	add_child(f)
+	f.sprite.visible = false
+	_folk.append(f)
 	return f
 
 

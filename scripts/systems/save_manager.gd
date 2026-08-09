@@ -67,7 +67,7 @@ func save_game(current_scene: String = "") -> void:
 	if current_scene != "":
 		cfg.set_value("game", "current_scene", current_scene)
 	elif not cfg.has_section_key("game", "current_scene"):
-		cfg.set_value("game", "current_scene", "res://scenes/travel/TravelHub.tscn")
+		cfg.set_value("game", "current_scene", HUB)
 	cfg.set_value("episode0", "data", Episode0State.to_dict())
 	cfg.set_value("travel", "data", TravelState.to_dict())
 	cfg.set_value("words", "data", WordDex.to_dict())
@@ -201,27 +201,19 @@ func set_flag(key: String, value) -> void:
 func has_backup() -> bool:
 	return _is_valid(BACKUP_PATH)
 
-## 0편을 깼으면 이어하기는 언제나 여행 허브다.
+## 이어하기의 기본 자리. **이제 여행 쪽이다.**
 ##
-## 예전에는 저장된 경로를 그대로 돌려줬다. 그런데 0편의 마지막 저장은
-## "회사 앞" 이고, 클리어 뒤 그 위를 덮어쓰는 곳이 없었다. 그래서 한 번
-## 깬 사람은 이어하기를 누를 때마다 **할 일이 하나도 없는 밤 11시 회사
-## 앞**으로 돌아왔다. 사진 자리는 잠겨 있고 목표는 "0편 완료" 이고,
-## 나가는 길은 설정→메인화면뿐인데 그 버튼이 같은 경로를 다시 저장해서
-## 영영 빠져나올 수 없었다.
-##
-## 저장 파일을 고치는 대신 여기서 판단한다 — 이미 그렇게 갇힌 저장
-## 파일을 들고 있는 사람도 이번 갱신만 받으면 풀려난다.
-const HUB := "res://scenes/travel/TravelHub.tscn"
+## 예전 저장본은 0편 맵을 가리킬 수 있다. 그 맵들은 이제 게임의 일부가
+## 아니므로, 가리키고 있으면 무시하고 여행으로 보낸다 — 안 그러면
+## 할 일이 하나도 없는 옛 맵에 갇힌다.
+const HUB := "res://scenes/journey/Gwaeul.tscn"
 
 func get_current_scene(fallback: String = HUB) -> String:
-	if Episode0State.episode0_cleared:
-		var raw := _raw_current_scene(fallback)
-		# 0편 맵으로 돌아가려는 저장은 무시한다. 0편은 이미 끝났다.
-		if raw.contains("/side/") or raw.contains("/maps/"):
-			return HUB
-		return raw
-	return _raw_current_scene(fallback)
+	var raw := _raw_current_scene(fallback)
+	# 옛 맵을 가리키는 저장은 무시한다. 그 시절은 끝났다.
+	if raw.contains("/side/") or raw.contains("/maps/") or raw.contains("/travel/"):
+		return HUB
+	return raw
 
 
 ## 저장 파일에 적힌 그대로. 이어하기 **정책**이 아니라 저장이 제대로

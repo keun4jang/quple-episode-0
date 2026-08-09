@@ -8,6 +8,9 @@ extends Node
 signal picked(item: String, total: int)
 signal heart_up(folk_id: String, heart: int)
 signal day_passed(day: int)
+signal letter_came(text: String)
+signal postcard_came(folk_id: String)
+signal photo_taken(photo: Dictionary)
 
 ## 아이템 이름 → 개수
 var bag: Dictionary = {}
@@ -96,6 +99,77 @@ func places_visited() -> int:
 	return visited.size()
 
 
+# ── 편지 · 엽서 · 사진 ────────────────────────────────────────────────
+
+## 엄마 편지. 안 읽어도 벌이 없다 (`docs/story-journey.md` 5절).
+var letters: Array = []
+## 마음 다섯 칸을 채운 인연에게서 온 엽서. folk_id → 이름
+var postcards: Dictionary = {}
+## 직접 찍은 사진
+var photos: Array = []
+## 이미 몇 통 보냈나
+var letters_sent := 0
+
+## 여행지 세 곳마다 한 통. 짧다.
+const LETTERS := [
+	"밥은 먹고 다니니.",
+	"김치 담갔다. 너 좋아하는 거.",
+	"바쁘면 안 와도 된다.",
+	"아버지가 마당 손봤다.",
+	"감 익었더라.",
+]
+
+
+## 여행지를 다녀올 때마다 살핀다. 세 곳마다 한 통.
+##
+## 가라고 시키지 않는 대신 편지가 쌓인다. 화살표도 느낌표도 안 쓴다 —
+## 세 통쯤 쌓이면 대부분 알아서 간다.
+func maybe_letter() -> void:
+	var due := int(places_visited() / 3.0)
+	while letters_sent < due and letters_sent < LETTERS.size():
+		var text: String = LETTERS[letters_sent]
+		letters.append({"text": text, "day": day, "read": false})
+		letters_sent += 1
+		letter_came.emit(text)
+
+
+func unread_letters() -> int:
+	var n := 0
+	for l in letters:
+		if not bool(l.get("read", false)):
+			n += 1
+	return n
+
+
+func read_letters() -> void:
+	for l in letters:
+		l["read"] = true
+
+
+## 고향에 다녀오면 편지는 다 읽은 것으로 친다 — 직접 만났으니까.
+func came_home() -> void:
+	read_letters()
+
+
+func give_postcard(folk_id: String, who: String) -> void:
+	if folk_id == "" or postcards.has(folk_id):
+		return
+	postcards[folk_id] = who
+	postcard_came.emit(folk_id)
+
+
+func take_photo(place: String, subject: String) -> Dictionary:
+	var p := {
+		"place": place,
+		"day": day,
+		"time": time_text(),
+		"subject": subject,
+	}
+	photos.append(p)
+	photo_taken.emit(p)
+	return p
+
+
 # ── 하루 ──────────────────────────────────────────────────────────────
 
 func time_text() -> String:
@@ -176,6 +250,10 @@ func to_dict() -> Dictionary:
 		"visited": visited.duplicate(),
 		"wanderer_place": wanderer_place,
 		"wanderer_seen": wanderer_seen.duplicate(),
+		"letters": letters.duplicate(true),
+		"letters_sent": letters_sent,
+		"postcards": postcards.duplicate(),
+		"photos": photos.duplicate(true),
 	}
 
 
@@ -190,6 +268,11 @@ func from_dict(d: Dictionary) -> void:
 	wanderer_place = String(d.get("wanderer_place", "쿼릉"))
 	wanderer_seen = d.get("wanderer_seen", {}).duplicate() \
 		if d.get("wanderer_seen") is Dictionary else {}
+	letters = d.get("letters", []).duplicate(true) if d.get("letters") is Array else []
+	letters_sent = int(d.get("letters_sent", 0))
+	postcards = d.get("postcards", {}).duplicate() \
+		if d.get("postcards") is Dictionary else {}
+	photos = d.get("photos", []).duplicate(true) if d.get("photos") is Array else []
 
 
 func reset() -> void:
@@ -202,3 +285,7 @@ func reset() -> void:
 	visited = {}
 	wanderer_place = "쿼릉"
 	wanderer_seen = {}
+	letters = []
+	letters_sent = 0
+	postcards = {}
+	photos = []
