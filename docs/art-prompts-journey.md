@@ -27,6 +27,11 @@
 | **G** | 고향집 (집·마당·가족 3명) | ⭐⭐ 제일 중요 |
 | **H** | 가족 3명 턴어라운드 (앞·옆·뒤) | ⭐ 걷기용 |
 | **I** | 인연 3명 턴어라운드 (앞·옆·뒤) | ⭐ 걷기용 |
+| **J** | 주인공 턴어라운드 | ✅ |
+| **K** | 고향집 마당 소품 6종 (장독대·빨랫줄·펌프·장작·대야·연장) | ⭐ 마당이 휑하다 |
+| **L** | 줍는 것 8종 (감·조약돌·들꽃·솔방울·도토리·깃털·조개·유리) | ⭐⭐ 게임에 줍는 게 없다 |
+| **M** | 쿼릉 바닷가 소품 6종 (파라솔·좌판·그물·부표·아이스박스·우체통) | |
+| **N** | 배낭 속 물건 6종 (쿼메라·배낭·엽서·수첩·쿼이스크림·쿼원) | |
 
 ### 받은 것 (2026-08-09)
 
@@ -379,3 +384,106 @@ bottom. Keep the pattern even and calm.
 3. Coarse country grass, slightly yellowed, uneven
 4. Flat grey stone slabs of an old stepping path
 ```
+
+
+---
+
+## 12. K장 — 고향집 마당 소품 ⭐
+
+마당에 아무것도 없어서 휑하다. **시골집 마당에 실제로 있는 것들**만 넣는다.
+
+```
+(1절 머리말 + 이어서)
+
+Create a 3x2 grid of six rural Korean farmyard objects, seen from a 3/4
+overhead game camera. Scale reference: a small animal character is 3 units tall.
+
+1. A cluster of five dark brown earthenware jars of different sizes standing
+   on a low stone platform, about 2.4 units tall. Rounded bellied pots with
+   wide flat lids.
+2. A clothesline strung between two simple wooden posts, with two plain
+   cloths hanging and drying, about 3 units tall
+3. An old hand water pump on a small concrete base, with a metal bucket
+   beside it, about 2.4 units tall
+4. A neat stack of chopped firewood logs, seen end-on, about 1.6 units tall
+5. A round rubber washtub, pale pink, with a scrubbing board leaning inside,
+   about 1 unit tall
+6. A shovel and a hoe leaning together against nothing, handles crossed,
+   about 2.2 units tall
+
+Each object separate on the magenta background, clear gaps, none cropped.
+```
+
+## 13. L장 — 줍는 것 ⭐⭐
+
+**게임에서 제일 필요한 것.** 지금 주울 수 있는 게 하나도 없다.
+사진 소재이자 선물거리다 (`redesign-journey.md` 5절 — "그곳에서 주운 것 건네기").
+
+**아주 작게 그려야 한다.** 발밑에 떨어져 있는 것이라 캐릭터 발보다 작다.
+
+```
+(1절 머리말 + 이어서)
+
+Create a 4x2 grid of eight SMALL collectible objects lying on the ground,
+seen from a 3/4 overhead game camera, as if dropped at your feet.
+
+Scale reference: a small animal character is 3 units tall. Every object here
+is UNDER 1 unit — they are tiny things you bend down to pick up. Draw each
+one large and clear in its cell, but keep their proportions consistent with
+each other (a persimmon is bigger than an acorn).
+
+1. A single ripe orange persimmon with a small green calyx
+2. One smooth grey river pebble
+3. A tiny bunch of three small wild flowers, white and coral
+4. A brown pine cone
+5. A single acorn with its cap
+6. A soft white feather lying flat
+7. A small spiral seashell, pale cream
+8. A rounded piece of frosted sea glass, soft teal
+
+Each object separate on the magenta background, clear gaps, none cropped.
+No hands, no containers, no ground shadow shapes larger than the object.
+```
+
+## 14. M장 — 쿼릉 바닷가 소품
+
+```
+(1절 머리말 + 이어서)
+
+Create a 3x2 grid of six seaside village objects, seen from a 3/4 overhead
+game camera. Scale reference: a small animal character is 3 units tall.
+
+1. A large beach parasol, coral and cream stripes, open, about 3.4 units tall
+2. A small market stall — a folding table under a short awning with empty
+   woven baskets on it, about 2.6 units tall
+3. A fishing net bundled in a loose heap with two cork floats, 1.6 units tall
+4. A round orange buoy with a rope loop, about 1.4 units tall
+5. A blue plastic icebox with the lid closed, about 1.2 units tall
+6. A red postbox on a single post, rounded top, no text or markings on it,
+   about 2.4 units tall
+
+Each object separate on the magenta background, clear gaps, none cropped.
+```
+
+## 15. N장 — 배낭 속 물건
+
+화면 아이콘으로도 쓴다. 그래서 **정면에서 또렷하게** 그린다.
+
+```
+(1절 머리말 + 이어서 — 단 카메라 각도만 아래로 바꾼다)
+
+OVERRIDE the camera rule for this sheet: draw each object FLAT FROM THE
+FRONT (like a clean inventory icon), not from a 3/4 overhead angle.
+
+Create a 3x2 grid of six travel items. Keep them all roughly the same size
+in the image so they read as a matching icon set.
+
+1. A small vintage film camera with a brown leather strap
+2. A canvas travel backpack, warm beige, with a rolled mat strapped on top
+3. A blank postcard, cream, slightly worn corners, NO text or picture on it
+4. A small pocket notebook, closed, with an elastic band around it
+5. A soft-serve ice cream cone, pale cream swirl
+6. A single round coin, warm brass, with a plain smooth face and NO markings,
+   NO letters, NO numbers
+
+Each object separate on the magenta background, clear gaps, none cropped.
