@@ -487,3 +487,156 @@ in the image so they read as a matching icon set.
    NO letters, NO numbers
 
 Each object separate on the magenta background, clear gaps, none cropped.
+
+---
+
+# 두 번째 묶음 (2026-08-09)
+
+여섯 팀이 화면을 훑고 나서 **정말로 그림이 있어야만 풀리는 것**만 추렸다.
+코드로 되는 건 다 코드로 고쳤다. 여기 남은 셋은 그림 없이는 안 된다.
+
+| 장 | 무엇 | 왜 |
+|---|---|---|
+| **O** ⭐⭐ | 메뉴 배경 (가로) | 지금 그림에 **쿼카가 둘**이고 글자가 구워져 있다 |
+| **P** ⭐ | 스플래시 포스터 (세로) | 같은 문제 |
+| **Q** ⭐ | 바닥 6종 | 여섯 곳이 **다 같은 색**이다. 사무실이 야외 타일이다 |
+
+## 16. O장 — 메뉴 배경 ⭐⭐
+
+**이 장은 앞의 머리말을 안 붙인다.** 탑다운 에셋이 아니라 한 장짜리
+그림이고, 화풍도 다르다 (부드러운 3D 렌더 느낌).
+
+### 왜 다시 받나
+
+지금 `assets/splash/menu-bg-wide.png` 는 세 가지가 어긋난다.
+
+1. **쿼카가 둘이다.** 접은 커플 컨셉 시절 그림이다. 지금 이 게임은
+   혼자 떠나는 이야기다 (`CLAUDE.md`)
+2. **"쿼카 커플의 힐링 여행" 이라는 글자가 그림에 구워져 있다.**
+   로고와 문구는 코드로 얹으므로 배경에는 글자가 없어야 한다
+3. **작은 행성과 토성이 떠 있다.** 우주는 나중 이야기고, 1탄은 국내다
+
+```
+A single cozy illustration for a mobile game title screen. Soft 3D-rendered
+look — smooth clay-like surfaces, gentle rim light, shallow depth of field.
+Warm and calm, like a children's picture book cover.
+
+SUBJECT — exactly ONE character:
+One quokka traveler, alone. Small and round, warm honey-brown fur, friendly
+half-smile. Wearing a soft green cap, a small canvas backpack, and a film
+camera on a strap around the neck. Standing, weight on one leg, looking out
+toward the horizon — not at the viewer.
+
+There must be only ONE animal in the entire image. No second character,
+no companion, no crowd, no people.
+
+SCENE — a quiet Korean coastal town at golden hour:
+Behind the quokka, a gentle hillside with low tiled roofs, a small lighthouse
+far off, a calm sea, and soft rolling clouds. Warm late-afternoon light,
+long soft shadows. Grounded on real earth — NOT a floating tiny planet,
+no outer space, no planets, no stars, no Saturn rings.
+
+COMPOSITION — this is important:
+- Landscape, aspect ratio about 2.36 : 1 (very wide).
+- The quokka and all the interesting scenery sit in the LEFT 45% of the frame.
+- The RIGHT 55% must stay calm and mostly empty — soft sky, distant haze,
+  gentle gradient. Buttons will be drawn on top of that half, so nothing
+  detailed or high-contrast can live there.
+- Leave the TOP-CENTER area calm too — the logo goes there.
+
+PALETTE: warm coral, sage green, sandy beige, muted teal, soft cream.
+Nothing neon, nothing dark.
+
+ABSOLUTELY NO TEXT. No letters, no words, no title, no signature,
+no watermark, no logo, no UI elements, no buttons, no frame or border.
+```
+
+**크기**: 가로 **3168 x 1344** 이상이면 좋다 (쓰는 크기의 두 배).
+못 맞추면 **가로가 세로의 두 배 이상**이기만 하면 된다.
+
+**받은 뒤 내가 할 일**: `1584 x 672` 로 줄여
+`assets/splash/menu-bg-wide.png` 를 갈아 끼운다. 코드는 안 고쳐도 된다.
+
+## 17. P장 — 스플래시 포스터 ⭐
+
+앱을 켤 때 잠깐 뜨는 세로 그림. **O장과 같은 그림의 세로 버전**이면
+제일 좋다 — 같은 쿼카, 같은 시간대, 같은 색.
+
+```
+(O장 프롬프트를 그대로 쓰되, COMPOSITION 만 아래로 바꾼다)
+
+COMPOSITION:
+- Portrait, aspect ratio 9 : 16 (tall).
+- The quokka stands in the lower-middle third, small in the frame.
+- The upper half is open sky — calm, soft, uncluttered. The game logo will
+  be drawn over it in code, so keep it simple there.
+- Nothing important within 8% of any edge (phones crop differently).
+```
+
+**크기**: **1080 x 1920** 이상.
+
+**받은 뒤 내가 할 일**: `assets/splash/splash-poster-no-text.png` 를
+갈아 끼우거나 `python3 tools/splash/import-splash-art.py --file <파일>`.
+
+## 18. Q장 — 바닥 6종 ⭐
+
+**A장 머리말을 그대로 붙인다.** A장과 같은 규칙, 같은 화풍이다.
+
+### 왜 필요한가
+
+지금 바닥 타일이 열 장뿐이고, 여섯 곳이 그중 서너 장을 돌려 쓴다.
+평균 색을 재 보면 여섯 곳이 **30/255 안쪽**에 다 몰려 있다 —
+쿼릉(바다)과 쿼주(기와지붕)와 고향집이 화면만 봐서는 구별이 안 된다.
+
+그리고 **쿼울(쿼카컴퍼니) 사무실이 야외 돌바닥**이다. 실내인데
+바깥 돌판을 깔아 놨다.
+
+```
+(A장 머리말을 먼저 붙이고, 이어서)
+
+Create a 3x2 grid of six large square ground texture patches, each patch
+512x512 pixels, arranged with clear magenta gaps between them.
+
+Each patch must be a SEAMLESS TILING TEXTURE — the left edge must continue
+into the right edge, and the top edge into the bottom edge, so it can be
+repeated endlessly without visible seams. Keep the pattern even and calm;
+avoid one big feature in the middle of a patch.
+
+The six patches, in reading order:
+1. Office carpet, flat low-pile, muted cool grey-blue, very fine even weave
+2. Polished lobby floor, large pale marble squares, soft cool grey,
+   thin darker grout lines
+3. Dark volcanic basalt gravel, near-black charcoal grey with tiny warm
+   flecks, dry and rough
+4. Weathered granite steps, cool blue-grey stone, fine speckle,
+   slightly damp look
+5. Warm ochre clay earth, fine dry soil, faint rake lines, terracotta tone
+6. Old dark-grey roof tiles seen from above, gentle repeating half-round
+   ridges, matte slate colour
+
+Viewed straight from directly above. No objects on the patches.
+```
+
+**이 여섯 장이 하는 일**
+
+| 새 바닥 | 어디에 | 지금은 |
+|---|---|---|
+| 1 사무실 카펫 | 쿼울 30층 | 야외 돌판 |
+| 2 로비 대리석 | 쿼울 로비 | 조약돌 |
+| 3 검은 현무암 | 쿼도 | 조약돌 (쿼릉과 같은 색) |
+| 4 화강암 계단 | 쿼산 | 조약돌 |
+| 5 황토 | 고향집 마당 | 그냥 흙 |
+| 6 기와 | 쿼주 | 돌판 |
+
+**받은 뒤 내가 할 일**: 16px 로 내리고 이음매를 검사한 뒤
+`assets/tiles/` 에 넣고, 여행지 여섯 곳의 `legend` 를 갈아 끼운다.
+
+## 19. 안 받아도 되는 것
+
+물어보실 것 같아 미리 적는다. **아래는 그림이 필요 없다.**
+
+- **노을** — 지금 낮과 밤 둘뿐인데, 색만 섞으면 되는 일이라 코드로 한다
+- **가로등 불빛** — 그림 말고 코드로 동그란 빛을 그린다
+- **캐릭터가 배경에 묻히는 것** — 발밑 그림자와 1px 테두리로 이미 고쳤다
+  (갈매기가 갑판 위에서 명도차 1.02:1 이었다)
+- **타일·소품·걷기 시트** — 코드가 부르는 파일 **전부 있다.** 없는 게 없다
