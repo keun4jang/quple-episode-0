@@ -162,7 +162,91 @@ def cut_grid(im: Image.Image) -> list:
     return [(x0, y0, x1, y1) for (y0, y1) in rows for (x0, x1) in cols]
 
 
-# ── 물체 찾기 ─────────────────────────────────────────────────────────
+def cut_cells(im: Image.Image) -> list:
+    """마젠타 골로 칸을 나눈다. **세로로 먼저, 그다음 열 안에서 가로로.**
+
+    처음엔 덩어리(연결 성분)를 찾아 잘랐다. 대개 잘 됐지만 사무실 시트에서
+    책상과 창문이 보이지 않는 실 한 줄로 이어져 한 덩어리가 됐고, 아무리
+    깎아도 안 끊어졌다.
+
+    골로 나누면 그런 일이 없다. 물체가 서로 안 닿게 그려 달라고 이미
+    부탁해 두었으므로, 사이에는 반드시 마젠타 골이 있다.
+
+    행을 먼저 나누지 않고 **열을 먼저** 나누는 이유는, 한 열에만 물체가
+    둘 있는 시트(고향집: 오른쪽 열에 평상과 밭)가 있기 때문이다.
+    """
+    a = np.asarray(im.convert("RGB"))
+    m = magenta_mask(a)
+    h, w = m.shape
+
+    out = []
+    for x0, x1 in _spans(_gutters(m.all(axis=0)), w):
+        band = m[:, x0:x1 + 1]
+        for y0, y1 in _spans(_gutters(band.all(axis=1)), h):
+            out.append((x0, y0, x1, y1))
+
+    # 읽는 순서로 (위 줄부터, 왼쪽부터)
+    tol = h * 0.18
+    rows = []
+    for b in sorted(out, key=lambda b: (b[1] + b[3]) / 2.0):
+        cy = (b[1] + b[3]) / 2.0
+        if rows and abs(rows[-1][0] - cy) < tol:
+            rows[-1][1].append(b)
+        else:
+            rows.append([cy, [b]])
+    ordered = []
+    for _, group in rows:
+        ordered += sorted(group, key=lambda b: b[0])
+    return ordered
+
+
+def cut_cells_shaped(im: Image.Image, rows: int, cols: int) -> list:
+    """칸 수를 알고 있을 때. 골이 없으면 **제일 얇은 줄**에서 끊는다.
+
+    사무실 시트에서 책상 그림자가 아래 창문까지 이어져 골이 아예 없었다.
+    그대로 두었더니 둘이 한 덩어리가 되고 이름이 한 칸씩 밀렸다 —
+    창문 자리에 접수대 그림이, 접수대 자리에 반납함 그림이 들어갔다.
+
+    몇 행 몇 열인지는 우리가 안다. 그러니 나눌 자리만 찾으면 된다.
+    """
+    a = np.asarray(im.convert("RGB"))
+    m = magenta_mask(a)
+    h, w = m.shape
+
+    bands = _spans(_gutters(m.all(axis=0)), w)
+    if len(bands) != cols:                      # 열 골이 안 맞으면 고르게 나눈다
+        step = w / cols
+        bands = [(int(i * step), int((i + 1) * step) - 1) for i in range(cols)]
+
+    out = []
+    for x0, x1 in bands:
+        band = m[:, x0:x1 + 1]
+        spans = _spans(_gutters(band.all(axis=1)), h)
+        if len(spans) != rows:
+            # 골이 없다. 알맹이 구간을 쪼갠다 — 가운데 언저리에서 비마젠타
+            # 픽셀이 가장 적은 행이 두 물체 사이다.
+            filled = np.nonzero(~band.all(axis=1))[0]
+            if filled.size == 0:
+                continue
+            top, bot = int(filled[0]), int(filled[-1])
+            count = (~band).sum(axis=1)
+            spans, start = [], top
+            for i in range(1, rows):
+                lo = int(top + (bot - top) * (i / rows) - (bot - top) * 0.12)
+                hi = int(top + (bot - top) * (i / rows) + (bot - top) * 0.12)
+                lo, hi = max(start + 4, lo), min(bot - 4, hi)
+                cut = (lo + hi) // 2 if hi <= lo else lo + int(np.argmin(count[lo:hi + 1]))
+                spans.append((start, cut))
+                start = cut + 1
+            spans.append((start, bot))
+        for y0, y1 in spans:
+            out.append((x0, y0, x1, y1))
+
+    out.sort(key=lambda b: (round((b[1] + b[3]) / 2.0 / (h * 0.36)), b[0]))
+    return out
+
+
+# ── 물체 찾기 (옛 방식, 골이 없을 때만) ───────────────────────────────
 
 def cut_objects(im: Image.Image, min_area: int = 2500, sep: int = 4) -> list:
     """마젠타 위에 떠 있는 덩어리들의 상자. 왼쪽→오른쪽, 위→아래 순.
@@ -219,8 +303,24 @@ def cut_objects(im: Image.Image, min_area: int = 2500, sep: int = 4) -> list:
             m[0], m[1] = min(m[0], x0), min(m[1], y0)
             m[2], m[3] = max(m[2], x1), max(m[3], y1)
 
-    merged.sort(key=lambda b: (b[1] // 80, b[0]))     # 위 줄부터, 왼쪽부터
-    return [tuple(b) for b in merged]
+    # 위 줄부터, 왼쪽부터.
+    #
+    # 처음엔 y0 // 80 으로 줄을 나눴다. 그런데 같은 줄에 있는 물체라도 키가
+    # 다르면 y0 이 80 을 넘나들어 **한 줄이 두 줄로 쪼개졌다.** 소품 시트에서
+    # 담장이 맨 뒤로 밀려 이름이 통째로 어긋났다.
+    # 그래서 세로 **중심**을 그림 높이에 견줘 묶는다.
+    tol = h * 0.18
+    rows = []
+    for b in sorted(merged, key=lambda b: (b[1] + b[3]) / 2.0):
+        cy = (b[1] + b[3]) / 2.0
+        if rows and abs(rows[-1][0] - cy) < tol:
+            rows[-1][1].append(b)
+        else:
+            rows.append([cy, [b]])
+    out = []
+    for _, group in rows:
+        out += sorted(group, key=lambda b: b[0])
+    return [tuple(b) for b in out]
 
 
 # ── 픽셀로 내리기 ─────────────────────────────────────────────────────
@@ -356,7 +456,7 @@ def run_turnaround(sheet: dict, pal: Image.Image) -> list:
     rgba = cutout(im)
     os.makedirs(sheet["out"], exist_ok=True)
 
-    boxes = cut_objects(im, min_area=1500)
+    boxes = cut_cells(im)
     rows = {}
     for b in boxes:
         cy = (b[1] + b[3]) // 2
@@ -440,10 +540,13 @@ SHEETS = [
         "out": OUT_SPRITES,
         "names": [("mom", 3), ("dad", 3.2), ("sibling", 2.7)],
     },
+    # J장(같은 화풍 턴어라운드)이 들어와서 이제 안 쓴다. 3D 렌더는 인연들과
+    # 나란히 세우면 외곽선이 없어 혼자 물렁해 보였다.
     {
-        "id": "hero",
+        "id": "hero3d",
         "file": "(기존 3D 렌더)",
         "mode": "mascot",
+        "skip": True,
         "out": OUT_SPRITES,
         "views": {
             "down": "assets/mascots/sheet/leader-front.png",
@@ -497,6 +600,8 @@ SHEETS = [
         "file": "f-office.jpg",
         "mode": "objects",
         "out": OUT_SPRITES,
+        # 책상 그림자가 아래 창문까지 이어져 골이 없다. 3행2열임을 알려 준다.
+        "shape": (2, 3),
         "names": [("desk", 2), ("office-chair", 2), ("cabinet", 4),
                   ("office-window", 5), ("reception", 2), ("return-box", 1.4)],
     },
@@ -555,7 +660,11 @@ def run_sheet(sheet: dict, pal: Image.Image) -> list:
             print("    %-14s %dx%d  →  %s" % (name, TILE, TILE, out))
     else:
         rgba = cutout(im)
-        boxes = cut_objects(im)
+        boxes = cut_cells(im)
+        if len(boxes) != len(sheet["names"]) and sheet.get("shape"):
+            boxes = cut_cells_shaped(im, *sheet["shape"])
+        if len(boxes) < len(sheet["names"]):
+            boxes = cut_objects(im, sep=sheet.get("sep", 4))
         names = sheet["names"]
         print("  덩어리 %d개 (이름 %d개)" % (len(boxes), len(names)))
         for i, (x0, y0, x1, y1) in enumerate(boxes):
@@ -611,6 +720,8 @@ def main() -> None:
     made = []
     for sheet in SHEETS:
         if args.only and sheet["id"] != args.only:
+            continue
+        if sheet.get("skip") and not args.only:
             continue
         print("\n[%s] %s" % (sheet["id"], sheet["file"]))
         made += run_sheet(sheet, pal)
