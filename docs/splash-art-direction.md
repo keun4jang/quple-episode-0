@@ -1,4 +1,4 @@
-# 쿼플 스플래시 아트 디렉션
+# 스플래시 아트 디렉션
 
 > **구조 전환(v2): 포스터 우선(Poster-First)** — 캐릭터/디오라마/우주는 단일
 > no-text 포스터 이미지 한 장에 포함하고, 코드는 로고/카피/버튼/프레임 UI만 담당.
@@ -13,7 +13,7 @@
 2. 3D 앰비언트 별 (코드, Node3D)
 3. 3D 캐릭터 커플 (`quica-couple-splash.png`) + halo glow + contact shadow (코드)
 4. 크림/골드 라운드 프레임 3겹 (코드 Panel)
-5. 3D 젤리 한글 로고 "쿼플" (코드, 7겹 Label)
+5. 한글 제목 (코드 렌더)
 6. 서브타이틀 / 하단 카피 (코드 Label)
 7. 프리미엄 버튼 (코드 Button + StyleBoxFlat)
 8. 반짝임/별똥별 장식 (코드)
@@ -34,7 +34,7 @@
 | logo-dark-green | #2F7A4D |
 | shadow-purple | #30205F |
 
-## 로고 "쿼플" 구조 (코드 렌더)
+## 제목 구조 (코드 렌더)
 - 뒤: 진한 초록 back-shadow 5겹 (#24643F → #2F7A4D, 아래로 extrusion)
 - 본문: 크림 #FFF2C8, 초록 stroke #2F7A4D (outline 16)
 - 외곽: 보라 soft shadow rgba(40,20,80,0.55)

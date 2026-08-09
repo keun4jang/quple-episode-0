@@ -97,7 +97,7 @@ func _arm_boot_watchdog() -> void:
 ## 부팅할 때 구석에 지금 버전을 잠깐 띄운다.
 ## 갱신이 실제로 폰까지 닿았는지 눈으로 확인할 방법이 이것뿐이다.
 func _show_version_badge() -> void:
-	_toast("쿼플 v" + current_version, 2.2, Color(1, 1, 1, 0.5))
+	_toast("진짜 행복 v" + current_version, 2.2, Color(1, 1, 1, 0.5))
 
 
 func _show_update_toast(v: String) -> void:
@@ -117,7 +117,7 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# **위 가운데.** 여기 말고 갈 데가 없다 —
 	#   오른쪽 위: 여행 화면의 설정 버튼과 겹친다 (실제 폰 캡처에
-	#              "쿼플 v0.1.44" 와 "설정" 이 포개져 찍혔다)
+	#              "진짜 행복 v0.1.44" 와 "설정" 이 포개져 찍혔다)
 	#   아래 가운데: 대화창이 화면 아래를 통째로 쓴다. 부팅 직후 말을
 	#              걸면 판 위에 버전이 찍힌다
 	#   왼쪽 위: 시각이 있다

@@ -484,9 +484,9 @@ func _reunion_tests() -> void:
 	ok(voices.size() >= 2, "혼잣말이 아니라 주고받는다 (%d명)" % voices.size())
 	var quople := 0
 	for l in rac2.once:
-		if String((l as Array)[1]).contains("쿼플"):
+		if String((l as Array)[1]).contains("진짜 행복"):
 			quople += 1
-	ok(quople == 0, "첫 재회에서는 쿼플이라는 말이 안 나온다")
+	ok(quople == 0, "첫 재회에서는 제목과 만나는 말이 안 나온다")
 	ok(JourneyState.heart("raccoon") == heart0 + 1,
 		"다시 만난 것만으로 마음이 는다")
 
@@ -639,7 +639,7 @@ func _extras_tests() -> void:
 			deck2 = c
 	var said: Array = deck2.lines()
 	ok(said.size() >= 4, "엽서가 있으면 넘겨 본다 (%d줄)" % said.size())
-	ok(String(said[-1]).contains("쿼플"), "마지막 줄이 제목과 만난다")
+	ok(String(said[-1]).contains("진짜 행복"), "마지막 줄이 제목과 만난다")
 	h2.queue_free()
 	await get_tree().process_frame
 

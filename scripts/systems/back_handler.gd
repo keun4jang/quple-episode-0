@@ -84,7 +84,7 @@ func _close_topmost() -> bool:
 			say.close()
 		return true
 
-	# 배낭·사진첩·편지·쿼플첩은 한 창이다.
+	# 배낭·사진첩·편지·행복첩은 한 창이다.
 	var hud := tree.get_first_node_in_group("journey_hud")
 	if hud != null and hud.has_method("close_bag") and hud.close_bag():
 		return true

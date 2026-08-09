@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 쿼플 안드로이드 APK 빌드 — 전부 무료 도구.
+# 진짜 행복 안드로이드 APK 빌드 — 전부 무료 도구.
 #
 #   tools/build-android.sh            # 디버그 + 릴리스 둘 다
 #   tools/build-android.sh debug      # 디버그만

@@ -178,5 +178,5 @@ func _deck_lines() -> Array:
 	var out: Array = ["평상에 앉아 엽서를 꺼냈다."]
 	for id in cards:
 		out.append(JourneyState.postcard_text(id))
-	out.append("혼자 떠났는데, 쿼플이 이만큼이었다.")
+	out.append("혼자 떠났는데, 진짜 행복이 이만큼이었다.")
 	return out

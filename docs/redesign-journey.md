@@ -1,4 +1,4 @@
-# 쿼플 전체 재구상 — 여행하는 쿼카
+# 진짜 행복 — 전체 구상 (여행하는 쿼카)
 
 > 상태: **전체 구상 (구현 전)**.
 > 앞선 기획 넷(`redesign-simple` / `redesign-idle` / `redesign-quokka` /

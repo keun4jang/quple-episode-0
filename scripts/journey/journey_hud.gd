@@ -15,7 +15,7 @@ var _bag_grid: GridContainer
 var _hint: Label
 var _cam_btn: TextureButton
 var _tabs: HBoxContainer
-var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 쿼플첩
+var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩
 var _dot: Control                 # 안 읽은 편지 표시 (직접 그린 점)
 var _flash: ColorRect
 var _root: Control
@@ -161,7 +161,7 @@ func _build_bag(root: Control) -> void:
 	box.add_child(_tabs)
 	for i in 4:
 		var b := Button.new()
-		b.text = ["배낭", "사진첩", "편지", "쿼플첩"][i]
+		b.text = ["배낭", "사진첩", "편지", "행복첩"][i]
 		b.custom_minimum_size = Vector2(126, 60)
 		b.add_theme_font_size_override("font_size", 26)
 		b.pressed.connect(_pick_tab.bind(i))
@@ -287,7 +287,7 @@ func _fill_letters() -> void:
 		_bag_grid.add_child(l)
 
 
-## 쿼플첩 — 마음 다섯 칸을 채운 인연에게서 받은 엽서.
+## 행복첩 — 마음 다섯 칸을 채운 인연에게서 받은 엽서.
 ## 이름을 "인연"이라 안 쓴다 (`docs/world-quo.md` 1절).
 func _fill_postcards() -> void:
 	_bag_grid.columns = 1

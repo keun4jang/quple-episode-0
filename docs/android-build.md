@@ -9,7 +9,7 @@
 | `build/quple.apk` | 53 MB | 디버그. arm64 + x86_64(에뮬레이터) |
 | `build/quple-release.apk` | **28 MB** | 배포용 서명. arm64 전용 |
 
-- 패키지: `com.quple.episode0` / 앱 이름 **쿼플** / 버전 0.1.0
+- 패키지: `com.quple.episode0` / 앱 이름 **진짜 행복**
 - 최소 안드로이드 5.0 (SDK 21), 타겟 SDK 34
 - 지원: **arm64-v8a** (요즘 폰 전부). 디버그 빌드에만 x86_64(에뮬레이터) 추가
 - 서명: v1 · v2 · v3 전부 검증 통과
