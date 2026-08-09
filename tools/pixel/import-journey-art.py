@@ -94,11 +94,17 @@ def build_palette() -> Image.Image:
 # ── 마젠타 빼기 ───────────────────────────────────────────────────────
 
 def magenta_mask(a: np.ndarray) -> np.ndarray:
-    """마젠타인 곳. JPEG 이 흐려 놓으므로 넉넉히 잡는다."""
+    """마젠타인 곳.
+
+    밝기로 자르면 안 된다. 캐릭터 발밑 그림자가 **어두운 마젠타**라서
+    밝기 문턱을 넘지 못하고 남았고, 스프라이트에 검붉은 발자국이 붙었다.
+    그래서 밝기 대신 **색상**으로 본다 — 빨강과 파랑이 초록보다 뚜렷이
+    높으면 배경이다. 캐릭터의 고동색 외곽선(파랑이 낮다)은 걸리지 않는다.
+    """
     r = a[..., 0].astype(int)
     g = a[..., 1].astype(int)
     b = a[..., 2].astype(int)
-    return (r > 130) & (b > 130) & (g < 130) & (r - g > 40) & (b - g > 40)
+    return (r - g > 28) & (b - g > 28) & (a.max(axis=-1) > 55)
 
 
 def grow(mask: np.ndarray, n: int = 1) -> np.ndarray:
@@ -252,6 +258,125 @@ def make_seamless(im: Image.Image) -> Image.Image:
     return Image.fromarray(out.clip(0, 255).astype("uint8"), "RGB")
 
 
+
+# ── 턴어라운드 → 걷기 시트 ────────────────────────────────────────────
+#
+# 제미나이에 걷기 프레임을 통째로 시키면 프레임마다 얼굴이 달라진다.
+# 그래서 **정지 자세 세 방향만** 받고, 걷기는 여기서 만든다.
+#
+# 24px 캐릭터의 걷기는 픽셀 몇 개가 움직이는 게 전부다. 16비트 시절
+# 게임들이 다 이 방식이었고, 손으로 그린 것과 구분이 안 간다.
+
+WALK_FRAMES = 4
+LEG_PART = 0.34        # 아래 34% 를 다리로 본다
+
+
+def make_walk(spr: Image.Image) -> list:
+    """정지 자세 하나로 걷기 네 프레임을 만든다.
+
+    ① 몸이 1px 위아래로 튄다 (가운데 두 프레임에서 뜬다)
+    ② 다리가 좌우로 1px 엇갈린다
+    이 둘이면 걷는 것으로 보인다. 더 넣으면 오히려 지저분해진다.
+
+    좌우로 1px 밀어야 하므로 그림 양옆에 1px 여백을 두고 그린다.
+    여백 없이 밀면 반대쪽이 잘려 나간다.
+    """
+    w, h = spr.size
+    knee = int(h * (1.0 - LEG_PART))
+    upper = spr.crop((0, 0, w, knee))
+    legs = spr.crop((0, knee, w, h))
+
+    out = []
+    for i in range(WALK_FRAMES):
+        f = Image.new("RGBA", (w + 2, h + 1), (0, 0, 0, 0))
+        lift = 1 if i % 2 == 1 else 0          # 1,3 프레임에서 뜬다
+        swing = (0, 1, 0, -1)[i]               # 다리 엇갈림
+        f.alpha_composite(upper, (1, 1 - lift))
+        f.alpha_composite(legs, (1 + swing, 1 + knee - lift))
+        out.append(f)
+    return out
+
+
+def save_walk_sheet(name: str, views: dict, out_dir: str) -> str:
+    """4프레임 x 3방향 시트 하나로 묶는다.
+
+    줄 순서는 아래(정면) / 옆 / 위(뒷모습). 오른쪽은 옆을 뒤집어 쓰므로
+    따로 만들지 않는다 — 그림도 반, 파일도 반이다.
+    """
+    order = ["down", "side", "up"]
+    bw = max(v.width for v in views.values())
+    bh = max(v.height for v in views.values())
+    cw, ch = bw + 2, bh + 1            # make_walk 이 두는 여백
+    sheet = Image.new("RGBA", (cw * WALK_FRAMES, ch * len(order)), (0, 0, 0, 0))
+    for r, key in enumerate(order):
+        base = views[key]
+        # 칸 안에서 가운데 아래로 붙인다. 발이 같은 높이여야 안 흔들린다.
+        pad = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+        pad.alpha_composite(base, ((bw - base.width) // 2, bh - base.height))
+        for c, f in enumerate(make_walk(pad)):
+            sheet.alpha_composite(f, (c * cw, r * ch))
+    path = os.path.join(out_dir, name + "-walk.png")
+    sheet.save(path)
+    return path
+
+
+def run_turnaround(sheet: dict, pal: Image.Image) -> list:
+    """3행 x N열 턴어라운드에서 앞·옆·뒤를 골라 걷기 시트를 만든다."""
+    path = os.path.join(SRC, sheet["file"])
+    if not os.path.exists(path):
+        print("  건너뜀 (파일 없음): %s" % path)
+        return []
+    im = Image.open(path).convert("RGB")
+    rgba = cutout(im)
+    os.makedirs(sheet["out"], exist_ok=True)
+
+    boxes = cut_objects(im, min_area=1500)
+    rows = {}
+    for b in boxes:
+        cy = (b[1] + b[3]) // 2
+        near = [k for k in rows if abs(k - cy) < 90]
+        rows.setdefault(near[0] if near else cy, []).append(b)
+    rows = [sorted(rows[k], key=lambda b: b[0]) for k in sorted(rows)]
+
+    pick = sheet["columns"]          # (앞, 옆, 뒤) 열 번호 (1부터)
+    made = []
+    for r, cells in enumerate(rows):
+        if r >= len(sheet["names"]):
+            break
+        name, units = sheet["names"][r]
+        target = max(1, round(units * UNIT))
+
+        # 세 방향을 같은 픽셀 높이로 맞추면 안 된다. 옆모습은 꼬리가 뒤로
+        # 늘어져 상자가 세로로 커지는데, 억지로 같은 높이에 우겨넣으면
+        # 몸이 눌리고 꼬리와 사이가 벌어진다.
+        # **정면을 기준으로 배율 하나를 정해** 세 방향에 똑같이 쓴다.
+        crops = {}
+        for key, col in zip(("down", "side", "up"), pick):
+            if col - 1 >= len(cells):
+                continue
+            x0, y0, x1, y1 = cells[col - 1]
+            c = rgba.crop((x0, y0, x1 + 1, y1 + 1))
+            bb = c.getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox()
+            crops[key] = c.crop(bb) if bb else c
+        if "down" not in crops:
+            print("    %s: 정면이 없어 건너뜀" % name)
+            continue
+        scale = target / crops["down"].height
+
+        views = {}
+        for key, c in crops.items():
+            views[key] = to_pixel(c, max(1, round(c.width * scale)),
+                                  max(1, round(c.height * scale)), pal)
+        if len(views) < 3:
+            print("    %s: 방향이 모자라 건너뜀" % name)
+            continue
+        out = save_walk_sheet(name, views, sheet["out"])
+        made.append(out)
+        print("    %-10s %d방향 x %d프레임  →  %s"
+              % (name, len(views), WALK_FRAMES, out))
+    return made
+
+
 # ── 어떤 그림을 어떻게 다룰지 ─────────────────────────────────────────
 #
 # 유닛으로 적어 둔다. 1유닛 = 8px.
@@ -290,6 +415,23 @@ SHEETS = [
         "names": [("mom", 3), ("dad", 3.2), ("sibling", 2.7)],
     },
     {
+        "id": "h",
+        "file": "h-family-turn.jpg",
+        "mode": "turnaround",
+        "out": OUT_SPRITES,
+        "columns": (1, 2, 3),        # 앞 / 옆(오른쪽 보기) / 뒤
+        "names": [("mom", 3), ("dad", 3.2), ("sibling", 2.7)],
+    },
+    {
+        "id": "i",
+        "file": "i-folk-turn.jpg",
+        "mode": "turnaround",
+        "out": OUT_SPRITES,
+        # 6열로 나왔다. 1=앞 3=옆 6=뒤 가 제일 또렷하다.
+        "columns": (1, 3, 6),
+        "names": [("seal", 3), ("seagull", 2.9), ("raccoon", 3)],
+    },
+    {
         "id": "e",
         "file": "e-folk.jpg",
         "mode": "objects",
@@ -307,6 +449,9 @@ def run_sheet(sheet: dict, pal: Image.Image) -> list:
     im = Image.open(path).convert("RGB")
     os.makedirs(sheet["out"], exist_ok=True)
     made = []
+
+    if sheet["mode"] == "turnaround":
+        return run_turnaround(sheet, pal)
 
     if sheet["mode"] == "grid":
         boxes = cut_grid(im)
