@@ -183,6 +183,11 @@ func wanderer_tile() -> Vector2i:
 	return Vector2i(21, 11)
 
 
+## 능(16,6) 한 바퀴 — 울타리 안쪽 박석까지 들어와 봤는지만 본다.
+func quest_zones() -> Array:
+	return [["볕뉘:능", Vector2i(16, 6), 64.0]]
+
+
 ## 가게 둘(8,9)·(27,9) 문 앞. 둘 다 한 칸만 막으니 문 앞은 아랫줄이다.
 func doors() -> Array:
 	return [

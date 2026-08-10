@@ -202,6 +202,12 @@ func wanderer_tile() -> Vector2i:
 	return Vector2i(20, 11)
 
 
+## "노을은 계단에서 봐야 해요" — 부두(1층)에서 능선(3층)까지 다 오른
+## 사람만 닿는 자리다.
+func quest_zones() -> Array:
+	return [["가풀재:능선", Vector2i(16, 16), 56.0]]
+
+
 ## 가게 둘(18,8)·(23,10) 문 앞. 둘 다 한 칸만 막으니 문 앞은 아랫줄이다.
 func doors() -> Array:
 	return [

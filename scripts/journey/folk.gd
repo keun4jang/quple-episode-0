@@ -24,6 +24,13 @@ var lines_by_heart: Array = []
 ## 않는다. 자리만 시간대별로 다르다. 옮기는 건 `Place` 가 한다.
 var schedule: Dictionary = {}
 
+## 처음 말을 걸면 주는 여행 물품 ("map"/"camera"). 없으면 "".
+##
+## 윤슬의 가게 할머니·갈매기 소년만 쓴다 — 여행 물품은 "첫 여행지에서
+## 여행자가 된다"는 통과의례라 다른 마을엔 안 늘린다 (`docs/quest-journey.md`
+## 3.5절).
+@export var gives_item := ""
+
 ## 한 번만 하는 말 (첫 만남·재회). 있으면 먼저 쓰고 비운다.
 ##
 ## 타입을 `Array[String]` 으로 뒀더니 여행지 파일에서 넘겨주는 평범한
@@ -59,6 +66,11 @@ func on_talked() -> void:
 		return
 	_talked = true
 	JourneyState.warm(folk_id)
+	# **딱 한 번만.** `_talked` 는 하루마다 풀리므로 (`reset_day()`),
+	# 이걸로만 막으면 다음 날 다시 말을 걸 때 지도를 또 받는다. 배낭에
+	# 이미 있는지로 진짜 처음인지를 가린다.
+	if gives_item != "" and JourneyState.count(gives_item) <= 0:
+		JourneyState.pick(gives_item)
 
 
 func reset_day() -> void:

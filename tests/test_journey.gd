@@ -17,6 +17,7 @@ func _ready() -> void:
 	await _extras_tests()
 	await _camera_tests()
 	_touch_tests()
+	_quest_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -1051,3 +1052,51 @@ func _touch_tests() -> void:
 	t._unhandled_input(up)
 	ok(t.direction() == Vector2.ZERO, "떼면 멈춘다")
 	t.queue_free()
+
+
+# ── 퀘스트 ────────────────────────────────────────────────────────────
+
+func _quest_tests() -> void:
+	print("\n[퀘스트]")
+	JourneyState.reset()
+
+	# ① 갓 시작했으면 지도도 카메라도 없다. 다음 마을도 잠겨 있다.
+	ok(not Quests.has_map(), "처음엔 지도가 없다")
+	ok(not Quests.has_camera(), "처음엔 카메라도 없다")
+	ok(not Quests.village_cleared("윤슬"), "윤슬을 아직 안 마쳤다")
+	ok(not Quests.is_unlocked("볕뉘"), "볕뉘는 아직 잠겨 있다")
+	ok(Quests.is_unlocked("윤슬"), "윤슬은 처음부터 열려 있다")
+	ok(Quests.is_unlocked("고향"), "고향은 늘 열려 있다")
+
+	# ② 물범과 처음 대화하면 지도를 받는다. 다음 날 다시 말해도 두 개가
+	#    안 된다 — `on_talked()` 가 배낭에 이미 있는지로 가린다.
+	var f := Folk.new()
+	f.folk_id = "seal"
+	f.gives_item = "map"
+	f.lines_by_heart = [["안녕"]]
+	f.on_talked()
+	ok(Quests.has_map(), "물범과 대화하면 지도를 받는다")
+	f.reset_day()
+	f.on_talked()
+	ok(JourneyState.count("map") == 1, "지도는 한 장뿐이다 (다시 안 받는다)")
+	f.queue_free()
+
+	# ③ 윤슬을 실제로 다 채우면 클리어된다.
+	JourneyState.pick("camera")
+	JourneyState.mark_quest("윤슬:가게")
+	JourneyState.mark_quest("윤슬:등대")
+	JourneyState.mark_quest("윤슬:잠")
+	for i in Quests.PICKUP_TOTAL["윤슬"]:
+		JourneyState.taken["윤슬:%d,0" % i] = true
+	ok(not Quests.village_cleared("윤슬"), "사진이 없으면 아직 못 채운다")
+	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
+	ok(Quests.village_cleared("윤슬"), "지도·카메라·가게·방문·사진·줍기·잠을 다 채웠다")
+	ok(Quests.is_unlocked("볕뉘"), "윤슬을 다 채우면 볕뉘가 열린다")
+	ok(not Quests.is_unlocked("가풀재"), "그렇다고 그다음까지 한 번에 열리진 않는다")
+
+	# ④ 옛 세이브(이 갱신 전) 는 지도·카메라를 자동으로 받는다.
+	JourneyState.reset()
+	JourneyState.from_dict({"here": "볕뉘"})
+	ok(Quests.has_map() and Quests.has_camera(),
+		"옛 세이브는 지도·카메라를 잃지 않는다")
+	JourneyState.reset()

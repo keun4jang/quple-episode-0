@@ -179,6 +179,23 @@ var letters: Array = []
 var postcards: Dictionary = {}
 ## 직접 찍은 사진
 var photos: Array = []
+
+## 마을 퀘스트가 쓰는 자유 표시. "윤슬:등대" → true 처럼 자유 키를 쓴다.
+##
+## 퀘스트마다 저장 필드를 새로 만들지 않으려고 한 딕셔너리에 다 담는다 —
+## `docs/quest-journey.md` 8절이 세운 원칙이다. 대화·줍기·사진은 이미
+## 있는 기록(마음 칸·`taken`·`photos`)에서 다시 계산하고, **새로 계산할
+## 수 없는 것**(어느 자리를 밟아 봤는지, 가게에 들어가 봤는지, 그 마을
+## 쿼스텔에서 자 봤는지)만 여기 남긴다.
+var quest_flags: Dictionary = {}
+
+
+func mark_quest(key: String) -> void:
+	quest_flags[key] = true
+
+
+func quest_done(key: String) -> bool:
+	return quest_flags.get(key, false)
 ## 이미 몇 통 보냈나
 var letters_sent := 0
 
@@ -391,6 +408,7 @@ func to_dict() -> Dictionary:
 		"photos": photos.duplicate(true),
 		"exit_scene": exit_scene,
 		"exit_tile": [exit_tile.x, exit_tile.y],
+		"quest_flags": quest_flags.duplicate(),
 	}
 
 
@@ -418,6 +436,18 @@ func from_dict(d: Dictionary) -> void:
 	exit_scene = String(d.get("exit_scene", ""))
 	var et: Array = d.get("exit_tile", [-1, -1])
 	exit_tile = Vector2i(int(et[0]), int(et[1])) if et.size() == 2 else Vector2i(-1, -1)
+	quest_flags = d.get("quest_flags", {}).duplicate() \
+		if d.get("quest_flags") is Dictionary else {}
+	# **이 갱신 전에 만든 세이브는 지도·카메라 개념이 없었다** — 그때는
+	# 둘 다 처음부터 켜져 있었으니까. `quest_flags` 자체가 없다는 건 이
+	# 세이브가 그 시절 것이라는 뜻이다. 이미 여행 중이던 사람에게서
+	# 갑자기 미니맵·사진 버튼을 뺏으면 그건 새 기능이 아니라 퇴보로
+	# 느껴진다 — 자동으로 쥐여 준다.
+	if not d.has("quest_flags"):
+		if count("map") <= 0:
+			pick("map")
+		if count("camera") <= 0:
+			pick("camera")
 
 
 func reset() -> void:

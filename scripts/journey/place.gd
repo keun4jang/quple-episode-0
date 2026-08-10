@@ -108,6 +108,14 @@ func depart_tile() -> Vector2i:
 func wanderer_tile() -> Vector2i:
 	return Vector2i(-1, -1)
 
+## "방문" 퀘스트가 볼 자리들. `[[퀘스트 키, 칸, 반경(px)]]`.
+##
+## 밟아 보기만 하면 되는 쉬운 퀘스트다 — 정해진 길을 그대로 따라
+## 걸었는지는 안 본다. 목적지에 한 번이라도 닿았으면 됐다
+## (`docs/quest-journey.md` 2절 "실패가 없다").
+func quest_zones() -> Array:
+	return []
+
 ## 들어갈 수 있는 문들. [{"tile": 문 앞 칸, "scene": 갈 씬 경로, "label": 이름}]
 ##
 ## 잠자리·정류장과 같은 결이다 — **그 칸에 가까이 서야만** 나타난다.
@@ -437,6 +445,20 @@ func _check_pickups() -> void:
 		JourneyState.mark_taken(place_name(), t)
 		picked_up.emit(item)
 		_pop(a)
+
+
+## `quest_zones()` 를 매 프레임 확인해, 밟은 자리를 표시해 둔다.
+func _tick_quest_zones() -> void:
+	if walker == null:
+		return
+	for z in quest_zones():
+		var key: String = z[0]
+		if JourneyState.quest_done(key):
+			continue
+		var at: Vector2 = world_of(z[1])
+		var r: float = z[2]
+		if walker.global_position.distance_squared_to(at) <= r * r:
+			JourneyState.mark_quest(key)
 
 
 ## 주운 것이 위로 톡 떠올랐다 사라진다. 이게 없으면 그냥 없어진 것 같다.
@@ -985,6 +1007,7 @@ func go_to_sleep() -> void:
 	walker.stop()
 	stop_walk_to()
 	_did("sleep")
+	JourneyState.mark_quest("%s:잠" % place_name())
 	AudioManager.sit_rustle()
 	var tw := create_tween()
 	tw.tween_property(_fade, "color:a", 1.0, 0.6)
@@ -1359,6 +1382,10 @@ func _do_enter(d) -> void:
 		# 지금 서 있는 자리를 적어 둔다. 나올 때 그대로 세운다.
 		JourneyState.exit_scene = scene_file_path
 		JourneyState.exit_tile = tile_of(walker.global_position)
+		# 밖에서 안으로 들어가는 문이다 — "그 가게에 들어가 봤다" 는
+		# 이 순간에만 알 수 있다. 안에서는 자기가 어느 마을 가게인지
+		# 모른다 (넷이 씬 하나를 같이 쓰니까).
+		JourneyState.mark_quest("%s:가게" % place_name())
 	_did("enter")
 	# `SceneTransition.go_to()` 가 문 여는 소리를 낸다 — 여기서 또 내지 않는다.
 	var st := get_node_or_null("/root/SceneTransition")
@@ -1666,6 +1693,10 @@ func _tick_goto(delta: float) -> Vector2:
 
 
 func _process(delta: float) -> void:
+	# 지도를 받기 전엔 미니맵이 없다. 접혀 있을 때만 매겨도 된다 —
+	# 펼친 채로 지도를 잃는 경로는 없다(펼치려면 먼저 있어야 하니까).
+	if minimap != null and not minimap.is_big():
+		minimap.visible = JourneyState.count("map") > 0
 	var blocked := (say != null and say.is_busy()) \
 		or (hud != null and hud.bag_open()) or _sleeping \
 		or (board != null and board.visible) \
@@ -1683,6 +1714,7 @@ func _process(delta: float) -> void:
 			else:
 				walker.set_input(_tick_goto(delta))
 	_check_pickups()
+	_tick_quest_zones()
 	_update_near()
 	_tick_outline()
 	_tick_tap_mark(delta)
@@ -1781,7 +1813,7 @@ func put_spot(t: Vector2i, what: String, lines: Array) -> Folk:
 ## 인연을 세운다. 걷지 않고 서 있기만 한다.
 func put_folk(t: Vector2i, sheet: String, who: String, folk_id: String,
 		lines: Array, facing := Vector2.DOWN, wanderer := false,
-		schedule: Dictionary = {}) -> Folk:
+		schedule: Dictionary = {}, gives_item := "") -> Folk:
 	var f := Folk.new()
 	f.sheet = "res://assets/sprites/%s-walk.png" % sheet
 	f.who = who
@@ -1789,6 +1821,7 @@ func put_folk(t: Vector2i, sheet: String, who: String, folk_id: String,
 	f.wanderer = wanderer
 	f.lines_by_heart = lines
 	f.schedule = schedule
+	f.gives_item = gives_item
 	# 시간표가 있으면 지금 시간대의 자리에서 시작한다.
 	var at := t
 	if not schedule.is_empty():

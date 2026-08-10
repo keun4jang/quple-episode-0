@@ -443,6 +443,14 @@ func _process(_delta: float) -> void:
 	if _dot != null:
 		_dot.visible = JourneyState.unread_letters() > 0 and not bag_open() \
 			and not _buttons_hidden
+	# 카메라를 받기 전엔 셔터 버튼이 없다 (`docs/quest-journey.md` 3.5절).
+	# 대화 중 버튼을 숨기는 `set_buttons_visible()` 와 겹쳐도, 여기서
+	# 매 프레임 다시 확인하므로 카메라 없는 사람에게 다시 뜨는 일이 없다.
+	var cam_ok := JourneyState.count("camera") > 0
+	if _cam_btn != null:
+		_cam_btn.visible = cam_ok and not _buttons_hidden
+	if _pad_cam != null:
+		_pad_cam.visible = cam_ok and not _buttons_hidden
 
 
 # ── 안전영역 ──────────────────────────────────────────────────────────

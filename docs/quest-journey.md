@@ -1,6 +1,8 @@
 # 진짜 행복 — 여행지 퀘스트 (구상)
 
-> 상태: **기획안 (구현 전)**. 구현하려면 이 문서를 승인한 뒤 진행한다.
+> 상태: **구현됨.** `scripts/systems/quests.gd`, `JourneyState.quest_flags`,
+> `Folk.gives_item`, `TravelBoard` 잠금 표시. 남은 것은 6절의 "행복첩 안
+> 퀘스트 목록" UI뿐 — 지금은 여행판 잠금 표시로만 진행을 알린다.
 > 마을 이름·순서는 `docs/story-journey.md`/`docs/world-quo.md` 를 따른다.
 
 ## 0. 한 줄

@@ -111,14 +111,24 @@ func open(from_place: String) -> void:
 		var entry: Array = PLACES[name]
 		var b := Button.new()
 		var been := JourneyState.visited.has(name)
+		var unlocked := Quests.is_unlocked(name)
 		# 다녀온 곳은 조용히 표시한다. 안 가 본 곳을 굳이 부추기지 않는다.
 		var tail := "  ·  " + String(entry[1]) if String(entry[1]) != "" else ""
+		if not unlocked:
+			# **지운 게 아니라 흐리게.** 다음이 있다는 걸 알아야 기대가
+			# 생긴다 — 아예 안 보이면 그냥 이 마을이 끝인 줄 안다.
+			tail = "  ·  아직 더 볼 게 있는 것 같다"
 		b.text = name + tail
 		b.custom_minimum_size = Vector2(0, 84)
 		b.add_theme_font_size_override("font_size", 32)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		_style(b, not been)
-		b.pressed.connect(_pick.bind(String(entry[0])))
+		if unlocked:
+			b.pressed.connect(_pick.bind(String(entry[0])))
+		else:
+			# 눌러도 화나지 않게 — 에러도, 안내 팝업도 없이 그냥 그대로다.
+			b.disabled = true
+			b.modulate.a = 0.55
 		_list.add_child(b)
 	visible = true
 

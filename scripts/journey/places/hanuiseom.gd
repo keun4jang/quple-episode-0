@@ -200,6 +200,12 @@ func wanderer_tile() -> Vector2i:
 	return Vector2i(20, 10)
 
 
+## "섬 한 바퀴 십오 분이에요!" — 나루 반대편, 쿼장까지 건너와 봤는지.
+## 길이 하나뿐인 섬이라 여기 닿았으면 한 바퀴 돈 것과 다름없다.
+func quest_zones() -> Array:
+	return [["하늬섬:한바퀴", Vector2i(24, 12), 56.0]]
+
+
 ## 가게(16,12) 문 앞. 한 칸만 막으니 문 앞은 바로 아랫줄이다.
 func doors() -> Array:
 	return [{
