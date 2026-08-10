@@ -1,7 +1,7 @@
 {
-  "version": "0.1.52",
+  "version": "0.1.53",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "e8d0dc508f8ebeca5488e0a471ca0b2c80cf41f0b7aa87b8eb94ece9588f6112",
-  "size": 19251792,
-  "notes": "마을 이름을 순우리말로"
+  "sha256": "e8a52e7bb6c050d3997e73742d5c2b343fcca3f4b4e767e4cdd47c54fdfe5348",
+  "size": 19261024,
+  "notes": "대화창 축소 · 눌러서 걷기 · 미니맵"
 }
