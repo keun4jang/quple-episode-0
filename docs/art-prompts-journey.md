@@ -640,3 +640,68 @@ Viewed straight from directly above. No objects on the patches.
 - **캐릭터가 배경에 묻히는 것** — 발밑 그림자와 1px 테두리로 이미 고쳤다
   (갈매기가 갑판 위에서 명도차 1.02:1 이었다)
 - **타일·소품·걷기 시트** — 코드가 부르는 파일 **전부 있다.** 없는 게 없다
+
+---
+
+# 세 번째 묶음 — R장 · 정면 교체 (2026-08-10)
+
+만든 사람: **"지금 디자인들 방향이 45도인데 모든걸 정면으로 바꾸자."**
+
+맞는 지적이다. 지금 건물들이 모서리를 앞에 두고 두 면이 보이게(45도)
+그려져 있는데, 스타듀밸리를 비롯한 탑다운 게임은 **건물 정면 벽이
+똑바로 보이고 지붕이 위에 얹힌** 시점을 쓴다. 화면의 다른 것들과
+시점이 어긋나서 건물만 붕 떠 보인다.
+
+## 바꿔야 하는 것 (45도로 그려진 것들)
+
+**건물 넷** — `guesthouse`(쿼스텔) · `shop`(가게) · `stall`(좌판) ·
+`home-house`(고향집). 그리고 `reception`(접수대) · `icebox` 도 기울어 있다.
+
+**안 바꿔도 되는 것** — 나무·바위·가로등·표지판·울타리·부표·인물들처럼
+좌우 대칭이거나 원래 정면인 것. `lighthouse` 도 원기둥이라 그대로 쓴다.
+
+## R장 프롬프트 — 건물 4종 정면
+
+**A장 머리말을 그대로 붙이고**, 이어서:
+
+```
+Create 4 building sprites for a top-down pixel-style game, arranged in a
+row with clear magenta gaps between them.
+
+CAMERA — this is the most important rule:
+Straight-on FRONT view, like buildings in Stardew Valley. The front wall
+faces the viewer squarely. The roof is visible as a band on top, tilted
+slightly toward the viewer. NO corner view, NO 45-degree angle, NO side
+wall visible, NO isometric perspective.
+
+The 4 buildings:
+1. A small cozy guesthouse: cream plaster walls, terracotta tiled roof,
+   a wooden sign by the door, two windows with green shutters
+2. A tiny village shop: pale teal wooden walls, striped awning over the
+   window, a small display of goods in front
+3. A market stall: simple wooden frame, striped fabric roof, produce
+   laid out on the counter
+4. A low country house: whitewashed walls, traditional Korean tiled
+   roof (기와), a wooden porch, humble and warm
+
+Each building roughly 400x400px on the magenta background.
+```
+
+## R-2장 — 실내 가구 2종 정면
+
+```
+(A장 머리말 + 이어서)
+
+Create 2 furniture sprites, front view, magenta gaps between:
+1. An office reception counter: straight-on front view, wood panel front,
+   a small bell on top
+2. A cooler box (icebox): straight-on front view, pale blue metal box
+   with a lid
+
+NO angled view. The front face is a flat rectangle facing the viewer.
+```
+
+## 받은 뒤 내가 할 일
+
+`tools/pixel/import-journey-art.py` 에 R 시트를 등록해 자르고 16px 격자에
+맞춘 뒤 같은 이름으로 갈아 끼운다 — 마을 파일은 안 고쳐도 된다.
