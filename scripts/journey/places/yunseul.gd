@@ -1,5 +1,5 @@
 extends Place
-## 🌊 쿼릉. 첫 여행지.
+## 🌊 윤슬. 첫 여행지.
 ##
 ## 바다와 등대와 백사장. `docs/world-quo.md` 4절 — 1탄의 첫 곳이다.
 ## 고향과 정반대로 만든다. 고향이 갈색이고 조용하면 여기는 **파랗고
@@ -9,7 +9,7 @@ extends Place
 ## 그 재회가 이 게임의 심장이다.
 
 func place_name() -> String:
-	return "쿼릉"
+	return "윤슬"
 
 
 func _init() -> void:

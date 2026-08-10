@@ -324,17 +324,17 @@ func _talk_tests() -> void:
 	await get_tree().process_frame
 
 
-# ── 쿼릉 ──────────────────────────────────────────────────────────────
+# ── 윤슬 ──────────────────────────────────────────────────────────────
 
 func _place2_tests() -> void:
-	print("\n[쿼릉]")
+	print("\n[윤슬]")
 	JourneyState.reset()
-	var p: Place = preload("res://scenes/journey/Gwaeleung.tscn").instantiate()
+	var p: Place = preload("res://scenes/journey/Yunseul.tscn").instantiate()
 	add_child(p)
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	ok(p.place_name() == "쿼릉", "이름이 쿼로 시작한다")
+	ok(p.place_name() == "윤슬", "이름이 쿼로 시작한다")
 	ok(JourneyState.places_visited() == 1, "다녀온 곳으로 센다")
 
 	var sz := p.tile_size()
@@ -424,7 +424,7 @@ func _reunion_tests() -> void:
 	var route := JourneyState.WANDERER_STOPS
 	var met := 0
 	var reunions := 0
-	var at := "쿼울"
+	var at := "잿마루"
 	for i in 12:
 		var dest: String = route[i % route.size()]
 		JourneyState.move_wanderer(dest, at)
@@ -439,9 +439,9 @@ func _reunion_tests() -> void:
 	ok(met < 12, "그렇다고 갈 때마다 있지는 않다 (%d/12)" % met)
 	JourneyState.reset()
 
-	# 진짜 재회 — 쿼릉에서 만나고, 떠났다가, 다른 데서 다시 만난다
+	# 진짜 재회 — 윤슬에서 만나고, 떠났다가, 다른 데서 다시 만난다
 	JourneyState.reset()
-	var first: Place = preload("res://scenes/journey/Gwaeleung.tscn").instantiate()
+	var first: Place = preload("res://scenes/journey/Yunseul.tscn").instantiate()
 	add_child(first)
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -450,19 +450,19 @@ func _reunion_tests() -> void:
 	for c in first.get_children():
 		if c is Folk and c.wanderer:
 			rac = c
-	ok(rac != null, "쿼릉에서 여행자를 만난다")
-	ok(JourneyState.wanderer_seen.has("쿼릉"), "만난 곳을 기억한다")
-	ok(JourneyState.is_reunion("쿼릉") == false, "첫 만남은 재회가 아니다")
+	ok(rac != null, "윤슬에서 여행자를 만난다")
+	ok(JourneyState.wanderer_seen.has("윤슬"), "만난 곳을 기억한다")
+	ok(JourneyState.is_reunion("윤슬") == false, "첫 만남은 재회가 아니다")
 	first.queue_free()
 	await get_tree().process_frame
 
 	# 떠난다 → 여행자도 옮긴다
 	JourneyState.move_wanderer()
-	ok(JourneyState.wanderer_place == "쿼주", "여행자가 쿼주로 옮겼다")
-	ok(JourneyState.is_reunion("쿼주"), "쿼주에서 만나면 재회다")
+	ok(JourneyState.wanderer_place == "볕뉘", "여행자가 볕뉘로 옮겼다")
+	ok(JourneyState.is_reunion("볕뉘"), "볕뉘에서 만나면 재회다")
 
 	var heart0 := JourneyState.heart("raccoon")
-	var second: Place = preload("res://scenes/journey/Gwaeju.tscn").instantiate()
+	var second: Place = preload("res://scenes/journey/Byeotnwi.tscn").instantiate()
 	add_child(second)
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -471,7 +471,7 @@ func _reunion_tests() -> void:
 	for c in second.get_children():
 		if c is Folk and c.wanderer:
 			rac2 = c
-	ok(rac2 != null, "쿼주에서 다시 만난다")
+	ok(rac2 != null, "볕뉘에서 다시 만난다")
 	ok(rac2 != null and not rac2.once.is_empty(), "재회 대사가 따로 있다")
 	# 재회 대사는 [누가, 무슨 말] 짝으로 온다. 주고받는 말이라 이름이 붙는다.
 	var head: Array = rac2.once[0] if rac2 != null and not rac2.once.is_empty() \
@@ -507,7 +507,7 @@ func _reunion_tests() -> void:
 	await get_tree().process_frame
 
 	# 여행자가 없는 곳에는 안 서 있다
-	var third: Place = preload("res://scenes/journey/Gwaedo.tscn").instantiate()
+	var third: Place = preload("res://scenes/journey/Hanuiseom.tscn").instantiate()
 	add_child(third)
 	await get_tree().process_frame
 	var here := 0
@@ -522,7 +522,7 @@ func _reunion_tests() -> void:
 	var d := JourneyState.to_dict()
 	JourneyState.reset()
 	JourneyState.from_dict(d)
-	ok(JourneyState.wanderer_seen.has("쿼릉") and JourneyState.wanderer_seen.has("쿼주"),
+	ok(JourneyState.wanderer_seen.has("윤슬") and JourneyState.wanderer_seen.has("볕뉘"),
 		"만난 곳들이 저장에 남는다")
 
 
@@ -535,15 +535,15 @@ func _extras_tests() -> void:
 
 	# 편지는 **떠난 횟수**로 센다. 여행지가 넷뿐이라 "다녀온 곳 수"로 세면
 	# 아무리 다녀도 한 통에서 멈춘다 (`journey_state.gd` 의 `maybe_letter`).
-	JourneyState.visit("쿼릉")
+	JourneyState.visit("윤슬")
 	JourneyState.maybe_letter()
 	ok(JourneyState.letters.is_empty(), "한 번 만에는 안 온다")
-	JourneyState.visit("쿼주")
+	JourneyState.visit("볕뉘")
 	JourneyState.maybe_letter()
 	ok(JourneyState.letters.size() == 1, "두 번째 도착에 한 통 온다")
 	# 같은 곳에 다시 가도 떠난 것이다 — 여기서 편지가 멈추면 안 된다
 	for i in 8:
-		JourneyState.visit("쿼릉")
+		JourneyState.visit("윤슬")
 		JourneyState.maybe_letter()
 	ok(JourneyState.letters.size() == JourneyState.LETTERS.size(),
 		"다니다 보면 다섯 통이 다 온다 (%d)" % JourneyState.letters.size())
@@ -560,7 +560,7 @@ func _extras_tests() -> void:
 		"같은 편지를 두 번 안 보낸다")
 
 	print("\n[사진]")
-	var p: Place = preload("res://scenes/journey/Gwaeleung.tscn").instantiate()
+	var p: Place = preload("res://scenes/journey/Yunseul.tscn").instantiate()
 	add_child(p)
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -570,7 +570,7 @@ func _extras_tests() -> void:
 	await get_tree().process_frame
 	ok(JourneyState.photos.size() == n0 + 1, "사진이 찍힌다")
 	var shot: Dictionary = JourneyState.photos[-1]
-	ok(shot.get("place") == "쿼릉", "어디서 찍었는지 남는다")
+	ok(shot.get("place") == "윤슬", "어디서 찍었는지 남는다")
 	ok(String(shot.get("time", "")) != "", "몇 시였는지 남는다")
 	ok(String(shot.get("subject", "")) != "", "무엇을 찍었는지 남는다")
 
@@ -601,17 +601,17 @@ func _extras_tests() -> void:
 	await get_tree().process_frame
 
 	print("\n[프롤로그]")
-	var pro: Place = preload("res://scenes/journey/Gwaeul.tscn").instantiate()
+	var pro: Place = preload("res://scenes/journey/Jaenmaru.tscn").instantiate()
 	add_child(pro)
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	ok(pro.place_name() == "쿼울", "쿼울에서 시작한다")
+	ok(pro.place_name() == "잿마루", "잿마루에서 시작한다")
 	ok(pro.sleep_tile().x < 0, "회사에서는 못 잔다")
 	ok(pro.depart_tile().x >= 0, "회사 앞에서 떠날 수 있다")
 	ok(pro.pickups().is_empty(), "프롤로그에서는 아무것도 안 줍는다")
 	ok(JourneyState.minutes >= 23 * 60, "밤 11시에서 시작한다")
-	ok(not TravelBoard.PLACES.has("쿼울"), "회사로는 돌아갈 수 없다")
+	ok(not TravelBoard.PLACES.has("잿마루"), "회사로는 돌아갈 수 없다")
 
 	# 창밖·반납함 같은 자리가 있다
 	var spots := 0

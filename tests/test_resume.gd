@@ -28,9 +28,9 @@ func _ready() -> void:
 
 	print("\n[1] 여행 중이면 그 자리로 돌아간다")
 	SaveManager.clear_save()
-	SaveManager.autosave("res://scenes/journey/Gwaeleung.tscn")
-	ck("쿼릉으로 이어진다",
-		SaveManager.get_current_scene() == "res://scenes/journey/Gwaeleung.tscn",
+	SaveManager.autosave("res://scenes/journey/Yunseul.tscn")
+	ck("윤슬으로 이어진다",
+		SaveManager.get_current_scene() == "res://scenes/journey/Yunseul.tscn",
 		SaveManager.get_current_scene())
 
 	SaveManager.autosave("res://scenes/journey/Home.tscn")
@@ -38,7 +38,17 @@ func _ready() -> void:
 		SaveManager.get_current_scene() == "res://scenes/journey/Home.tscn",
 		SaveManager.get_current_scene())
 
-	print("\n[2] 옛 맵을 가리키는 저장은 여행으로 보낸다")
+	print("\n[2] 이름이 바뀐 여행지도 찾아간다")
+	# 여행지 이름을 순우리말로 바꾸면서 씬 파일 이름도 바뀌었다.
+	for pair in [["Gwaeleung", "Yunseul"], ["Gwaeju", "Byeotnwi"],
+			["Gwaesan", "Gapuljae"], ["Gwaedo", "Hanuiseom"],
+			["Gwaeul", "Jaenmaru"]]:
+		SaveManager.autosave("res://scenes/journey/%s.tscn" % pair[0])
+		ck("%s → %s" % [pair[0], pair[1]],
+			SaveManager.get_current_scene() == "res://scenes/journey/%s.tscn" % pair[1],
+			SaveManager.get_current_scene())
+
+	print("\n[2-1] 옛 맵을 가리키는 저장은 여행으로 보낸다")
 	for old in [
 		"res://scenes/side/Office.tscn",              # 옛 횡스크롤 0편
 		"res://scenes/side/Front.tscn",
@@ -55,11 +65,11 @@ func _ready() -> void:
 	SaveManager.clear_save()
 	ck("저장이 없으면 프롤로그로", SaveManager.get_current_scene() == hub,
 		SaveManager.get_current_scene())
-	ck("기본 자리가 쿼카컴퍼니다", hub.contains("Gwaeul"), hub)
+	ck("기본 자리가 쿼카컴퍼니다", hub.contains("Jaenmaru"), hub)
 
 	print("\n[4] 갈 수 있는 곳만 가리킨다")
 	# 이어하기가 없는 씬을 가리키면 켜자마자 죽는다
-	SaveManager.autosave("res://scenes/journey/Gwaesan.tscn")
+	SaveManager.autosave("res://scenes/journey/Gapuljae.tscn")
 	var target := SaveManager.get_current_scene()
 	ck("가리키는 씬이 실제로 있다", ResourceLoader.exists(target), target)
 

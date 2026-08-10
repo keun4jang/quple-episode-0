@@ -31,7 +31,7 @@ var legend: Dictionary = {}
 ## 걸어 들어갈 수 없는 바닥. 타일 **이름**으로 적는다 ("water" 등).
 ##
 ## 한동안 이 목록이 선언만 되고 아무도 안 봤다. 그래서 바다가 그림일
-## 뿐이었고, 쿼릉에서 위로 계속 걸으면 백사장을 지나 바다 한복판까지
+## 뿐이었고, 윤슬에서 위로 계속 걸으면 백사장을 지나 바다 한복판까지
 ## 걸어 들어갔다. 기본값을 여기 둔다 — 물은 어디서나 물이다.
 var solid_tiles: Array[String] = ["water"]
 
@@ -322,7 +322,7 @@ func _pop(a: Node2D) -> void:
 ## 지도 밖으로 못 나가게 벽을 두른다.
 ## 지도 바깥 테두리 + 걸을 수 없는 바닥.
 ##
-## 물 칸은 하나씩 몸을 세우지 않고 **가로줄로 이어 붙인다.** 쿼릉 바다가
+## 물 칸은 하나씩 몸을 세우지 않고 **가로줄로 이어 붙인다.** 윤슬 바다가
 ## 200칸이 넘는데 칸마다 StaticBody2D 를 만들면 그것만으로 저사양 폰에
 ## 부담이 된다. 이어 붙이면 줄 수만큼(보통 10~20개)이면 된다.
 func _build_walls() -> void:
@@ -471,17 +471,17 @@ func _build_ui() -> void:
 ## 이 여행지에 깔리는 곡. 여행지 파일에서 덮어쓸 수 있다.
 func bgm_track() -> String:
 	match place_name():
-		"쿼울": return "room"
+		"잿마루": return "room"
 		"고향": return "gohyang"
-		"쿼주": return "gaeguri"
+		"볕뉘": return "gaeguri"
 		_:      return "doraji"
 
 
 ## 배경에 계속 나는 소리.
 func ambient_kind() -> String:
 	match place_name():
-		"쿼울": return "room"
-		"쿼주": return "wind"
+		"잿마루": return "room"
+		"볕뉘": return "wind"
 		"고향": return "wind"
 		_:      return "wave"
 

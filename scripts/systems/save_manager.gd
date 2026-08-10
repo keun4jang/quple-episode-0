@@ -183,12 +183,26 @@ func has_backup() -> bool:
 ## 예전 저장본은 0편 맵을 가리킬 수 있다. 그 맵들은 이제 게임의 일부가
 ## 아니므로, 가리키고 있으면 무시하고 여행으로 보낸다 — 안 그러면
 ## 할 일이 하나도 없는 옛 맵에 갇힌다.
-const HUB := "res://scenes/journey/Gwaeul.tscn"
+const HUB := "res://scenes/journey/Jaenmaru.tscn"
+
+## 여행지 이름이 순우리말로 바뀌면서 씬 파일 이름도 같이 바뀌었다.
+## 그 전에 저장한 사람이 없는 파일을 가리켜 켜자마자 죽으면 안 된다.
+const RENAMED := {
+	"Gwaeleung": "Yunseul", "Gwaeju": "Byeotnwi", "Gwaesan": "Gapuljae",
+	"Gwaedo": "Hanuiseom", "Gwaeul": "Jaenmaru",
+}
 
 func get_current_scene(fallback: String = HUB) -> String:
 	var raw := _raw_current_scene(fallback)
 	# 옛 맵을 가리키는 저장은 무시한다. 그 시절은 끝났다.
 	if raw.contains("/side/") or raw.contains("/maps/") or raw.contains("/travel/"):
+		return HUB
+	for old in RENAMED:
+		if raw.contains("/%s.tscn" % old):
+			raw = raw.replace("/%s.tscn" % old, "/%s.tscn" % RENAMED[old])
+			break
+	# 그래도 없는 곳을 가리키면 처음으로 보낸다.
+	if not ResourceLoader.exists(raw):
 		return HUB
 	return raw
 

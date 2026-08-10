@@ -14,13 +14,13 @@ func _ready() -> void:
 	SaveManager.clear_save()
 	await get_tree().process_frame
 
-	await _load("res://scenes/journey/Gwaeul.tscn")
-	ok(place.place_name() == "쿼울", "쿼카컴퍼니에서 시작한다")
+	await _load("res://scenes/journey/Jaenmaru.tscn")
+	ok(place.place_name() == "잿마루", "쿼카컴퍼니에서 시작한다")
 	await _walk_to(place.depart_tile(), 22.0)
 	ok(_near_tile(place.depart_tile()), "걸어서 회사 앞까지 나온다")
 
-	await _go("res://scenes/journey/Gwaeleung.tscn")
-	ok(place.place_name() == "쿼릉", "쿼릉에 도착했다")
+	await _go("res://scenes/journey/Yunseul.tscn")
+	ok(place.place_name() == "윤슬", "윤슬에 도착했다")
 	ok(JourneyState.places_visited() == 1, "다녀온 곳 하나")
 
 	# 여행 중에도 나가는 길이 있어야 한다. 한동안 여행에 들어가면
@@ -53,19 +53,19 @@ func _ready() -> void:
 	await get_tree().create_timer(2.2).timeout
 	ok(JourneyState.day == d0 + 1, "쿼스텔에서 자고 다음 날")
 
-	# 떠난다 → 쿼주에서 재회
+	# 떠난다 → 볕뉘에서 재회
 	await _walk_to(place.depart_tile(), 26.0)
 	ok(place._can_depart(), "정류장에 섰다")
 	# 재회는 **떠날 때마다** 일어나지 않는다. 매번 마주치면 우연이 아니라
 	# 따라다니는 것이 된다 (`journey_state.gd` 의 `move_wanderer`).
 	# 세 번째 떠남에서 겹친다 — 여기서는 그 박자를 앞당겨 확인한다.
-	JourneyState.move_wanderer("쿼주", "쿼릉")
-	JourneyState.move_wanderer("쿼산", "쿼주")
-	JourneyState.move_wanderer("쿼주", "쿼산")
-	ok(JourneyState.wanderer_place == "쿼주",
+	JourneyState.move_wanderer("볕뉘", "윤슬")
+	JourneyState.move_wanderer("가풀재", "볕뉘")
+	JourneyState.move_wanderer("볕뉘", "가풀재")
+	ok(JourneyState.wanderer_place == "볕뉘",
 		"세 번째 떠남에서 여행자와 겹친다 (%s)" % JourneyState.wanderer_place)
-	await _go("res://scenes/journey/Gwaeju.tscn")
-	ok(JourneyState.is_reunion("쿼주") == false, "도착하면 이미 만난 것으로 친다")
+	await _go("res://scenes/journey/Byeotnwi.tscn")
+	ok(JourneyState.is_reunion("볕뉘") == false, "도착하면 이미 만난 것으로 친다")
 	await _walk_to(place.wanderer_tile(), 22.0)
 	place.talk_to_near()
 	await get_tree().process_frame
@@ -74,7 +74,7 @@ func _ready() -> void:
 	await _clear_say()
 
 	# 세 곳을 채워 편지를 받는다
-	JourneyState.visit("쿼산")
+	JourneyState.visit("가풀재")
 	JourneyState.maybe_letter()
 	ok(JourneyState.unread_letters() >= 1, "편지가 왔다")
 
@@ -139,7 +139,7 @@ func _near_tile(t: Vector2i) -> bool:
 
 ## 목표 칸까지 **걸어서** 간다. 막히면 옆으로 돌아간다.
 ##
-## 처음엔 막혔을 때 가로로만 밀어 봤다. 그런데 쿼릉 정류장 가는 길에
+## 처음엔 막혔을 때 가로로만 밀어 봤다. 그런데 윤슬 정류장 가는 길에
 ## 좌판이 딱 그 가로줄을 막고 있어서 영영 못 갔다. 사람은 당연히 위아래로
 ## 비껴 가므로, **막힌 축과 수직으로** 풀어 주는 게 맞다.
 func _walk_to(t: Vector2i, secs: float) -> void:

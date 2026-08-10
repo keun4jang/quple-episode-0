@@ -62,11 +62,11 @@ var visited: Dictionary = {}
 # 플레이어에겐 우연으로 보이지만 실제로는 반드시 일어난다.
 
 ## 여행자가 지금 어디 있나
-var wanderer_place := "쿼릉"
+var wanderer_place := "윤슬"
 ## 어디서 만났었나
 var wanderer_seen: Dictionary = {}
 ## 여행자가 갈 수 있는 곳 (고향은 뺀다 — 남의 고향에 갈 리 없다)
-const WANDERER_STOPS := ["쿼릉", "쿼주", "쿼산", "쿼도"]
+const WANDERER_STOPS := ["윤슬", "볕뉘", "가풀재", "하늬섬"]
 
 
 func wanderer_here(place: String) -> bool:
@@ -100,7 +100,7 @@ var departures := 0
 func move_wanderer(dest: String = "", from: String = "") -> void:
 	# 프롤로그를 떠날 때는 안 움직인다. 여기서 한 칸 밀면 첫 여행지에서
 	# 스쳐 지나가고, 그 뒤로 계속 어긋난다.
-	if from == "쿼울":
+	if from == "잿마루":
 		return
 	departures += 1
 	if departures % 3 == 0 and WANDERER_STOPS.has(dest) \
@@ -344,7 +344,7 @@ func from_dict(d: Dictionary) -> void:
 	day = maxi(1, int(d.get("day", 1)))
 	minutes = clampf(float(d.get("minutes", DAY_START)), DAY_START, DAY_END)
 	visited = d.get("visited", {}).duplicate() if d.get("visited") is Dictionary else {}
-	wanderer_place = String(d.get("wanderer_place", "쿼릉"))
+	wanderer_place = String(d.get("wanderer_place", "윤슬"))
 	wanderer_seen = d.get("wanderer_seen", {}).duplicate() \
 		if d.get("wanderer_seen") is Dictionary else {}
 	letters = d.get("letters", []).duplicate(true) if d.get("letters") is Array else []
@@ -364,7 +364,7 @@ func reset() -> void:
 	day = 1
 	minutes = DAY_START
 	visited = {}
-	wanderer_place = "쿼릉"
+	wanderer_place = "윤슬"
 	wanderer_seen = {}
 	letters = []
 	letters_sent = 0

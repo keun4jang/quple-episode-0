@@ -20,10 +20,10 @@ func _ready() -> void:
 	SaveManager.clear_save()
 	JourneyState.pick("p-shell", 3)
 	JourneyState.warm("raccoon", 2)
-	JourneyState.visit("쿼릉")
-	JourneyState.take_photo("쿼릉", "등대")
+	JourneyState.visit("윤슬")
+	JourneyState.take_photo("윤슬", "등대")
 	JourneyState.day = 4
-	SaveManager.save_game("res://scenes/journey/Gwaeleung.tscn")
+	SaveManager.save_game("res://scenes/journey/Yunseul.tscn")
 
 	JourneyState.reset()
 	ck("초기화하면 빈다", JourneyState.total() == 0)
@@ -34,7 +34,7 @@ func _ready() -> void:
 	ck("사진이 돌아온다", JourneyState.photos.size() == 1)
 	ck("며칠째인지 돌아온다", JourneyState.day == 4)
 	ck("자리가 돌아온다",
-		SaveManager.get_current_scene() == "res://scenes/journey/Gwaeleung.tscn")
+		SaveManager.get_current_scene() == "res://scenes/journey/Yunseul.tscn")
 
 	print("\n[2] 반쯤 쓰인 파일을 진짜 저장본으로 만들지 않는다")
 	var f := FileAccess.open(SaveManager.SAVE_PATH, FileAccess.WRITE)

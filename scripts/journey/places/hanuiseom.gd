@@ -1,11 +1,11 @@
 extends Place
-## 🌴 쿼도. 섬.
+## 🌴 하늬섬. 섬.
 ##
 ## 검은 돌담과 바람. 작고, 다 안다. 1탄의 마지막 여행지다.
 ## 여기서는 **길이 하나뿐**이라 헤맬 수가 없다 — 섬이니까.
 
 func place_name() -> String:
-	return "쿼도"
+	return "하늬섬"
 
 
 func _init() -> void:

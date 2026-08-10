@@ -12,12 +12,12 @@ signal closed
 
 ## 이름 → [씬 경로, 한 줄]
 ##
-## **쿼울은 없다.** 회사는 한 번 나오면 돌아가지 않는다.
+## **잿마루은 없다.** 회사는 한 번 나오면 돌아가지 않는다.
 const PLACES := {
-	"쿼릉": ["res://scenes/journey/Gwaeleung.tscn", "바다와 등대"],
-	"쿼주": ["res://scenes/journey/Gwaeju.tscn", "낮은 기와지붕"],
-	"쿼산": ["res://scenes/journey/Gwaesan.tscn", "비탈진 항구"],
-	"쿼도": ["res://scenes/journey/Gwaedo.tscn", "검은 돌담과 바람"],
+	"윤슬": ["res://scenes/journey/Yunseul.tscn", "바다와 등대"],
+	"볕뉘": ["res://scenes/journey/Byeotnwi.tscn", "낮은 기와지붕"],
+	"가풀재": ["res://scenes/journey/Gapuljae.tscn", "비탈진 항구"],
+	"하늬섬": ["res://scenes/journey/Hanuiseom.tscn", "검은 돌담과 바람"],
 	"고향": ["res://scenes/journey/Home.tscn", ""],
 }
 

@@ -293,8 +293,8 @@ func _start_new(skip_prologue: bool) -> void:
 	# 새로 시작하면 쿼카컴퍼니(프롤로그)부터. 건너뛰면 첫 여행지로 간다.
 	JourneyState.reset()
 	if skip_prologue:
-		SaveManager.autosave("res://scenes/journey/Gwaeleung.tscn")
-		SceneTransition.go_to("res://scenes/journey/Gwaeleung.tscn", "hopeful")
+		SaveManager.autosave("res://scenes/journey/Yunseul.tscn")
+		SceneTransition.go_to("res://scenes/journey/Yunseul.tscn", "hopeful")
 	else:
 		SaveManager.autosave(SaveManager.HUB)
 		SceneTransition.go_to(SaveManager.HUB)

@@ -1,5 +1,5 @@
 extends Place
-## 🏢 쿼울 — 쿼카컴퍼니. 프롤로그.
+## 🏢 잿마루 — 쿼카컴퍼니가 있는 잿빛 도시. 프롤로그.
 ##
 ## `docs/story-journey.md` 3절. 밤 11시, 사무실에서 걸어 나온다.
 ##
@@ -10,7 +10,7 @@ extends Place
 ## 컷신을 안 쓴다. 직접 걸어 나오면서 걷기·말 걸기·사진을 다 배운다.
 
 func place_name() -> String:
-	return "쿼울"
+	return "잿마루"
 
 
 func _init() -> void:
