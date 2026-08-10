@@ -113,6 +113,7 @@ func _ready() -> void:
 	JourneyState.arrive()
 	_read_map()
 	_build_ground()
+	_build_fringes()
 	_build_props()
 	_build_pickups()
 	_build_walls()
@@ -196,6 +197,73 @@ func _build_ground() -> void:
 				0.0,
 				at + Vector2(TILE, TILE) * 0.5)
 			mm.set_instance_transform_2d(i, t)
+		var mmi := MultiMeshInstance2D.new()
+		mmi.multimesh = mm
+		mmi.texture = tex
+		mmi.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_ground.add_child(mmi)
+
+
+# ── 넘침 가장자리 ──────────────────────────────────────────────────────
+#
+# 바닥 두 종이 만나는 경계가 칸 모양 그대로 뚝 끊긴다 — 마을이 아니라
+# 모눈종이로 보인다. 우선순위가 높은 바닥이 이웃 칸으로 두세 픽셀
+# 넘쳐 들어가게 얹는다. 풀이 흙 위로 삐져나오고 모래가 물속으로 스민다.
+#
+# **자연이 인공물 위로** 넘치는 것만 자연스럽다. 반대는 이상하다.
+const FRINGE_PRIO := {
+	"grass": 6, "dry-grass": 5, "clay-earth": 4, "dirt": 3,
+	"sand": 2, "basalt": 2,
+	# 아래는 안 넘친다. 받기만 한다.
+	"water": 0, "cobble": 1, "stone-slab": 1, "deck": 1, "wood-floor": 1,
+	"tilled-soil": 1, "slate-path": 1, "granite-step": 1,
+	"office-carpet": 1, "lobby-marble": 1,
+}
+
+
+func _build_fringes() -> void:
+	var by_tex: Dictionary = {}          # "이름-fr-방향" → 자리들
+	for y in _grid.size():
+		var row: String = _grid[y]
+		for x in row.length():
+			if not legend.has(row[x]):
+				continue
+			var me := String(legend[row[x]])
+			var pm: int = FRINGE_PRIO.get(me, 1)
+			for d in [[Vector2i(0, -1), "s"], [Vector2i(0, 1), "n"],
+					[Vector2i(-1, 0), "e"], [Vector2i(1, 0), "w"]]:
+				var nt: Vector2i = Vector2i(x, y) + (d[0] as Vector2i)
+				if nt.y < 0 or nt.y >= _grid.size():
+					continue
+				var nrow: String = _grid[nt.y]
+				if nt.x < 0 or nt.x >= nrow.length() or not legend.has(nrow[nt.x]):
+					continue
+				var other := String(legend[nrow[nt.x]])
+				if other == me:
+					continue
+				# 이웃이 나보다 세면 **이웃이 내 쪽으로** 넘친다
+				if FRINGE_PRIO.get(other, 1) <= pm:
+					continue
+				var key := "%s-fr-%s" % [other, d[1]]
+				if not by_tex.has(key):
+					by_tex[key] = []
+				by_tex[key].append(Vector2(x * TILE, y * TILE))
+
+	for key in by_tex:
+		var path := "res://assets/tiles/%s.png" % key
+		if not ResourceLoader.exists(path):
+			continue
+		var tex := load(path) as Texture2D
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_2D
+		var quad := QuadMesh.new()
+		quad.size = Vector2(TILE, TILE)
+		mm.mesh = quad
+		var spots: Array = by_tex[key]
+		mm.instance_count = spots.size()
+		for i in spots.size():
+			mm.set_instance_transform_2d(i,
+				Transform2D(0.0, (spots[i] as Vector2) + Vector2(TILE, TILE) * 0.5))
 		var mmi := MultiMeshInstance2D.new()
 		mmi.multimesh = mm
 		mmi.texture = tex
@@ -482,7 +550,9 @@ func _build_ui() -> void:
 
 	# 미니맵. 설정 버튼 아래, 오른쪽 위.
 	var mm_layer := CanvasLayer.new()
-	mm_layer.layer = 7
+	# 설정(5)보다 **아래**. 위에 두면 설정을 열어 화면이 어두워져도
+	# 미니맵만 밝게 떠서 깜빡이고, 그 위 누름이 설정을 뚫고 들어갔다.
+	mm_layer.layer = 4
 	add_child(mm_layer)
 	var mm_root := Control.new()
 	mm_root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -880,6 +950,11 @@ func talk_to_near() -> void:
 
 func _unhandled_input(e: InputEvent) -> void:
 	if say != null and say.is_busy():
+		return
+	# 설정이 떠 있으면 세계는 아무것도 안 받는다. 이게 없으면 설정 위를
+	# 누른 것이 창을 닫으면서 **동시에** 그 밑 미니맵까지 펼쳤다.
+	var sv := get_tree().get_first_node_in_group("settings_ui")
+	if sv != null and sv.visible:
 		return
 	if _sleeping or (board != null and board.visible):
 		return

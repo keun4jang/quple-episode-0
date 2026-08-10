@@ -100,7 +100,7 @@ func _fit(limit: Vector2) -> Vector2:
 func _small_rect() -> Rect2:
 	var sz := _fit(SMALL)
 	var right := -32.0
-	var top := 108.0
+	var top := 116.0
 	return Rect2(Vector2(right - sz.x, top), sz)
 
 
@@ -132,6 +132,14 @@ func _draw() -> void:
 	var t: Vector2i = place.tile_size()
 	if t.x <= 0 or t.y <= 0:
 		return
+
+	# 펼쳤을 때는 뒤 세계를 살짝 눌러 준다. 여행판·설정은 다 이렇게
+	# 하는데 여기만 안 하고 있었다 — 같은 무게의 화면인데 혼자 규칙이
+	# 달랐다.
+	if _big:
+		var g := get_global_rect()
+		draw_rect(Rect2(-g.position, get_viewport_rect().size),
+			Color(0.10, 0.09, 0.12, 0.45))
 
 	# 바탕과 테두리
 	var r := Rect2(Vector2.ZERO, size)

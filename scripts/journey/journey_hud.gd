@@ -56,7 +56,8 @@ func _build() -> void:
 
 	# 시각 — 왼쪽 위, 얇게
 	_clock = Label.new()
-	_clock.add_theme_font_size_override("font_size", 30)
+	# 대사(21)보다 크면 위계가 뒤집힌다. 시계는 늘 떠 있을 뿐이다.
+	_clock.add_theme_font_size_override("font_size", 24)
 	_clock.add_theme_color_override("font_color", Color("#FFFDF6"))
 	_clock.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
 	_clock.add_theme_constant_override("outline_size", 8)
@@ -92,8 +93,10 @@ func _build() -> void:
 	_act_btn = Button.new()
 	_act_btn.name = "ActionBtn"
 	_act_btn.focus_mode = Control.FOCUS_NONE
-	_act_btn.custom_minimum_size = Vector2(132, 62)
-	_act_btn.add_theme_font_size_override("font_size", 24)
+	# 안내가 일부러 가르치는 버튼이 세 모서리 중 제일 작으면 앞뒤가 안
+	# 맞다. 148x72 캔버스 = 1.5배 폰에서 222x108, 48dp 를 넘는다.
+	_act_btn.custom_minimum_size = Vector2(148, 72)
+	_act_btn.add_theme_font_size_override("font_size", 26)
 	var asb := StyleBoxFlat.new()
 	asb.bg_color = Color("#FFE39A")
 	asb.set_corner_radius_all(30)
@@ -106,10 +109,10 @@ func _build() -> void:
 	_act_btn.add_theme_stylebox_override("pressed", apr)
 	_act_btn.add_theme_color_override("font_color", Color("#4A3A22"))
 	_act_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_act_btn.offset_left = -164
-	_act_btn.offset_top = -212
+	_act_btn.offset_left = -180
+	_act_btn.offset_top = -234
 	_act_btn.offset_right = -32
-	_act_btn.offset_bottom = -150
+	_act_btn.offset_bottom = -162
 	_act_btn.visible = false
 	_act_btn.pressed.connect(func(): acted.emit())
 	_press_feedback(_act_btn)
@@ -118,7 +121,7 @@ func _build() -> void:
 	# 무엇을 주웠는지 잠깐 알려 주는 줄
 	_hint = Label.new()
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.add_theme_font_size_override("font_size", 30)
+	_hint.add_theme_font_size_override("font_size", 26)
 	_hint.add_theme_color_override("font_color", Color("#FFF2C8"))
 	_hint.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
 	_hint.add_theme_constant_override("outline_size", 8)
@@ -135,8 +138,8 @@ func _build() -> void:
 	# 카메라 아이콘이 어두운 갈색이라 윤슬 왼쪽 아래의 쓰러진 나무·우물과
 	# 겹치면 버튼인지 배경 소품인지 갈리지 않았다. 아이콘을 다시 그리는
 	# 대신 뒤에 옅은 원판을 깐다 — 어떤 배경 위에서도 "누르는 것"으로 읽힌다.
-	_pad_cam = _make_pad(root, Control.PRESET_BOTTOM_LEFT, 20, -140, 140, -20)
-	_pad_bag = _make_pad(root, Control.PRESET_BOTTOM_RIGHT, -140, -140, -20, -20)
+	_pad_cam = _make_pad(root, Control.PRESET_BOTTOM_LEFT, 32, -140, 152, -20)
+	_pad_bag = _make_pad(root, Control.PRESET_BOTTOM_RIGHT, -152, -140, -32, -20)
 
 	# 사진 — 왼쪽 아래. 배낭과 반대쪽이라 헷갈리지 않는다
 	_cam_btn = TextureButton.new()
@@ -161,10 +164,10 @@ func _build() -> void:
 	_dot.custom_minimum_size = Vector2(22, 22)
 	_dot.size = Vector2(22, 22)
 	_dot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_dot.offset_left = -46
-	_dot.offset_top = -134
-	_dot.offset_right = -24
-	_dot.offset_bottom = -112
+	_dot.offset_left = -54
+	_dot.offset_top = -136
+	_dot.offset_right = -32
+	_dot.offset_bottom = -114
 	_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dot.visible = false
 	_dot.draw.connect(func() -> void:
@@ -324,6 +327,22 @@ func _refill_bag() -> void:
 		2: _fill_letters()
 		3: _fill_postcards()
 		_: _fill_bag()
+	_fit_bag_panel()
+
+
+## 창을 내용 높이에 맞춘다.
+##
+## 640x440 으로 못 박아 두니 빈 배낭에서 "아직 아무것도 없어요" 한 줄
+## 밑으로 검은 판이 4분의 3 이었다. 내용만큼만 쓰고, 길면 440 에서
+## 멈추고 굴린다. 라벨이 자리를 잡은 다음 프레임에 재야 값이 맞다.
+func _fit_bag_panel() -> void:
+	await get_tree().process_frame
+	if _bag_panel == null or not _bag_panel.visible:
+		return
+	var content: float = _bag_grid.get_combined_minimum_size().y
+	var need: float = clampf(content + 168.0, 236.0, 440.0)
+	_bag_panel.offset_top = -need * 0.5
+	_bag_panel.offset_bottom = need * 0.5
 
 
 func _empty(text: String) -> void:

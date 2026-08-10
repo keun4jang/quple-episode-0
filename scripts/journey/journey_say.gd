@@ -14,8 +14,8 @@ const SPEED := 0.028          # 한 글자에 걸리는 시간
 ## 창이 이보다 넓어지지 않는다. 큰 화면에서 한 줄이 가로로 끝없이
 ## 늘어나면 눈이 따라가느라 피곤하다.
 const MAX_WIDTH := 560.0
-## 이보다 좁으면 버튼 두 개가 안 들어가 오히려 어색해진다.
-const MIN_WIDTH := 210.0
+## 이보다 좁으면 "이전" 버튼과 이름이 부딪혀 오히려 어색해진다.
+const MIN_WIDTH := 150.0
 
 var _panel: PanelContainer
 var _who: Label
@@ -57,6 +57,11 @@ func _build() -> void:
 	sb.content_margin_bottom = 7
 	_panel.add_theme_stylebox_override("panel", sb)
 	_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	# **창 자신도 눌러진다.** PanelContainer 는 기본으로 누름을 삼키는데,
+	# 이 창은 화면 아래 한가운데 — 엄지가 제일 먼저 가는 자리다.
+	# "아무 데나 누르면 넘어간다" 면서 창만 예외면 멈춘 것으로 읽힌다.
+	# ("이전" 버튼은 제 스스로 받으니 그대로 눌린다.)
+	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_panel)
 	# 높이는 여기서 정하지 않는다. `_fit()` 이 내용에 맞춰 위로 늘린다 —
 	# 예전엔 못 박아 놨는데 내용이 더 커서 창이 화면 아래로 잘려 나갔다.
