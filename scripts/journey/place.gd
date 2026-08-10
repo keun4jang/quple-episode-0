@@ -1342,6 +1342,15 @@ func _on_action() -> void:
 func _do_enter(d) -> void:
 	if d == null or walker == null:
 		return
+	var scene := String(d.get("scene", ""))
+	if scene == "":
+		# 실내 문의 "나가는 곳"은 `JourneyState.exit_scene` 을 그대로
+		# 물려받는다. 정상적인 길로는 늘 채워져 있지만(문을 지나야만
+		# 실내에 들어오니까), 만에 하나 비어 있으면 빈 경로로
+		# `change_scene_to_file("")` 을 불러 화면만 굳는 것보다는
+		# 그 자리에 그냥 서 있는 편이 낫다.
+		push_warning("문이 갈 곳이 없다: %s" % d)
+		return
 	walker.stop()
 	stop_walk_to()
 	if d.has("spawn"):
@@ -1354,9 +1363,9 @@ func _do_enter(d) -> void:
 	# `SceneTransition.go_to()` 가 문 여는 소리를 낸다 — 여기서 또 내지 않는다.
 	var st := get_node_or_null("/root/SceneTransition")
 	if st != null and st.has_method("go_to"):
-		st.go_to(String(d["scene"]), "normal")
+		st.go_to(scene, "normal")
 	else:
-		get_tree().change_scene_to_file(String(d["scene"]))
+		get_tree().change_scene_to_file(scene)
 
 
 ## 그 사람 **옆에** 설 자리. 몸 위로 걸어 들어가면 밀려난다.

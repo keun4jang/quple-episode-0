@@ -51,27 +51,35 @@ func spawn_tile() -> Vector2i:
 func props() -> Array:
 	var mid := W / 2
 	return [
-		# 접수대 — 문에서 보자마자 마주치는 자리
+		# 접수대 — 문에서 보자마자 마주치는 자리. 좌우로 대칭.
 		[mid - 4, 4, "reception", true],
-		[mid + 6, 4, "reception", true],
+		[mid + 4, 4, "reception", true],
 		# 진열장 두 줄
 		[mid - 9, 3, "cabinet", true],
 		[mid - 2, 3, "cabinet", true],
 		[mid + 2, 3, "cabinet", true],
-		[mid + 11, 3, "cabinet", true],
+		[mid + 9, 3, "cabinet", true],
 		# 아이스박스 — 시원한 것들
 		[mid - 12, 7, "icebox", true],
-		[mid + 13, 7, "icebox", true],
-		# 장독대 — 가게에도 항아리는 있다
+		[mid + 12, 7, "icebox", true],
+		[mid - 12, 8, "firewood", false],
+		[mid + 12, 8, "firewood", false],
+		# 장독대 — 가게에도 항아리는 있다. 한쪽만 있으면 어색하니 양쪽에.
 		[mid - 5, 9, "jars", true],
 		[mid - 3, 9, "jars", true],
-		[mid + 4, 9, "jars", true],
+		[mid + 3, 9, "jars", true],
+		[mid + 5, 9, "jars", true],
 		# 화분 — 살아 있는 것이 하나는 있어야 가게가 안 차갑다
 		[mid - 7, 11, "flower-pots", false],
-		[mid + 9, 11, "flower-pots", false],
-		# 손님 자리
-		[mid - 3, 13, "bench", true],
-		[mid + 3, 13, "bench", true],
+		[mid + 7, 11, "flower-pots", false],
+		# 안쪽 좌판 — 문에서 먼 벽 쪽이 비어 보이지 않게 한 줄 더 채운다
+		[mid - 9, 13, "stall", true],
+		[mid + 9, 13, "stall", true],
+		[mid - 11, 14, "tools", true],
+		[mid + 11, 14, "washtub", false],
+		# 손님 자리 — 문 앞 통로 바로 옆
+		[mid - 3, 15, "bench", true],
+		[mid + 3, 15, "bench", true],
 	]
 
 
