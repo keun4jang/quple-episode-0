@@ -338,9 +338,11 @@ func _place2_tests() -> void:
 	ok(JourneyState.places_visited() == 1, "다녀온 곳으로 센다")
 
 	var sz := p.tile_size()
-	var view := p.get_viewport().get_visible_rect().size / p.cam.zoom
-	ok(sz.x * Place.TILE >= view.x and sz.y * Place.TILE >= view.y,
-		"지도가 화면보다 크다 (%dx%d칸)" % [sz.x, sz.y])
+	# 창 크기와 비교하면 **돌리는 환경에 따라** 통과가 갈린다 — 검사
+	# 에이전트의 창에서는 떨어졌다. 기준은 게임이 정한 선이다:
+	# 3배 줌에서 회색이 안 드러나는 가로 34칸 (1600px ÷ 16 ÷ 3).
+	ok(sz.x >= 34, "지도가 3배 줌을 견딘다 (가로 %d칸)" % sz.x)
+	ok(sz.y >= 15, "세로도 얕지 않다 (%d칸)" % sz.y)
 
 	# 줄 길이가 들쭉날쭉하면 지도 끝에 구멍이 생긴다
 	var widths := {}
@@ -742,6 +744,9 @@ func _camera_tests() -> void:
 	# 화면 밖에서 시간대가 바뀌면 자리를 옮긴다
 	if sched_folk > 0:
 		JourneyState.minutes = 19 * 60
+		# 카메라 따라가기를 끊는다. 안 끊으면 다음 프레임에 주인공 곁으로
+		# 돌아가 인연들이 도로 화면 안 — 시간표 틱과 경주가 붙어 흔들렸다.
+		sp.cam.target = null
 		sp.cam.global_position = Vector2(-4000, -4000)   # 다 화면 밖
 		var before2 := {}
 		for c in sp._folk:
