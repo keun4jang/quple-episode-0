@@ -33,6 +33,34 @@ func _ready() -> void:
 		"걸으면서도 배낭·사진 버튼이 눌린다")
 	ok(place.solid_tiles.has("water"), "바다에는 못 들어간다")
 
+	# 가게 문을 지나 안으로, 다시 밖으로.
+	#
+	# `_do_enter()` 는 실제 씬 전환(`SceneTransition`/
+	# `change_scene_to_file`)을 부르는데, 그건 이 시뮬레이션 자체를
+	# 갈아치운다 — `_go()` 가 늘 진짜 전환을 피하고 `_load()` 로 직접
+	# 갈아 끼우는 것과 같은 이유다. 문이 남기는 **자리**만 같은 길로
+	# 확인한다.
+	var shop_door: Vector2i = place.doors()[0]["tile"]
+	await _walk_to(shop_door, 22.0)
+	var door = place._can_enter()
+	ok(door != null, "가게 문 앞에 섰다")
+	var outside_tile := place.tile_of(place.walker.global_position)
+	JourneyState.exit_scene = place.scene_file_path
+	JourneyState.exit_tile = outside_tile
+	await _load(door["scene"])
+	ok(place.place_name() == "가게 안", "가게 안으로 들어왔다")
+	var back_door = place._can_enter()
+	ok(back_door != null, "들어가자마자 문 앞이다")
+	JourneyState.pending_spawn = back_door["spawn"]
+	await _load(back_door["scene"])
+	ok(place.place_name() == "윤슬", "가게에서 나와 윤슬로 돌아왔다")
+	ok(place.tile_of(place.walker.global_position) == outside_tile,
+		"나온 자리가 들어가기 전 그 자리다")
+	# 문 바로 앞은 가게 담벼락과 거의 붙어 있어 다음 목적지로 가는 길이
+	# 빡빡하다. 마을 한복판으로 한 번 걸어 나와 이 아래 걸음들이
+	# 처음부터 다들 그랬던 것처럼 넓은 자리에서 시작하게 한다.
+	await _walk_to(place.spawn_tile(), 22.0)
+
 	# 조개를 주우러 걸어간다
 	var pick := Vector2i(place.pickups()[0][0], place.pickups()[0][1])
 	await _walk_to(pick, 22.0)

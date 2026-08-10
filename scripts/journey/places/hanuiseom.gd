@@ -200,6 +200,15 @@ func wanderer_tile() -> Vector2i:
 	return Vector2i(20, 10)
 
 
+## 가게(16,12) 문 앞. 한 칸만 막으니 문 앞은 바로 아랫줄이다.
+func doors() -> Array:
+	return [{
+		"tile": Vector2i(16, 13),
+		"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
+		"label": "가게 들어가기",
+	}]
+
+
 func on_built() -> void:
 	JourneyState.here = place_name()
 	JourneyState.visit(place_name())

@@ -19,6 +19,17 @@ var taken: Dictionary = {}
 ## 지금 어느 여행지에 있나
 var here := ""
 
+## 건물 안에 들어가 있는 동안, **나가면 돌아갈 곳.**
+##
+## 가게마다 안이 다르지 않다 — 문을 연 그 씬 경로와, 문 앞에 서 있던
+## 칸만 기억해 두면 나올 때 그 자리 그대로 세울 수 있다.
+var exit_scene := ""
+var exit_tile := Vector2i(-1, -1)
+## 다음 씬이 시작할 때 **여기서 시작하라**는 지시. 실내에서 나올 때만
+## 쓴다. 보통의 여행(정류장 이동)은 이 값을 건드리지 않고, 그 씬은
+## 늘 하던 대로 `spawn_tile()` 에서 시작한다.
+var pending_spawn := Vector2i(-1, -1)
+
 ## 인연 → 마음 칸 (0~5). 숫자는 화면에 절대 안 보여 준다.
 var hearts: Dictionary = {}
 ## 며칠째인가
@@ -378,6 +389,8 @@ func to_dict() -> Dictionary:
 		"since_reunion": since_reunion,
 		"last_met": last_met,
 		"photos": photos.duplicate(true),
+		"exit_scene": exit_scene,
+		"exit_tile": [exit_tile.x, exit_tile.y],
 	}
 
 
@@ -402,6 +415,9 @@ func from_dict(d: Dictionary) -> void:
 	since_reunion = maxi(0, int(d.get("since_reunion", 0)))
 	last_met = String(d.get("last_met", ""))
 	photos = d.get("photos", []).duplicate(true) if d.get("photos") is Array else []
+	exit_scene = String(d.get("exit_scene", ""))
+	var et: Array = d.get("exit_tile", [-1, -1])
+	exit_tile = Vector2i(int(et[0]), int(et[1])) if et.size() == 2 else Vector2i(-1, -1)
 
 
 func reset() -> void:
@@ -423,3 +439,6 @@ func reset() -> void:
 	reunions = 0
 	since_reunion = 0
 	last_met = ""
+	exit_scene = ""
+	exit_tile = Vector2i(-1, -1)
+	pending_spawn = Vector2i(-1, -1)

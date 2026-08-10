@@ -66,6 +66,7 @@ var _fade: ColorRect
 var _sleeping := false
 var _depart_at := Vector2.ZERO
 var _has_stop := false
+var _doors: Array = []      # doors() 에 "world" 를 더한 것
 var board: TravelBoard
 var say: JourneySay
 var hud: JourneyHud
@@ -107,6 +108,15 @@ func depart_tile() -> Vector2i:
 func wanderer_tile() -> Vector2i:
 	return Vector2i(-1, -1)
 
+## 들어갈 수 있는 문들. [{"tile": 문 앞 칸, "scene": 갈 씬 경로, "label": 이름}]
+##
+## 잠자리·정류장과 같은 결이다 — **그 칸에 가까이 서야만** 나타난다.
+## 실내 씬(`scripts/journey/places/interiors/`)은 나올 때 자기 문에
+## `"spawn"` 을 얹어 돌려준다. 밖에서 안으로 들어갈 때는 그게 없다 —
+## 안쪽 씬이 제 `spawn_tile()` 에서 시작하니 필요 없다.
+func doors() -> Array:
+	return []
+
 ## 지도가 다 깔린 뒤. 인연을 세우거나 사건을 붙인다.
 func on_built() -> void:
 	pass
@@ -123,6 +133,7 @@ func _ready() -> void:
 	_build_props()
 	_build_pickups()
 	_build_walls()
+	_build_doors()
 	_build_astar()
 	_build_walker()
 	_build_camera()
@@ -494,10 +505,25 @@ func _build_solid_floor() -> void:
 				run = -1
 
 
+## 문마다 화면 좌표를 미리 계산해 둔다.
+func _build_doors() -> void:
+	_doors = []
+	for d in doors():
+		var dd: Dictionary = (d as Dictionary).duplicate()
+		dd["world"] = world_of(dd["tile"])
+		_doors.append(dd)
+
+
 func _build_walker() -> void:
 	walker = QuoWalker.new()
 	walker.name = "Walker"
 	var t := spawn_tile()
+	# 방금 실내에서 나왔으면 문 앞, 들어가기 전 서 있던 자리에 세운다.
+	# 보통의 여행(정류장 이동)은 이 값을 안 건드리므로 그때는 늘 하던
+	# 대로 `spawn_tile()` 에서 시작한다.
+	if JourneyState.pending_spawn.x >= 0:
+		t = JourneyState.pending_spawn
+		JourneyState.pending_spawn = Vector2i(-1, -1)
 	walker.position = Vector2(t.x * TILE + TILE * 0.5, (t.y + 1) * TILE)
 	add_child(walker)
 
@@ -903,10 +929,15 @@ func _update_near() -> void:
 	if _mark == null:
 		return
 	var busy := say != null and say.is_busy()
+	var door = _can_enter()
 	if _near != null and not busy:
 		_mark.visible = true
 		_mark.text = "!"
 		_mark.global_position = _near.global_position + Vector2(-3, -40)
+	elif door != null and not busy:
+		_mark.visible = true
+		_mark.text = "문"
+		_mark.global_position = (door["world"] as Vector2) + Vector2(-26, -40)
 	elif _can_sleep() and not busy:
 		_mark.visible = true
 		_mark.text = "잠"
@@ -932,6 +963,17 @@ func _can_depart() -> bool:
 		return false
 	return walker.global_position.distance_squared_to(_depart_at) \
 		< TALK_RANGE * TALK_RANGE
+
+
+## 가까운 문. 없으면 null.
+func _can_enter() -> Variant:
+	if walker == null:
+		return null
+	for d in _doors:
+		if walker.global_position.distance_squared_to(d["world"]) \
+				< TALK_RANGE * TALK_RANGE:
+			return d
+	return null
 
 
 ## 자고 다음 날. 하루가 끝나는 유일한 방법이다 —
@@ -1043,7 +1085,16 @@ func _unhandled_input(e: InputEvent) -> void:
 			walk_to(_beside(who))
 		get_viewport().set_input_as_handled()
 		return
-	# ② 잠자리·정류장은 **그 자리를 눌렀을 때만.**
+	# ② 문도 **그 자리를 눌렀을 때만** 열린다. 지나가려고 근처를 눌렀는데
+	# 저절로 들어가 버리면 안 된다.
+	for d in _doors:
+		if _near_tile(at, d["tile"]) \
+				and walker.global_position.distance_squared_to(d["world"]) \
+					< TALK_RANGE * TALK_RANGE:
+			_do_enter(d)
+			get_viewport().set_input_as_handled()
+			return
+	# ③ 잠자리·정류장은 **그 자리를 눌렀을 때만.**
 	#
 	# 예전엔 서 있기만 하면 화면 아무 데나 눌러도 자거나 여행판이 떴다.
 	# "가고 싶은 곳을 톡 누르세요" 라고 가르쳐 놓고 그 두 칸 위에서만
@@ -1060,7 +1111,7 @@ func _unhandled_input(e: InputEvent) -> void:
 		_did("go")
 		get_viewport().set_input_as_handled()
 		return
-	# ③ 그 밖에는 **누른 자리로 걸어간다.**
+	# ④ 그 밖에는 **누른 자리로 걸어간다.**
 	if at != Vector2.INF:
 		walk_to(at)
 		if is_walking_to():
@@ -1253,6 +1304,10 @@ func _refresh_action() -> void:
 	if _near != null:
 		hud.set_action("talk", "보기" if _near.is_spot else "말 걸기")
 		return
+	var door = _can_enter()
+	if door != null:
+		hud.set_action("enter", String(door.get("label", "들어가기")))
+		return
 	if _can_sleep():
 		hud.set_action("sleep", "자기")
 		return
@@ -1271,6 +1326,8 @@ func _on_action() -> void:
 		"talk":
 			stop_walk_to()
 			talk_to_near()
+		"enter":
+			_do_enter(_can_enter())
 		"sleep":
 			go_to_sleep()
 		"depart":
@@ -1278,6 +1335,28 @@ func _on_action() -> void:
 			stop_walk_to()
 			board.open(place_name())
 			_did("go")
+
+
+## 문을 지나 다른 씬으로. 밖에서 안으로, 또는 안에서 밖으로 — 방향은
+## `d` 가 `"spawn"` 을 들고 있는지로 가린다 (안에서 나가는 문만 들고 있다).
+func _do_enter(d) -> void:
+	if d == null or walker == null:
+		return
+	walker.stop()
+	stop_walk_to()
+	if d.has("spawn"):
+		JourneyState.pending_spawn = d["spawn"]
+	else:
+		# 지금 서 있는 자리를 적어 둔다. 나올 때 그대로 세운다.
+		JourneyState.exit_scene = scene_file_path
+		JourneyState.exit_tile = tile_of(walker.global_position)
+	_did("enter")
+	# `SceneTransition.go_to()` 가 문 여는 소리를 낸다 — 여기서 또 내지 않는다.
+	var st := get_node_or_null("/root/SceneTransition")
+	if st != null and st.has_method("go_to"):
+		st.go_to(String(d["scene"]), "normal")
+	else:
+		get_tree().change_scene_to_file(String(d["scene"]))
 
 
 ## 그 사람 **옆에** 설 자리. 몸 위로 걸어 들어가면 밀려난다.
