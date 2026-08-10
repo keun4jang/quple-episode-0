@@ -47,7 +47,8 @@ var _tiles: Dictionary = {}      # 이름 → Texture2D
 var _loose: Array[Node2D] = []   # 아직 안 주운 것
 var _folk: Array[Folk] = []
 var _near: Folk = null
-var _mark: Label                 # 말 걸 수 있는 사람 위에 뜨는 표시
+var _mark: Label                     # 말 걸 수 있는 사람 위에 뜨는 표시
+var minimap: MiniMap
 var _night: CanvasModulate
 var _sleep_at := Vector2.ZERO
 var _has_bed := false
@@ -431,6 +432,21 @@ func _build_ui() -> void:
 	board.name = "Board"
 	add_child(board)
 
+	# 미니맵. 설정 버튼 아래, 오른쪽 위.
+	var mm_layer := CanvasLayer.new()
+	mm_layer.layer = 7
+	add_child(mm_layer)
+	var mm_root := Control.new()
+	mm_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	mm_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mm_layer.add_child(mm_root)
+	JourneyHud.inset_safe(mm_root)
+	get_viewport().size_changed.connect(func(): JourneyHud.inset_safe(mm_root))
+	minimap = MiniMap.new()
+	minimap.name = "MiniMap"
+	minimap.place = self
+	mm_root.add_child(minimap)
+
 	# 설정. 여행 중에도 소리를 줄이고 메인화면으로 나갈 수 있어야 한다.
 	#
 	# 지금까지 설정은 메인화면 씬에만 붙어 있었다. 여행에 들어가면
@@ -803,9 +819,9 @@ func talk_to_near() -> void:
 func _unhandled_input(e: InputEvent) -> void:
 	if say != null and say.is_busy():
 		return
-	# 배낭이나 여행판이 떠 있으면 화면 뒤로 말이 걸리면 안 된다.
+	# 배낭·여행판·펼친 미니맵이 떠 있으면 화면 뒤로 말이 걸리면 안 된다.
 	if (hud != null and hud.bag_open()) or (board != null and board.visible) \
-			or _sleeping:
+			or _sleeping or (minimap != null and minimap.is_big()):
 		return
 	# 확대하려고 댄 두 번째 손가락이 대화를 열어 버리곤 했다.
 	if touch != null and touch.has_method("is_multi") and touch.is_multi():
@@ -818,31 +834,162 @@ func _unhandled_input(e: InputEvent) -> void:
 		or e.is_action_pressed("ui_accept")
 	if not tap:
 		return
-	# 정류장·잠자리 위에 서 있으면 그쪽이 먼저다.
+
+	var at := _touch_world(e)
+	# ① 누른 자리에 인연이 서 있으면 말을 건다.
 	#
-	# 예전엔 `_near` 를 늘 먼저 봤는데, 프롤로그의 "회사 앞" 자리가
-	# 정류장 바로 위 칸에 있어서 **아무리 눌러도 출발판이 안 열렸다.**
-	# 같은 한 줄만 무한히 반복됐다. 다만 **사람은 예외다** — 인연이
-	# 옆에 서 있는데 말도 없이 떠나 버리면 그게 더 이상하다.
-	var spot_only: bool = _near != null and _near.is_spot
-	if _near != null and not (spot_only and (_can_sleep() or _can_depart())):
+	# 예전엔 **가까이 있기만 하면** 화면 아무 데나 눌러도 대화가 열렸다.
+	# 그래서 인연 옆을 지나가려고 땅을 눌렀는데 말이 걸리곤 했다.
+	# 이제는 **그 사람을 직접 눌러야** 한다.
+	var who := _folk_at(at)
+	if who != null:
+		_near = who
 		talk_to_near()
 		get_viewport().set_input_as_handled()
-	elif _can_sleep():
+		return
+	# ② 잠자리·정류장 위에 서 있으면 그쪽.
+	if _can_sleep():
 		go_to_sleep()
 		get_viewport().set_input_as_handled()
-	elif _can_depart():
+		return
+	if _can_depart():
 		walker.stop()
 		board.open(place_name())
 		get_viewport().set_input_as_handled()
+		return
+	# ③ 그 밖에는 **누른 자리로 걸어간다.**
+	if at != Vector2.INF:
+		walk_to(at)
+		get_viewport().set_input_as_handled()
+
+
+## 화면에서 누른 자리를 세계 좌표로. 못 구하면 INF.
+func _touch_world(e: InputEvent) -> Vector2:
+	var pos := Vector2.INF
+	if e is InputEventScreenTouch:
+		pos = (e as InputEventScreenTouch).position
+	elif e is InputEventMouseButton:
+		pos = (e as InputEventMouseButton).position
+	if pos == Vector2.INF or cam == null:
+		return Vector2.INF
+	var vp := get_viewport().get_visible_rect().size
+	return cam.global_position + (pos - vp * 0.5) / cam.zoom
+
+
+## 그 자리에 서 있는 인연. 눌러야 할 만큼 가까우면 돌려준다.
+##
+## 화면에 그려진 크기가 아니라 **손가락 크기**를 기준으로 잡는다.
+## 24px 짜리 쿼카를 정확히 눌러야 한다면 아무도 못 누른다.
+const TOUCH_SLACK := 14.0
+
+func _folk_at(at: Vector2) -> Folk:
+	if at == Vector2.INF:
+		return null
+	var best := INF
+	var found: Folk = null
+	for f in _folk:
+		if not is_instance_valid(f):
+			continue
+		# 발끝이 원점이라 몸통은 그 위에 있다.
+		var body := f.global_position + Vector2(0, -12)
+		var d := body.distance_to(at)
+		if d < TOUCH_SLACK + 8.0 and d < best:
+			best = d
+			found = f
+	return found
+
+
+# ── 눌러서 걷기 ────────────────────────────────────────────────────────
+#
+# 손가락을 밀어 걷는 것과 **같이 쓴다.** 밀면 그쪽으로 가고, 톡 누르면
+# 그 자리로 걸어간다. 누르는 쪽이 조용해서 이 게임에 더 맞는다.
+#
+# 길찾기를 안 넣는다. 마을이 다 트여 있어 직선으로 가면 대개 닿고,
+# 막히면 그냥 멈춘다 — 헤매는 것보다 멈추는 편이 낫다.
+var _goto := Vector2.INF
+const GOTO_DONE := 6.0        # 이만큼 가까워지면 도착
+const GOTO_STUCK := 0.25      # 이 시간 동안 못 나아가면 옆으로 돌아 본다
+const DODGE_TIME := 0.40      # 옆으로 도는 시간
+const DODGE_MAX := 3          # 이만큼 해 보고 안 되면 포기
+var _goto_stuck := 0.0
+var _dodge := Vector2.ZERO
+var _dodge_left := 0.0
+var _dodge_n := 0
+
+func walk_to(at: Vector2) -> void:
+	_goto = at
+	_goto_stuck = 0.0
+	_dodge_left = 0.0
+	_dodge_n = 0
+
+
+func stop_walk_to() -> void:
+	_goto = Vector2.INF
+	_dodge_left = 0.0
+
+
+## 소품 모서리에 걸리면 **옆으로 한 발 돌아서** 다시 간다.
+##
+## 길찾기를 안 넣는다 — 마을이 다 트여 있어 대개 직선으로 닿는다.
+## 다만 그대로 두면 벤치 모서리 하나에 걸려 제자리에 서 버리는데,
+## 누른 사람 입장에서는 그냥 고장으로 보인다. 몇 번 돌아 보고,
+## 그래도 안 되면 조용히 포기한다.
+func _tick_goto(delta: float) -> Vector2:
+	if _goto == Vector2.INF or walker == null:
+		return Vector2.ZERO
+	var to := _goto - walker.global_position
+	if to.length() <= GOTO_DONE:
+		stop_walk_to()
+		return Vector2.ZERO
+
+	# 돌아가는 중이면 그 방향을 유지한다
+	if _dodge_left > 0.0:
+		_dodge_left -= delta
+		if _dodge_left <= 0.0:
+			_goto_stuck = 0.0
+		return _dodge
+
+	if walker.is_moving():
+		_goto_stuck = 0.0
+	else:
+		_goto_stuck += delta
+		if _goto_stuck > GOTO_STUCK:
+			_goto_stuck = 0.0
+			_dodge_n += 1
+			if _dodge_n > DODGE_MAX:
+				stop_walk_to()
+				return Vector2.ZERO
+			# 목표 쪽으로 더 기우는 수직 방향을 고른다
+			var want := to.normalized()
+			var a := Vector2(-want.y, want.x)
+			var b := Vector2(want.y, -want.x)
+			_dodge = a if a.dot(want) >= b.dot(want) else b
+			# 홀수 번째는 반대쪽으로 — 한쪽만 고집하면 같은 데를 맴돈다
+			if _dodge_n % 2 == 0:
+				_dodge = -_dodge
+			_dodge_left = DODGE_TIME
+			return _dodge
+	return to.limit_length(1.0) if to.length() < 24.0 else to.normalized()
+
 
 
 func _process(delta: float) -> void:
 	var blocked := (say != null and say.is_busy()) \
 		or (hud != null and hud.bag_open()) or _sleeping \
-		or (board != null and board.visible)
+		or (board != null and board.visible) \
+		or (minimap != null and minimap.is_big())
 	if walker != null and touch != null:
-		walker.set_input(Vector2.ZERO if blocked else touch.direction_with_keys())
+		if blocked:
+			stop_walk_to()
+			walker.set_input(Vector2.ZERO)
+		else:
+			# 손가락을 밀고 있으면 그쪽이 우선이다. 누르러 가던 길은 접는다.
+			var stick := touch.direction_with_keys()
+			if stick.length_squared() > 0.001:
+				stop_walk_to()
+				walker.set_input(stick)
+			else:
+				walker.set_input(_tick_goto(delta))
 	_check_pickups()
 	_update_near()
 	_tick_outline()

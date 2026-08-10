@@ -662,6 +662,66 @@ func _extras_tests() -> void:
 # ── 카메라 ────────────────────────────────────────────────────────────
 
 func _camera_tests() -> void:
+	print("\n[누르기]")
+	var tp: Place = preload("res://scenes/journey/Yunseul.tscn").instantiate()
+	add_child(tp)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	# ① 인연은 **직접 눌러야** 잡힌다. 옆을 지나가려고 땅을 눌렀는데
+	#    말이 걸리면 안 된다.
+	var someone: Folk = null
+	for c in tp._folk:
+		if is_instance_valid(c) and not c.is_spot:
+			someone = c
+			break
+	ok(someone != null, "인연이 있다")
+	ok(tp._folk_at(someone.global_position + Vector2(0, -12)) == someone,
+		"몸을 누르면 그 사람이 잡힌다")
+	ok(tp._folk_at(someone.global_position + Vector2(90, 90)) == null,
+		"멀리 빈 땅을 누르면 아무도 안 잡힌다")
+
+	# ② 누른 자리로 걸어간다
+	var from := tp.walker.global_position
+	var goal := from + Vector2(-120, 30)
+	tp.walk_to(goal)
+	var t := 0.0
+	while t < 6.0 and tp.walker.global_position.distance_to(goal) > 8.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	ok(tp.walker.global_position.distance_to(goal) <= 8.0,
+		"누른 자리까지 걸어간다 (남은 %.0fpx)" % tp.walker.global_position.distance_to(goal))
+
+	# ③ 대화창을 되돌려 볼 수 있다
+	tp.say.say("아무개", ["첫째 줄.", "둘째 줄.", "셋째 줄."])
+	ok(tp.say.is_busy(), "대화가 열린다")
+	ok(tp.say._prev_btn.disabled, "첫 줄에서는 이전이 꺼져 있다")
+	# 한 번 누르면 찍히는 중인 글자를 마저 찍고, 그 다음 누름이 다음 줄이다.
+	tp.say.advance()
+	tp.say.advance()
+	await get_tree().process_frame
+	ok(tp.say._at == 1, "다음으로 넘어간다")
+	ok(not tp.say._prev_btn.disabled, "이제 이전을 누를 수 있다")
+	tp.say._back()
+	await get_tree().process_frame
+	ok(tp.say._at == 0, "이전으로 되돌아간다")
+	ok(tp.say._line.text == tp.say._full, "되돌아간 줄은 통째로 보인다")
+	for i in 8:
+		if not tp.say.is_busy():
+			break
+		tp.say.advance()
+		await get_tree().process_frame
+	ok(not tp.say.is_busy(), "끝까지 넘기면 닫힌다")
+
+	# ④ 미니맵
+	ok(tp.minimap != null and not tp.minimap.is_big(), "미니맵은 작게 시작한다")
+	tp.minimap.toggle()
+	ok(tp.minimap.is_big(), "누르면 커진다")
+	tp.minimap.toggle()
+	ok(not tp.minimap.is_big(), "다시 누르면 작아진다")
+	tp.queue_free()
+	await get_tree().process_frame
+
 	print("\n[카메라]")
 	# 픽셀 그림이라 배율은 정수여야 한다
 	var whole := true
