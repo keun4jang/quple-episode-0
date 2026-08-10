@@ -1,7 +1,7 @@
 {
-  "version": "0.1.53",
+  "version": "0.1.54",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "e8a52e7bb6c050d3997e73742d5c2b343fcca3f4b4e767e4cdd47c54fdfe5348",
-  "size": 19261024,
-  "notes": "대화창 축소 · 눌러서 걷기 · 미니맵"
+  "sha256": "ff13311ffa9639b29f958d36fde8d0aa46eb6cea5b97c97d5a82791564fdf8d1",
+  "size": 19264800,
+  "notes": "길찾기 · 대화창 축소 · 설정창 밖 터치"
 }
