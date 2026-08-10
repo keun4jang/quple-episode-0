@@ -18,6 +18,10 @@ const PLACES := {
 	"볕뉘": ["res://scenes/journey/Byeotnwi.tscn", "낮은 기와지붕"],
 	"가풀재": ["res://scenes/journey/Gapuljae.tscn", "비탈진 항구"],
 	"하늬섬": ["res://scenes/journey/Hanuiseom.tscn", "검은 돌담과 바람"],
+	# 2탄 "담수 3부작" — 1탄 넷을 다 둘러봐야 열린다(`Quests.ORDER`).
+	"굽이나루": ["res://scenes/journey/Gubinaru.tscn", "강 굽이와 나루"],
+	"방울못": ["res://scenes/journey/Bangulmot.tscn", "둥근 연못"],
+	"갈밭머리": ["res://scenes/journey/Galbatmeori.tscn", "갈대와 나무데크"],
 	"고향": ["res://scenes/journey/Home.tscn", ""],
 }
 

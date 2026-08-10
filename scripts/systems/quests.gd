@@ -8,21 +8,33 @@ extends RefCounted
 ## 하나만 본다.
 
 ## 다음 마을이 열리는 순서. 고향은 여기 없다 — 늘 열려 있다.
-const ORDER := ["윤슬", "볕뉘", "가풀재", "하늬섬"]
+##
+## 뒤 셋(굽이나루·방울못·갈밭머리)은 2탄 "담수 3부작" — 1탄 넷을 다
+## 돌아본 사람에게만 열린다. 카피바라(물범의 강가 버전)를 여기서
+## 처음 만난다.
+const ORDER := [
+	"윤슬", "볕뉘", "가풀재", "하늬섬",
+	"굽이나루", "방울못", "갈밭머리",
+]
 
 ## 마을마다 주울 것 개수. `places/*.gd` 의 `pickups()` 와 맞춰 둔다 —
 ## 씬을 새로 띄워 세는 대신 미리 세어 둔 숫자로 비교한다.
 const PICKUP_TOTAL := {
 	"윤슬": 6, "볕뉘": 6, "가풀재": 6, "하늬섬": 6,
+	"굽이나루": 5, "방울못": 5, "갈밭머리": 5,
 }
 
-## 마을마다 대화해야 하는 붙박이 folk_id 둘 (물범, 갈매기).
+## 마을마다 대화해야 하는 붙박이 folk_id (물범/카피바라, 갈매기).
 ## 윤슬은 대화가 곧 물품 지급이라 따로 안 센다 — `has_map()`/`has_camera()`
-## 가 이미 "그 사람과 첫 대화를 했다"는 뜻이다.
+## 가 이미 "그 사람과 첫 대화를 했다"는 뜻이다. 2탄 셋은 카피바라
+## 하나만 센다 — 갈매기는 방문+사진으로 대신한다(결 그대로 재사용).
 const TALK_FOLK := {
 	"볕뉘": ["ju_seal", "ju_kid"],
 	"가풀재": ["san_seal", "san_gull"],
 	"하늬섬": ["do_seal", "do_kid"],
+	"굽이나루": ["cap_guinaru"],
+	"방울못": ["cap_bangul"],
+	"갈밭머리": ["cap_galbat"],
 }
 
 ## 마을마다 "방문+사진" 짝. 방문 키는 `Place.quest_zones()` 가 남기고,
@@ -31,12 +43,22 @@ const TALK_FOLK := {
 const VISIT_KEY := {
 	"윤슬": "윤슬:등대", "볕뉘": "볕뉘:능",
 	"가풀재": "가풀재:능선", "하늬섬": "하늬섬:한바퀴",
+	"굽이나루": "굽이나루:데크", "방울못": "방울못:데크",
+	"갈밭머리": "갈밭머리:전망대",
 }
 ## 사진까지 같이 요구하는 마을. 윤슬·가풀재·하늬섬은 카메라를 쓸 수
 ## 있을 때고, 볕뉘는 방문만으로 충분히 채워진다(대신 사진 퀘스트는
 ## 안 걸되, 찍었으면 자동으로 인정된다 — 아래 `photo_ok`).
 const VISIT_NEEDS_PHOTO := {
 	"윤슬": true, "볕뉘": false, "가풀재": true, "하늬섬": true,
+	"굽이나루": true, "방울못": true, "갈밭머리": true,
+}
+
+## 잠자기까지 요구하는 마을. 1탄은 윤슬 하나(처음 배우는 자리)로
+## 충분했지만, 2탄 셋은 "쉬어 가는 마을"이라는 성격을 그대로 퀘스트로
+## 옮긴다(다른 창 브레인스토밍 결과, `docs/planning/` 참고).
+const NEEDS_SLEEP := {
+	"윤슬": true, "굽이나루": true, "방울못": true, "갈밭머리": true,
 }
 
 
@@ -90,26 +112,33 @@ static func _shop_entered(village: String) -> bool:
 	return JourneyState.quest_done("%s:가게" % village)
 
 
+static func _slept_ok(village: String) -> bool:
+	if not NEEDS_SLEEP.get(village, false):
+		return true
+	return JourneyState.quest_done("%s:잠" % village)
+
+
 ## 그 마을의 퀘스트를 다 마쳤나.
 static func village_cleared(village: String) -> bool:
-	match village:
-		"윤슬":
-			return has_map() and has_camera() \
-				and _shop_entered("윤슬") and _visited("윤슬") \
-				and _picked_all("윤슬") \
-				and JourneyState.quest_done("윤슬:잠")
-		"볕뉘", "가풀재", "하늬섬":
-			return _talked_all(village) and _shop_entered(village) \
-				and _visited(village) and _picked_all(village)
-		_:
-			return true    # 고향 등 목록 밖 장소는 늘 "클리어"로 친다
+	if village == "윤슬":
+		return has_map() and has_camera() \
+			and _shop_entered("윤슬") and _visited("윤슬") \
+			and _picked_all("윤슬") and _slept_ok("윤슬")
+	if TALK_FOLK.has(village):
+		return _talked_all(village) and _shop_entered(village) \
+			and _visited(village) and _picked_all(village) \
+			and _slept_ok(village)
+	return true    # 고향 등 목록 밖 장소는 늘 "클리어"로 친다
 
 
-## 마을마다 물범·갈매기를 부르는 이름. 화면에 보여 줄 때만 쓴다.
+## 마을마다 물범·갈매기·카피바라를 부르는 이름. 화면에 보여 줄 때만 쓴다.
 const FOLK_NAME := {
 	"ju_seal": "쿼빵집 아주머니", "ju_kid": "능 지키는 아이",
 	"san_seal": "쿼면집 아저씨", "san_gull": "부두 청년",
 	"do_seal": "쿼귤 파는 할머니", "do_kid": "자전거 탄 아이",
+	"cap_guinaru": "나루 가게 아저씨",
+	"cap_bangul": "연못가 빵집 아주머니",
+	"cap_galbat": "갈대밭 쉼터 할머니",
 }
 
 ## 마을마다 "방문+사진" 퀘스트 한 줄에 붙일 이름.
@@ -118,6 +147,9 @@ const VISIT_LABEL := {
 	"볕뉘": "능 한 바퀴 걷기",
 	"가풀재": "능선까지 올라 노을 사진 찍기",
 	"하늬섬": "섬 한 바퀴 돌기",
+	"굽이나루": "강 굽이 데크까지 가서 사진 찍기",
+	"방울못": "연못 데크를 돌며 사진 찍기",
+	"갈밭머리": "갈대 전망대까지 가서 사진 찍기",
 }
 
 
@@ -147,6 +179,9 @@ static func quest_list(village: String) -> Array:
 		out.append({"label": VISIT_LABEL.get(village, "방문해 보기"),
 			"done": _visited(village)})
 		out.append({"label": "떨어진 것 다 줍기", "done": _picked_all(village)})
+		if NEEDS_SLEEP.get(village, false):
+			out.append({"label": "하룻밤 쉬기",
+				"done": JourneyState.quest_done("%s:잠" % village)})
 		return out
 	return []
 

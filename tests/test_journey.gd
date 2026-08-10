@@ -1110,3 +1110,56 @@ func _quest_tests() -> void:
 	ok(Quests.quest_list("고향").is_empty(), "고향은 할 일 목록이 없다")
 	for q in Quests.quest_list("윤슬"):
 		ok(not bool(q["done"]), "갓 초기화했으니 아직 다 안 끝났다: %s" % q["label"])
+
+	# ⑥ 2탄 "담수 3부작" — 1탄 넷을 다 마쳐야 열리고, 카피바라 하나만
+	# 대화 대상이다(갈매기는 방문+사진으로 대신한다).
+	JourneyState.reset()
+	ok(not Quests.is_unlocked("굽이나루"), "1탄을 안 마쳤으면 굽이나루도 잠겨 있다")
+	ok(Quests.quest_list("굽이나루").size() == 5,
+		"굽이나루는 항목 5개 (대화·가게·방문·줍기·잠)")
+	for name in ["윤슬", "볕뉘", "가풀재", "하늬섬"]:
+		JourneyState.visited[name] = true
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.mark_quest("윤슬:가게")
+	JourneyState.mark_quest("윤슬:등대")
+	JourneyState.mark_quest("윤슬:잠")
+	for i in Quests.PICKUP_TOTAL["윤슬"]:
+		JourneyState.taken["윤슬:%d,0" % i] = true
+	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
+	JourneyState.hearts["ju_seal"] = 1
+	JourneyState.hearts["ju_kid"] = 1
+	JourneyState.mark_quest("볕뉘:가게")
+	JourneyState.mark_quest("볕뉘:능")
+	for i in Quests.PICKUP_TOTAL["볕뉘"]:
+		JourneyState.taken["볕뉘:%d,1" % i] = true
+	JourneyState.hearts["san_seal"] = 1
+	JourneyState.hearts["san_gull"] = 1
+	JourneyState.mark_quest("가풀재:가게")
+	JourneyState.mark_quest("가풀재:능선")
+	for i in Quests.PICKUP_TOTAL["가풀재"]:
+		JourneyState.taken["가풀재:%d,2" % i] = true
+	JourneyState.photos.append({"place": "가풀재", "subject": "노을"})
+	JourneyState.hearts["do_seal"] = 1
+	JourneyState.hearts["do_kid"] = 1
+	JourneyState.mark_quest("하늬섬:가게")
+	JourneyState.mark_quest("하늬섬:한바퀴")
+	for i in Quests.PICKUP_TOTAL["하늬섬"]:
+		JourneyState.taken["하늬섬:%d,3" % i] = true
+	JourneyState.photos.append({"place": "하늬섬", "subject": "돌담"})
+	ok(Quests.village_cleared("윤슬") and Quests.village_cleared("볕뉘")
+		and Quests.village_cleared("가풀재") and Quests.village_cleared("하늬섬"),
+		"1탄 네 곳을 다 채웠다")
+	ok(Quests.is_unlocked("굽이나루"), "1탄을 다 마치면 굽이나루가 열린다")
+	ok(not Quests.is_unlocked("방울못"), "그렇다고 그다음까지 한 번에 안 열린다")
+	JourneyState.hearts["cap_guinaru"] = 1
+	JourneyState.mark_quest("굽이나루:가게")
+	JourneyState.mark_quest("굽이나루:데크")
+	for i in Quests.PICKUP_TOTAL["굽이나루"]:
+		JourneyState.taken["굽이나루:%d,4" % i] = true
+	JourneyState.photos.append({"place": "굽이나루", "subject": "강 굽이"})
+	ok(not Quests.village_cleared("굽이나루"), "잠을 안 잤으면 아직 안 끝났다")
+	JourneyState.mark_quest("굽이나루:잠")
+	ok(Quests.village_cleared("굽이나루"), "카피바라 마을도 같은 결로 채워진다")
+	ok(Quests.is_unlocked("방울못"), "굽이나루를 다 채우면 방울못이 열린다")
+	JourneyState.reset()
