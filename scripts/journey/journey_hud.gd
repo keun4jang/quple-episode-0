@@ -17,7 +17,7 @@ var _bag_grid: GridContainer
 var _hint: Label
 var _cam_btn: TextureButton
 var _tabs: HBoxContainer
-var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩
+var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 이 마을에서
 var _dot: Control                 # 안 읽은 편지 표시 (직접 그린 점)
 var _flash: ColorRect
 var _root: Control
@@ -214,9 +214,9 @@ func _build_bag(root: Control) -> void:
 	_tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	_tabs.add_theme_constant_override("separation", 8)
 	box.add_child(_tabs)
-	for i in 4:
+	for i in 5:
 		var b := Button.new()
-		b.text = ["배낭", "사진첩", "편지", "행복첩"][i]
+		b.text = ["배낭", "사진첩", "편지", "행복첩", "이 마을에서"][i]
 		b.custom_minimum_size = Vector2(126, 60)
 		b.add_theme_font_size_override("font_size", 26)
 		b.pressed.connect(_pick_tab.bind(i))
@@ -326,6 +326,7 @@ func _refill_bag() -> void:
 		1: _fill_photos()
 		2: _fill_letters()
 		3: _fill_postcards()
+		4: _fill_quests()
 		_: _fill_bag()
 	_fit_bag_panel()
 
@@ -398,8 +399,10 @@ func _fill_letters() -> void:
 		return
 	for i in range(JourneyState.letters.size() - 1, -1, -1):
 		var m: Dictionary = JourneyState.letters[i]
-		_bag_grid.add_child(_bag_line("엄마 (%d일째)\n  %s" % [
-			int(m.get("day", 1)), m.get("text", "")], 28, Color("#FFF2C8")))
+		# 옛 편지(이 갱신 전 세이브)는 보낸 사람이 없다 — 그때는 늘 엄마였다.
+		var who: String = String(m.get("who", "엄마"))
+		_bag_grid.add_child(_bag_line("%s (%d일째)\n  %s" % [
+			who, int(m.get("day", 1)), m.get("text", "")], 28, Color("#FFF2C8")))
 
 
 ## 행복첩 — 마음 다섯 칸을 채운 인연에게서 받은 엽서.
@@ -412,6 +415,26 @@ func _fill_postcards() -> void:
 	for id in JourneyState.postcards:
 		_bag_grid.add_child(
 			_bag_line(JourneyState.postcard_text(id), 30, Color("#E4DCCF")))
+
+
+## "이 마을에서" — 지금 있는 마을의 할 일 목록.
+##
+## 숫자(3/5)는 안 보여 준다 (`docs/quest-journey.md` 2절). 다 한 건
+## **조용해지는 것**으로 안다 — 다녀온 여행지를 흐리게 보여 주는 것과
+## 같은 결이다. 새로 만든 판정이 없다 — `Quests.quest_list()` 가 이미
+## 있는 기록을 그대로 다시 읽어 올 뿐이다.
+func _fill_quests() -> void:
+	_bag_grid.columns = 1
+	var list := Quests.quest_list(JourneyState.here)
+	if list.is_empty():
+		_empty("여기서는 딱히 할 일이 없어요")
+		return
+	for q in list:
+		var done: bool = q.get("done", false)
+		var label := String(q.get("label", ""))
+		var text := label + ("  (다 했어요)" if done else "")
+		var col := Color("#A79A8A") if done else Color("#FFF2C8")
+		_bag_grid.add_child(_bag_line(text, 28, col))
 
 
 ## 받침을 보고 을/를 을 골라 붙인다.

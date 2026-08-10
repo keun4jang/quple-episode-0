@@ -196,16 +196,37 @@ func mark_quest(key: String) -> void:
 
 func quest_done(key: String) -> bool:
 	return quest_flags.get(key, false)
+
+
 ## 이미 몇 통 보냈나
 var letters_sent := 0
 
-## 여행지 세 곳마다 한 통. 짧다.
+## 여행지 세 곳마다 한 통. 짧다. 엄마가 먼저고(원래 있던 다섯 통,
+## 순서를 안 바꾼다), 그다음은 마을에서 만난 이들과 가족이 한 통씩
+## 보낸다(`docs/planning/content_brainstorm_plan.md` 2-4절) — 붙잡는
+## 말투가 아니라 "안 와도 괜찮다" 쪽으로 쓴다.
 const LETTERS := [
-	"밥은 먹고 다니니.",
-	"김치 담갔다. 너 좋아하는 거.",
-	"바쁘면 안 와도 된다.",
-	"아버지가 마당 손봤다.",
-	"감 익었더라.",
+	{"who": "엄마", "text": "밥은 먹고 다니니."},
+	{"who": "엄마", "text": "김치 담갔다. 너 좋아하는 거."},
+	{"who": "엄마", "text": "바쁘면 안 와도 된다."},
+	{"who": "엄마", "text": "아버지가 마당 손봤다."},
+	{"who": "엄마", "text": "감 익었더라."},
+	{"who": "가게 할머니",
+		"text": "오늘도 바람이 좋아. 지도는 잘 쓰고 있지? 없어도 그만이지만."},
+	{"who": "갈매기 소년",
+		"text": "등대는 밤에 더 예뻐요. 다음에 또 와서 보면 되고, 안 와도 괜찮아요."},
+	{"who": "쿼빵집 아주머니", "text": "쿼빵은 그대로야. 자네가 없어도 여긴 똑같이 돌아가."},
+	{"who": "능 지키는 아이",
+		"text": "저는 아직 여기 있어요. 언젠가 나가 볼 거지만, 오늘은 아니고요."},
+	{"who": "쿼면집 아저씨", "text": "국물은 늘 있으니 생각나면 와. 안 그래도 상관없고."},
+	{"who": "부두 청년", "text": "오늘 노을이 좋았어요. 혼자 봤는데, 그것도 나쁘지 않았어요."},
+	{"who": "쿼귤 파는 할머니", "text": "바람이 세졌어. 그래도 여기는 늘 이래."},
+	{"who": "자전거 탄 아이",
+		"text": "섬 한 바퀴 기록 세웠어요. 다음에 같이 재 볼래요? 아님 말고요."},
+	{"who": "배낭 멘 너구리", "text": "어디쯤 있어요? 나도 몰라요, 나도 어디쯤인지."},
+	{"who": "엄마", "text": "국은 늘 있어. 먹고 싶을 때 와, 급할 거 없다."},
+	{"who": "아빠", "text": "…잘 지내냐."},
+	{"who": "동생", "text": "나도 언젠가 나가 볼래. 덕에 용기가 좀 생겼어."},
 ]
 
 
@@ -220,8 +241,10 @@ const LETTERS := [
 func maybe_letter() -> void:
 	var due := int(arrivals / 2)
 	while letters_sent < due and letters_sent < LETTERS.size():
-		var text: String = LETTERS[letters_sent]
-		letters.append({"text": text, "day": day, "read": false})
+		var entry: Dictionary = LETTERS[letters_sent]
+		var who: String = String(entry.get("who", "엄마"))
+		var text: String = String(entry.get("text", ""))
+		letters.append({"who": who, "text": text, "day": day, "read": false})
 		letters_sent += 1
 		letter_came.emit(text)
 		AudioManager.message_arrive()

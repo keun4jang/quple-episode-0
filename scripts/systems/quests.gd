@@ -105,6 +105,52 @@ static func village_cleared(village: String) -> bool:
 			return true    # 고향 등 목록 밖 장소는 늘 "클리어"로 친다
 
 
+## 마을마다 물범·갈매기를 부르는 이름. 화면에 보여 줄 때만 쓴다.
+const FOLK_NAME := {
+	"ju_seal": "쿼빵집 아주머니", "ju_kid": "능 지키는 아이",
+	"san_seal": "쿼면집 아저씨", "san_gull": "부두 청년",
+	"do_seal": "쿼귤 파는 할머니", "do_kid": "자전거 탄 아이",
+}
+
+## 마을마다 "방문+사진" 퀘스트 한 줄에 붙일 이름.
+const VISIT_LABEL := {
+	"윤슬": "등대곶까지 가서 사진 찍기",
+	"볕뉘": "능 한 바퀴 걷기",
+	"가풀재": "능선까지 올라 노을 사진 찍기",
+	"하늬섬": "섬 한 바퀴 돌기",
+}
+
+
+## 배낭(행복첩)에 보여 줄 "이 마을에서" 목록. `[{"label":..,"done":..}]`.
+## 목록 밖 장소(고향·잿마루)면 빈 배열 — 새 판정을 안 만들고, 3.5절과
+## 4절의 퀘스트를 순서 그대로 다시 읽는 것뿐이다.
+static func quest_list(village: String) -> Array:
+	if village == "윤슬":
+		return [
+			{"label": "가게 할머니와 인사하고 지도 받기", "done": has_map()},
+			{"label": "갈매기 소년과 인사하고 카메라 받기", "done": has_camera()},
+			{"label": "가게 들어가 보기", "done": _shop_entered("윤슬")},
+			{"label": VISIT_LABEL["윤슬"], "done": _visited("윤슬")},
+			{"label": "떨어진 것 다 줍기", "done": _picked_all("윤슬")},
+			{"label": "쿼스텔에서 하루 자기", "done": JourneyState.quest_done("윤슬:잠")},
+		]
+	if ORDER.has(village):
+		var ids: Array = TALK_FOLK.get(village, [])
+		var out: Array = []
+		if ids.size() >= 1:
+			out.append({"label": "%s와 인사하기" % FOLK_NAME.get(ids[0], ""),
+				"done": JourneyState.heart(String(ids[0])) >= 1})
+		out.append({"label": "가게 들어가 보기", "done": _shop_entered(village)})
+		if ids.size() >= 2:
+			out.append({"label": "%s와 인사하기" % FOLK_NAME.get(ids[1], ""),
+				"done": JourneyState.heart(String(ids[1])) >= 1})
+		out.append({"label": VISIT_LABEL.get(village, "방문해 보기"),
+			"done": _visited(village)})
+		out.append({"label": "떨어진 것 다 줍기", "done": _picked_all(village)})
+		return out
+	return []
+
+
 ## 이 마을에 지금 갈 수 있나. 다녀온 곳은 언제나 그렇다 — 잠그는 건
 ## **아직 안 가 본 다음 마을**뿐이다 (`docs/quest-journey.md` 0절).
 static func is_unlocked(village: String) -> bool:

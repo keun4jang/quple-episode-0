@@ -565,12 +565,15 @@ func _extras_tests() -> void:
 	JourneyState.visit("볕뉘")
 	JourneyState.maybe_letter()
 	ok(JourneyState.letters.size() == 1, "두 번째 도착에 한 통 온다")
-	# 같은 곳에 다시 가도 떠난 것이다 — 여기서 편지가 멈추면 안 된다
-	for i in 8:
+	# 같은 곳에 다시 가도 떠난 것이다 — 여기서 편지가 멈추면 안 된다.
+	# `due = arrivals/2` 이니 전체(`LETTERS.size()`)를 다 받으려면
+	# 도착이 그 두 배는 있어야 한다.
+	for i in JourneyState.LETTERS.size() * 2:
 		JourneyState.visit("윤슬")
 		JourneyState.maybe_letter()
 	ok(JourneyState.letters.size() == JourneyState.LETTERS.size(),
-		"다니다 보면 다섯 통이 다 온다 (%d)" % JourneyState.letters.size())
+		"다니다 보면 편지가 다 온다 (%d/%d)" %
+			[JourneyState.letters.size(), JourneyState.LETTERS.size()])
 	ok(JourneyState.unread_letters() == JourneyState.LETTERS.size(),
 		"안 읽은 걸로 뜬다 (%d)" % JourneyState.unread_letters())
 
@@ -1100,3 +1103,10 @@ func _quest_tests() -> void:
 	ok(Quests.has_map() and Quests.has_camera(),
 		"옛 세이브는 지도·카메라를 잃지 않는다")
 	JourneyState.reset()
+
+	# ⑤ 배낭 "이 마을에서" 탭이 읽는 목록도 같은 판정을 그대로 쓴다.
+	ok(Quests.quest_list("윤슬").size() == 6, "윤슬은 항목 6개 (지도·카메라 포함)")
+	ok(Quests.quest_list("볕뉘").size() == 5, "볕뉘는 항목 5개")
+	ok(Quests.quest_list("고향").is_empty(), "고향은 할 일 목록이 없다")
+	for q in Quests.quest_list("윤슬"):
+		ok(not bool(q["done"]), "갓 초기화했으니 아직 다 안 끝났다: %s" % q["label"])
