@@ -748,3 +748,126 @@ cool grey granite. Calm and even — it must read as stairs, not carpet.
 - **봉분** 1장 — 볕뉘가 "능" 인데 봉분이 없다
 - **낮은 돌담** 1장 — 하늬섬이 "돌담 마을" 인데 돌담이 없다
 - **축대/절벽 가장자리** 타일 — 가풀재의 "가파름"이 지금은 평지로 읽힌다
+
+---
+
+# 네 번째 묶음 — T장 · 정면 전면 재생성 (2026-08-10)
+
+코드로 그린 정면 12종은 시점은 맞지만 디테일이 떨어진다. 만든 사람이
+제미나이로 전부 다시 받기로 했다. **이 넉 장이면 끝난다.**
+
+## 공통 머리말 (넉 장 전부 맨 앞에)
+
+```
+A cozy top-down game art asset sheet, soft hand-painted style with clean
+readable shapes and RICH SURFACE DETAIL — visible wood grain, individual
+roof tiles, weathering, fabric folds. It will be converted to pixel art,
+so strong shapes and clear color areas matter more than fine lines.
+
+CAMERA RULE — most important:
+Straight-on FRONT view, like buildings in Stardew Valley. Front wall faces
+the viewer squarely. The roof reads as a band on top, tilted slightly
+toward the viewer. NO isometric, NO 45-degree corner view, NO side walls.
+Objects lying on the ground (garden plot, wooden platform) are seen
+straight from ABOVE as flat rectangles — never diamonds.
+
+STYLE: warm gentle palette — soft coral, sage green, sandy beige, muted
+teal, warm brown. Light from upper-left, soft shadow lower-right.
+Every object on plain solid MAGENTA (#FF00FF), pure and untouched.
+Objects must NOT overlap. No text, no watermark, no people.
+```
+
+## T-1 — 건물 4종
+
+```
+(머리말 + 이어서)
+
+Create 4 building sprites in a row, magenta gaps between:
+
+1. A cozy two-story guesthouse: cream plaster walls with subtle texture,
+   terracotta tiled roof with individual tile rows, a small chimney,
+   warm lit windows with sage-green shutters, a wooden sign by the door
+2. A small village shop: pale teal wooden plank walls, cream-and-coral
+   striped awning over a display window, crates of goods out front
+3. A market stall: sturdy wooden frame with visible grain, striped fabric
+   canopy, colorful produce laid out on the front counter
+4. A low Korean country house: whitewashed walls, traditional dark tiled
+   roof (기와) with clear tile ridges, paper doors (한지문), a narrow
+   wooden porch along the base. Humble and warm
+
+Each building roughly 500px tall.
+```
+
+## T-2 — 사무 소품 7종 (잿마루)
+
+```
+(머리말 + 이어서)
+
+Create 7 office props in a row, magenta gaps between, front view:
+
+1. An office window SET IN a strip of wall: rectangular frame, night city
+   lights outside — tiny warm and cool dots
+2. An office desk: flat wood front panel with two drawers, a monitor
+   facing the viewer, papers on top
+3. An office chair, front view, simple
+4. A tall filing cabinet, front view, slightly worn
+5. A reception counter: wood panel front, a small brass bell on top
+6. A parcel return box: metal box with a slot, front view
+7. A cooler box: pale blue, lid slightly ajar
+```
+
+## T-3 — 마을 소품 6종
+
+```
+(머리말 + 이어서)
+
+Create 6 village props, magenta gaps between:
+
+1. A wooden bench, front view: slatted seat facing viewer, worn paint
+2. A wooden pier end-cap, front view: plank decking edge, two dark
+   mooring posts, a soft shadow line where it meets water
+3. A hand water pump, front view
+4. A neat stack of firewood, front view
+5. A vegetable garden patch seen straight from ABOVE: a flat rectangle
+   with 4 straight horizontal furrows and small green sprouts
+6. A low wooden daybed platform (평상) seen straight from ABOVE: warm
+   wood slats running horizontally, clearly larger than a bench
+```
+
+## T-4 — 새 그림 3종 + 타일 2장 (마을 정체성)
+
+```
+(머리말 + 이어서)
+
+Create 3 landscape features, magenta gaps between:
+
+1. A grassy royal burial mound (봉분): a smooth green dome on a low
+   stone base, front view, dignified and calm
+2. A low volcanic stone wall (돌담): stacked rough black basalt stones
+   with gaps, about waist height, front view, 3 tiles long
+3. A stone retaining wall edge (축대): front view of a short cliff face
+   of fitted grey stones, grass tufts on the top edge
+```
+
+타일 둘 (A장 규칙 — 512x512 이어붙임):
+
+```
+Patch 1: stone steps viewed straight from above — even horizontal treads
+with thin shadow lines between them, cool grey granite. Must read as
+STAIRS, not carpet.
+Patch 2: calm asphalt-grey city road viewed from above, very subtle
+texture, a hint of worn patches.
+```
+
+## 받은 뒤 내가 할 일
+
+T-1~T-3 은 같은 이름으로 갈아 끼운다 (마을 파일 수정 불필요).
+T-4 는 새 소품이라 `import-journey-art.py` 등록 + 볕뉘(봉분)·하늬섬(돌담)·
+가풀재(축대) 배치까지 내가 한다. 계단 타일은 `granite-step` 교체,
+도로 타일은 잿마루 찻길.
+
+## 다시 안 받아도 되는 것
+
+나무 · 소나무 · 바위 · 덤불 · 가로등 · 표지판 · 우체통 · 울타리 · 부표 ·
+그물 · 항아리 · 빨랫줄 · 파라솔 · 인물 전원 · 줍는 것들 · 배낭/카메라
+아이콘 — 전부 정면이거나 대칭이라 그대로 쓴다.
