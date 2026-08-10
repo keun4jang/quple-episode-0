@@ -49,6 +49,8 @@ func _unhandled_input(e: InputEvent) -> void:
 			# HUD 버튼(배낭·사진)이 먼저다. 터치→마우스 흉내는 첫 손가락
 			# 하나에만 걸리는데 그 손가락을 걷기가 쓰고 있어서, 걸으면서
 			# 셔터를 누르면 아무 일도 안 일어났다. 직접 눌러 준다.
+			# 미니맵은 `Place` 가 본다. 여기서도 보면 **두 번 눌린 셈**이 되어
+			# 켰다가 바로 꺼진다 — 폰에서 아무 일도 안 나 보였던 이유다.
 			var hud := get_tree().get_first_node_in_group("journey_hud")
 			if hud != null and hud.has_method("try_touch") and hud.try_touch(e.position):
 				get_viewport().set_input_as_handled()

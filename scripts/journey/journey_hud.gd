@@ -7,6 +7,8 @@ extends CanvasLayer
 
 signal bag_toggled(open: bool)
 signal shutter
+## 오른쪽 아래 큰 버튼을 눌렀다. 무슨 뜻인지는 `Place` 가 정한다.
+signal acted
 
 var _clock: Label
 var _bag_btn: TextureButton
@@ -21,6 +23,8 @@ var _flash: ColorRect
 var _root: Control
 var _pad_cam: Control
 var _pad_bag: Control
+var _act_btn: Button
+var _act_kind := ""
 var _buttons_hidden := false
 
 ## 아이템 이름 → 사람이 읽는 이름
@@ -74,6 +78,40 @@ func _build() -> void:
 	_bag_btn.pressed.connect(toggle_bag)
 	_press_feedback(_bag_btn)
 	root.add_child(_bag_btn)
+
+	# ── 선택 버튼 ──
+	#
+	# 오른쪽 아래, 배낭 위. **하나로 여러 일을 한다** — 말 걸기, 자기,
+	# 떠나기, 대화 넘기기. 지금 할 수 있는 일이 없으면 사라진다.
+	#
+	# 화면을 눌러서도 다 되는 일들이지만, 누를 곳을 찾는 것과 누를 것이
+	# 거기 있는 것은 다르다. 처음 잡는 사람에게는 **버튼 하나가 있는 쪽**이
+	# 훨씬 친절하다.
+	_act_btn = Button.new()
+	_act_btn.name = "ActionBtn"
+	_act_btn.focus_mode = Control.FOCUS_NONE
+	_act_btn.custom_minimum_size = Vector2(132, 62)
+	_act_btn.add_theme_font_size_override("font_size", 24)
+	var asb := StyleBoxFlat.new()
+	asb.bg_color = Color("#FFE39A")
+	asb.set_corner_radius_all(30)
+	asb.set_border_width_all(3)
+	asb.border_color = Color("#8C6E3F")
+	_act_btn.add_theme_stylebox_override("normal", asb)
+	_act_btn.add_theme_stylebox_override("hover", asb)
+	var apr := asb.duplicate() as StyleBoxFlat
+	apr.bg_color = Color("#FFD166")
+	_act_btn.add_theme_stylebox_override("pressed", apr)
+	_act_btn.add_theme_color_override("font_color", Color("#4A3A22"))
+	_act_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_act_btn.offset_left = -164
+	_act_btn.offset_top = -212
+	_act_btn.offset_right = -32
+	_act_btn.offset_bottom = -150
+	_act_btn.visible = false
+	_act_btn.pressed.connect(func(): acted.emit())
+	_press_feedback(_act_btn)
+	root.add_child(_act_btn)
 
 	# 무엇을 주웠는지 잠깐 알려 주는 줄
 	_hint = Label.new()
@@ -399,6 +437,16 @@ func _process(_delta: float) -> void:
 # 최대 10% 까지만 민다. 어느 쪽이 이상해도 화면이 무너지지는 않는다.
 const SAFE_MAX := 0.10
 
+## 손가락 하나가 **두 번**으로 오는 것을 걸러 낸다.
+##
+## 엔진이 터치를 마우스로도 흉내내 준다. 그래서 `_unhandled_input` 은
+## 같은 탭을 `InputEventScreenTouch` 로 한 번, `InputEventMouseButton`
+## 으로 또 한 번 받는다. 그대로 두면 미니맵이 켜졌다 바로 꺼지고,
+## 대화는 **한 번 눌러 두 줄씩 넘어간다.** 흉내낸 쪽은 `device == -1` 이다.
+static func is_echo(e: InputEvent) -> bool:
+	return e is InputEventMouseButton and e.device == -1
+
+
 ## [왼쪽, 위, 오른쪽, 아래] 여백을 캔버스 단위로.
 static func safe_insets(vp: Viewport) -> Vector4:
 	if vp == null or OS.get_name() != "Android":
@@ -448,6 +496,25 @@ func set_buttons_visible(on: bool) -> void:
 			n.visible = on
 
 
+## 지금 할 수 있는 일을 버튼에 적는다. 없으면 빈 문자열.
+func set_action(kind: String, label: String) -> void:
+	if _act_btn == null:
+		return
+	_act_kind = kind
+	_act_btn.visible = label != "" and not _buttons_hidden_act()
+	_act_btn.text = label
+
+
+func action_kind() -> String:
+	return _act_kind
+
+
+## 대화 중에는 배낭·사진만 숨기고 **선택 버튼은 남긴다** — 대화를
+## 넘기는 것도 이 버튼이 하는 일이다.
+func _buttons_hidden_act() -> bool:
+	return false
+
+
 ## 걷는 손가락과 상관없이 버튼을 눌러 준다.
 ##
 ## `TextureButton` 은 **터치에서 흉내낸 마우스**로만 눌리는데, 엔진은 그
@@ -455,11 +522,11 @@ func set_buttons_visible(on: bool) -> void:
 ## 걸으면서 다른 손가락으로 셔터를 누르면 아무 일도 안 일어났다.
 ## 걷기 쪽(`journey_touch`)이 손가락을 집기 전에 여기로 먼저 물어본다.
 func try_touch(pos: Vector2) -> bool:
-	if _buttons_hidden:
+	if _buttons_hidden and (_act_btn == null or not _act_btn.visible):
 		return false
 	if _bag_panel != null and _bag_panel.visible:
 		return false                       # 배낭이 열려 있으면 창이 알아서 받는다
-	for b in [_cam_btn, _bag_btn]:
+	for b in [_act_btn, _cam_btn, _bag_btn]:
 		if b != null and b.visible and b.get_global_rect().has_point(pos):
 			b.pressed.emit()
 			b.scale = Vector2(0.88, 0.88)     # 손가락으로 직접 눌렀을 때도

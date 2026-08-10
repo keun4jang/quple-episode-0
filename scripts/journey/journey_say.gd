@@ -14,6 +14,8 @@ const SPEED := 0.028          # 한 글자에 걸리는 시간
 ## 창이 이보다 넓어지지 않는다. 큰 화면에서 한 줄이 가로로 끝없이
 ## 늘어나면 눈이 따라가느라 피곤하다.
 const MAX_WIDTH := 560.0
+## 이보다 좁으면 버튼 두 개가 안 들어가 오히려 어색해진다.
+const MIN_WIDTH := 210.0
 
 var _panel: PanelContainer
 var _who: Label
@@ -73,7 +75,6 @@ func _build() -> void:
 	_line.add_theme_font_size_override("font_size", 21)
 	_line.add_theme_color_override("font_color", Color("#3A2C2C"))
 	_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_line.custom_minimum_size = Vector2(0, 46)
 	_line.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	box.add_child(_line)
 
@@ -122,18 +123,26 @@ func _small_btn(text: String, fn: Callable) -> Button:
 func _fit() -> void:
 	if _panel == null:
 		return
-	var need: float = maxf(_panel.get_combined_minimum_size().y, 74.0)
 	var safe := JourneyHud.safe_insets(get_viewport())
+	var vp := get_viewport().get_visible_rect().size
+	# **말 길이에 맞춰 줄인다.** 폭을 고정해 두면 "응." 한 마디에도 창이
+	# 화면을 가로지르고, 남은 자리가 전부 빈 종이가 된다.
+	var f := _line.get_theme_font("font")
+	var fs := _line.get_theme_font_size("font_size")
+	var need_w := 0.0
+	if f != null:
+		need_w = f.get_string_size(_full, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var room := vp.x - 64.0 - safe.x - safe.z
+	var inner: float = clampf(need_w + 4.0, MIN_WIDTH, minf(MAX_WIDTH, room))
+	_line.custom_minimum_size = Vector2(inner, 0)
+	var w: float = _panel.get_combined_minimum_size().x
+	var h: float = _panel.get_combined_minimum_size().y
 	var bottom := 22.0 + safe.w
+	var mid := (vp.x + safe.x - safe.z) * 0.5
+	_panel.offset_left = mid - w * 0.5
+	_panel.offset_right = mid + w * 0.5 - vp.x
 	_panel.offset_bottom = -bottom
-	_panel.offset_top = -(bottom + need)
-	# 좌우도 비켜 준다. 가로로 들면 노치가 짧은 변, 즉 좌우에 온다.
-	# 넓은 화면에서는 가운데로 모아 준다 — 한 줄이 화면을 가로지르면
-	# "응." 한 마디에도 창이 1500px 이 된다.
-	var vw := get_viewport().get_visible_rect().size.x
-	var side: float = maxf(32.0, (vw - MAX_WIDTH) * 0.5)
-	_panel.offset_left = side + safe.x
-	_panel.offset_right = -(side + safe.z)
+	_panel.offset_top = -(bottom + h)
 
 
 ## 여러 줄을 한 번에 준다. 다 넘기면 finished.
@@ -199,6 +208,7 @@ func _go(i: int, instant := false) -> void:
 		_t = 0.0
 		_line.text = ""
 	_refresh_buttons()
+	_fit()
 
 
 func _refresh_buttons() -> void:
@@ -243,6 +253,10 @@ func _process(delta: float) -> void:
 
 func _unhandled_input(e: InputEvent) -> void:
 	if not _busy:
+		return
+	# 한 번 누른 것이 터치와 흉내낸 마우스로 두 번 온다. 그대로 두면
+	# **한 번 눌러 두 줄씩** 넘어간다.
+	if JourneyHud.is_echo(e):
 		return
 	# 버튼 위를 눌렀으면 버튼이 먼저 받는다. 여기까지 온 것은 빈 곳이다.
 	#

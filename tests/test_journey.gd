@@ -743,8 +743,54 @@ func _camera_tests() -> void:
 		await get_tree().process_frame
 	ok(not tp.say.is_busy(), "끝까지 넘기면 닫힌다")
 
-	# ⑤ 미니맵
+	# ⑤ 선택 버튼 — 하나가 여러 일을 한다
+	tp.walker.global_position = someone.global_position + Vector2(18, 0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(tp.hud._act_btn.visible and tp.hud._act_btn.text == "말 걸기",
+		"인연 옆에서는 '말 걸기' 가 뜬다 (%s)" % tp.hud._act_btn.text)
+	tp.hud.acted.emit()
+	await get_tree().process_frame
+	ok(tp.say.is_busy(), "선택 버튼으로 말이 걸린다")
+	await get_tree().process_frame
+	ok(tp.hud._act_btn.text == "다음", "대화 중에는 '다음' 이 된다 (%s)" % tp.hud._act_btn.text)
+	tp.say.close()
+	await get_tree().process_frame
+
+	# ⑥ 한 번 누른 것이 두 번으로 오지 않는다
+	#
+	# 엔진이 터치를 마우스로도 흉내내서 `_unhandled_input` 이 같은 탭을
+	# 두 번 받는다. 그대로 두면 미니맵이 켜졌다 바로 꺼지고 대화가
+	# 두 줄씩 넘어간다.
+	var echo := InputEventMouseButton.new()
+	echo.device = -1
+	echo.pressed = true
+	echo.button_index = MOUSE_BUTTON_LEFT
+	ok(JourneyHud.is_echo(echo), "흉내낸 마우스를 걸러 낸다")
+	var real := InputEventScreenTouch.new()
+	real.pressed = true
+	ok(not JourneyHud.is_echo(real), "진짜 손가락은 안 걸러진다")
+
+	# ⑦ 대화창이 말 길이에 맞춰 줄어든다
+	tp.say.say("아무개", ["응."])
+	await get_tree().process_frame
+	var narrow: float = tp.say._panel.size.x
+	tp.say.close()
+	tp.say.say("아무개", ["오늘은 바람이 좀 차지. 감기 조심하고 다녀요."])
+	await get_tree().process_frame
+	var wide: float = tp.say._panel.size.x
+	ok(narrow < wide, "짧은 말이면 창도 좁다 (%.0f < %.0f)" % [narrow, wide])
+	ok(wide <= tp.say.MAX_WIDTH + 40.0, "그래도 화면을 가로지르지 않는다 (%.0f)" % wide)
+	tp.say.close()
+	await get_tree().process_frame
+
+	# ⑧ 미니맵
 	ok(tp.minimap != null and not tp.minimap.is_big(), "미니맵은 작게 시작한다")
+	ok(tp.minimap.try_touch(tp.minimap.get_global_rect().get_center()),
+		"손가락으로 직접 눌러도 잡힌다")
+	ok(tp.minimap.is_big(), "그 손가락으로 커진다")
+	ok(tp.minimap.try_touch(Vector2(10, 10)), "펼친 채 바깥을 눌러도 받는다")
+	ok(not tp.minimap.is_big(), "바깥을 누르면 닫힌다")
 	tp.minimap.toggle()
 	ok(tp.minimap.is_big(), "누르면 커진다")
 	tp.minimap.toggle()

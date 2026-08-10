@@ -34,20 +34,34 @@ const UNKNOWN := Color("#9A8E80")
 
 func _ready() -> void:
 	add_to_group("mini_map")
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	# **입력을 안 먹는다.** `MOUSE_FILTER_STOP` 으로 뒀더니 손가락 탭이
+	# 여기서 삼켜지는데 `gui_input` 은 안 왔다 — 마우스로는 오고 손가락
+	# 으로는 안 오는 자리다. 그래서 폰에서는 눌러도 아무 일도 안 났다.
+	# 이제 아무것도 안 먹고, `Place` 가 `try_touch()` 로 직접 물어본다.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_place_small()
-	gui_input.connect(_on_gui_input)
 	set_process(true)
 
 
-func _on_gui_input(e: InputEvent) -> void:
-	var tap: bool = (e is InputEventScreenTouch and e.pressed) \
-		or (e is InputEventMouseButton and e.pressed
-			and e.button_index == MOUSE_BUTTON_LEFT)
-	if tap:
+## 손가락을 직접 받는다.
+##
+## `gui_input` 은 **마우스로는 오는데 손가락으로는 안 왔다.** 터치를
+## 마우스로 흉내내는 건 첫 번째 손가락 하나뿐이고, 그 손가락은 걷기가
+## 쓰고 있다. 배낭·사진 버튼이 같은 병으로 안 눌렸었다
+## (`journey_hud.gd` 의 `try_touch`). 여기도 같은 길을 낸다.
+func try_touch(pos: Vector2) -> bool:
+	if not visible:
+		return false
+	if get_global_rect().has_point(pos):
 		toggle()
-		accept_event()
+		return true
+	# 펼쳐 놓았으면 **바깥을 눌러도 닫힌다.** 지도를 열어 놓고 딴 데를
+	# 누르는 건 거의 반사다.
+	if _big:
+		toggle()
+		return true
+	return false
 
 
 func toggle() -> void:

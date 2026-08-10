@@ -49,6 +49,7 @@ var _folk: Array[Folk] = []
 var _near: Folk = null
 var _mark: Label                     # 말 걸 수 있는 사람 위에 뜨는 표시
 var minimap: MiniMap
+var guide: Guide
 ## 소품이 막고 있는 칸. 길찾기가 본다.
 var _blocked: Dictionary = {}
 var _night: CanvasModulate
@@ -413,6 +414,8 @@ func _build_ui() -> void:
 	hud.name = "Hud"
 	add_child(hud)
 	hud.shutter.connect(_take_photo)
+	hud.acted.connect(_on_action)
+	hud.bag_toggled.connect(func(open: bool): if open: _did("bag"))
 
 	# 말 걸 수 있는 사람 위에 뜨는 표시. 글자로 "말 걸기"라고 쓰지 않는다 —
 	# 가까이 가면 뜨고 멀어지면 사라지는 것만으로 뜻이 통한다.
@@ -436,6 +439,11 @@ func _build_ui() -> void:
 	board = TravelBoard.new()
 	board.name = "Board"
 	add_child(board)
+
+	# 처음 잡은 사람을 위한 안내. 다 해 보면 두 번 다시 안 나온다.
+	guide = Guide.new()
+	guide.name = "Guide"
+	add_child(guide)
 
 	# 미니맵. 설정 버튼 아래, 오른쪽 위.
 	var mm_layer := CanvasLayer.new()
@@ -818,18 +826,20 @@ func talk_to_near() -> void:
 	if f.heart() >= JourneyState.HEART_MAX:
 		JourneyState.give_postcard(f.folk_id, f.who)
 	say.say(f.who, what)
+	_did("talk")
 	talked.emit(f.folk_id)
 
 
 func _unhandled_input(e: InputEvent) -> void:
 	if say != null and say.is_busy():
 		return
-	# 배낭·여행판·펼친 미니맵이 떠 있으면 화면 뒤로 말이 걸리면 안 된다.
-	if (hud != null and hud.bag_open()) or (board != null and board.visible) \
-			or _sleeping or (minimap != null and minimap.is_big()):
+	if _sleeping or (board != null and board.visible):
 		return
 	# 확대하려고 댄 두 번째 손가락이 대화를 열어 버리곤 했다.
 	if touch != null and touch.has_method("is_multi") and touch.is_multi():
+		return
+	# 손가락 하나가 터치와 흉내낸 마우스로 **두 번** 온다. 하나만 받는다.
+	if JourneyHud.is_echo(e):
 		return
 	# e 는 InputEvent 라 e.pressed 가 Variant 다. 타입을 적어 준다 —
 	# 안 적으면 추론이 안 돼 파일 전체가 컴파일에 실패한다.
@@ -838,6 +848,22 @@ func _unhandled_input(e: InputEvent) -> void:
 			and e.button_index == MOUSE_BUTTON_LEFT) \
 		or e.is_action_pressed("ui_accept")
 	if not tap:
+		return
+
+	# 미니맵이 먼저다. 누르면 켜지고 꺼진다 (펼친 채 바깥을 눌러도 닫힌다).
+	#
+	# **`tap` 판정 뒤에 둔다.** 누를 때와 뗄 때가 둘 다 오는데 앞에 두면
+	# 눌러서 켜고 떼면서 다시 꺼서, 폰에서 아무 일도 안 일어나 보인다.
+	var scr := _touch_screen(e)
+	if minimap != null and scr != Vector2.INF and minimap.try_touch(scr):
+		_did("map")
+		get_viewport().set_input_as_handled()
+		return
+	# 배낭을 열어 놓고 딴 데를 누르면 닫는다. 거의 반사에 가까운 동작이라
+	# 아무 일도 안 일어나면 잠긴 것처럼 느껴진다.
+	if hud != null and hud.bag_open():
+		hud.close_bag()
+		get_viewport().set_input_as_handled()
 		return
 
 	var at := _touch_world(e)
@@ -868,25 +894,84 @@ func _unhandled_input(e: InputEvent) -> void:
 	if _can_depart():
 		walker.stop()
 		board.open(place_name())
+		_did("go")
 		get_viewport().set_input_as_handled()
 		return
 	# ③ 그 밖에는 **누른 자리로 걸어간다.**
 	if at != Vector2.INF:
 		walk_to(at)
+		if is_walking_to():
+			_did("walk")
 		get_viewport().set_input_as_handled()
+
+
+## 누른 화면 좌표. 키보드로 눌렀으면 INF.
+func _touch_screen(e: InputEvent) -> Vector2:
+	if e is InputEventScreenTouch:
+		return (e as InputEventScreenTouch).position
+	if e is InputEventMouseButton:
+		return (e as InputEventMouseButton).position
+	return Vector2.INF
 
 
 ## 화면에서 누른 자리를 세계 좌표로. 못 구하면 INF.
 func _touch_world(e: InputEvent) -> Vector2:
-	var pos := Vector2.INF
-	if e is InputEventScreenTouch:
-		pos = (e as InputEventScreenTouch).position
-	elif e is InputEventMouseButton:
-		pos = (e as InputEventMouseButton).position
+	var pos := _touch_screen(e)
 	if pos == Vector2.INF or cam == null:
 		return Vector2.INF
 	var vp := get_viewport().get_visible_rect().size
 	return cam.global_position + (pos - vp * 0.5) / cam.zoom
+
+
+## 안내가 기다리던 일을 해냈다고 알린다.
+func _did(what: String) -> void:
+	if guide != null and is_instance_valid(guide):
+		guide.done(what)
+
+
+# ── 선택 버튼 ─────────────────────────────────────────────────────────
+#
+# 오른쪽 아래 버튼 하나가 지금 할 수 있는 일을 맡는다. 화면을 눌러서도
+# 다 되지만, 누를 곳을 찾는 것과 누를 것이 거기 있는 것은 다르다.
+
+func _refresh_action() -> void:
+	if hud == null:
+		return
+	if say != null and say.is_busy():
+		hud.set_action("next", "다음")
+		return
+	if hud.bag_open() or (board != null and board.visible) or _sleeping \
+			or (minimap != null and minimap.is_big()):
+		hud.set_action("", "")
+		return
+	if _near != null:
+		hud.set_action("talk", "보기" if _near.is_spot else "말 걸기")
+		return
+	if _can_sleep():
+		hud.set_action("sleep", "자기")
+		return
+	if _can_depart():
+		hud.set_action("depart", "떠나기")
+		return
+	hud.set_action("", "")
+
+
+func _on_action() -> void:
+	_did("act")
+	match hud.action_kind():
+		"next":
+			if say != null:
+				say.advance()
+		"talk":
+			stop_walk_to()
+			talk_to_near()
+		"sleep":
+			go_to_sleep()
+		"depart":
+			walker.stop()
+			stop_walk_to()
+			board.open(place_name())
+			_did("go")
 
 
 ## 그 사람 **옆에** 설 자리. 몸 위로 걸어 들어가면 밀려난다.
@@ -1101,6 +1186,7 @@ func _process(delta: float) -> void:
 	_check_pickups()
 	_update_near()
 	_tick_outline()
+	_refresh_action()
 	_tick_clock(delta)
 	if not blocked:
 		_tick_footsteps(delta)
