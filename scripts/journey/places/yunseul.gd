@@ -33,6 +33,8 @@ func _init() -> void:
 		"d": "deck",        # 부두 판자
 		"g": "grass",       # 언덕
 		".": "dry-grass",   # 모래와 풀 사이
+		"m": "stone-slab",  # 쿼장 — 마을길과는 다른 바닥이어야 장이 선다
+		"e": "clay-earth",  # 살림골목 — 흙마당, 돌길과 갈라져야 사람 사는 데 같다
 	}
 
 
@@ -44,6 +46,10 @@ func _init() -> void:
 ## - x14~16 은 바다로 나간 **부두**(판자). 끝까지 걸어 나갈 수 있다
 ## - x14~17 은 백사장을 가로질러 부두까지 가는 **돌길**이다
 ## - x6~9, y12~13 은 마을 한복판의 **풀밭**
+## - x23~34, y9~14 는 **쿼장** — 마을길(cobble)과 다른 돌바닥(stone-slab)
+## - x0~9, y13~15 는 **살림골목** — 흙마당(clay-earth). 돌길만 이어지면
+##   마을 전체가 한 재질처럼 보인다는 지적이 있었다. 장·골목·큰길이
+##   바닥부터 갈린다
 func ground_map() -> String:
 	return """
 wwwwwwwwwwwwwwdddwwwwwwwwwwwwwsssww
@@ -55,13 +61,13 @@ sssssswwwwsssssssssswwsssssssssssss
 ssssssswwssssssssssssssssssssssssss
 ssssssssssssssccccsssssssssssssssss
 sssssssssssssccccccssssssssssssssss
-sssscccccssssccccccsssscccccsssssss
-cccccccccssssccccccccccccccccsssccc
-ccccccccccccccccccccccc....cccccccc
-ccccccggggccccccccccccc....cccccccc
-ccccccggggccccccccccccccccccccccccc
-cccccccccc.....ccccccccccccccccgggg
-.....cccccgggggcccccc.....cccccgggg
+sssscccccssssccccccssssmmmmmsssssss
+cccccccccssssccccccccccmmmmmmsssmmm
+ccccccccccccccccccccccc....mmmmmmmm
+ccccccggggccccccccccccc....mmmmmmmm
+eeeeeeggggcccccccccccccmmmmmmmmmmmm
+eeeeeeeeee.....ccccccccmmmmmmmmgggg
+.....eeeeegggggcccccc.....cccccgggg
 ggggg.....ggggg......gggggcccccgggg
 gggggggggggggggggggggggggg.....gggg
 gggggggg....ggggggggggggggggggggggg
@@ -138,10 +144,10 @@ func props() -> Array:
 		[11, 14, "boulder", true],
 		[16, 14, "bench", true],
 		[22, 14, "flower-pots", false],
-		# 오른쪽 쿼장. 좌판 셋이 모여야 장이다.
+		# 오른쪽 쿼장. 좌판 셋이 모여야 장이다 — 두 줄로 오와 열을 맞춘다.
 		[27, 12, "stall", true],
 		[29, 12, "stall", true],
-		[28, 14, "stall", true],
+		[27, 14, "stall", true],
 		# 정류장 — 떠나는 자리 (32, 13) 둘레
 		[31, 12, "bench", true],
 		[33, 11, "street-lamp", true],

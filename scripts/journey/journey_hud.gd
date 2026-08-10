@@ -7,10 +7,14 @@ extends CanvasLayer
 
 signal bag_toggled(open: bool)
 signal shutter
+## "이 마을에서" 탭을 열어 봤다. 안내(`Guide`)가 이걸로 다음 줄로 넘어간다.
+signal quest_tab_opened
 ## 오른쪽 아래 큰 버튼을 눌렀다. 무슨 뜻인지는 `Place` 가 정한다.
 signal acted
 
 var _clock: Label
+var _place_title: Label
+var _title_tw: Tween
 var _bag_btn: TextureButton
 var _bag_panel: PanelContainer
 var _bag_grid: GridContainer
@@ -19,6 +23,7 @@ var _cam_btn: TextureButton
 var _tabs: HBoxContainer
 var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 이 마을에서
 var _dot: Control                 # 안 읽은 편지 표시 (직접 그린 점)
+var _quest_dot: Control            # 이 마을에 할 일이 남았다는 표시
 var _flash: ColorRect
 var _root: Control
 var _pad_cam: Control
@@ -64,6 +69,22 @@ func _build() -> void:
 	_clock.position = Vector2(28, 18)
 	_clock.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_clock)
+
+	# 마을 이름표. 도착하거나 이어하기로 들어오면 가운데 크게 떴다 없어진다.
+	_place_title = Label.new()
+	_place_title.add_theme_font_size_override("font_size", 52)
+	_place_title.add_theme_color_override("font_color", Color("#FFFDF6"))
+	_place_title.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	_place_title.add_theme_constant_override("outline_size", 10)
+	_place_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_place_title.set_anchors_preset(Control.PRESET_CENTER)
+	_place_title.offset_left = -400
+	_place_title.offset_right = 400
+	_place_title.offset_top = -34
+	_place_title.offset_bottom = 34
+	_place_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place_title.modulate.a = 0.0
+	root.add_child(_place_title)
 
 	# 배낭 — 오른쪽 아래. 엄지가 닿는 곳
 	_bag_btn = TextureButton.new()
@@ -174,6 +195,23 @@ func _build() -> void:
 		_dot.draw_circle(Vector2(11, 11), 11.0, Color(0.16, 0.13, 0.18))
 		_dot.draw_circle(Vector2(11, 11), 8.5, Color("#E4785F")))
 	root.add_child(_dot)
+
+	# 이 마을에 아직 할 일이 남았으면 배낭에 또 하나 점이 붙는다.
+	# 편지 점(주황)과 헷갈리지 않게 색을 다르게 쓴다.
+	_quest_dot = Control.new()
+	_quest_dot.custom_minimum_size = Vector2(22, 22)
+	_quest_dot.size = Vector2(22, 22)
+	_quest_dot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_quest_dot.offset_left = -118
+	_quest_dot.offset_top = -136
+	_quest_dot.offset_right = -96
+	_quest_dot.offset_bottom = -114
+	_quest_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_quest_dot.visible = false
+	_quest_dot.draw.connect(func() -> void:
+		_quest_dot.draw_circle(Vector2(11, 11), 11.0, Color(0.16, 0.13, 0.18))
+		_quest_dot.draw_circle(Vector2(11, 11), 8.5, Color("#8FBF8A")))
+	root.add_child(_quest_dot)
 
 	# 사진 찍을 때 화면이 한 번 하얘진다
 	_flash = ColorRect.new()
@@ -301,7 +339,25 @@ func _pick_tab(i: int) -> void:
 	if i == 2:
 		# 열어 봤으면 읽은 것이다
 		JourneyState.read_letters()
+	if i == 4:
+		quest_tab_opened.emit()
 	_refill_bag()
+
+
+## 마을 이름을 가운데에 크게 띄웠다 지운다. 장소가 바뀌거나(도착),
+## 이어하기로 그 씬이 막 시작할 때 한 번 부른다 — 안내 문구가 아니라
+## **여기가 어디인지**만 조용히 알려 준다.
+func announce_place(text: String) -> void:
+	if _place_title == null:
+		return
+	_place_title.text = text
+	if _title_tw != null and _title_tw.is_valid():
+		_title_tw.kill()
+	_place_title.modulate.a = 0.0
+	_title_tw = create_tween()
+	_title_tw.tween_property(_place_title, "modulate:a", 1.0, 0.5)
+	_title_tw.tween_interval(1.3)
+	_title_tw.tween_property(_place_title, "modulate:a", 0.0, 0.7)
 
 
 ## 사진을 찍었다. 화면이 한 번 하얘진다.
@@ -466,6 +522,13 @@ func _process(_delta: float) -> void:
 	if _dot != null:
 		_dot.visible = JourneyState.unread_letters() > 0 and not bag_open() \
 			and not _buttons_hidden
+	if _quest_dot != null:
+		var left := false
+		for q in Quests.quest_list(JourneyState.here):
+			if not bool(q.get("done", false)):
+				left = true
+				break
+		_quest_dot.visible = left and not bag_open() and not _buttons_hidden
 	# 카메라를 받기 전엔 셔터 버튼이 없다 (`docs/quest-journey.md` 3.5절).
 	# 대화 중 버튼을 숨기는 `set_buttons_visible()` 와 겹쳐도, 여기서
 	# 매 프레임 다시 확인하므로 카메라 없는 사람에게 다시 뜨는 일이 없다.

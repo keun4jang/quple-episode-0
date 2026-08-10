@@ -577,7 +577,9 @@ func _build_ui() -> void:
 	add_child(hud)
 	hud.shutter.connect(_take_photo)
 	hud.acted.connect(_on_action)
+	hud.announce_place(place_name())
 	hud.bag_toggled.connect(func(open: bool): if open: _did("bag"))
+	hud.quest_tab_opened.connect(func(): _did("quests"))
 
 	# 말 걸 수 있는 사람 위에 뜨는 표시. 글자로 "말 걸기"라고 쓰지 않는다 —
 	# 가까이 가면 뜨고 멀어지면 사라지는 것만으로 뜻이 통한다.

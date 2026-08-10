@@ -31,6 +31,7 @@ const STEPS := [
 	["go",   "표지판이 선 자리에 서면 다음 마을로 떠날 수 있어요."],
 	["map",  "오른쪽 위 작은 지도를 누르면 크게 볼 수 있어요."],
 	["bag",  "오른쪽 아래 배낭에 주운 것과 편지가 쌓여요."],
+	["quests", "배낭의 '이 마을에서' 탭에서 할 일을 볼 수 있어요."],
 	["sleep", "잠자리에 서면 하루를 마칠 수 있어요."],
 ]
 
@@ -93,8 +94,23 @@ func _build() -> void:
 	_panel.add_child(_label)
 
 
+## 그 단계가 지금 보여 줄 만한가.
+##
+## "map" 단계는 지도를 실제로 받은 뒤에야 뜻이 통한다 — 지도가 없으면
+## 미니맵 자체가 안 보이는데(`docs/quest-journey.md` 3.5절), 안내가
+## 먼저 뜨면 "누르라는 게 어디 있지?" 하고 헤매게 된다.
+func _step_ready(key: String) -> bool:
+	if key == "map":
+		return Quests.has_map()
+	return true
+
+
 ## 다른 창이 떠 있으면 잠깐 물러난다. 배낭 위에 겹쳐 뜨면 지저분하다.
 func _process(_delta: float) -> void:
+	# 아직 조건이 안 된 단계면 조용히 기다린다 — 조건이 갖춰지는 순간
+	# (지도를 받는 순간) 저절로 뜬다.
+	if _at < STEPS.size() and _shown == "" and _step_ready(String(STEPS[_at][0])):
+		_show_step()
 	if _panel == null or _shown == "":
 		return
 	var busy := false
@@ -113,6 +129,8 @@ func _process(_delta: float) -> void:
 
 func _show_step() -> void:
 	if _at >= STEPS.size():
+		return
+	if not _step_ready(String(STEPS[_at][0])):
 		return
 	var text: String = STEPS[_at][1]
 	if text == _shown:
