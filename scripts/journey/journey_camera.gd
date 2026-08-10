@@ -49,7 +49,14 @@ func _wanted() -> float:
 		var vp := get_viewport_rect().size
 		if vp.y > vp.x:                    # 세로로 들었다
 			z = maxf(STEPS[0], z - 1.0)
-	return maxf(z, _floor_zoom)
+	# floor(예: 2.86)를 그대로 쓰면 **정수 아닌 배율**로 굳는다 — 픽셀이
+	# 지글거린다. floor 를 넘는 가장 낮은 눈금으로 올린다 (2.86 → 3).
+	if z >= _floor_zoom:
+		return z
+	for st in STEPS:
+		if float(st) >= _floor_zoom - 0.001:
+			return float(st)
+	return float(STEPS[STEPS.size() - 1])
 
 
 ## 지도보다 넓게 보이지 않게 막는 가장 낮은 배율.

@@ -330,6 +330,10 @@ func _build_props() -> void:
 
 		var s := Sprite2D.new()
 		s.name = name
+		# 같은 이름이 겹치면 Godot 이 "@Sprite2D@105" 로 바꿔 버린다.
+		# 사진이 노드 이름으로 소품을 찾다가 **같은 소품 둘째부터 전부
+		# "풍경"** 이 됐다 (윤슬 62개 중 45개). 이름은 메타에 따로 담는다.
+		s.set_meta("prop", name)
 		s.texture = tex
 		s.centered = false
 		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -820,16 +824,22 @@ func _what_is_near() -> String:
 	# 사람이 가까이 있으면 사람을, 없으면 눈에 띄는 물건을 적는다.
 	if _near != null and is_instance_valid(_near):
 		return _near.who
+	# **이름이 있는 것 중에서** 가장 가까운 것을 고른다. 예전엔 무조건
+	# 가장 가까운 스프라이트를 집고 이름이 없으면 "풍경"으로 덮어서,
+	# 좌판 셋 한가운데서 찍어도 "풍경"이 나왔다.
 	var best := ""
 	var gap := 90.0 * 90.0
 	if _props != null:
 		for c in _props.get_children():
-			if not (c is Sprite2D):
+			if not (c is Sprite2D) or not c.has_meta("prop"):
+				continue
+			var pn := String(PHOTO_NAMES.get(String(c.get_meta("prop")), ""))
+			if pn == "":
 				continue
 			var d := walker.global_position.distance_squared_to(c.global_position)
 			if d < gap:
 				gap = d
-				best = PHOTO_NAMES.get(c.name, "")
+				best = pn
 	return best if best != "" else "풍경"
 
 
@@ -841,7 +851,12 @@ const PHOTO_NAMES := {
 	"clothesline": "빨랫줄", "pump": "펌프", "parasol": "파라솔",
 	"mailbox": "우체통", "bench": "벤치", "pine": "소나무", "tree": "나무",
 	"boulder": "바위", "net": "그물", "buoy": "부표", "dock": "부두",
-	"street-lamp": "가로등",
+	"street-lamp": "가로등", "signpost": "표지판", "firewood": "장작",
+	"flower-pots": "화분", "fence": "울타리", "shrub": "덤불",
+	"pebbles": "조약돌", "beach-grass": "갯풀", "tools": "연장",
+	"washtub": "빨래통", "icebox": "아이스박스", "desk": "책상",
+	"cabinet": "캐비닛", "reception": "접수대", "return-box": "반납함",
+	"office-chair": "의자", "office-window": "창",
 }
 
 
@@ -1466,7 +1481,9 @@ func _clear_line(a: Vector2i, b: Vector2i) -> bool:
 	return true
 
 
-func _tick_goto(_delta: float) -> Vector2:
+var _goto_stuck := 0.0
+
+func _tick_goto(delta: float) -> Vector2:
 	if _path.is_empty() or walker == null:
 		return Vector2.ZERO
 	var here := walker.global_position
@@ -1475,9 +1492,27 @@ func _tick_goto(_delta: float) -> Vector2:
 	var near: float = ARRIVE if _path.size() == 1 else REACH
 	if to.length() <= near:
 		_path.remove_at(0)
+		_goto_stuck = 0.0
 		if _path.is_empty():
 			return Vector2.ZERO
 		to = _path[0] - here
+	# 곧게 편 길이 소품 콜라이더 모서리를 스칠 때가 있다. 벽에 대고
+	# 비비고 있으면 그 길목을 버리고 다음 길목으로 — 그래도 안 되면
+	# 길을 처음부터 다시 찾는다. 화면에서는 어깨를 트는 정도로 보인다.
+	if walker.is_moving():
+		_goto_stuck = 0.0
+	else:
+		_goto_stuck += delta
+		if _goto_stuck > 0.4:
+			_goto_stuck = 0.0
+			if _path.size() > 1:
+				_path.remove_at(0)
+				to = _path[0] - here
+			else:
+				var again: Vector2 = _path[0]
+				stop_walk_to()
+				walk_to(again)
+				return Vector2.ZERO
 	# **살살 선다.** 예전엔 `to.limit_length(1.0)` 를 썼는데 그건 길이를
 	# 1 이하로 자르는 것이라, 1px 만 넘으면 결과가 늘 정확히 1.0 이었다 —
 	# `normalized()` 와 똑같아서 감속이 아무 일도 안 했다.
