@@ -162,7 +162,7 @@ func _build_ground() -> void:
 			var ch := row[x]
 			if not legend.has(ch):
 				continue
-			var name: String = legend[ch]
+			var name: String = _tile_for(String(legend[ch]), x, y)
 			if not by_tex.has(name):
 				by_tex[name] = []
 			by_tex[name].append(Vector2(x * TILE, y * TILE))
@@ -201,6 +201,38 @@ func _build_ground() -> void:
 		mmi.texture = tex
 		mmi.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_ground.add_child(mmi)
+
+
+# ── 형제 타일 ─────────────────────────────────────────────────────────
+#
+# 바닥 한 장을 지도 전체에 깔면, 이음매를 아무리 지워도 **같은 그림이
+# 수백 번 반복되는 것**은 못 감춘다. 마을이 바닥재 견본처럼 보인다.
+#
+# `tools/pixel/make-tile-variants.py` 가 바닥마다 형제를 두세 장 만들어
+# 둔다 — 꽃 핀 풀, 금 간 돌, 이끼 낀 돌담, 비질 자국이 난 마당.
+# **열에 하나쯤만** 형제를 깐다. 자주 나오면 그게 다시 무늬가 된다.
+const VARIANT_RATE := 0.17
+
+var _variant_cache: Dictionary = {}
+
+func _tile_for(base: String, x: int, y: int) -> String:
+	if not _variant_cache.has(base):
+		var found: Array = []
+		for n in range(2, 5):
+			var path := "res://assets/tiles/%s-%d.png" % [base, n]
+			if ResourceLoader.exists(path):
+				found.append("%s-%d" % [base, n])
+		_variant_cache[base] = found
+	var kinds: Array = _variant_cache[base]
+	if kinds.is_empty():
+		return base
+	# 칸 좌표로 정해진 값. 켤 때마다 마당이 달라지면 안 된다.
+	var h := (x * 374761393 + y * 668265263) ^ 0x27d4eb2d
+	h = (h ^ (h >> 13)) * 1274126177
+	var r := float(absi(h) % 1000) / 1000.0
+	if r >= VARIANT_RATE:
+		return base
+	return String(kinds[absi(h >> 7) % kinds.size()])
 
 
 ## 칸 좌표로 0~7 을 만든다. 늘 같은 값이 나와야 한다.
