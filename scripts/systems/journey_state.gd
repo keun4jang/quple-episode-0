@@ -118,6 +118,16 @@ func move_wanderer(dest: String = "", from: String = "") -> void:
 	wanderer_place = nxt
 
 
+## 다음 마을에 닿으면 아침부터 시작한다.
+##
+## 이게 없으면 밤 11시에 회사를 나온 사람이 **첫 여행지에 밤 11시에
+## 도착해서 24초 만에 시계가 자정에 멈춘다.** 거기서 빠져나오는 길은
+## 자는 것뿐인데, 처음 하는 사람은 잘 줄도 모른다.
+##
+## 오가는 데 시간이 걸린다고 치면 아침 도착이 자연스럽기도 하다.
+var arriving := false
+
+
 ## 몇 번 도착했나. `visited` 와 다르다 — 같은 곳에 또 와도 하나 는다.
 var arrivals := 0
 
@@ -250,6 +260,11 @@ func take_photo(place: String, subject: String) -> Dictionary:
 # ── 하루 ──────────────────────────────────────────────────────────────
 
 func time_text() -> String:
+	# 하루 끝(24:00)은 1440 이다. 12 로 나눈 나머지가 0 이라 그냥 두면
+	# **한낮과 똑같이 "오후 12:00"** 으로 찍힌다. 시계가 멈춘 채 정오라고
+	# 우기는 꼴이라, 그때만 따로 적는다.
+	if minutes >= DAY_END:
+		return "자정"
 	var h := int(minutes / 60.0)
 	var m := int(minutes) % 60
 	var ampm := "오전" if h < 12 else "오후"
@@ -265,6 +280,17 @@ func night_amount() -> float:
 	if minutes < 17 * 60:
 		return 0.0
 	return clampf((minutes - 17 * 60) / float(4 * 60), 0.0, 1.0)
+
+
+## 마을에 닿았다. 하루가 넘어갔으면 새 아침으로.
+func arrive() -> void:
+	if not arriving:
+		return
+	arriving = false
+	if minutes >= 20 * 60:
+		day += 1
+		day_passed.emit(day)
+	minutes = DAY_START
 
 
 func advance_time(mins: float) -> void:

@@ -142,36 +142,28 @@ func _near_tile(t: Vector2i) -> bool:
 ## 처음엔 막혔을 때 가로로만 밀어 봤다. 그런데 윤슬 정류장 가는 길에
 ## 좌판이 딱 그 가로줄을 막고 있어서 영영 못 갔다. 사람은 당연히 위아래로
 ## 비껴 가므로, **막힌 축과 수직으로** 풀어 주는 게 맞다.
+## 게임이 실제로 쓰는 **길찾기로** 걸어간다.
+##
+## 예전엔 여기서 직접 방향을 밀어 넣고, 막히면 수직으로 비껴 가는 코드를
+## 따로 들고 있었다. 그건 길찾기가 없던 시절 것이라, 지금은 두 가지가
+## 어긋난다 — 게임이 실제로 어떻게 걷는지는 확인하지 못하면서 소품
+## 모서리에서 이따금 실패했다 (세 번에 한 번쯤 "뭔가 주웠다" 가 깨졌다).
+##
+## `Place.walk_to()` 를 그대로 부르면 진짜 코드가 검사된다.
 func _walk_to(t: Vector2i, secs: float) -> void:
 	var goal := place.world_of(t)
+	place.walk_to(goal)
 	var spent := 0.0
-	var stuck := 0.0
-	var side := 1.0
-	var last := place.walker.global_position
-	while spent < secs:
-		var d := goal - place.walker.global_position
-		if d.length() < 10.0:
-			break
-		place.walker.set_input(d.normalized())
+	while spent < secs and place.is_walking_to():
 		await get_tree().physics_frame
-		var dt := get_physics_process_delta_time()
-		spent += dt
-		if place.walker.global_position.distance_to(last) < 0.2:
-			stuck += dt
-			if stuck > 0.35:
-				# 가려던 축과 **수직으로** 비껴 간다. 한 번은 위, 안 되면 아래.
-				var dodge := Vector2(0, side) if absf(d.x) > absf(d.y) \
-					else Vector2(side, 0)
-				for i in 18:
-					place.walker.set_input(dodge)
-					await get_tree().physics_frame
-					spent += get_physics_process_delta_time()
-				side = -side
-				stuck = 0.0
-		else:
-			stuck = 0.0
-		last = place.walker.global_position
+		spent += get_physics_process_delta_time()
+	# 길을 못 찾았거나 시간이 다 됐으면 마지막 몇 걸음은 직접 민다.
+	while spent < secs and place.walker.global_position.distance_to(goal) > 10.0:
+		place.walker.set_input((goal - place.walker.global_position).normalized())
+		await get_tree().physics_frame
+		spent += get_physics_process_delta_time()
 	place.walker.set_input(Vector2.ZERO)
+	place.stop_walk_to()
 	await get_tree().process_frame
 
 

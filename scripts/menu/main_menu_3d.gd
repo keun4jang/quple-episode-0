@@ -286,6 +286,18 @@ func _ask_skip_prologue() -> void:
 	play.pressed.connect(func(): AudioManager.ui_click(); _start_new(false))
 	v.add_child(play)
 
+	# **무를 수 있어야 한다.** 두 버튼 다 `JourneyState.reset()` 으로 가서
+	# 여태 다닌 기록을 그 자리에서 덮어쓴다. 실수로 "새 여행 시작" 을
+	# 눌렀을 때 빠져나갈 길이 없으면 그건 사고다.
+	var back := Button.new()
+	back.text = "아직 아니에요"
+	back.custom_minimum_size = Vector2(0, 84)
+	back.add_theme_font_size_override("font_size", 38)
+	back.pressed.connect(func():
+		AudioManager.ui_click()
+		wrap.queue_free())
+	v.add_child(back)
+
 	wrap.add_child(v)
 	ctrl.add_child(wrap)
 

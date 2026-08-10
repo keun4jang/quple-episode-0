@@ -71,6 +71,14 @@ func _close_topmost() -> bool:
 		settings.close()
 		return true
 
+	# 펼친 미니맵. 화면의 62% 를 덮고 걷기까지 막는데, 여기 없어서
+	# 뒤로가기가 아무것도 못 닫고 그 누름이 종료 카운터에 쌓였다 —
+	# 이 파일이 위에서 경고한 바로 그 사고다.
+	var mm := tree.get_first_node_in_group("mini_map")
+	if mm != null and mm.has_method("is_big") and mm.is_big():
+		mm.toggle()
+		return true
+
 	# 여행판이 떠 있으면 먼저 닫는다. 화면을 통째로 덮는다.
 	var board := tree.get_first_node_in_group("travel_board")
 	if board != null and board.visible and board.has_method("close"):

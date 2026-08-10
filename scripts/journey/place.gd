@@ -48,6 +48,7 @@ var _loose: Array[Node2D] = []   # 아직 안 주운 것
 var _folk: Array[Folk] = []
 var _near: Folk = null
 var _mark: Label                     # 말 걸 수 있는 사람 위에 뜨는 표시
+var _prev_near: Folk
 var minimap: MiniMap
 var guide: Guide
 ## 소품이 막고 있는 칸. 길찾기가 본다.
@@ -109,11 +110,13 @@ func on_built() -> void:
 
 func _ready() -> void:
 	y_sort_enabled = true
+	JourneyState.arrive()
 	_read_map()
 	_build_ground()
 	_build_props()
 	_build_pickups()
 	_build_walls()
+	_build_astar()
 	_build_walker()
 	_build_camera()
 	_build_ui()
@@ -744,6 +747,12 @@ func _update_near() -> void:
 	_near = null
 	if walker == null:
 		return
+	# **한 번 잡으면 조금 더 붙들고 있는다.**
+	#
+	# 26px 딱 자르고 되돌림이 없으면, 인연 둘이 네 칸 안에 서 있을 때
+	# 그 사이가 깜빡임이 된다 — 마을길을 한 번 걷는 8초 동안 선택
+	# 버튼이 다섯 번 켜졌다 꺼졌다. 놓는 거리를 조금 넉넉히 둔다.
+	var keep := _prev_near
 	var best := TALK_RANGE * TALK_RANGE
 	for f in _folk:
 		if not is_instance_valid(f):
@@ -752,6 +761,11 @@ func _update_near() -> void:
 		if d < best:
 			best = d
 			_near = f
+	if _near == null and keep != null and is_instance_valid(keep):
+		var far := TALK_RANGE * 1.45
+		if walker.global_position.distance_squared_to(keep.global_position) < far * far:
+			_near = keep
+	_prev_near = _near
 	if _mark == null:
 		return
 	var busy := say != null and say.is_busy()
@@ -762,11 +776,11 @@ func _update_near() -> void:
 	elif _can_sleep() and not busy:
 		_mark.visible = true
 		_mark.text = "잠"
-		_mark.global_position = _sleep_at + Vector2(-7, -34)
+		_mark.global_position = _sleep_at + Vector2(-26, -40)
 	elif _can_depart() and not busy:
 		_mark.visible = true
 		_mark.text = "출발"
-		_mark.global_position = _depart_at + Vector2(-14, -34)
+		_mark.global_position = _depart_at + Vector2(-26, -40)
 	else:
 		_mark.visible = false
 
@@ -793,6 +807,8 @@ func go_to_sleep() -> void:
 		return
 	_sleeping = true
 	walker.stop()
+	stop_walk_to()
+	_did("sleep")
 	AudioManager.sit_rustle()
 	var tw := create_tween()
 	tw.tween_property(_fade, "color:a", 1.0, 0.6)
@@ -886,13 +902,19 @@ func _unhandled_input(e: InputEvent) -> void:
 			walk_to(_beside(who))
 		get_viewport().set_input_as_handled()
 		return
-	# ② 잠자리·정류장 위에 서 있으면 그쪽.
-	if _can_sleep():
+	# ② 잠자리·정류장은 **그 자리를 눌렀을 때만.**
+	#
+	# 예전엔 서 있기만 하면 화면 아무 데나 눌러도 자거나 여행판이 떴다.
+	# "가고 싶은 곳을 톡 누르세요" 라고 가르쳐 놓고 그 두 칸 위에서만
+	# 딴 짓을 하는 셈이었고, 숙소 앞에서 걸어가려다 **하루가 통째로
+	# 넘어가** 되돌릴 수도 없었다. 멀리 누르면 그냥 걸어간다.
+	if _can_sleep() and _near_tile(at, sleep_tile()):
 		go_to_sleep()
 		get_viewport().set_input_as_handled()
 		return
-	if _can_depart():
+	if _can_depart() and _near_tile(at, depart_tile()):
 		walker.stop()
+		stop_walk_to()
 		board.open(place_name())
 		_did("go")
 		get_viewport().set_input_as_handled()
@@ -903,6 +925,13 @@ func _unhandled_input(e: InputEvent) -> void:
 		if is_walking_to():
 			_did("walk")
 		get_viewport().set_input_as_handled()
+
+
+## 누른 자리가 그 칸 언저리인가. 손가락 크기만큼 넉넉히 잡는다.
+func _near_tile(at: Vector2, t: Vector2i) -> bool:
+	if t.x < 0 or at == Vector2.INF:
+		return true            # 키보드로 눌렀으면 서 있는 것만으로 친다
+	return world_of(t).distance_to(at) <= TILE * 1.6
 
 
 ## 누른 화면 좌표. 키보드로 눌렀으면 INF.
@@ -921,6 +950,40 @@ func _touch_world(e: InputEvent) -> Vector2:
 		return Vector2.INF
 	var vp := get_viewport().get_visible_rect().size
 	return cam.global_position + (pos - vp * 0.5) / cam.zoom
+
+
+# ── 누른 자리 표시 ────────────────────────────────────────────────────
+#
+# 먼 데를 누르면 그리로 걸어가는데, **진짜 그리로 가는 중인지 알 방법이
+# 걸어가는 것 말고 없었다.** 눌린 자리에 동그라미를 잠깐 남긴다.
+var _tap_mark: Node2D
+var _tap_t := 0.0
+
+func _mark_tap(at: Vector2) -> void:
+	if _tap_mark == null:
+		_tap_mark = Node2D.new()
+		_tap_mark.z_index = 40
+		_tap_mark.draw.connect(func() -> void:
+			var k: float = clampf(_tap_t / TAP_MARK_TIME, 0.0, 1.0)
+			var a: float = k * 0.7
+			_tap_mark.draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.5))
+			_tap_mark.draw_arc(Vector2.ZERO, 5.0 + (1.0 - k) * 7.0, 0.0, TAU, 20,
+				Color(1.0, 0.96, 0.86, a), 1.6, true))
+		add_child(_tap_mark)
+	_tap_mark.position = at
+	_tap_t = TAP_MARK_TIME
+	_tap_mark.visible = true
+
+
+const TAP_MARK_TIME := 0.45
+
+func _tick_tap_mark(delta: float) -> void:
+	if _tap_mark == null or not _tap_mark.visible:
+		return
+	_tap_t -= delta
+	if _tap_t <= 0.0:
+		_tap_mark.visible = false
+	_tap_mark.queue_redraw()
 
 
 ## 안내가 기다리던 일을 해냈다고 알린다.
@@ -1040,6 +1103,7 @@ func walk_to(at: Vector2) -> void:
 	# 마지막은 누른 자리 그대로. 칸 가운데로 끌려가면 어긋나 보인다.
 	if _walkable(tile_of(at)):
 		_path[_path.size() - 1] = at
+	_mark_tap(_path[_path.size() - 1])
 
 
 func stop_walk_to() -> void:
@@ -1070,85 +1134,111 @@ func _walkable(t: Vector2i) -> bool:
 
 ## 누른 곳이 물이나 소품 위면 **가장 가까운 걸을 수 있는 칸**으로 보낸다.
 ## 못 가는 곳을 눌렀다고 아무 반응이 없으면 고장으로 읽힌다.
+##
+## 링을 훑다 처음 걸리는 것을 쓰면 안 된다 — 그건 링 안에서 **위쪽·왼쪽**
+## 칸이라 바다를 눌렀을 때 바로 아래 백사장이 아니라 옆으로 여섯 칸
+## 비켜난 데로 갔다 (실측 최대 98px). 링을 다 훑어 **진짜 가까운 것**을 쓴다.
 func _nearest_walkable(t: Vector2i) -> Vector2i:
-	for r in range(1, 6):
+	for r in range(1, 7):
+		var best := Vector2i(-1, -1)
+		var gap := INF
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
 				if absi(dx) != r and absi(dy) != r:
 					continue
 				var c := t + Vector2i(dx, dy)
-				if _walkable(c):
-					return c
+				if not _walkable(c):
+					continue
+				var d := Vector2(dx, dy).length_squared()
+				if d < gap:
+					gap = d
+					best = c
+		if best.x >= 0:
+			return best
 	return Vector2i(-1, -1)
 
 
-const STEPS8 := [
-	Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
-	Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
-]
+# ── 길찾기 ────────────────────────────────────────────────────────────
+#
+# 손으로 짠 A* 를 쓰다 `AStarGrid2D` 로 바꿨다. 손으로 짠 쪽은 열린 목록이
+# 그냥 배열이라 매번 전체를 훑었다 — O(n²). 데스크톱에서 재 보니 고향에서
+# **최악 19~27ms**, 잿마루 41ms 로 이미 한 프레임을 넘었고, 폰은 그보다
+# 서너 배 느리다. 누른 바로 그 순간 멈칫하는 자리다.
+#
+# `AStarGrid2D` 는 엔진 안(C++)에서 돌고 격자를 미리 물고 있는다.
+var _astar: AStarGrid2D
+
+
+func _build_astar() -> void:
+	_astar = AStarGrid2D.new()
+	_astar.region = Rect2i(0, 0, _size.x, _size.y)
+	_astar.cell_size = Vector2(TILE, TILE)
+	# 모서리를 뚫고 지나가지 않는다. 그림상 벽을 통과한 것처럼 보인다.
+	_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+	_astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+	_astar.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+	_astar.update()
+	for y in _size.y:
+		for x in _size.x:
+			_astar.set_point_solid(Vector2i(x, y), not _walkable(Vector2i(x, y)))
+
 
 func _find_path(from: Vector2i, to: Vector2i) -> Array:
-	if from == to or not _walkable(to):
+	if _astar == null or from == to or not _walkable(to):
 		return []
 	if not _walkable(from):
 		from = _nearest_walkable(from)
 		if from.x < 0:
 			return []
-	var open: Array[Vector2i] = [from]
-	var came: Dictionary = {}
-	var cost: Dictionary = {from: 0.0}
-	var guess: Dictionary = {from: Vector2(from - to).length()}
-	var guard := 0
-	while not open.is_empty():
-		guard += 1
-		if guard > 4000:
-			return []                      # 지도가 아무리 커도 여기 안 온다
-		var best := 0
-		for i in open.size():
-			if float(guess.get(open[i], INF)) < float(guess.get(open[best], INF)):
-				best = i
-		var cur: Vector2i = open[best]
-		if cur == to:
-			var out: Array = [cur]
-			while came.has(cur):
-				cur = came[cur]
-				out.push_front(cur)
-			out.remove_at(0)               # 서 있는 칸은 뺀다
-			return _smooth(out)
-		open.remove_at(best)
-		for d in STEPS8:
-			var nx: Vector2i = cur + d
-			if not _walkable(nx):
-				continue
-			# 대각선은 양옆이 다 트여 있을 때만. 모서리를 뚫고 지나가면
-			# 그림상 벽을 통과한 것처럼 보인다.
-			if d.x != 0 and d.y != 0:
-				if not _walkable(Vector2i(cur.x + d.x, cur.y)) \
-						or not _walkable(Vector2i(cur.x, cur.y + d.y)):
-					continue
-			var step: float = 1.0 if (d.x == 0 or d.y == 0) else 1.4142
-			var c: float = float(cost[cur]) + step
-			if c < float(cost.get(nx, INF)):
-				cost[nx] = c
-				came[nx] = cur
-				guess[nx] = c + Vector2(nx - to).length()
-				if not open.has(nx):
-					open.append(nx)
-	return []
+	var pts := _astar.get_id_path(from, to)
+	if pts.size() < 2:
+		return []
+	pts.remove_at(0)                       # 서 있는 칸은 뺀다
+	return _smooth(pts)
 
 
-## 한 줄로 이어지는 칸은 하나로 합친다. 칸마다 꺾으면 걸음이 톱니처럼 된다.
+## 곧게 갈 수 있으면 사이 길목을 버린다 (line of sight).
+##
+## 예전에는 **방향이 똑같은 연속 칸만** 합쳤다. A* 가 만드는 계단은
+## 직선 한 칸 → 대각 한 칸 → 직선 한 칸이라 방향이 매 칸 바뀌어서
+## 하나도 안 합쳐졌고, 길 하나에 꺾임이 여섯 개씩 남아 걸음이 잔물결처럼
+## 흔들렸다 (구간의 55~62% 가 한 칸 반도 안 됐다).
 func _smooth(tiles: Array) -> Array:
 	if tiles.size() < 3:
 		return tiles
-	var out: Array = [tiles[0]]
-	for i in range(1, tiles.size() - 1):
-		var a: Vector2i = tiles[i] - tiles[i - 1]
-		var b: Vector2i = tiles[i + 1] - tiles[i]
-		if a != b:
-			out.append(tiles[i])
-	out.append(tiles[tiles.size() - 1])
+	var out: Array = []
+	var anchor: Vector2i = tile_of(walker.global_position) if walker != null \
+		else tiles[0]
+	var i := 0
+	while i < tiles.size():
+		var far := i
+		for j in range(tiles.size() - 1, i - 1, -1):
+			if _clear_line(anchor, tiles[j]):
+				far = j
+				break
+		out.append(tiles[far])
+		anchor = tiles[far]
+		i = far + 1
 	return out
+
+
+## 두 칸 사이가 다 트여 있나. 칸을 하나씩 밟아 본다.
+func _clear_line(a: Vector2i, b: Vector2i) -> bool:
+	var d := b - a
+	var steps: int = maxi(absi(d.x), absi(d.y))
+	if steps == 0:
+		return true
+	for k in range(1, steps + 1):
+		var t := Vector2i(
+			a.x + int(round(float(d.x) * k / steps)),
+			a.y + int(round(float(d.y) * k / steps)))
+		if not _walkable(t):
+			return false
+		# 대각선으로 스칠 때 양옆도 본다 — 모서리를 뚫으면 안 된다.
+		if not _walkable(Vector2i(t.x, a.y + int(round(float(d.y) * (k - 1) / steps)))) \
+				and not _walkable(Vector2i(a.x + int(round(float(d.x) * (k - 1) / steps)), t.y)):
+			return false
+	return true
 
 
 func _tick_goto(_delta: float) -> Vector2:
@@ -1163,7 +1253,11 @@ func _tick_goto(_delta: float) -> Vector2:
 		if _path.is_empty():
 			return Vector2.ZERO
 		to = _path[0] - here
-	return to.limit_length(1.0) if to.length() < 20.0 else to.normalized()
+	# **살살 선다.** 예전엔 `to.limit_length(1.0)` 를 썼는데 그건 길이를
+	# 1 이하로 자르는 것이라, 1px 만 넘으면 결과가 늘 정확히 1.0 이었다 —
+	# `normalized()` 와 똑같아서 감속이 아무 일도 안 했다.
+	var k: float = clampf(to.length() / 22.0, 0.28, 1.0)
+	return to.normalized() * k
 
 
 func _process(delta: float) -> void:
@@ -1186,6 +1280,7 @@ func _process(delta: float) -> void:
 	_check_pickups()
 	_update_near()
 	_tick_outline()
+	_tick_tap_mark(delta)
 	_refresh_action()
 	_tick_clock(delta)
 	if not blocked:

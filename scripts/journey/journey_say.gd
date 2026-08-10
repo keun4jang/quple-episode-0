@@ -21,7 +21,6 @@ var _panel: PanelContainer
 var _who: Label
 var _line: Label
 var _prev_btn: Button
-var _next_btn: Button
 ## 이번 대화에서 오간 말 전부. [{who, text}, ...]
 var _said: Array = []
 var _at := -1
@@ -29,6 +28,7 @@ var _full := ""
 var _shown := 0
 var _t := 0.0
 var _busy := false
+var _size_tw: Tween
 
 
 func _ready() -> void:
@@ -87,10 +87,12 @@ func _build() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_END
 	row.add_theme_constant_override("separation", 8)
 	box.add_child(row)
+	# **"다음" 은 안 단다.** 오른쪽 아래 큰 버튼이 이미 그 일을 하고,
+	# 화면 아무 데나 눌러도 넘어간다. 같은 일을 하는 버튼이 크기와 자리만
+	# 다르게 둘 있으면 어느 쪽이 진짜인지 헷갈린다.
+	# 여기 남는 건 **되돌아가는 길** 하나다 — 그건 다른 데 없다.
 	_prev_btn = _small_btn("이전", _back)
-	_next_btn = _small_btn("다음", advance)
 	row.add_child(_prev_btn)
-	row.add_child(_next_btn)
 
 
 func _small_btn(text: String, fn: Callable) -> Button:
@@ -129,20 +131,45 @@ func _fit() -> void:
 	# 화면을 가로지르고, 남은 자리가 전부 빈 종이가 된다.
 	var f := _line.get_theme_font("font")
 	var fs := _line.get_theme_font_size("font_size")
+	# **줄마다 따로 잰다.** `_full` 을 통째로 재면 엽서처럼 `\n` 이 든 글에서
+	# 두 줄을 이어 붙인 길이가 나온다 — 폭은 두 배로 잡히고, 높이는 타자가
+	# `\n` 에 닿는 순간 25px 튀어 오른다. 평상에서 엽서를 넘길 때마다
+	# 창이 두 번씩 덜컹거렸다. 하필 이 게임의 마지막 장면이다.
 	var need_w := 0.0
 	if f != null:
-		need_w = f.get_string_size(_full, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		for one in _full.split("\n"):
+			need_w = maxf(need_w,
+				f.get_string_size(one, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
 	var room := vp.x - 64.0 - safe.x - safe.z
 	var inner: float = clampf(need_w + 4.0, MIN_WIDTH, minf(MAX_WIDTH, room))
-	_line.custom_minimum_size = Vector2(inner, 0)
+	# 줄 수만큼 높이를 미리 잡아 둔다. 안 그러면 타자가 둘째 줄에 닿는
+	# 순간 창이 커진다.
+	var lines: int = maxi(1, _full.split("\n").size())
+	_line.custom_minimum_size = Vector2(inner, float(lines) * (fs + 8))
 	var w: float = _panel.get_combined_minimum_size().x
 	var h: float = _panel.get_combined_minimum_size().y
 	var bottom := 22.0 + safe.w
 	var mid := (vp.x + safe.x - safe.z) * 0.5
-	_panel.offset_left = mid - w * 0.5
-	_panel.offset_right = mid + w * 0.5 - vp.x
-	_panel.offset_bottom = -bottom
-	_panel.offset_top = -(bottom + h)
+	var l := mid - w * 0.5
+	var r := mid + w * 0.5 - vp.x
+	var t := -(bottom + h)
+	# 첫 줄은 그냥 놓고, 줄이 바뀔 때만 부드럽게 옮긴다. 창이 그 프레임에
+	# 폭 241px 씩 튀면 덜컹거리는 것으로 보인다.
+	if not _panel.visible or _size_tw == null:
+		_panel.offset_left = l
+		_panel.offset_right = r
+		_panel.offset_bottom = -bottom
+		_panel.offset_top = t
+		_size_tw = create_tween()
+		_size_tw.kill()
+		return
+	if _size_tw != null and _size_tw.is_valid():
+		_size_tw.kill()
+	_size_tw = create_tween().set_parallel(true)
+	for pair in [["offset_left", l], ["offset_right", r],
+			["offset_top", t], ["offset_bottom", -bottom]]:
+		_size_tw.tween_property(_panel, String(pair[0]), pair[1], 0.12) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 
 ## 여러 줄을 한 번에 준다. 다 넘기면 finished.
@@ -214,8 +241,6 @@ func _go(i: int, instant := false) -> void:
 func _refresh_buttons() -> void:
 	if _prev_btn != null:
 		_prev_btn.disabled = _at <= 0
-	if _next_btn != null:
-		_next_btn.text = "다음" if _at < _said.size() - 1 else "닫기"
 
 
 ## 한 번 누르면 마저 찍고, 다 찍혔으면 다음 줄로.

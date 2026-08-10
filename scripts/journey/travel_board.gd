@@ -140,6 +140,8 @@ func _pick(path: String) -> void:
 	visible = false
 	# 내가 떠나면 여행자도 떠난다.
 	JourneyState.move_wanderer(_place_name_of(path), _from)
+	# 다음 마을에는 아침에 닿는다. `Place` 가 지도를 깔면서 처리한다.
+	JourneyState.arriving = true
 	# **도착지**를 적어야 한다. `save_now()` 는 지금 씬을 보는데, 여기서는
 	# 아직 떠나기 전 장소다. 그대로 두면 앱이 죽었을 때 이어하기가 방금
 	# 떠나온 곳으로 되돌아간다.

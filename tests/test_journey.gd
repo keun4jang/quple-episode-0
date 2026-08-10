@@ -662,6 +662,30 @@ func _extras_tests() -> void:
 # ── 카메라 ────────────────────────────────────────────────────────────
 
 func _camera_tests() -> void:
+	print("\n[하루가 넘어갈 때]")
+	# 밤 11시에 회사를 나오면 첫 여행지에 밤 11시에 닿았다. 24초 만에
+	# 시계가 자정에 멈추고, 빠져나오는 길은 자는 것뿐이었다.
+	JourneyState.reset()
+	JourneyState.minutes = 23 * 60
+	JourneyState.arriving = true
+	var d0 := JourneyState.day
+	JourneyState.arrive()
+	ok(JourneyState.minutes == JourneyState.DAY_START, "다음 마을에는 아침에 닿는다")
+	ok(JourneyState.day == d0 + 1, "밤에 떠났으면 하루가 넘어간다")
+	# 낮에 떠나면 같은 날 그대로
+	JourneyState.minutes = 10 * 60
+	JourneyState.arriving = true
+	var d1 := JourneyState.day
+	JourneyState.arrive()
+	ok(JourneyState.day == d1, "낮에 떠나면 같은 날이다")
+	# 자정이 정오로 읽히던 것
+	JourneyState.minutes = JourneyState.DAY_END
+	ok(JourneyState.time_text() == "자정",
+		"자정을 정오라고 안 한다 (%s)" % JourneyState.time_text())
+	JourneyState.minutes = 12 * 60
+	ok(JourneyState.time_text() == "오후 12:00", "한낮은 그대로")
+	JourneyState.reset()
+
 	print("\n[누르기]")
 	var tp: Place = preload("res://scenes/journey/Yunseul.tscn").instantiate()
 	add_child(tp)
@@ -783,6 +807,17 @@ func _camera_tests() -> void:
 	ok(wide <= tp.say.MAX_WIDTH + 40.0, "그래도 화면을 가로지르지 않는다 (%.0f)" % wide)
 	tp.say.close()
 	await get_tree().process_frame
+
+	# ⑦-1 잠자리·정류장 위에 서 있어도 **먼 곳을 누르면 걸어간다**
+	var dep := tp.depart_tile()
+	if dep.x >= 0:
+		tp.walker.global_position = tp.world_of(dep)
+		await get_tree().process_frame
+		ok(tp._can_depart(), "정류장 위에 섰다")
+		var far := tp.world_of(dep) + Vector2(-140, 0)
+		ok(not tp._near_tile(far, dep), "먼 자리는 정류장 누른 것으로 안 친다")
+		ok(tp._near_tile(tp.world_of(dep) + Vector2(6, 0), dep),
+			"그 자리를 누르면 정류장으로 친다")
 
 	# ⑧ 미니맵
 	ok(tp.minimap != null and not tp.minimap.is_big(), "미니맵은 작게 시작한다")

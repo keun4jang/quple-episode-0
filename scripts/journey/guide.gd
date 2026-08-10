@@ -15,16 +15,23 @@ extends CanvasLayer
 ## - 말투는 시키는 말이 아니라 **곁에서 알려 주는 말**로 쓴다
 
 const FLAG := "guide_done"
+const STEP_FLAG := "guide_step"
 const FADE := 0.35
 
 ## [열쇠, 안내 문구]. 열쇠는 `done()` 이 받는 이름이다.
+##
+## **순서가 진행과 맞아야 한다.** 처음엔 배낭·미니맵을 프롤로그에서
+## 가르쳤는데, 잿마루에는 주울 것도 편지도 없어서 배낭 네 칸이 전부
+## "아직 아무것도 없어요" 였고 미니맵은 색 띠 네 줄이었다.
+## **없는 것을 열어 보라고 시키는 셈**이라 지금은 뒤로 미뤘다 —
+## 첫 여행지에 닿아야 볼 것이 생긴다.
 const STEPS := [
 	["walk", "가고 싶은 곳을 톡 눌러 보세요."],
-	["talk", "누군가에게 다가가 눌러 보면 말을 걸 수 있어요."],
-	["act",  "오른쪽 아래 버튼으로도 할 수 있어요."],
+	["talk", "누군가에게 다가가서 그 사람을 눌러 보세요."],
+	["go",   "표지판이 선 자리에 서면 다음 마을로 떠날 수 있어요."],
 	["map",  "오른쪽 위 작은 지도를 누르면 크게 볼 수 있어요."],
-	["bag",  "오른쪽 아래 배낭에 사진과 편지가 쌓여요."],
-	["go",   "정류장에 서면 다음 마을로 떠날 수 있어요."],
+	["bag",  "오른쪽 아래 배낭에 주운 것과 편지가 쌓여요."],
+	["sleep", "잠자리에 서면 하루를 마칠 수 있어요."],
 ]
 
 var _at := 0
@@ -39,6 +46,14 @@ func _ready() -> void:
 	add_to_group("guide")
 	_build()
 	if SaveManager.get_flag(FLAG, false):
+		queue_free()
+		return
+	# 마을을 옮기면 `Place` 가 안내를 새로 만든다. 어디까지 왔는지
+	# 남겨 두지 않으면 **첫 줄부터 다시 시작**한다 — 윤슬에 도착해서
+	# "가고 싶은 곳을 톡 눌러 보세요" 를 또 읽게 된다.
+	_at = clampi(int(SaveManager.get_flag(STEP_FLAG, 0)), 0, STEPS.size())
+	if _at >= STEPS.size():
+		SaveManager.set_flag(FLAG, true)
 		queue_free()
 		return
 	# 화면이 자리를 잡은 뒤에 첫 줄을 띄운다. 켜자마자 뜨면 급해 보인다.
@@ -65,7 +80,9 @@ func _build() -> void:
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_panel.offset_top = 92.0
+	# 줍기 알림("○○ 주웠어요")이 CENTER_TOP y=90 에 뜬다. 같은 자리에
+	# 두면 안내가 위 레이어라 알림을 통째로 덮는다. 한 줄 아래로 내린다.
+	_panel.offset_top = 150.0
 	_panel.modulate.a = 0.0
 	root.add_child(_panel)
 
@@ -74,6 +91,24 @@ func _build() -> void:
 	_label.add_theme_color_override("font_color", Color(1.0, 0.98, 0.92))
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(_label)
+
+
+## 다른 창이 떠 있으면 잠깐 물러난다. 배낭 위에 겹쳐 뜨면 지저분하다.
+func _process(_delta: float) -> void:
+	if _panel == null or _shown == "":
+		return
+	var busy := false
+	for g in ["journey_say", "travel_board"]:
+		var n := get_tree().get_first_node_in_group(g)
+		if n != null and n.visible:
+			busy = true
+	var hud := get_tree().get_first_node_in_group("journey_hud")
+	if hud != null and hud.has_method("bag_open") and hud.bag_open():
+		busy = true
+	var mm := get_tree().get_first_node_in_group("mini_map")
+	if mm != null and mm.has_method("is_big") and mm.is_big():
+		busy = true
+	_panel.visible = not busy
 
 
 func _show_step() -> void:
@@ -100,6 +135,7 @@ func done(key: String) -> void:
 		return
 	_at += 1
 	_shown = ""
+	SaveManager.set_flag(STEP_FLAG, _at)
 	if _at >= STEPS.size():
 		_finish()
 		return

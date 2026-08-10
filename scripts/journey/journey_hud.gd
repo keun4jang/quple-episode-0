@@ -25,6 +25,8 @@ var _pad_cam: Control
 var _pad_bag: Control
 var _act_btn: Button
 var _act_kind := ""
+var _act_shown := false
+var _act_tw: Tween
 var _buttons_hidden := false
 
 ## 아이템 이름 → 사람이 읽는 이름
@@ -501,8 +503,23 @@ func set_action(kind: String, label: String) -> void:
 	if _act_btn == null:
 		return
 	_act_kind = kind
-	_act_btn.visible = label != "" and not _buttons_hidden_act()
-	_act_btn.text = label
+	var want := label != ""
+	if want:
+		_act_btn.text = label
+	if want == _act_shown:
+		return
+	# **툭 나타나고 툭 사라지지 않게.** 마을길을 한 번 걷는 8초 동안
+	# 다섯 번 켜졌다 꺼지는데, 전환이 없으면 화면이 깜빡이는 것으로 보인다.
+	_act_shown = want
+	if _act_tw != null and _act_tw.is_valid():
+		_act_tw.kill()
+	if want:
+		_act_btn.visible = true
+		_act_btn.modulate.a = 0.0
+	_act_tw = create_tween()
+	_act_tw.tween_property(_act_btn, "modulate:a", 1.0 if want else 0.0, 0.16)
+	if not want:
+		_act_tw.tween_callback(func(): _act_btn.visible = false)
 
 
 func action_kind() -> String:
