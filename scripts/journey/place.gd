@@ -865,6 +865,7 @@ const PHOTO_NAMES := {
 	"washtub": "빨래통", "icebox": "아이스박스", "desk": "책상",
 	"cabinet": "캐비닛", "reception": "접수대", "return-box": "반납함",
 	"office-chair": "의자", "office-window": "창",
+	"asphalt": "찻길",
 }
 
 
