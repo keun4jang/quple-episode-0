@@ -136,7 +136,10 @@ func _build_outline() -> void:
 
 
 func _draw_outline() -> void:
-	if sprite == null or sprite.texture == null:
+	# 몸을 숨긴 걷는이(자리 표시용 Folk)는 테두리도 안 그린다.
+	# 안 그러면 평상·창밖 같은 자리마다 **검은 유령**이 서 있게 된다 —
+	# 스프라이트만 숨고 테두리·그림자가 남아서 실루엣이 그대로 보였다.
+	if sprite == null or sprite.texture == null or not sprite.visible:
 		return
 	var r := sprite.region_rect
 	if sprite.flip_h:
@@ -153,6 +156,16 @@ func set_on_dark_ground(dark: bool) -> void:
 		return
 	outline_color = want
 	_sync_outline()
+
+
+## 자리 표시용으로 쓸 때 몸을 통째로 숨긴다 (그림자·테두리까지).
+func hide_body() -> void:
+	if sprite != null:
+		sprite.visible = false
+	if _shadow != null:
+		_shadow.visible = false
+	if _outline_node != null:
+		_outline_node.visible = false
 
 
 ## 걸으면 칸이 바뀐다. 테두리도 같이 다시 그린다.

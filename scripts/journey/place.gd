@@ -123,6 +123,7 @@ func _ready() -> void:
 	_build_ui()
 	_start_sound()
 	on_built()
+	_block_folk_tiles()
 	if place_name() == "고향":
 		JourneyState.came_home()
 	else:
@@ -1300,6 +1301,28 @@ func _nearest_walkable(t: Vector2i) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+## 인연이 선 칸을 길찾기가 피해 가게 한다.
+##
+## A* 는 소품만 알고 인연(Folk)을 몰랐다. 그래서 톡 눌러 걷기가 인연을
+## 뚫고 직진하다 몸에 박혀 **초당 2px 로 인연을 밀며 기어갔다** — 볕뉘
+## 검사에서 자고 일어나 정류장 가는 길이 매일 막히는 걸 실측으로 잡았다.
+## 인연은 제자리에 서 있으니, 그 칸을 막힌 칸으로 등록하면 끝이다.
+## `_blocked` 에도 넣어야 곧게 펴기(`_clear_line`)가 그 사람을 안 뚫는다.
+func _block_folk_tiles() -> void:
+	for f in _folk:
+		if not is_instance_valid(f) or f.is_spot:
+			continue
+		var t := tile_of(f.global_position)
+		# **바로 아랫칸도 막는다.** 둘 다 발밑에 콜라이더가 있어서, 그 사람
+		# 아랫칸을 스치는 직선은 몸이 8px 겹친다 — 칸만 막았더니 여전히
+		# 그 사람 발치에 박혀 기어갔다. 사람을 한 칸 돌아가는 게 보기에도
+		# 자연스럽다.
+		for bt in [t, t + Vector2i(0, 1)]:
+			_blocked[bt] = true
+			if _astar != null and _astar.region.has_point(bt):
+				_astar.set_point_solid(bt, true)
+
+
 # ── 길찾기 ────────────────────────────────────────────────────────────
 #
 # 손으로 짠 A* 를 쓰다 `AStarGrid2D` 로 바꿨다. 손으로 짠 쪽은 열린 목록이
@@ -1509,7 +1532,7 @@ func put_spot(t: Vector2i, what: String, lines: Array) -> Folk:
 	f.lines_by_heart = [lines]
 	f.position = world_of(t)
 	add_child(f)
-	f.sprite.visible = false
+	f.hide_body()
 	_folk.append(f)
 	return f
 

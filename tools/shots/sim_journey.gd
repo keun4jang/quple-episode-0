@@ -86,7 +86,13 @@ func _ready() -> void:
 	# 평상에 앉는다
 	JourneyState.give_postcard("raccoon", "배낭 멘 너구리")
 	await _load("res://scenes/journey/Home.tscn")
-	await _walk_to(Vector2i(31, 15), 26.0)
+	# 평상 좌표를 박아 두지 않는다 — 지도를 다시 짤 때마다 여기가 깨졌다.
+	var deck: Folk = null
+	for c in place._folk:
+		if is_instance_valid(c) and c.is_spot and c.who == "평상":
+			deck = c
+	ok(deck != null, "평상이 있다")
+	await _walk_to(place.tile_of(deck.global_position) + Vector2i(0, 1), 26.0)
 	place.talk_to_near()
 	await get_tree().process_frame
 	ok(place.say.is_busy(), "평상에 앉았다")
