@@ -10,11 +10,25 @@ extends Control
 
 const RADIUS := 46.0       # 여기까지 밀면 최고 속도
 const DEAD := 0.16         # 이 안은 안 움직인다
+## **진짜 미는 손가락인지 가르는 기준**, `_press_pos` 로부터의 거리다.
+##
+## 이게 없으면 조이스틱 기능만 됐다 — 목적지를 톡 찍으면 `Place` 가
+## 그 자리로 `walk_to()` 를 시작하는데, 화면을 누르고 떼는 그 짧은
+## 순간에도 손끝은 몇 픽셀씩 흔들린다. `DEAD`(약 7px)는 그 흔들림보다도
+## 작아서, 탭할 때마다 이 조이스틱이 "밀었다" 고 오해하고 `_dir` 을
+## 채워 `Place._process()` 가 막 시작한 `walk_to()` 를 매 프레임
+## `stop_walk_to()` 로 끊어 버렸다. 폰에서는 늘 조이스틱만 도는 것처럼
+## 보였던 이유다. 확실히 밀 때까지는 방향을 0 으로 묶어 둔다.
+const DRAG_CONFIRM := 20.0
 
 var _finger := -1
 var _origin := Vector2.ZERO
 var _now := Vector2.ZERO
 var _dir := Vector2.ZERO
+## 손가락을 처음 댄 자리. `_origin` 과 달리 손가락이 반경을 넘어가도
+## 다시 옮기지 않는다 — "진짜 밀었나" 는 늘 처음 댄 자리에서 잰다.
+var _press_pos := Vector2.ZERO
+var _drag_confirmed := false
 ## 지금 화면에 닿아 있는 손가락. index → 위치.
 var _down: Dictionary = {}
 ## 두 손가락이 닿은 뒤로는 다 뗄 때까지 걷지 않는다.
@@ -63,6 +77,8 @@ func _unhandled_input(e: InputEvent) -> void:
 				_finger = e.index
 				_origin = e.position
 				_now = e.position
+				_press_pos = e.position
+				_drag_confirmed = false
 		else:
 			_down.erase(e.index)
 			if e.index == _finger:
@@ -80,9 +96,18 @@ func _unhandled_input(e: InputEvent) -> void:
 func _release() -> void:
 	_finger = -1
 	_dir = Vector2.ZERO
+	_drag_confirmed = false
 
 
 func _recalc() -> void:
+	# 확실히 밀었다고 볼 만큼 손끝이 처음 댄 자리에서 멀어지기 전에는
+	# 조이스틱이 끼어들지 않는다. 탭 한 번으로 목적지까지 걸어가는 길을
+	# 여기서 지켜 준다.
+	if not _drag_confirmed:
+		if (_now - _press_pos).length() < DRAG_CONFIRM:
+			_dir = Vector2.ZERO
+			return
+		_drag_confirmed = true
 	var v := (_now - _origin) / RADIUS
 	var len := v.length()
 	if len < DEAD:

@@ -819,6 +819,32 @@ func _camera_tests() -> void:
 	ok(tp.walker.global_position.distance_to(goal) <= 8.0,
 		"누른 자리까지 걸어간다 (남은 %.0fpx)" % tp.walker.global_position.distance_to(goal))
 
+	# ②-1 탭하는 그 짧은 순간에도 손끝은 몇 픽셀 흔들린다. 그 흔들림이
+	# 조이스틱으로 오인돼 막 시작한 걷기를 끊으면 안 된다 — 폰에서는
+	# "조이스틱만 되고 누른 곳까지 안 온다" 로 보이던 문제였다.
+	var jgoal := tp.walker.global_position + Vector2(100, 0)
+	var jscr: Vector2 = tp.get_viewport().get_canvas_transform() * jgoal
+	var jdown := InputEventScreenTouch.new()
+	jdown.index = 0
+	jdown.pressed = true
+	jdown.position = jscr
+	tp._unhandled_input(jdown)
+	ok(tp.is_walking_to(), "탭하면 그 자리로 걷기 시작한다")
+	var jdrag := InputEventScreenDrag.new()
+	jdrag.index = 0
+	jdrag.position = jscr + Vector2(4, 3)   # 손끝이 5px 쯤 흔들렸다
+	tp.touch._unhandled_input(jdrag)
+	ok(tp.touch.direction() == Vector2.ZERO,
+		"탭하다 흔들려도 조이스틱이 안 켜진다")
+	tp._process(0.016)
+	ok(tp.is_walking_to(), "흔들려도 걷기가 안 끊긴다")
+	var jup := InputEventScreenTouch.new()
+	jup.index = 0
+	jup.pressed = false
+	jup.position = jdrag.position
+	tp._unhandled_input(jup)
+	tp.touch._unhandled_input(jup)
+
 	# 못 걷는 칸을 눌러도 가장 가까운 땅으로 간다 — 아무 반응이 없으면
 	# 고장으로 읽힌다.
 	var wet := Vector2i(-1, -1)
