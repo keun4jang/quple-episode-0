@@ -705,3 +705,46 @@ NO angled view. The front face is a flat rectangle facing the viewer.
 
 `tools/pixel/import-journey-art.py` 에 R 시트를 등록해 자르고 16px 격자에
 맞춘 뒤 같은 이름으로 갈아 끼운다 — 마을 파일은 안 고쳐도 된다.
+
+## R-3장 — 총점검이 추가로 찾은 정면 교체 6종 + 계단 타일
+
+총점검(아트팀장)이 시점 어긋난 것을 전수 조사했다. R장에 이어 받는다.
+
+```
+(A장 머리말 + 이어서)
+
+Create 6 sprites for a top-down pixel-style game, front view like Stardew
+Valley — NO isometric, NO 45-degree corner view — with magenta gaps:
+
+1. An office window WITH a wall strip: a straight-on rectangular window
+   set in a short band of office wall, night city lights outside
+2. An office desk, front view: flat front panel, monitor facing viewer
+3. A simple wooden bench, front view, seat facing the viewer
+4. A wooden pier end-cap: straight-on view of plank decking edge with
+   two dark posts and a soft shadow line at the water
+5. A small vegetable garden patch, viewed straight from above:
+   4 straight horizontal furrows with tiny green sprouts — a flat
+   rectangle, NOT a diamond
+6. A low wooden daybed (평상), viewed straight from above: a warm wooden
+   platform, slats running horizontally, slightly larger than a bench
+```
+
+크기 참고: 사람이 24px 다. 좌판·평상이 사람보다 작아서 어색했으니
+**벤치보다 평상이 확실히 크게**, 좌판은 사람 어깨높이쯤 되게 받는다.
+
+**계단 타일** (A장 규칙, 512x512 이어붙임 가능):
+
+```
+One seamless tiling texture patch, 512x512: stone steps viewed straight
+from above, even horizontal treads with thin shadow lines between them,
+cool grey granite. Calm and even — it must read as stairs, not carpet.
+```
+
+받으면 `granite-step.png` 를 갈아 끼운다 — 볕뉘 섬돌·가풀재 층계·
+잿마루 로비 층계가 한 번에 풀린다.
+
+### 그림이 더 필요하다고 적어 둔 것 (다음 묶음 후보)
+
+- **봉분** 1장 — 볕뉘가 "능" 인데 봉분이 없다
+- **낮은 돌담** 1장 — 하늬섬이 "돌담 마을" 인데 돌담이 없다
+- **축대/절벽 가장자리** 타일 — 가풀재의 "가파름"이 지금은 평지로 읽힌다

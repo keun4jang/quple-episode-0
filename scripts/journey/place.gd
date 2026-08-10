@@ -735,6 +735,11 @@ func _tick_outline() -> void:
 # 노을은 파래지기 **전에** 한 번 붉어진다. 그 구간이 이 게임에서 제일
 # 예쁠 자리인데 통째로 없었다. 시각별로 색을 찍어 두고 사이를 잇는다.
 const SKY := [
+	# 아침. 예전엔 표가 16시부터 시작이라 7시가 정오와 똑같은 순백이었다 —
+	# 하루의 절반에 무드가 없었다. 푸른 새벽에서 살구빛으로 풀린다.
+	[6.0, Color(0.78, 0.82, 0.96)],    # 푸른 새벽
+	[7.2, Color(1.00, 0.93, 0.84)],    # 살구빛 아침
+	[9.0, Color(1.00, 1.00, 1.00)],    # 낮
 	[16.0, Color(1.00, 1.00, 1.00)],   # 아직 낮
 	[17.0, Color(1.00, 0.96, 0.88)],   # 볕이 노래진다
 	[18.0, Color(1.00, 0.87, 0.72)],   # 금빛. 가장 따뜻한 지점
@@ -768,7 +773,10 @@ var _lamps: Array = []
 func _add_lamp(at: Vector2) -> void:
 	var l := PointLight2D.new()
 	l.texture = _lamp_glow()
-	l.texture_scale = 3.0
+	# 처음엔 지름 24칸 · 세기 1.15 로 뒀더니 등 네 개가 합쳐져 **한낮보다
+	# 밝은 흰 덩어리**가 마을 절반을 덮었다. 가로등은 제 발치나 비추면
+	# 된다 — 눈에 띄면 과한 것이다.
+	l.texture_scale = 1.4
 	l.color = Color(1.0, 0.86, 0.58)
 	l.blend_mode = Light2D.BLEND_MODE_ADD
 	l.position = at + Vector2(0, -22)
@@ -798,7 +806,7 @@ func _lamp_glow() -> Texture2D:
 func _tick_lamps() -> void:
 	if _lamps.is_empty():
 		return
-	var e: float = smoothstep(0.15, 0.75, JourneyState.night_amount()) * 1.15
+	var e: float = smoothstep(0.15, 0.75, JourneyState.night_amount()) * 0.55
 	for l in _lamps:
 		if is_instance_valid(l):
 			l.energy = e
