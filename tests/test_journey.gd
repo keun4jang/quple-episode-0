@@ -681,18 +681,48 @@ func _camera_tests() -> void:
 	ok(tp._folk_at(someone.global_position + Vector2(90, 90)) == null,
 		"멀리 빈 땅을 누르면 아무도 안 잡힌다")
 
-	# ② 누른 자리로 걸어간다
+	# ② 누른 자리로 **길을 찾아** 간다. 소품에 걸려 서 버리면 안 된다.
 	var from := tp.walker.global_position
 	var goal := from + Vector2(-120, 30)
 	tp.walk_to(goal)
+	ok(tp.is_walking_to(), "길을 찾았다 (길목 %d개)" % tp._path.size())
 	var t := 0.0
-	while t < 6.0 and tp.walker.global_position.distance_to(goal) > 8.0:
+	while t < 12.0 and tp.is_walking_to():
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	ok(tp.walker.global_position.distance_to(goal) <= 8.0,
 		"누른 자리까지 걸어간다 (남은 %.0fpx)" % tp.walker.global_position.distance_to(goal))
 
-	# ③ 대화창을 되돌려 볼 수 있다
+	# 못 걷는 칸을 눌러도 가장 가까운 땅으로 간다 — 아무 반응이 없으면
+	# 고장으로 읽힌다.
+	var wet := Vector2i(-1, -1)
+	for y in tp._grid.size():
+		var row: String = tp._grid[y]
+		for x in row.length():
+			if tp.legend.has(row[x]) and tp.solid_tiles.has(String(tp.legend[row[x]])):
+				wet = Vector2i(x, y)
+				break
+		if wet.x >= 0:
+			break
+	if wet.x >= 0:
+		ok(not tp._walkable(wet), "물 칸은 못 걷는 칸이다")
+		tp.walk_to(tp.world_of(wet))
+		ok(tp.is_walking_to(), "물을 눌러도 가장 가까운 땅으로 간다")
+		tp.stop_walk_to()
+
+	# ③ 멀리 있는 인연을 누르면 **그 앞까지만** 간다. 저절로 말이 걸리지 않는다.
+	tp.walker.global_position = someone.global_position + Vector2(150, 40)
+	await get_tree().process_frame
+	tp.walk_to(tp._beside(someone))
+	t = 0.0
+	while t < 12.0 and tp.is_walking_to():
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	ok(tp.walker.global_position.distance_to(someone.global_position) <= tp.TALK_RANGE,
+		"인연 앞까지 걸어간다")
+	ok(not tp.say.is_busy(), "다가가는 것만으로 말이 걸리지는 않는다")
+
+	# ④ 대화창을 되돌려 볼 수 있다
 	tp.say.say("아무개", ["첫째 줄.", "둘째 줄.", "셋째 줄."])
 	ok(tp.say.is_busy(), "대화가 열린다")
 	ok(tp.say._prev_btn.disabled, "첫 줄에서는 이전이 꺼져 있다")
@@ -713,7 +743,7 @@ func _camera_tests() -> void:
 		await get_tree().process_frame
 	ok(not tp.say.is_busy(), "끝까지 넘기면 닫힌다")
 
-	# ④ 미니맵
+	# ⑤ 미니맵
 	ok(tp.minimap != null and not tp.minimap.is_big(), "미니맵은 작게 시작한다")
 	tp.minimap.toggle()
 	ok(tp.minimap.is_big(), "누르면 커진다")

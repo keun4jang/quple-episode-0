@@ -49,6 +49,8 @@ var _folk: Array[Folk] = []
 var _near: Folk = null
 var _mark: Label                     # 말 걸 수 있는 사람 위에 뜨는 표시
 var minimap: MiniMap
+## 소품이 막고 있는 칸. 길찾기가 본다.
+var _blocked: Dictionary = {}
 var _night: CanvasModulate
 var _sleep_at := Vector2.ZERO
 var _has_bed := false
@@ -235,6 +237,9 @@ func _build_props() -> void:
 
 		if blocks:
 			# 밑동만 막는다. 나무 꼭대기까지 막으면 뒤로 못 지나간다.
+			var half: int = int(ceil(maxf(TILE, tex.get_width() * 0.7) * 0.5 / TILE))
+			for bx in range(tx - half + 1, tx + half):
+				_blocked[Vector2i(bx, ty)] = true
 			var body := StaticBody2D.new()
 			var cs := CollisionShape2D.new()
 			var r := RectangleShape2D.new()
@@ -843,8 +848,16 @@ func _unhandled_input(e: InputEvent) -> void:
 	# 이제는 **그 사람을 직접 눌러야** 한다.
 	var who := _folk_at(at)
 	if who != null:
-		_near = who
-		talk_to_near()
+		# **앞에 가서** 눌러야 말이 걸린다. 멀리서 누르면 그 앞까지
+		# 걸어간다 — 가서 한 번 더 누르면 그때 말이 걸린다.
+		# 저절로 말이 시작되게 하지 않는다. 다가가는 것과 말을 거는 것은
+		# 다른 마음이고, 그 사이를 사람이 정하는 편이 이 게임에 맞는다.
+		if walker.global_position.distance_to(who.global_position) <= TALK_RANGE:
+			stop_walk_to()
+			_near = who
+			talk_to_near()
+		else:
+			walk_to(_beside(who))
 		get_viewport().set_input_as_handled()
 		return
 	# ② 잠자리·정류장 위에 서 있으면 그쪽.
@@ -876,6 +889,15 @@ func _touch_world(e: InputEvent) -> Vector2:
 	return cam.global_position + (pos - vp * 0.5) / cam.zoom
 
 
+## 그 사람 **옆에** 설 자리. 몸 위로 걸어 들어가면 밀려난다.
+func _beside(f: Folk) -> Vector2:
+	var from := walker.global_position
+	var d := (from - f.global_position)
+	if d.length() < 1.0:
+		d = Vector2.RIGHT
+	return f.global_position + d.normalized() * (TALK_RANGE * 0.6)
+
+
 ## 그 자리에 서 있는 인연. 눌러야 할 만큼 가까우면 돌려준다.
 ##
 ## 화면에 그려진 크기가 아니라 **손가락 크기**를 기준으로 잡는다.
@@ -901,76 +923,162 @@ func _folk_at(at: Vector2) -> Folk:
 
 # ── 눌러서 걷기 ────────────────────────────────────────────────────────
 #
-# 손가락을 밀어 걷는 것과 **같이 쓴다.** 밀면 그쪽으로 가고, 톡 누르면
-# 그 자리로 걸어간다. 누르는 쪽이 조용해서 이 게임에 더 맞는다.
+# 톡 누르면 그 자리로 **알아서 간다.** 손가락으로 미는 조작도 그대로
+# 남아 있다 — 밀면 그쪽이 우선이고, 가던 길은 접는다.
 #
-# 길찾기를 안 넣는다. 마을이 다 트여 있어 직선으로 가면 대개 닿고,
-# 막히면 그냥 멈춘다 — 헤매는 것보다 멈추는 편이 낫다.
-var _goto := Vector2.INF
-const GOTO_DONE := 6.0        # 이만큼 가까워지면 도착
-const GOTO_STUCK := 0.25      # 이 시간 동안 못 나아가면 옆으로 돌아 본다
-const DODGE_TIME := 0.40      # 옆으로 도는 시간
-const DODGE_MAX := 3          # 이만큼 해 보고 안 되면 포기
-var _goto_stuck := 0.0
-var _dodge := Vector2.ZERO
-var _dodge_left := 0.0
-var _dodge_n := 0
+# 처음엔 직선으로만 갔다. 마을이 트여 있으니 대개 닿긴 했는데,
+# **벤치 모서리 하나에 걸려 제자리에 서 버렸다.** 옆으로 한 발 돌아 보게
+# 해도 집 뒤로 돌아가야 하는 자리는 못 갔다. 누른 사람에게는 그냥
+# 고장으로 보인다. 그래서 **길을 찾는다.**
+#
+# 지도가 44x20 칸이라 A* 를 매번 돌려도 싸다. 미리 만들어 둘 것도 없다.
+var _path: Array[Vector2] = []
+const REACH := 5.0            # 길목에 이만큼 닿으면 다음 길목으로
+const ARRIVE := 4.0           # 마지막 자리에 이만큼 닿으면 도착
+
 
 func walk_to(at: Vector2) -> void:
-	_goto = at
-	_goto_stuck = 0.0
-	_dodge_left = 0.0
-	_dodge_n = 0
+	_path.clear()
+	if walker == null:
+		return
+	var from := tile_of(walker.global_position)
+	var to := tile_of(at)
+	if not _walkable(to):
+		to = _nearest_walkable(to)
+		if to.x < 0:
+			return
+	var tiles := _find_path(from, to)
+	if tiles.is_empty():
+		return
+	for t in tiles:
+		_path.append(world_of(t) - Vector2(0, TILE * 0.5))
+	# 마지막은 누른 자리 그대로. 칸 가운데로 끌려가면 어긋나 보인다.
+	if _walkable(tile_of(at)):
+		_path[_path.size() - 1] = at
 
 
 func stop_walk_to() -> void:
-	_goto = Vector2.INF
-	_dodge_left = 0.0
+	_path.clear()
 
 
-## 소품 모서리에 걸리면 **옆으로 한 발 돌아서** 다시 간다.
-##
-## 길찾기를 안 넣는다 — 마을이 다 트여 있어 대개 직선으로 닿는다.
-## 다만 그대로 두면 벤치 모서리 하나에 걸려 제자리에 서 버리는데,
-## 누른 사람 입장에서는 그냥 고장으로 보인다. 몇 번 돌아 보고,
-## 그래도 안 되면 조용히 포기한다.
-func _tick_goto(delta: float) -> Vector2:
-	if _goto == Vector2.INF or walker == null:
+func is_walking_to() -> bool:
+	return not _path.is_empty()
+
+
+func tile_of(w: Vector2) -> Vector2i:
+	return Vector2i(int(floor(w.x / TILE)), int(floor((w.y - 1.0) / TILE)))
+
+
+func _walkable(t: Vector2i) -> bool:
+	if t.x < 0 or t.y < 0 or t.y >= _grid.size():
+		return false
+	var row: String = _grid[t.y]
+	if t.x >= row.length():
+		return false
+	var ch := row[t.x]
+	if not legend.has(ch):
+		return false
+	if solid_tiles.has(String(legend[ch])):
+		return false
+	return not _blocked.has(t)
+
+
+## 누른 곳이 물이나 소품 위면 **가장 가까운 걸을 수 있는 칸**으로 보낸다.
+## 못 가는 곳을 눌렀다고 아무 반응이 없으면 고장으로 읽힌다.
+func _nearest_walkable(t: Vector2i) -> Vector2i:
+	for r in range(1, 6):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if absi(dx) != r and absi(dy) != r:
+					continue
+				var c := t + Vector2i(dx, dy)
+				if _walkable(c):
+					return c
+	return Vector2i(-1, -1)
+
+
+const STEPS8 := [
+	Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+	Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
+]
+
+func _find_path(from: Vector2i, to: Vector2i) -> Array:
+	if from == to or not _walkable(to):
+		return []
+	if not _walkable(from):
+		from = _nearest_walkable(from)
+		if from.x < 0:
+			return []
+	var open: Array[Vector2i] = [from]
+	var came: Dictionary = {}
+	var cost: Dictionary = {from: 0.0}
+	var guess: Dictionary = {from: Vector2(from - to).length()}
+	var guard := 0
+	while not open.is_empty():
+		guard += 1
+		if guard > 4000:
+			return []                      # 지도가 아무리 커도 여기 안 온다
+		var best := 0
+		for i in open.size():
+			if float(guess.get(open[i], INF)) < float(guess.get(open[best], INF)):
+				best = i
+		var cur: Vector2i = open[best]
+		if cur == to:
+			var out: Array = [cur]
+			while came.has(cur):
+				cur = came[cur]
+				out.push_front(cur)
+			out.remove_at(0)               # 서 있는 칸은 뺀다
+			return _smooth(out)
+		open.remove_at(best)
+		for d in STEPS8:
+			var nx: Vector2i = cur + d
+			if not _walkable(nx):
+				continue
+			# 대각선은 양옆이 다 트여 있을 때만. 모서리를 뚫고 지나가면
+			# 그림상 벽을 통과한 것처럼 보인다.
+			if d.x != 0 and d.y != 0:
+				if not _walkable(Vector2i(cur.x + d.x, cur.y)) \
+						or not _walkable(Vector2i(cur.x, cur.y + d.y)):
+					continue
+			var step: float = 1.0 if (d.x == 0 or d.y == 0) else 1.4142
+			var c: float = float(cost[cur]) + step
+			if c < float(cost.get(nx, INF)):
+				cost[nx] = c
+				came[nx] = cur
+				guess[nx] = c + Vector2(nx - to).length()
+				if not open.has(nx):
+					open.append(nx)
+	return []
+
+
+## 한 줄로 이어지는 칸은 하나로 합친다. 칸마다 꺾으면 걸음이 톱니처럼 된다.
+func _smooth(tiles: Array) -> Array:
+	if tiles.size() < 3:
+		return tiles
+	var out: Array = [tiles[0]]
+	for i in range(1, tiles.size() - 1):
+		var a: Vector2i = tiles[i] - tiles[i - 1]
+		var b: Vector2i = tiles[i + 1] - tiles[i]
+		if a != b:
+			out.append(tiles[i])
+	out.append(tiles[tiles.size() - 1])
+	return out
+
+
+func _tick_goto(_delta: float) -> Vector2:
+	if _path.is_empty() or walker == null:
 		return Vector2.ZERO
-	var to := _goto - walker.global_position
-	if to.length() <= GOTO_DONE:
-		stop_walk_to()
-		return Vector2.ZERO
-
-	# 돌아가는 중이면 그 방향을 유지한다
-	if _dodge_left > 0.0:
-		_dodge_left -= delta
-		if _dodge_left <= 0.0:
-			_goto_stuck = 0.0
-		return _dodge
-
-	if walker.is_moving():
-		_goto_stuck = 0.0
-	else:
-		_goto_stuck += delta
-		if _goto_stuck > GOTO_STUCK:
-			_goto_stuck = 0.0
-			_dodge_n += 1
-			if _dodge_n > DODGE_MAX:
-				stop_walk_to()
-				return Vector2.ZERO
-			# 목표 쪽으로 더 기우는 수직 방향을 고른다
-			var want := to.normalized()
-			var a := Vector2(-want.y, want.x)
-			var b := Vector2(want.y, -want.x)
-			_dodge = a if a.dot(want) >= b.dot(want) else b
-			# 홀수 번째는 반대쪽으로 — 한쪽만 고집하면 같은 데를 맴돈다
-			if _dodge_n % 2 == 0:
-				_dodge = -_dodge
-			_dodge_left = DODGE_TIME
-			return _dodge
-	return to.limit_length(1.0) if to.length() < 24.0 else to.normalized()
-
+	var here := walker.global_position
+	var goal: Vector2 = _path[0]
+	var to := goal - here
+	var near: float = ARRIVE if _path.size() == 1 else REACH
+	if to.length() <= near:
+		_path.remove_at(0)
+		if _path.is_empty():
+			return Vector2.ZERO
+		to = _path[0] - here
+	return to.limit_length(1.0) if to.length() < 20.0 else to.normalized()
 
 
 func _process(delta: float) -> void:

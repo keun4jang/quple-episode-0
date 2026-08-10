@@ -13,7 +13,7 @@ signal finished
 const SPEED := 0.028          # 한 글자에 걸리는 시간
 ## 창이 이보다 넓어지지 않는다. 큰 화면에서 한 줄이 가로로 끝없이
 ## 늘어나면 눈이 따라가느라 피곤하다.
-const MAX_WIDTH := 720.0
+const MAX_WIDTH := 560.0
 
 var _panel: PanelContainer
 var _who: Label
@@ -46,13 +46,13 @@ func _build() -> void:
 	_panel = PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color("#FFFDF6")
-	sb.set_corner_radius_all(12)
-	sb.set_border_width_all(3)
+	sb.set_corner_radius_all(10)
+	sb.set_border_width_all(2)
 	sb.border_color = Color("#5A4A44")
-	sb.content_margin_left = 18
-	sb.content_margin_right = 18
-	sb.content_margin_top = 10
-	sb.content_margin_bottom = 10
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 7
+	sb.content_margin_bottom = 7
 	_panel.add_theme_stylebox_override("panel", sb)
 	_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	root.add_child(_panel)
@@ -65,15 +65,15 @@ func _build() -> void:
 	_panel.add_child(box)
 
 	_who = Label.new()
-	_who.add_theme_font_size_override("font_size", 20)
+	_who.add_theme_font_size_override("font_size", 15)
 	_who.add_theme_color_override("font_color", Color("#8C7B68"))
 	box.add_child(_who)
 
 	_line = Label.new()
-	_line.add_theme_font_size_override("font_size", 28)
+	_line.add_theme_font_size_override("font_size", 21)
 	_line.add_theme_color_override("font_color", Color("#3A2C2C"))
 	_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_line.custom_minimum_size = Vector2(0, 62)
+	_line.custom_minimum_size = Vector2(0, 46)
 	_line.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	box.add_child(_line)
 
@@ -96,8 +96,8 @@ func _small_btn(text: String, fn: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(86, 40)
-	b.add_theme_font_size_override("font_size", 20)
+	b.custom_minimum_size = Vector2(64, 30)
+	b.add_theme_font_size_override("font_size", 15)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color("#F1E9DA")
 	sb.set_corner_radius_all(10)
@@ -122,9 +122,9 @@ func _small_btn(text: String, fn: Callable) -> Button:
 func _fit() -> void:
 	if _panel == null:
 		return
-	var need: float = maxf(_panel.get_combined_minimum_size().y, 96.0)
+	var need: float = maxf(_panel.get_combined_minimum_size().y, 74.0)
 	var safe := JourneyHud.safe_insets(get_viewport())
-	var bottom := 26.0 + safe.w
+	var bottom := 22.0 + safe.w
 	_panel.offset_bottom = -bottom
 	_panel.offset_top = -(bottom + need)
 	# 좌우도 비켜 준다. 가로로 들면 노치가 짧은 변, 즉 좌우에 온다.

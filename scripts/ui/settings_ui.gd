@@ -19,9 +19,37 @@ func _ready() -> void:
 	sfx.value_changed.connect(func(v): _apply("SFX", v); AudioManager.set_sfx_volume(v); _save())
 	close_btn.pressed.connect(close)
 	reset_btn.pressed.connect(_on_reset)
+	_close_on_outside_tap()
 	_add_home_button()
 	_add_update_row()
 	_make_scrollable()
+
+
+## 창 **밖**을 누르면 닫는다.
+##
+## 지금까지 나가는 길이 "닫기" 버튼 하나뿐이었다. 그런데 창을 열어 놓고
+## 밖을 누르는 건 거의 반사에 가깝다 — 그때 아무 일도 안 일어나면
+## 잠긴 것처럼 느껴진다.
+##
+## 뒤 그림자(`Shade`)가 화면 전체를 덮고 있으니 거기서 받는다.
+## 창 안쪽은 패널이 먼저 받으므로 여기까지 안 온다.
+func _close_on_outside_tap() -> void:
+	var shade := get_node_or_null("Root/Shade") as Control
+	if shade == null:
+		return
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	shade.gui_input.connect(func(e: InputEvent) -> void:
+		if not visible:
+			return
+		var tap: bool = (e is InputEventScreenTouch and e.pressed) \
+			or (e is InputEventMouseButton and e.pressed
+				and e.button_index == MOUSE_BUTTON_LEFT)
+		if tap:
+			close()
+			shade.accept_event())
+	# 패널은 눌러도 안 닫힌다. 안쪽을 만지다 창이 사라지면 안 된다.
+	if panel != null:
+		panel.mouse_filter = Control.MOUSE_FILTER_STOP
 
 
 ## 설정창이 화면을 넘치지 않게 한다.
