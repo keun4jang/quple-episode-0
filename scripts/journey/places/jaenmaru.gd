@@ -19,9 +19,10 @@ func _init() -> void:
 		"l": "lobby-marble",   # 엘리베이터 앞과 1층 로비. 같은 대리석이다
 		"n": "granite-step",   # 로비에서 거리로 내려가는 층계
 		"c": "cobble",         # 회사 앞 인도
-		"a": "slate-path",     # 새벽 찻길
+		"a": "asphalt",        # 새벽 찻길. 잿빛 도시니까 아스팔트다
 		"g": "grass",          # 인도 옆 화단
-		".": "dirt",           # 찻길 갓길
+		".": "granite-step",   # 찻길 갓길. 주황 흙이라 이 잿빛 도시에서
+		                       # 혼자 따뜻한 해변 띠처럼 보였다
 	}
 
 

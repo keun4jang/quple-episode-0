@@ -28,6 +28,7 @@ const COLORS := {
 	"basalt": Color("#6B5A57"), "clay-earth": Color("#CDA282"),
 	"granite-step": Color("#B0A7A9"), "slate-path": Color("#BFA69F"),
 	"office-carpet": Color("#AFA8B6"), "lobby-marble": Color("#A9BDB2"),
+	"asphalt": Color("#4A4C52"),
 }
 const UNKNOWN := Color("#9A8E80")
 
