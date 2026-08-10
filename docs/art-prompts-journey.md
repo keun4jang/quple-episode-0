@@ -871,3 +871,69 @@ T-4 는 새 소품이라 `import-journey-art.py` 등록 + 볕뉘(봉분)·하늬
 나무 · 소나무 · 바위 · 덤불 · 가로등 · 표지판 · 우체통 · 울타리 · 부표 ·
 그물 · 항아리 · 빨랫줄 · 파라솔 · 인물 전원 · 줍는 것들 · 배낭/카메라
 아이콘 — 전부 정면이거나 대칭이라 그대로 쓴다.
+
+---
+
+# T-6장 — 마지막 대각선 넷 (2026-08-10)
+
+만든 사람이 "아직도 대각선으로 보이는 것들이 있다" 고 했다. 스프라이트
+44장의 **불투명 영역 위·아래 가장자리 기울기를 전부 재서** 추렸다.
+남은 것은 정확히 넷이고, 셋은 화면에 아주 많이 깔린다.
+
+| 스프라이트 | 지금 | 쓰이는 곳 |
+|---|---|---|
+| **pine** | 바람에 누워 거의 가로로 뻗었다. 쓰러진 나무로 보인다 | **32곳** |
+| **fence** | 왼쪽 위 → 오른쪽 아래로 물러나는 45도 울타리 | **20곳** |
+| **signpost** | 판이 평행사변형으로 기울어 있다 | **6곳** — 떠나는 자리마다 |
+| **home-persimmon** | 줄기가 30도쯤 기울었다 | 1곳 (고향) |
+
+**자동 교정은 실패했다.** 기울기만 되돌리면 될 줄 알고 shear 를 역으로
+걸어 봤는데, 울타리는 더 비스듬해지고 감나무는 더 기울었다. 픽셀을
+밀어내는 것으로는 시점이 안 고쳐진다 — 다시 그려야 한다.
+
+## 프롬프트
+
+```
+PIXEL ART game sprites, CUT OUT on a chroma-key background.
+
+Every single pixel that is not part of an object is the exact same flat
+MAGENTA (#FF00FF), filling the whole canvas — corners, edges, the spaces
+between objects. NO room, NO floor, NO wall, NO white paper, NO panels,
+NO frames, NO dividing lines. The objects float on pure magenta.
+
+Crisp pixel art with a visible pixel grid and a limited palette, like
+Stardew Valley sprites. NOT a photo, NOT a 3D render, NOT a smooth
+painting. Hand-placed detail: bark texture, wood grain, worn paint.
+
+Straight-on FRONT view. Trunks and posts stand STRAIGHT UP, vertical.
+NO leaning, NO isometric, NO 45-degree recession — a fence must read as
+a flat row of pickets facing the viewer, not a fence receding into the
+distance.
+
+Warm gentle palette: sage green, sandy beige, warm brown, muted teal.
+Light from upper-left.
+
+NO text, NO numbers, NO labels, NO watermark, NO people.
+
+Create 4 sprites floating in a row with magenta gaps:
+
+1. A pine tree standing UPRIGHT: straight vertical trunk, layered
+   blue-green needle branches, tall and calm. Roughly 300px tall
+2. A short wooden picket fence seen straight on: 5 upright pickets and
+   two horizontal rails, all flat and facing the viewer. Not angled
+3. A wooden signpost: a plain rectangular board mounted on a straight
+   vertical post. The board is a flat rectangle squarely facing the
+   viewer — not tilted, not a parallelogram. The board is BLANK, no writing
+4. A persimmon tree standing UPRIGHT: straight vertical trunk, bare
+   autumn branches with orange persimmons hanging. Roughly 300px tall
+```
+
+## 안 고쳐도 되는 것 (재 봤고 문제 없음)
+
+`tree` `boulder` `shrub` `jars` `parasol` `clothesline` `street-lamp`
+`lighthouse` `mailbox` `net` `washtub` `tools` `flower-pots` `pebbles` ·
+그리고 이번에 새로 받은 것 전부.
+
+`jars` 와 `parasol` 의 밑동·차양이 타원인 것은 **맞는 것이다.** 이 게임의
+카메라가 스타듀처럼 살짝 위에서 내려다보는 각이라, 둥근 것은 타원으로
+보이는 게 정상이다. 45도로 **물러나는** 것만 문제다.
