@@ -25,6 +25,8 @@ var lines_by_heart: Array = []
 var once: Array = []
 
 var _talked := false
+## 오늘 노을을 같이 봤나. 하루에 한 번이다.
+var _dusk_warmed := false
 
 
 func heart() -> int:
@@ -54,3 +56,4 @@ func on_talked() -> void:
 
 func reset_day() -> void:
 	_talked = false
+	_dusk_warmed = false

@@ -73,18 +73,29 @@ func wanderer_here(place: String) -> bool:
 	return wanderer_place == place
 
 
-## 처음이 아니고, **처음 보는 곳**에서 만났나
+## 마지막으로 만난 곳. 같은 곳에서 저장을 다시 불러도 재회가 두 번
+## 일어나지 않게 한다.
+var last_met := ""
+
+
+## 전에 만난 적이 있는 이를 또 만났나. 어디서든 재회는 재회다 —
+## 단, 만난 그 자리에서 그대로면 재회가 아니라 그냥 같이 있는 것이다.
 func is_reunion(place: String) -> bool:
-	return not wanderer_seen.is_empty() and not wanderer_seen.has(place) \
-		and wanderer_here(place)
+	return not wanderer_seen.is_empty() and wanderer_here(place) \
+		and place != last_met
 
 
 func meet_wanderer(place: String) -> void:
 	wanderer_seen[place] = true
+	last_met = place
 
 
 ## 몇 번 떠났나. 여행자를 옮기는 박자를 여기서 센다.
 var departures := 0
+## 몇 번 다시 만났나. 재회 대사의 단계가 이걸 따라간다.
+var reunions := 0
+## 마지막 재회(혹은 첫 만남) 뒤로 몇 번 떠났나.
+var since_reunion := 0
 
 
 ## 내가 떠나면 그 사람도 떠난다.
@@ -103,8 +114,13 @@ func move_wanderer(dest: String = "", from: String = "") -> void:
 	if from == "잿마루":
 		return
 	departures += 1
-	if departures % 3 == 0 and WANDERER_STOPS.has(dest) \
-			and not wanderer_seen.has(dest):
+	# **마지막 재회에서 두 번 떠나면 겹친다.** 처음엔 "세 번째 떠남마다 +
+	# 안 가 본 곳에서만" 이었는데, 그러면 재회가 3·6·9번째 떠남에 왔다 —
+	# 15~20분짜리 게임에서 제목이 나오는 줄이 30분 뒤에 있었다. 그리고
+	# 네 곳을 다 돌면 재회가 영영 끝났다. 넷째부터는 놀람이 아니라
+	# 익숙함으로 계속 만난다.
+	since_reunion += 1
+	if since_reunion >= 2 and WANDERER_STOPS.has(dest):
 		wanderer_place = dest
 		return
 	var i := WANDERER_STOPS.find(wanderer_place)
@@ -358,6 +374,9 @@ func to_dict() -> Dictionary:
 		"postcards": postcards.duplicate(true),
 		"arrivals": arrivals,
 		"departures": departures,
+		"reunions": reunions,
+		"since_reunion": since_reunion,
+		"last_met": last_met,
 		"photos": photos.duplicate(true),
 	}
 
@@ -379,6 +398,9 @@ func from_dict(d: Dictionary) -> void:
 		if d.get("postcards") is Dictionary else {}
 	arrivals = maxi(0, int(d.get("arrivals", 0)))
 	departures = maxi(0, int(d.get("departures", 0)))
+	reunions = maxi(0, int(d.get("reunions", 0)))
+	since_reunion = maxi(0, int(d.get("since_reunion", 0)))
+	last_met = String(d.get("last_met", ""))
 	photos = d.get("photos", []).duplicate(true) if d.get("photos") is Array else []
 
 
@@ -398,3 +420,6 @@ func reset() -> void:
 	photos = []
 	arrivals = 0
 	departures = 0
+	reunions = 0
+	since_reunion = 0
+	last_met = ""

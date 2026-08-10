@@ -1093,6 +1093,41 @@ func _tick_tap_mark(delta: float) -> void:
 	_tap_mark.queue_redraw()
 
 
+# ── 같이 노을 보기 ────────────────────────────────────────────────────
+#
+# 마음을 채우는 길이 "말 걸기 → 자기" 반복 하나뿐이었다. 그런데 4칸
+# 대사에 "같이 노을 볼래요?" 가 네 마을 전부 들어 있으면서 **실제로는
+# 아무 일도 일어나지 않았다** — 말로만 하는 약속이었다.
+#
+# 노을 질 무렵(17~19시) 인연 옆에 **가만히** 서 있으면, 30초 뒤에
+# 마음이 한 칸 는다. 버튼도 알림도 없다. 둘이 같은 쪽을 보고 서 있는
+# 것으로만 안다. 아무것도 안 하는 시간이 이 게임에서는 하는 일이다.
+var _dusk_t := 0.0
+
+func _tick_dusk(delta: float) -> void:
+	if _near == null or _near.is_spot or _near._dusk_warmed:
+		_dusk_t = 0.0
+		return
+	var h := JourneyState.minutes / 60.0
+	if h < 17.0 or h > 19.0:
+		_dusk_t = 0.0
+		return
+	if (walker != null and walker.is_moving()) \
+			or (say != null and say.is_busy()) \
+			or (hud != null and hud.bag_open()):
+		_dusk_t = 0.0
+		return
+	_dusk_t += delta
+	if _dusk_t >= 30.0:
+		_dusk_t = 0.0
+		_near._dusk_warmed = true
+		JourneyState.warm(_near.folk_id)
+		# 그 사람이 나와 같은 쪽 — 노을 쪽을 본다. 그게 답이다.
+		_near.face(Vector2.LEFT)
+		if walker != null:
+			walker.face(Vector2.LEFT)
+
+
 ## 안내가 기다리던 일을 해냈다고 알린다.
 func _did(what: String) -> void:
 	if guide != null and is_instance_valid(guide):
@@ -1388,6 +1423,7 @@ func _process(delta: float) -> void:
 	_update_near()
 	_tick_outline()
 	_tick_tap_mark(delta)
+	_tick_dusk(delta)
 	_refresh_action()
 	_tick_clock(delta)
 	if not blocked:
@@ -1425,6 +1461,13 @@ const REUNION := [
 		["그", "나는 이런 게 진짜 행복인 것 같아."]],
 ]
 
+## 넷째부터. 제목이 나오는 셋째 줄을 **되풀이하면 안 된다** — 그 말은
+## 게임 전체에서 두 번뿐이다. 넷째부터는 놀람이 아니라 익숙함이다.
+const REUNION_LATER := [
+	[["그", "오늘도 만났네."], ["나", "네. 어쩐지 그럴 것 같았어요."]],
+	[["그", "이제 놀랍지도 않지?"], ["나", "…네. 그게 좋아요."]],
+]
+
 
 func put_wanderer(sheet: String, who: String, folk_id: String,
 		lines: Array, flavour: Array) -> Folk:
@@ -1433,11 +1476,16 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 		return null
 	var f := put_folk(t, sheet, who, folk_id, lines, Vector2.DOWN, true)
 	if JourneyState.is_reunion(place_name()):
-		# 몇 번째 다시 만남인가. 처음 만난 곳은 빼고 센다.
-		var nth: int = clampi(JourneyState.wanderer_seen.size() - 1,
-			0, REUNION.size() - 1)
+		JourneyState.reunions += 1
+		JourneyState.since_reunion = 0
+		var nth: int = JourneyState.reunions - 1
+		var script: Array
+		if nth < REUNION.size():
+			script = REUNION[nth]
+		else:
+			script = REUNION_LATER[(nth - REUNION.size()) % REUNION_LATER.size()]
 		var once: Array = []
-		for pair in REUNION[nth]:
+		for pair in script:
 			once.append([who if String(pair[0]) == "그" else "나", pair[1]])
 		# 그 자리에서만 할 수 있는 말 한 줄. 여기가 어딘지가 드러난다.
 		for l in flavour:

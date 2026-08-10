@@ -435,8 +435,29 @@ func _reunion_tests() -> void:
 			met += 1
 			JourneyState.meet_wanderer(dest)
 	ok(met >= 3, "차례대로 다녀도 여행자를 만난다 (%d번)" % met)
-	ok(reunions >= 2, "그중 처음 보는 곳에서의 재회가 있다 (%d번)" % reunions)
+	ok(reunions >= 2, "그중 재회가 있다 (%d번)" % reunions)
 	ok(met < 12, "그렇다고 갈 때마다 있지는 않다 (%d/12)" % met)
+	# 셋째 재회가 아홉 번째 떠남에 있으면 안 된다 — 이 게임은 15~20분이면
+	# 다 보는데 제목이 나오는 줄이 30분 뒤에 있었다.
+	JourneyState.reset()
+	JourneyState.meet_wanderer("윤슬")
+	var third_at := 0
+	var r2 := 0
+	var at2 := "윤슬"
+	for i in 12:
+		var dest2: String = route[(i + 1) % route.size()]
+		JourneyState.move_wanderer(dest2, at2)
+		at2 = dest2
+		if JourneyState.wanderer_here(dest2) and JourneyState.is_reunion(dest2):
+			r2 += 1
+			JourneyState.reunions += 1
+			JourneyState.since_reunion = 0
+			JourneyState.meet_wanderer(dest2)
+			if r2 == 3:
+				third_at = i + 1
+	ok(third_at > 0 and third_at <= 7,
+		"셋째 재회가 일곱 번째 떠남 안에 온다 (%d번째)" % third_at)
+	ok(r2 >= 4, "네 곳을 다 돌아도 재회가 계속된다 (%d번)" % r2)
 	JourneyState.reset()
 
 	# 진짜 재회 — 윤슬에서 만나고, 떠났다가, 다른 데서 다시 만난다
