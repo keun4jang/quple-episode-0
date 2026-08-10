@@ -707,6 +707,61 @@ func _camera_tests() -> void:
 	ok(JourneyState.time_text() == "오후 12:00", "한낮은 그대로")
 	JourneyState.reset()
 
+	print("\n[시간표]")
+	# 하늘빛은 일곱 단계인데 마을은 아침과 밤이 픽셀 하나 안 달랐다.
+	JourneyState.reset()
+	var sp: Place = preload("res://scenes/journey/Yunseul.tscn").instantiate()
+	add_child(sp)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	JourneyState.minutes = 7 * 60
+	ok(sp.day_part() == "아침", "7시는 아침이다")
+	JourneyState.minutes = 13 * 60
+	ok(sp.day_part() == "낮", "13시는 낮이다")
+	JourneyState.minutes = 19 * 60
+	ok(sp.day_part() == "저녁", "19시는 저녁이다")
+	# 시간표가 있는 인연은 그 시간대의 모든 자리가 지도 안 걸을 수 있는
+	# 칸이어야 한다 — 물이나 소품 위에 서 있으면 안 된다.
+	var sched_folk := 0
+	var bad_spots := 0
+	for c in sp._folk:
+		if not is_instance_valid(c) or c.is_spot or c.schedule.is_empty():
+			continue
+		sched_folk += 1
+		for k in c.schedule:
+			var t2: Vector2i = c.schedule[k]
+			# 인연들 자신이 막는 칸(_blocked)은 빼고 본다
+			var row2: String = sp._grid[t2.y] if t2.y >= 0 and t2.y < sp._grid.size() else ""
+			var ok2: bool = t2.x >= 0 and t2.x < row2.length() \
+				and sp.legend.has(row2[t2.x]) \
+				and not sp.solid_tiles.has(String(sp.legend[row2[t2.x]]))
+			if not ok2:
+				bad_spots += 1
+	if sched_folk > 0:
+		ok(bad_spots == 0, "시간표 자리가 전부 걸을 수 있는 칸이다 (%d명)" % sched_folk)
+	# 화면 밖에서 시간대가 바뀌면 자리를 옮긴다
+	if sched_folk > 0:
+		JourneyState.minutes = 19 * 60
+		sp.cam.global_position = Vector2(-4000, -4000)   # 다 화면 밖
+		var before2 := {}
+		for c in sp._folk:
+			if is_instance_valid(c) and not c.is_spot and not c.schedule.is_empty():
+				before2[c.who] = c.global_position
+		var w := 0.0
+		while w < 2.5:
+			await get_tree().process_frame
+			w += get_process_delta_time()
+		var moved2 := 0
+		for c in sp._folk:
+			if is_instance_valid(c) and before2.has(c.who):
+				var want2: Vector2i = c.schedule.get("저녁", Vector2i(-1, -1))
+				if want2.x >= 0 and sp.tile_of(c.global_position) == want2:
+					moved2 += 1
+		ok(moved2 > 0, "화면 밖에서는 저녁 자리로 옮겨 간다 (%d명)" % moved2)
+	sp.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
 	print("\n[누르기]")
 	var tp: Place = preload("res://scenes/journey/Yunseul.tscn").instantiate()
 	add_child(tp)

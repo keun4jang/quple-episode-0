@@ -1094,6 +1094,57 @@ func _tick_tap_mark(delta: float) -> void:
 	_tap_mark.queue_redraw()
 
 
+# ── 인연 시간표 ──────────────────────────────────────────────────────
+#
+# 아침에는 마당을 쓸고, 낮에는 가게 앞에 서고, 저녁에는 벤치에 앉는다 —
+# 자리만 바뀌어도 마을이 산다. 걷게 하지 않는다 (길찾기·충돌까지
+# 딸려 와서 값이 크다). 대신 **보고 있지 않을 때만** 옮긴다.
+# 화면 안에서 순간이동하면 유령이 된다.
+
+## 지금이 하루 중 언제인가.
+func day_part() -> String:
+	var h := JourneyState.minutes / 60.0
+	if h < 11.0:
+		return "아침"
+	if h < 17.0:
+		return "낮"
+	return "저녁"
+
+
+var _sched_t := 0.0
+
+func _tick_schedule(delta: float) -> void:
+	_sched_t += delta
+	if _sched_t < 1.0:
+		return
+	_sched_t = 0.0
+	var part := day_part()
+	var moved := false
+	for f in _folk:
+		if not is_instance_valid(f) or f.is_spot or f.schedule.is_empty():
+			continue
+		var want: Vector2i = f.schedule.get(part, Vector2i(-1, -1))
+		if want.x < 0 or tile_of(f.global_position) == want:
+			continue
+		if f == _near or (say != null and say.is_busy()):
+			continue                       # 말 섞는 중엔 안 움직인다
+		if _on_screen(f.global_position) or _on_screen(world_of(want)):
+			continue                       # 보고 있으면 다음 기회에
+		f.global_position = world_of(want)
+		f.face(Vector2.DOWN)
+		moved = true
+	if moved:
+		_block_folk_tiles()                # 길찾기의 막힌 칸도 따라간다
+
+
+func _on_screen(w: Vector2) -> bool:
+	if cam == null:
+		return false
+	var half := get_viewport().get_visible_rect().size / (2.0 * cam.zoom.x)
+	var d := w - cam.global_position
+	return absf(d.x) <= half.x + 24.0 and absf(d.y) <= half.y + 24.0
+
+
 # ── 같이 노을 보기 ────────────────────────────────────────────────────
 #
 # 마음을 채우는 길이 "말 걸기 → 자기" 반복 하나뿐이었다. 그런데 4칸
@@ -1308,7 +1359,15 @@ func _nearest_walkable(t: Vector2i) -> Vector2i:
 ## 검사에서 자고 일어나 정류장 가는 길이 매일 막히는 걸 실측으로 잡았다.
 ## 인연은 제자리에 서 있으니, 그 칸을 막힌 칸으로 등록하면 끝이다.
 ## `_blocked` 에도 넣어야 곧게 펴기(`_clear_line`)가 그 사람을 안 뚫는다.
+var _folk_blocked: Array = []
+
 func _block_folk_tiles() -> void:
+	# 인연이 시간표 따라 옮겨 다니므로, 먼저 지난 자리를 푼다.
+	for bt in _folk_blocked:
+		_blocked.erase(bt)
+		if _astar != null and _astar.region.has_point(bt):
+			_astar.set_point_solid(bt, false)
+	_folk_blocked.clear()
 	for f in _folk:
 		if not is_instance_valid(f) or f.is_spot:
 			continue
@@ -1318,6 +1377,7 @@ func _block_folk_tiles() -> void:
 		# 그 사람 발치에 박혀 기어갔다. 사람을 한 칸 돌아가는 게 보기에도
 		# 자연스럽다.
 		for bt in [t, t + Vector2i(0, 1)]:
+			_folk_blocked.append(bt)
 			_blocked[bt] = true
 			if _astar != null and _astar.region.has_point(bt):
 				_astar.set_point_solid(bt, true)
@@ -1447,6 +1507,7 @@ func _process(delta: float) -> void:
 	_tick_outline()
 	_tick_tap_mark(delta)
 	_tick_dusk(delta)
+	_tick_schedule(delta)
 	_refresh_action()
 	_tick_clock(delta)
 	if not blocked:
@@ -1539,14 +1600,20 @@ func put_spot(t: Vector2i, what: String, lines: Array) -> Folk:
 
 ## 인연을 세운다. 걷지 않고 서 있기만 한다.
 func put_folk(t: Vector2i, sheet: String, who: String, folk_id: String,
-		lines: Array, facing := Vector2.DOWN, wanderer := false) -> Folk:
+		lines: Array, facing := Vector2.DOWN, wanderer := false,
+		schedule: Dictionary = {}) -> Folk:
 	var f := Folk.new()
 	f.sheet = "res://assets/sprites/%s-walk.png" % sheet
 	f.who = who
 	f.folk_id = folk_id
 	f.wanderer = wanderer
 	f.lines_by_heart = lines
-	f.position = world_of(t)
+	f.schedule = schedule
+	# 시간표가 있으면 지금 시간대의 자리에서 시작한다.
+	var at := t
+	if not schedule.is_empty():
+		at = schedule.get(day_part(), t)
+	f.position = world_of(at)
 	add_child(f)
 	f.face(facing)
 	_folk.append(f)
