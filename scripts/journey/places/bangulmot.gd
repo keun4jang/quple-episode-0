@@ -13,6 +13,7 @@ func _init() -> void:
 		"w": "water",       # 연못
 		"d": "deck",        # 데크 순환길
 		"g": "grass",       # 둘레 풀밭
+		"e": "clay-earth",  # 빵집·쉼터·정류장 마당 — 풀밭과 갈라지는 자리
 	}
 
 
@@ -21,23 +22,23 @@ func ground_map() -> String:
 	return """
 gggggggggggggggggggggggggggggggggggggg
 gggggggggggggggggggggggggggggggggggggg
-gggggggggggggggggggggggggggggggggggggg
-gggggggggggggggggggggggggggggggggggggg
-gggggggggggggggggggggggggggggggggggggg
-gggggggggggggggggdddddgggggggggggggggg
-gggggggggggggggdddwwwdddgggggggggggggg
-gggggggggggggddwwwwwwwwwddgggggggggggg
-ggggggggggggddwwwwwwwwwwwddggggggggggg
-ggggggggggggdwwwwwwwwwwwwwdggggggggggg
-gggggggggggddwwwwwwwwwwwwwddgggggggggg
-gggggggggggdwwwwwwwwwwwwwwwdgggggggggg
-gggggggggggddwwwwwwwwwwwwwddgggggggggg
-ggggggggggggdwwwwwwwwwwwwwdggggggggggg
-ggggggggggggddwwwwwwwwwwwddggggggggggg
-gggggggggggggddwwwwwwwwwddgggggggggggg
-gggggggggggggggdddwwwdddgggggggggggggg
-gggggggggggggggggdddddgggggggggggggggg
-gggggggggggggggggggggggggggggggggggggg
+geeeeeeeeeeggggggggggggggggggggggggggg
+geeeeeeeeeeggggggggggggggggggggggggggg
+geeeeeeeeeeggggggggggggggggggggggggggg
+geeeeeeeeeeggggggdddddgggggggggggggggg
+geeeeeeeeeeggggdddwwwdddgggggggggggggg
+gggggggggggggddwwwwwwwwwddgeeeeeeeeegg
+ggggggggggggddwwwwwwwwwwwddeeeeeeeeegg
+ggggggggggggdwwwwwwwwwwwwwdeeeeeeeeegg
+gggggggggggddwwwwwwwwwwwwwddeeeeeeeegg
+gggggggggggdwwwwwwwwwwwwwwwdeeeeeeeegg
+gggggggggggddwwwwwwwwwwwwwddeeeeeeeegg
+ggggggggggggdwwwwwwwwwwwwwdeeeeeeeeegg
+geeeeeeeeeegddwwwwwwwwwwwddggggggggggg
+geeeeeeeeeeggddwwwwwwwwwddgggggggggggg
+geeeeeeeeeeggggdddwwwdddgggggggggggggg
+geeeeeeeeeeggggggdddddgggggggggggggggg
+geeeeeeeeeeggggggggggggggggggggggggggg
 gggggggggggggggggggggggggggggggggggggg
 gggggggggggggggggggggggggggggggggggggg
 gggggggggggggggggggggggggggggggggggggg
@@ -69,7 +70,7 @@ func pickups() -> Array:
 		[22, 16, "p-pebble"],
 		[10, 10, "p-flower"],      # 서쪽 둘레
 		[27, 12, "p-acorn"],       # 동쪽 둘레
-		[15, 8, "p-pebble"],
+		[13, 8, "p-pebble"],
 	]
 
 

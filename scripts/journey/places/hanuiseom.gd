@@ -138,10 +138,10 @@ func props() -> Array:
 		[15, 13, "boulder", true],
 		[19, 12, "bench", true],
 		[21, 13, "flower-pots", false],
-		# 쿼장. 좌판 셋이 모여야 장이다.
+		# 쿼장. 좌판 셋이 모여야 장이다 — 두 줄로 오와 열을 맞춘다.
 		[22, 12, "stall", true],
 		[24, 12, "stall", true],
-		[23, 13, "stall", true],
+		[22, 13, "stall", true],
 		[26, 12, "mailbox", true],
 		[27, 13, "bench", true],
 		[28, 11, "street-lamp", true],

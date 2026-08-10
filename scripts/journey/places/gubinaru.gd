@@ -17,6 +17,7 @@ func _init() -> void:
 		"s": "sand",        # 모래톱·강가
 		"g": "grass",       # 둔치
 		"d": "deck",        # 나루 판자
+		"e": "clay-earth",  # 나루 마당 — 오가는 발길에 다져진 흙바닥
 	}
 
 
@@ -36,14 +37,14 @@ gggggggggggggggggggggggggswwwwwwwsgggggggg
 ggggggggggggggggggggggggggswwssswwsggggggg
 ggggggggggggggggggggggggggswwssswwsggggggg
 ggggggggggggggggggggggggggswwssswwsggggggg
-ggggggggggggggggggggggggggswwssswwsggggggg
-ggggggggggggggggggggggggggswwwwwwwddddgggg
-ggggggggggggggggggggggggggswwwwwwwddddgggg
-gggggggggggggggggggggggggswwwwwwwddddggggg
-gggggggggggggggggggggggggswwwwwwwddddggggg
-ggggggggggggggggggggggggswwwwwwwsggggggggg
-gggggggggggggggggggggggswwwwwwwsgggggggggg
-ggggggggggggggggggggggswwwwwwwsggggggggggg
+ggggggggggggggggggggggggggswwssswwsgeeeeee
+ggggggggggggggggggggggggggswwwwwwwddddeeee
+ggggggggggggggggggggggggggswwwwwwwddddeeee
+gggggggggggggggggggggggggswwwwwwwddddeeeee
+gggggggggggggggggggggggggswwwwwwwddddeeeee
+ggggggggggggggggggggggggswwwwwwwsgggeeeeee
+gggggggggggggggggggggggswwwwwwwsggggeeeeee
+ggggggggggggggggggggggswwwwwwwsgggggeeeeee
 gggggggggggggggggggggswwwwwwwsgggggggggggg
 gggggggggggggggggggswwwwwwwsgggggggggggggg
 """
