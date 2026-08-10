@@ -85,6 +85,13 @@ wwwwwwwwwwwwssssssssssswwwwwwwwwwww
 ## 그 하나를 막으면 나루로 못 간다.
 func props() -> Array:
 	return [
+		# 돌담. 이 섬 이름이 "검은 돌담과 바람" 인데 정작 돌담이 없었다.
+		# 밭과 길 사이에 낮게 두른다 — 바람을 막으려고 쌓은 것이다.
+		[9, 9, "stone-wall", true],
+		[12, 9, "stone-wall", true],
+		[22, 12, "stone-wall", true],
+		[25, 12, "stone-wall", true],
+		[6, 13, "stone-wall", true],
 		# ── 북쪽 백사장과 바다 ────────────────────────────────────────
 		# 부표는 물 위에 뜬다. 물은 어차피 못 걷는 칸이라 막지 않는다.
 		[10, 1, "buoy", false],

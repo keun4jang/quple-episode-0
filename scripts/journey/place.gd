@@ -21,7 +21,13 @@ const TILE := 16
 ## 이만큼 가까우면 줍는다. 한 칸 조금 안쪽.
 const PICK_RANGE := 12.0
 ## 이만큼 가까우면 말을 걸 수 있다. 줍기보다 넉넉하게.
-const TALK_RANGE := 26.0
+## 말을 걸 수 있는 거리. 두 칸이다.
+##
+## 한동안 26px(1.6칸)이었는데, 그러면 인연 바로 옆 칸이 그 사람 몸에
+## 막혀 있을 때 설 자리가 1.4칸 밖이 되고, 걸어가 서면 27px — **1px
+## 차이로 말을 못 걸었다.** 폰에서 손가락으로 하는 게임에 그런 여유는
+## 없다. 두 칸으로 넉넉히 잡는다.
+const TALK_RANGE := 32.0
 ## 실제 1초에 게임 시간이 얼마나 흐르나. 하루(18시간)가 약 9분.
 const MINUTES_PER_SECOND := 2.0
 
@@ -865,7 +871,8 @@ const PHOTO_NAMES := {
 	"washtub": "빨래통", "icebox": "아이스박스", "desk": "책상",
 	"cabinet": "캐비닛", "reception": "접수대", "return-box": "반납함",
 	"office-chair": "의자", "office-window": "창",
-	"asphalt": "찻길",
+	"asphalt": "찻길", "burial-mound": "능", "stone-wall": "돌담",
+	"retaining-wall": "축대",
 }
 
 
@@ -1078,12 +1085,20 @@ func _touch_screen(e: InputEvent) -> Vector2:
 
 
 ## 화면에서 누른 자리를 세계 좌표로. 못 구하면 INF.
+##
+## **엔진이 실제로 쓰는 변환을 그대로 뒤집는다.** 예전엔 카메라 위치와
+## 줌으로 직접 계산했는데, 그러면 **카메라가 지도 끝에서 멈출 때** 어긋난다.
+## `limit_*` 로 막히면 화면에 그려지는 자리는 멈추지만 `global_position`
+## 은 목표를 따라 계속 움직이기 때문이다. 마을 가장자리로 갈수록 누른
+## 데가 아니라 엉뚱한 데로 걸어갔다 — 폰에서 바로 티가 나는 사고다.
+##
+## `get_canvas_transform()` 은 카메라 한계·줌·화면 늘이기까지 이미 다
+## 반영된 값이라, 이걸 뒤집으면 언제나 맞는다.
 func _touch_world(e: InputEvent) -> Vector2:
 	var pos := _touch_screen(e)
-	if pos == Vector2.INF or cam == null:
+	if pos == Vector2.INF or get_viewport() == null:
 		return Vector2.INF
-	var vp := get_viewport().get_visible_rect().size
-	return cam.global_position + (pos - vp * 0.5) / cam.zoom
+	return get_viewport().get_canvas_transform().affine_inverse() * pos
 
 
 # ── 누른 자리 표시 ────────────────────────────────────────────────────
@@ -1266,12 +1281,35 @@ func _on_action() -> void:
 
 
 ## 그 사람 **옆에** 설 자리. 몸 위로 걸어 들어가면 밀려난다.
+##
+## 인연은 제가 선 칸과 그 아랫칸을 막는다. 그래서 단순히 "나 쪽으로
+## 조금" 만 잡으면 **그 막힌 칸이 나올 때가 있고**, 그러면 길찾기가
+## 빈 배열을 돌려줘 다가가기 자체가 실패한다. 걸을 수 있는 칸이 나올
+## 때까지 조금씩 물러나며 찾는다.
 func _beside(f: Folk) -> Vector2:
 	var from := walker.global_position
 	var d := (from - f.global_position)
 	if d.length() < 1.0:
 		d = Vector2.RIGHT
-	return f.global_position + d.normalized() * (TALK_RANGE * 0.6)
+	d = d.normalized()
+	# **말 걸 수 있는 거리 안**을 먼저 찾는다. 멀리 세워 두면 다가가긴
+	# 하는데 도착해서 말을 못 건다 — 그게 더 답답하다.
+	#
+	# 거리를 `TALK_RANGE` 의 비율로 잡으면 안 된다. 그러면 말 걸 수 있는
+	# 거리를 넓힐 때 서는 자리도 같이 멀어져서 **영원히 1px 모자란다.**
+	# 도착 여유(`ARRIVE`)까지 빼고 남는 만큼을 픽셀로 못 박는다.
+	var near: float = TALK_RANGE - ARRIVE - 2.0
+	var tries: Array = [d * 14.0, d * minf(20.0, near), d * near]
+	for a in range(8):
+		tries.append(Vector2.RIGHT.rotated(TAU * a / 8.0) * minf(20.0, near))
+	# 그래도 없으면 조금 물러선다. 못 가는 것보다는 낫다.
+	tries.append(d * (TALK_RANGE + 8.0))
+	tries.append(d * (TALK_RANGE + 20.0))
+	for v in tries:
+		var at: Vector2 = f.global_position + (v as Vector2)
+		if _walkable(tile_of(at)):
+			return at
+	return f.global_position + d * (TALK_RANGE * 0.6)
 
 
 ## 그 자리에 서 있는 인연. 눌러야 할 만큼 가까우면 돌려준다.

@@ -786,6 +786,27 @@ func _camera_tests() -> void:
 	ok(tp._folk_at(someone.global_position + Vector2(90, 90)) == null,
 		"멀리 빈 땅을 누르면 아무도 안 잡힌다")
 
+	# ①-1 누른 자리가 **지도 가장자리에서도** 맞아야 한다.
+	#
+	# 예전엔 카메라 위치와 줌으로 직접 계산했는데, `limit_*` 로 카메라가
+	# 지도 끝에서 멈추면 그려지는 자리는 멈추고 `global_position` 은 계속
+	# 움직여서 최대 **11.8칸**이 어긋났다. 마을 가장자리에서 누른 데가
+	# 아니라 엉뚱한 데로 걸어갔다.
+	var vp2 := tp.get_viewport().get_visible_rect().size
+	var worst := 0.0
+	for edge in [Vector2i(2, 12), Vector2i(17, 12), Vector2i(33, 12)]:
+		if not tp._walkable(edge):
+			continue
+		tp.walker.global_position = tp.world_of(edge)
+		tp.cam.global_position = tp.walker.global_position
+		for i in 8:
+			await get_tree().process_frame
+		for sx in [0.15, 0.5, 0.85]:
+			var scr := Vector2(vp2.x * sx, vp2.y * 0.5)
+			var ct := tp.get_viewport().get_canvas_transform()
+			worst = maxf(worst, (ct * (ct.affine_inverse() * scr)).distance_to(scr))
+	ok(worst < 1.0, "가장자리에서도 누른 자리가 맞는다 (오차 %.2fpx)" % worst)
+
 	# ② 누른 자리로 **길을 찾아** 간다. 소품에 걸려 서 버리면 안 된다.
 	var from := tp.walker.global_position
 	var goal := from + Vector2(-120, 30)

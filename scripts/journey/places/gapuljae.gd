@@ -81,6 +81,12 @@ ggggggggggg...ggggggggggggggg..gggg
 ## 뚫려 있어야 처음 서는 자리에서 나루로도 쿼스텔로도 갈 수 있다.
 func props() -> Array:
 	return [
+		# 축대. 계단은 놓였는데 층과 층 사이 높이차가 0 이라 아직 평지로
+		# 읽혔다. 단 옆에 세워 "여기가 한 층 아래"라고 말해 준다.
+		[4, 7, "retaining-wall", true],
+		[10, 7, "retaining-wall", true],
+		[24, 9, "retaining-wall", true],
+		[29, 9, "retaining-wall", true],
 		# ── 바다와 현무암 곶 ──────────────────────────────────────────
 		# 등대는 96px(여섯 칸)짜리라 발을 5번 줄에 둬야 꼭대기가 안 잘린다.
 		[30, 5, "lighthouse", true],
