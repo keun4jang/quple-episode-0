@@ -943,7 +943,9 @@ func go_to_sleep() -> void:
 		for f in _folk:
 			if is_instance_valid(f):
 				f.reset_day()
-		walker.global_position = world_of(spawn_tile()))
+		walker.global_position = world_of(spawn_tile())
+		# 화면이 깜깜한 지금이 자리를 옮길 때다. 아침 자리로.
+		_relocate_folk(true))
 	tw.tween_interval(0.5)
 	tw.tween_property(_fade, "color:a", 0.0, 0.7)
 	tw.tween_callback(func():
@@ -1141,6 +1143,13 @@ func _tick_schedule(delta: float) -> void:
 	if _sched_t < 1.0:
 		return
 	_sched_t = 0.0
+	_relocate_folk(false)
+
+
+## 시간표 자리로 옮긴다. force 면 보이든 말든 옮긴다 — **화면이 깜깜할 때**
+## (잘 때) 부른다. 고향처럼 작은 지도는 가족이 늘 화면 안이라, 안 보일
+## 때를 기다리면 하루 종일 아침 자리에 서 있게 된다.
+func _relocate_folk(force: bool) -> void:
 	var part := day_part()
 	var moved := false
 	for f in _folk:
@@ -1149,10 +1158,11 @@ func _tick_schedule(delta: float) -> void:
 		var want: Vector2i = f.schedule.get(part, Vector2i(-1, -1))
 		if want.x < 0 or tile_of(f.global_position) == want:
 			continue
-		if f == _near or (say != null and say.is_busy()):
-			continue                       # 말 섞는 중엔 안 움직인다
-		if _on_screen(f.global_position) or _on_screen(world_of(want)):
-			continue                       # 보고 있으면 다음 기회에
+		if not force:
+			if f == _near or (say != null and say.is_busy()):
+				continue                   # 말 섞는 중엔 안 움직인다
+			if _on_screen(f.global_position) or _on_screen(world_of(want)):
+				continue                   # 보고 있으면 다음 기회에
 		f.global_position = world_of(want)
 		f.face(Vector2.DOWN)
 		moved = true
