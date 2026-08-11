@@ -22,8 +22,13 @@ var _hint: Label
 var _cam_btn: TextureButton
 var _tabs: HBoxContainer
 var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 이 마을에서
-var _dot: Control                 # 안 읽은 편지 표시 (직접 그린 점)
-var _quest_dot: Control            # 이 마을에 할 일이 남았다는 표시
+## 배낭에 안 본 것이 있다는 표시(직접 그린 점, 편지든 할 일이든).
+##
+## 한동안 편지(주황)·할 일(초록) 점을 따로 뒀는데, 밖에서 신호 둘이
+## 뜨면 "뭐가 중요한 신호인지" 흐려진다는 지적을 받았다. 바깥은 "뭔가
+## 있다" 는 것만 알리고, 무엇인지는 배낭을 열어야 안다 — 그게 탭 안의
+## 내용(체크 표시·편지 목록)이 이미 하고 있는 일이다.
+var _dot: Control
 var _flash: ColorRect
 var _root: Control
 var _pad_cam: Control
@@ -178,9 +183,10 @@ func _build() -> void:
 	_press_feedback(_cam_btn)
 	root.add_child(_cam_btn)
 
-	# 안 읽은 편지가 있으면 배낭에 점이 하나 붙는다. 숫자도 느낌표도 안 쓴다.
-	# 점은 글자가 아니라 **직접 그린다.** 본문 폰트(PoorStory)에 ● 가 없어서
-	# 글자로 쓰면 폰에서 네모 상자가 뜬다. 도형은 폰트를 안 탄다.
+	# 안 읽은 편지나 남은 할 일이 있으면 배낭에 점이 하나 붙는다.
+	# 숫자도 느낌표도 안 쓴다. 점은 글자가 아니라 **직접 그린다.**
+	# 본문 폰트(PoorStory)에 ● 가 없어서 글자로 쓰면 폰에서 네모
+	# 상자가 뜬다. 도형은 폰트를 안 탄다.
 	_dot = Control.new()
 	_dot.custom_minimum_size = Vector2(22, 22)
 	_dot.size = Vector2(22, 22)
@@ -193,25 +199,8 @@ func _build() -> void:
 	_dot.visible = false
 	_dot.draw.connect(func() -> void:
 		_dot.draw_circle(Vector2(11, 11), 11.0, Color(0.16, 0.13, 0.18))
-		_dot.draw_circle(Vector2(11, 11), 8.5, Color("#E4785F")))
+		_dot.draw_circle(Vector2(11, 11), 8.5, Color("#FFD166")))
 	root.add_child(_dot)
-
-	# 이 마을에 아직 할 일이 남았으면 배낭에 또 하나 점이 붙는다.
-	# 편지 점(주황)과 헷갈리지 않게 색을 다르게 쓴다.
-	_quest_dot = Control.new()
-	_quest_dot.custom_minimum_size = Vector2(22, 22)
-	_quest_dot.size = Vector2(22, 22)
-	_quest_dot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_quest_dot.offset_left = -118
-	_quest_dot.offset_top = -136
-	_quest_dot.offset_right = -96
-	_quest_dot.offset_bottom = -114
-	_quest_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_quest_dot.visible = false
-	_quest_dot.draw.connect(func() -> void:
-		_quest_dot.draw_circle(Vector2(11, 11), 11.0, Color(0.16, 0.13, 0.18))
-		_quest_dot.draw_circle(Vector2(11, 11), 8.5, Color("#8FBF8A")))
-	root.add_child(_quest_dot)
 
 	# 사진 찍을 때 화면이 한 번 하얘진다
 	_flash = ColorRect.new()
@@ -330,6 +319,16 @@ func toggle_bag() -> void:
 	AudioManager.page_turn()
 	_bag_panel.visible = not _bag_panel.visible
 	if _bag_panel.visible:
+		# **막혔을 때 "행복첩을 보면 된다" 는 걸 몸에 남기려면, 배낭을
+		# 열었을 때 바로 그 화면이 보여야 한다.** 이 마을에 할 일이
+		# 남아 있으면 "이 마을에서" 탭으로 먼저 연다 — 다섯째 탭에
+		# 묻혀 있어서 못 찾겠다는 게 제일 큰 지적이었다.
+		var left := false
+		for q in Quests.quest_list(JourneyState.here):
+			if not bool(q.get("done", false)):
+				left = true
+				break
+		_tab = 4 if left else 0
 		_refill_bag()
 	bag_toggled.emit(_bag_panel.visible)
 
@@ -520,15 +519,13 @@ func _process(_delta: float) -> void:
 	if _clock != null:
 		_clock.text = "%s   %d일째" % [JourneyState.time_text(), JourneyState.day]
 	if _dot != null:
-		_dot.visible = JourneyState.unread_letters() > 0 and not bag_open() \
-			and not _buttons_hidden
-	if _quest_dot != null:
 		var left := false
 		for q in Quests.quest_list(JourneyState.here):
 			if not bool(q.get("done", false)):
 				left = true
 				break
-		_quest_dot.visible = left and not bag_open() and not _buttons_hidden
+		var news := JourneyState.unread_letters() > 0 or left
+		_dot.visible = news and not bag_open() and not _buttons_hidden
 	# 카메라를 받기 전엔 셔터 버튼이 없다 (`docs/quest-journey.md` 3.5절).
 	# 대화 중 버튼을 숨기는 `set_buttons_visible()` 와 겹쳐도, 여기서
 	# 매 프레임 다시 확인하므로 카메라 없는 사람에게 다시 뜨는 일이 없다.

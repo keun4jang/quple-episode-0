@@ -42,16 +42,22 @@ var _talked := false
 ## 오늘 노을을 같이 봤나. 하루에 한 번이다.
 var _dusk_warmed := false
 
+var _talk_outline_on := false
+
 func _ready() -> void:
 	super._ready()
-	# 말을 걸 수 있다는 걸 멀리서도 알 수 있게, 테두리를 따뜻한 금색으로
-	# 둔다. 점을 띄우는 안이 먼저 있었는데, 대화가 열리는 소품(평상·
-	# 반납함처럼 몸을 숨기고 사는 것들)에는 점을 못 붙인다는 게 걸렸다 —
-	# 테두리색이면 `Place._outline_sprite()` 로 소품에도 그대로 쓸 수
-	# 있다. 자리(`is_spot`)는 몸이 숨어 있어 여기서는 안 바뀐다 — 그 자리를
-	# 대신하는 소품 쪽에서 칠한다.
-	if not is_spot:
-		outline_color = OUTLINE_TALK
+
+
+## 가까이 왔을 때만 금색 테두리를 켠다 (`Place._update_near()` 가
+## 부른다). 늘 켜 두면 화면에 금색이 너무 많아져서 "가까이 가면
+## 뭔가 된다" 는 뜻이 흐려진다 — 친구들이 "뭘 눌러야 하는지 모르겠다"
+## 고 한 것도 신호가 너무 많았기 때문이다(표시 정리, 2025 피드백).
+func set_talk_near(on: bool) -> void:
+	if is_spot or _talk_outline_on == on:
+		return
+	_talk_outline_on = on
+	outline_color = OUTLINE_TALK if on else OUTLINE_DARK
+	_sync_outline()
 
 
 func heart() -> int:

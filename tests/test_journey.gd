@@ -878,6 +878,27 @@ func _camera_tests() -> void:
 		"인연 앞까지 걸어간다")
 	ok(not tp.say.is_busy(), "다가가는 것만으로 말이 걸리지는 않는다")
 
+	# ③-1 **직접 톡 누르면** 도착한 순간 저절로 말이 걸린다 — 두 번
+	# 누르게 하지 않는다(친구들 플레이 피드백: "다가가서 버튼" 이
+	# 두 단계라 헷갈렸다).
+	tp.walker.global_position = someone.global_position + Vector2(160, 30)
+	await get_tree().process_frame
+	var tapscr: Vector2 = tp.get_viewport().get_canvas_transform() \
+		* (someone.global_position + Vector2(0, -12))
+	var tapdown := InputEventScreenTouch.new()
+	tapdown.index = 0
+	tapdown.pressed = true
+	tapdown.position = tapscr
+	tp._unhandled_input(tapdown)
+	ok(tp.is_walking_to() and tp._pending_talk == someone,
+		"톡 누르면 다가가면서 나중에 말 걸 대상을 기억한다")
+	t = 0.0
+	while t < 12.0 and not tp.say.is_busy():
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	ok(tp.say.is_busy(), "도착하면 두 번째 탭 없이 저절로 말이 걸린다")
+	tp.say.close()
+
 	# ④ 대화창을 되돌려 볼 수 있다
 	tp.say.say("아무개", ["첫째 줄.", "둘째 줄.", "셋째 줄."])
 	ok(tp.say.is_busy(), "대화가 열린다")
@@ -1108,8 +1129,14 @@ func _quest_tests() -> void:
 	JourneyState.reset()
 
 	# ⑤ 배낭 "이 마을에서" 탭이 읽는 목록도 같은 판정을 그대로 쓴다.
+	# 지도·카메라를 받기 전엔 딱 둘만 보여준다("숙제장" 처럼 안 보이게).
+	ok(Quests.quest_list("윤슬").size() == 2,
+		"지도·카메라를 받기 전엔 윤슬 목록이 둘뿐이다")
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
 	ok(Quests.quest_list("윤슬").size() == 7,
-		"윤슬은 항목 7개 (지도·카메라·등대안 포함)")
+		"둘 다 받으면 나머지(가게·방문·줍기·잠·등대안)까지 다 보인다")
+	JourneyState.reset()
 	ok(Quests.quest_list("볕뉘").size() == 5, "볕뉘는 항목 5개")
 	ok(Quests.quest_list("고향").is_empty(), "고향은 할 일 목록이 없다")
 	for q in Quests.quest_list("윤슬"):

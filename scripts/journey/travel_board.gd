@@ -139,9 +139,11 @@ func open(from_place: String) -> void:
 		if unlocked:
 			b.pressed.connect(_pick.bind(String(entry[0])))
 		else:
-			# 눌러도 화나지 않게 — 에러도, 안내 팝업도 없이 그냥 그대로다.
-			b.disabled = true
+			# **완전히 죽여 두지 않는다.** 눌러도 반응이 없으면 "고장인가?"
+			# 가 된다는 지적을 받았다 — 화나게 하지 않으면서도 눌렀다는
+			# 건 알려준다. 살짝 흔들리고, 이미 적혀 있는 글줄이 그 대답이다.
 			b.modulate.a = 0.55
+			b.pressed.connect(_shake.bind(b))
 		_list.add_child(b)
 	visible = true
 	_fit_panel()
@@ -154,6 +156,15 @@ func _fit_panel() -> void:
 	var h: float = clampf(vp.y * 0.82, 420.0, 760.0)
 	_panel.offset_top = -h * 0.5
 	_panel.offset_bottom = h * 0.5
+
+
+## 잠긴 곳을 눌렀을 때. 화나게 하지 않되, 눌렀다는 건 알려준다.
+func _shake(b: Button) -> void:
+	AudioManager.touch_tap()
+	var origin := b.position.x
+	var tw := create_tween()
+	for dx in [6.0, -5.0, 3.0, 0.0]:
+		tw.tween_property(b, "position:x", origin + dx, 0.05)
 
 
 func close() -> void:

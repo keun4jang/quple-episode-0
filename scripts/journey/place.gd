@@ -55,6 +55,10 @@ var _folk: Array[Folk] = []
 var _near: Folk = null
 var _mark: Label                     # 말 걸 수 있는 사람 위에 뜨는 표시
 var _prev_near: Folk
+## 다가가는 중인 인연. 도착하면 저절로 말을 건다. "가서 오른쪽 아래
+## 버튼을 눌러라" 는 문법을 처음 배우는 사람에게는 두 단계다 — 인연을
+## 직접 눌러 다가가는 중이면, 도착이 곧 "말 걸겠다" 는 뜻으로 본다.
+var _pending_talk: Folk = null
 var minimap: MiniMap
 var guide: Guide
 ## 소품이 막고 있는 칸. 길찾기가 본다.
@@ -975,16 +979,22 @@ func _update_near() -> void:
 		var far := TALK_RANGE * 1.45
 		if walker.global_position.distance_squared_to(keep.global_position) < far * far:
 			_near = keep
+	# **가까이 왔을 때만 금색으로.** 예전엔 "!" 표시와 금색 테두리가
+	# 같이 있었다 — 신호가 둘이면 뭐가 중요한지 흐려진다. 이제 테두리
+	# 하나가 "지금 말 걸 수 있다" 를 도맡는다. 늘 금색이던 것도
+	# 되돌린다 — 가까이 가야만 빛나야 "가까이 가면 뭔가 된다" 는 게
+	# 몸에 남는다.
+	if keep != _near and keep != null and is_instance_valid(keep) \
+			and keep.has_method("set_talk_near"):
+		keep.set_talk_near(false)
+	if _near != null and _near.has_method("set_talk_near"):
+		_near.set_talk_near(true)
 	_prev_near = _near
 	if _mark == null:
 		return
 	var busy := say != null and say.is_busy()
 	var door = _can_enter()
-	if _near != null and not busy:
-		_mark.visible = true
-		_mark.text = "!"
-		_mark.global_position = _near.global_position + Vector2(-3, -40)
-	elif door != null and not busy:
+	if door != null and not busy:
 		_mark.visible = true
 		_mark.text = "문"
 		_mark.global_position = (door["world"] as Vector2) + Vector2(-26, -40)
@@ -1052,6 +1062,24 @@ func go_to_sleep() -> void:
 	tw.tween_callback(func():
 		_sleeping = false
 		slept.emit(JourneyState.day))
+
+
+## 다가가던 인연 앞에 도착했으면 저절로 말을 건다.
+func _tick_pending_talk() -> void:
+	if _pending_talk == null:
+		return
+	if not is_instance_valid(_pending_talk):
+		_pending_talk = null
+		return
+	if is_walking_to() or say == null or say.is_busy():
+		return
+	if walker.global_position.distance_to(_pending_talk.global_position) <= TALK_RANGE:
+		_near = _pending_talk
+		_pending_talk = null
+		talk_to_near()
+	else:
+		# 길이 막혀 거기까지 못 갔다 — 다음에 다시 눌러야 한다.
+		_pending_talk = null
 
 
 func talk_to_near() -> void:
@@ -1134,6 +1162,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			talk_to_near()
 		else:
 			walk_to(_beside(who))
+			_pending_talk = who
 		get_viewport().set_input_as_handled()
 		return
 	# ② 문도 **그 자리를 눌렀을 때만** 열린다. 지나가려고 근처를 눌렀는데
@@ -1499,6 +1528,9 @@ const ARRIVE := 4.0           # 마지막 자리에 이만큼 닿으면 도착
 
 func walk_to(at: Vector2) -> void:
 	_path.clear()
+	# 다른 목적의 이동이면 다가가서 자동으로 말 걸려던 건 잊는다 —
+	# 인연을 향해 걷다가 다른 데를 눌렀는데 엉뚱하게 말이 걸리면 안 된다.
+	_pending_talk = null
 	if walker == null:
 		return
 	var from := tile_of(walker.global_position)
@@ -1747,6 +1779,7 @@ func _process(delta: float) -> void:
 	_check_pickups()
 	_tick_quest_zones()
 	_update_near()
+	_tick_pending_talk()
 	_tick_outline()
 	_tick_tap_mark(delta)
 	_tick_dusk(delta)

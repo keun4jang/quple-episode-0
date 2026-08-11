@@ -172,14 +172,21 @@ const VISIT_LABEL := {
 ## 4절의 퀘스트를 순서 그대로 다시 읽는 것뿐이다.
 static func quest_list(village: String) -> Array:
 	if village == "윤슬":
+		# **처음엔 둘만 보여준다.** 지도·카메라를 받기 전에 나머지
+		# 다섯 개까지 다 늘어놓으면 "숙제장"처럼 보인다는 지적이 있었다.
+		# 사진 항목은 카메라가 없으면 아예 뜻이 안 통하기도 하고 — 둘 다
+		# 받고 나서야 이 마을이 실제로 "무엇으로 채워지는지" 보여준다.
 		var out0: Array = [
 			{"label": "가게 할머니와 인사하고 지도 받기", "done": has_map()},
 			{"label": "갈매기 소년과 인사하고 카메라 받기", "done": has_camera()},
-			{"label": "가게 들어가 보기", "done": _shop_entered("윤슬")},
-			{"label": VISIT_LABEL["윤슬"], "done": _visited("윤슬")},
-			{"label": "떨어진 것 다 줍기", "done": _picked_all("윤슬")},
-			{"label": "쿼스텔에서 하루 자기", "done": JourneyState.quest_done("윤슬:잠")},
 		]
+		if not (has_map() and has_camera()):
+			return out0
+		out0.append({"label": "가게 들어가 보기", "done": _shop_entered("윤슬")})
+		out0.append({"label": VISIT_LABEL["윤슬"], "done": _visited("윤슬")})
+		out0.append({"label": "떨어진 것 다 줍기", "done": _picked_all("윤슬")})
+		out0.append({"label": "쿼스텔에서 하루 자기",
+			"done": JourneyState.quest_done("윤슬:잠")})
 		if HAS_LIGHTHOUSE.get("윤슬", false):
 			out0.append({"label": "등대 안에 들어가 보기",
 				"done": JourneyState.quest_done("윤슬:등대안")})
