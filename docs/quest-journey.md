@@ -3,8 +3,11 @@
 > 상태: **구현됨.** `scripts/systems/quests.gd`, `JourneyState.quest_flags`,
 > `Folk.gives_item`, `TravelBoard` 잠금 표시, 배낭 "이 마을에서" 탭.
 > **서브맵도 가게 하나뿐이 아니다** — 윤슬·가풀재·하늬섬엔 등대 안
-> (`LighthouseInterior`)도 있다. "문(`enter_key`)마다 다른 퀘스트를 잠글
-> 수 있다"는 구조라 새 서브맵을 늘리는 비용이 낮다.
+> (`LighthouseInterior`), 볕뉘엔 능 안쪽길(`TombPathInterior`, 필수
+> NPC 없이 방문+사진만)도 있다. "문(`enter_key`)마다 다른 퀘스트를
+> 잠글 수 있다"는 구조라 새 서브맵을 늘리는 비용이 낮다.
+> 2탄은 솔은재(소나무 고개)까지 넷째 마을이 생겼다 — 담수 3부작
+> 다음, 물을 벗어난 첫 마을. 다람쥐가 여기서 처음 등장한다.
 > 마을 이름·순서는 `docs/story-journey.md`/`docs/world-quo.md` 를 따른다.
 
 ## 0. 한 줄

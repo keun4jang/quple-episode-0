@@ -22,6 +22,8 @@ const PLACES := {
 	"굽이나루": ["res://scenes/journey/Gubinaru.tscn", "강 굽이와 나루"],
 	"방울못": ["res://scenes/journey/Bangulmot.tscn", "둥근 연못"],
 	"갈밭머리": ["res://scenes/journey/Galbatmeori.tscn", "갈대와 나무데크"],
+	# 담수 3부작 다음, 물을 벗어난 첫 마을.
+	"솔은재": ["res://scenes/journey/Soleunjae.tscn", "소나무 고개"],
 	"고향": ["res://scenes/journey/Home.tscn", ""],
 }
 

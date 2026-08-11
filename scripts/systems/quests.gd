@@ -15,6 +15,7 @@ extends RefCounted
 const ORDER := [
 	"윤슬", "볕뉘", "가풀재", "하늬섬",
 	"굽이나루", "방울못", "갈밭머리",
+	"솔은재",
 ]
 
 ## 마을마다 주울 것 개수. `places/*.gd` 의 `pickups()` 와 맞춰 둔다 —
@@ -22,11 +23,12 @@ const ORDER := [
 const PICKUP_TOTAL := {
 	"윤슬": 6, "볕뉘": 6, "가풀재": 6, "하늬섬": 6,
 	"굽이나루": 5, "방울못": 5, "갈밭머리": 5,
+	"솔은재": 5,
 }
 
 ## 마을마다 대화해야 하는 붙박이 folk_id (물범/카피바라, 갈매기).
 ## 윤슬은 대화가 곧 물품 지급이라 따로 안 센다 — `has_map()`/`has_camera()`
-## 가 이미 "그 사람과 첫 대화를 했다"는 뜻이다. 2탄 셋은 카피바라
+## 가 이미 "그 사람과 첫 대화를 했다"는 뜻이다. 2탄부터는 카피바라
 ## 하나만 센다 — 갈매기는 방문+사진으로 대신한다(결 그대로 재사용).
 const TALK_FOLK := {
 	"볕뉘": ["ju_seal", "ju_kid"],
@@ -35,6 +37,7 @@ const TALK_FOLK := {
 	"굽이나루": ["cap_guinaru"],
 	"방울못": ["cap_bangul"],
 	"갈밭머리": ["cap_galbat"],
+	"솔은재": ["cap_sol"],
 }
 
 ## 마을마다 "방문+사진" 짝. 방문 키는 `Place.quest_zones()` 가 남기고,
@@ -44,21 +47,22 @@ const VISIT_KEY := {
 	"윤슬": "윤슬:등대", "볕뉘": "볕뉘:능",
 	"가풀재": "가풀재:능선", "하늬섬": "하늬섬:한바퀴",
 	"굽이나루": "굽이나루:데크", "방울못": "방울못:데크",
-	"갈밭머리": "갈밭머리:전망대",
+	"갈밭머리": "갈밭머리:전망대", "솔은재": "솔은재:전망",
 }
 ## 사진까지 같이 요구하는 마을. 윤슬·가풀재·하늬섬은 카메라를 쓸 수
 ## 있을 때고, 볕뉘는 방문만으로 충분히 채워진다(대신 사진 퀘스트는
 ## 안 걸되, 찍었으면 자동으로 인정된다 — 아래 `photo_ok`).
 const VISIT_NEEDS_PHOTO := {
 	"윤슬": true, "볕뉘": false, "가풀재": true, "하늬섬": true,
-	"굽이나루": true, "방울못": true, "갈밭머리": true,
+	"굽이나루": true, "방울못": true, "갈밭머리": true, "솔은재": true,
 }
 
 ## 잠자기까지 요구하는 마을. 1탄은 윤슬 하나(처음 배우는 자리)로
-## 충분했지만, 2탄 셋은 "쉬어 가는 마을"이라는 성격을 그대로 퀘스트로
+## 충분했지만, 2탄부터는 "쉬어 가는 마을"이라는 성격을 그대로 퀘스트로
 ## 옮긴다(다른 창 브레인스토밍 결과, `docs/planning/` 참고).
 const NEEDS_SLEEP := {
 	"윤슬": true, "굽이나루": true, "방울못": true, "갈밭머리": true,
+	"솔은재": true,
 }
 
 ## 등대가 있어서 그 안(서브맵, `LighthouseInterior`)까지 들어가 봐야
@@ -66,6 +70,13 @@ const NEEDS_SLEEP := {
 ## 더했다 — 가게 실내와 같은 결로, 문을 지나 봤는지만 본다.
 const HAS_LIGHTHOUSE := {
 	"윤슬": true, "가풀재": true, "하늬섬": true,
+}
+
+## 능(서브맵, `TombPathInterior`)이 있어서 안쪽길을 돌아 봐야 하는 마을.
+## 무덤 안이 아니라 볕 드는 자리까지 걷는 둘레길이다 — 완료 표시는
+## 문이 아니라 그 자리에 닿았을 때 남는다(`TombPathInterior.quest_zones()`).
+const HAS_TOMB := {
+	"볕뉘": true,
 }
 
 
@@ -131,6 +142,12 @@ static func _lighthouse_ok(village: String) -> bool:
 	return JourneyState.quest_done("%s:등대안" % village)
 
 
+static func _tomb_ok(village: String) -> bool:
+	if not HAS_TOMB.get(village, false):
+		return true
+	return JourneyState.quest_done("%s:능안" % village)
+
+
 ## 그 마을의 퀘스트를 다 마쳤나.
 static func village_cleared(village: String) -> bool:
 	if village == "윤슬":
@@ -141,7 +158,8 @@ static func village_cleared(village: String) -> bool:
 	if TALK_FOLK.has(village):
 		return _talked_all(village) and _shop_entered(village) \
 			and _visited(village) and _picked_all(village) \
-			and _slept_ok(village) and _lighthouse_ok(village)
+			and _slept_ok(village) and _lighthouse_ok(village) \
+			and _tomb_ok(village)
 	return true    # 고향 등 목록 밖 장소는 늘 "클리어"로 친다
 
 
@@ -153,6 +171,7 @@ const FOLK_NAME := {
 	"cap_guinaru": "나루 가게 아저씨",
 	"cap_bangul": "연못가 빵집 아주머니",
 	"cap_galbat": "갈대밭 쉼터 할머니",
+	"cap_sol": "고개 쉼터 아저씨",
 }
 
 ## 마을마다 "방문+사진" 퀘스트 한 줄에 붙일 이름.
@@ -164,6 +183,7 @@ const VISIT_LABEL := {
 	"굽이나루": "강 굽이 데크까지 가서 사진 찍기",
 	"방울못": "연못 데크를 돌며 사진 찍기",
 	"갈밭머리": "갈대 전망대까지 가서 사진 찍기",
+	"솔은재": "고갯마루 전망 바위까지 가서 사진 찍기",
 }
 
 
@@ -210,6 +230,9 @@ static func quest_list(village: String) -> Array:
 		if HAS_LIGHTHOUSE.get(village, false):
 			out.append({"label": "등대 안에 들어가 보기",
 				"done": JourneyState.quest_done("%s:등대안" % village)})
+		if HAS_TOMB.get(village, false):
+			out.append({"label": "능 안쪽길에서 볕든 돌담 사진 남기기",
+				"done": JourneyState.quest_done("%s:능안" % village)})
 		return out
 	return []
 

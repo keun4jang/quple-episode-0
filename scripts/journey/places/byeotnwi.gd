@@ -197,6 +197,14 @@ func doors() -> Array:
 		{"tile": Vector2i(27, 10),
 			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 			"label": "가게 들어가기"},
+		# 능 밑동(16,6) 바로 앞. 안쪽길 서브맵으로 이어진다.
+		# **들어서는 것만으로 퀘스트가 끝나면 안 된다** — 볕 드는 자리까지
+		# 걸어야 진짜 "안쪽길을 돌았다" 는 뜻이 되므로, 완료 표시는
+		# 안쪽(`TombPathInterior.quest_zones()`)에서 남긴다. 여기 문의
+		# `enter_key` 는 그 표시와 겹치면 안 되니 다른 이름을 쓴다.
+		{"tile": Vector2i(16, 7),
+			"scene": "res://scenes/journey/interiors/TombPathInterior.tscn",
+			"label": "안쪽길 들어가기", "enter_key": "능입구"},
 	]
 
 

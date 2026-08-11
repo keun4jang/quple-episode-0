@@ -1153,7 +1153,7 @@ func _quest_tests() -> void:
 	ok(Quests.quest_list("윤슬").size() == 7,
 		"둘 다 받으면 나머지(가게·방문·줍기·잠·등대안)까지 다 보인다")
 	JourneyState.reset()
-	ok(Quests.quest_list("볕뉘").size() == 5, "볕뉘는 항목 5개")
+	ok(Quests.quest_list("볕뉘").size() == 6, "볕뉘는 항목 6개 (능 안쪽길 포함)")
 	ok(Quests.quest_list("고향").is_empty(), "고향은 할 일 목록이 없다")
 	for q in Quests.quest_list("윤슬"):
 		ok(not bool(q["done"]), "갓 초기화했으니 아직 다 안 끝났다: %s" % q["label"])
@@ -1179,6 +1179,7 @@ func _quest_tests() -> void:
 	JourneyState.hearts["ju_kid"] = 1
 	JourneyState.mark_quest("볕뉘:가게")
 	JourneyState.mark_quest("볕뉘:능")
+	JourneyState.mark_quest("볕뉘:능안")
 	for i in Quests.PICKUP_TOTAL["볕뉘"]:
 		JourneyState.taken["볕뉘:%d,1" % i] = true
 	JourneyState.hearts["san_seal"] = 1
@@ -1212,4 +1213,23 @@ func _quest_tests() -> void:
 	JourneyState.mark_quest("굽이나루:잠")
 	ok(Quests.village_cleared("굽이나루"), "카피바라 마을도 같은 결로 채워진다")
 	ok(Quests.is_unlocked("방울못"), "굽이나루를 다 채우면 방울못이 열린다")
+
+	# ⑦ 솔은재 — 담수 3부작 다음, 물을 벗어난 첫 마을. 같은 결로 잠긴다.
+	ok(not Quests.is_unlocked("솔은재"), "2탄 셋을 안 마쳤으면 솔은재도 잠겨 있다")
+	for name in ["굽이나루", "방울못", "갈밭머리"]:
+		JourneyState.visited[name] = true
+	for name in ["굽이나루", "방울못", "갈밭머리"]:
+		JourneyState.hearts["cap_%s" % {"굽이나루": "guinaru", "방울못": "bangul",
+			"갈밭머리": "galbat"}[name]] = 1
+		JourneyState.mark_quest("%s:가게" % name)
+		JourneyState.mark_quest("%s:잠" % name)
+		for i in Quests.PICKUP_TOTAL[name]:
+			JourneyState.taken["%s:%d,9" % [name, i]] = true
+		JourneyState.photos.append({"place": name, "subject": "사진"})
+	JourneyState.mark_quest("굽이나루:데크")
+	JourneyState.mark_quest("방울못:데크")
+	JourneyState.mark_quest("갈밭머리:전망대")
+	ok(Quests.is_unlocked("솔은재"), "2탄 셋을 다 마치면 솔은재가 열린다")
+	ok(Quests.quest_list("솔은재").size() == 5,
+		"솔은재는 항목 5개 (대화·가게·방문·줍기·잠)")
 	JourneyState.reset()
