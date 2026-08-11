@@ -120,7 +120,7 @@ func props() -> Array:
 		[28, 11, "flower-pots", false],
 		[33, 11, "pine", true],
 		# 평상. 엔딩에서 여기 앉는다
-		[26, 12, "home-deck", false],
+		[26, 12, "home-deck", false, true],   # 바로 아래(26,13)가 "평상" 자리다
 		[25, 14, "bench", true],
 		[32, 15, "tree", true],
 		[31, 18, "pine", true],

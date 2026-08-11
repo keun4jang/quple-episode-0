@@ -26,6 +26,7 @@ const PLACES := {
 }
 
 var _panel: PanelContainer
+var _scroll: ScrollContainer
 var _list: VBoxContainer
 var _from := ""
 
@@ -78,9 +79,17 @@ func _build() -> void:
 	title.add_theme_color_override("font_color", Color("#3A2C2C"))
 	box.add_child(title)
 
+	# 여행지가 여덟 곳까지 늘었다 — 목록이 고정 칸보다 길어지면 스크롤로
+	# 받는다. 안 그러면 화면 아래로 잘려 나가거나 겹쳐 보인다.
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(_scroll)
+
 	_list = VBoxContainer.new()
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 10)
-	box.add_child(_list)
+	_scroll.add_child(_list)
 
 	var back := Button.new()
 	back.text = "아직 더 있을래"
@@ -135,6 +144,16 @@ func open(from_place: String) -> void:
 			b.modulate.a = 0.55
 		_list.add_child(b)
 	visible = true
+	_fit_panel()
+
+
+## 화면 높이에 맞춰 판을 키운다. 고정 520px 로 두면 폰마다, 또 지금처럼
+## 여행지가 늘어난 지금은 목록이 판 밖으로 넘쳐 겹쳐 보인다.
+func _fit_panel() -> void:
+	var vp := get_viewport().get_visible_rect().size
+	var h: float = clampf(vp.y * 0.82, 420.0, 760.0)
+	_panel.offset_top = -h * 0.5
+	_panel.offset_bottom = h * 0.5
 
 
 func close() -> void:

@@ -123,6 +123,9 @@ func stop() -> void:
 ## 바닥 위에서는 1.6:1 까지 떨어져 사실상 사라진다 — 그럴 땐 뒤집는다.
 const OUTLINE_DARK := Color(0.16, 0.13, 0.18, 0.85)
 const OUTLINE_LIGHT := Color(0.98, 0.95, 0.88, 0.75)
+## 말을 걸 수 있다는 표시. 점을 띄우는 대신 테두리 색 자체를 바꾼다 —
+## `Folk._ready()` 와 `Place._outline_sprite()` 가 같이 쓴다.
+const OUTLINE_TALK := Color(1.0, 0.82, 0.40, 0.9)
 var outline_color := OUTLINE_DARK
 const OUTLINE_STEPS := [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]
 

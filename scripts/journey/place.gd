@@ -348,6 +348,12 @@ func _build_props() -> void:
 		var ty: int = p[1]
 		var name: String = p[2]
 		var blocks: bool = p[3] if p.size() > 3 else true
+		# 다섯째 자리는 "이 소품이 대화창을 연다" 표시다. `put_spot()`
+		# 자리(평상·반납함·창밖)와 같은 칸에 둔 소품에만 켠다 — 그
+		# 소품이 곧 그 대화가 걸리는 자리라서, 몸을 숨기는 Folk 대신
+		# 여기서 테두리를 칠한다 (`docs/quest-journey.md` 와 결이 같다:
+		# 새 표시를 또 안 만들고 있는 걸 재사용한다).
+		var talkable: bool = p[4] if p.size() > 4 else false
 		var tex := load("res://assets/sprites/%s.png" % name) as Texture2D
 		if tex == null:
 			push_warning("스프라이트가 없다: %s" % name)
@@ -368,6 +374,8 @@ func _build_props() -> void:
 			_add_lamp(s.position)
 		s.offset = Vector2(-tex.get_width() / 2.0, -tex.get_height())
 		_props.add_child(s)
+		if talkable:
+			_outline_sprite(s)
 
 		if blocks:
 			# 밑동만 막는다. 나무 꼭대기까지 막으면 뒤로 못 지나간다.
@@ -383,6 +391,24 @@ func _build_props() -> void:
 			cs.position = s.position + Vector2(0, -4.0)
 			body.add_child(cs)
 			add_child(body)
+
+
+## 소품에 인연과 같은 금색 테두리를 붙인다. `QuoWalker._draw_outline()`
+## 과 같은 수법이다 — 어두운 복사본 대신 금색 복사본 넉 장을 1px씩
+## 밀어 뒤에 깐다. `_props` 는 Y 정렬이 있으니 **그 소품 바로 앞자리**에
+## 넣어야 겹칠 때도 뒤에 깔린다.
+func _outline_sprite(s: Sprite2D) -> void:
+	var o := Node2D.new()
+	o.name = s.name + "Outline"
+	o.position = s.position
+	var tex := s.texture
+	var off := s.offset
+	o.draw.connect(func() -> void:
+		for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+			o.draw_texture_rect(tex, Rect2(off + d, tex.get_size()), false,
+				QuoWalker.OUTLINE_TALK))
+	_props.add_child(o)
+	_props.move_child(o, s.get_index())
 
 
 ## 주울 것을 뿌린다. 밟으면 주워진다 — 버튼을 안 누른다.

@@ -42,37 +42,16 @@ var _talked := false
 ## 오늘 노을을 같이 봤나. 하루에 한 번이다.
 var _dusk_warmed := false
 
-## 말을 걸 수 있다는 걸 멀리서도 알 수 있게, 머리 위에 옅게 숨쉬는
-## 점 하나를 늘 띄운다. 가까이 가야만 뜨는 "!" 표시(`Place._mark`)와는
-## 다르다 — 저건 "지금 말 걸 수 있다", 이건 "이 사람은 원래 말이
-## 걸린다"는 뜻이다. 자리(`is_spot`)에는 안 붙는다 — 창밖·반납함 같은
-## 물건은 사람이 아니다.
-var _hint_mark: Node2D
-var _hint_t := 0.0
-
-
 func _ready() -> void:
 	super._ready()
-	if is_spot:
-		return
-	_hint_mark = Node2D.new()
-	_hint_mark.name = "HintMark"
-	_hint_mark.z_index = 5
-	var h: float = sprite.size().y if sprite != null else 24.0
-	_hint_mark.position = Vector2(0.0, -h - 9.0)
-	_hint_mark.draw.connect(func() -> void:
-		var k: float = 0.7 + sin(_hint_t * 2.4) * 0.3
-		_hint_mark.draw_circle(Vector2.ZERO, 4.2, Color(0.16, 0.13, 0.18, 0.30 * k))
-		_hint_mark.draw_circle(Vector2.ZERO, 2.6, Color(1.0, 0.93, 0.78, 0.85 * k)))
-	add_child(_hint_mark)
-	set_process(true)
-
-
-func _process(delta: float) -> void:
-	if _hint_mark == null:
-		return
-	_hint_t += delta
-	_hint_mark.queue_redraw()
+	# 말을 걸 수 있다는 걸 멀리서도 알 수 있게, 테두리를 따뜻한 금색으로
+	# 둔다. 점을 띄우는 안이 먼저 있었는데, 대화가 열리는 소품(평상·
+	# 반납함처럼 몸을 숨기고 사는 것들)에는 점을 못 붙인다는 게 걸렸다 —
+	# 테두리색이면 `Place._outline_sprite()` 로 소품에도 그대로 쓸 수
+	# 있다. 자리(`is_spot`)는 몸이 숨어 있어 여기서는 안 바뀐다 — 그 자리를
+	# 대신하는 소품 쪽에서 칠한다.
+	if not is_spot:
+		outline_color = OUTLINE_TALK
 
 
 func heart() -> int:

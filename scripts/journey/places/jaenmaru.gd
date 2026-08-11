@@ -74,7 +74,7 @@ func props() -> Array:
 		[8, 1, "office-window", false],
 		[14, 1, "office-window", false],
 		[20, 1, "office-window", false],
-		[26, 1, "office-window", false],
+		[26, 1, "office-window", false, true],   # 바로 아래(26,2)가 "창밖" 자리다
 		[32, 1, "office-window", false],
 		[0, 4, "cabinet", true],
 		# 왼쪽 팀 자리
@@ -107,7 +107,7 @@ func props() -> Array:
 		[15, 10, "reception", true],
 		[16, 10, "reception", true],
 		[17, 10, "reception", true],
-		[24, 10, "return-box", true],
+		[24, 10, "return-box", true, true],   # "반납함" 자리와 같은 칸
 		# 층계참에 놓인 대기 의자
 		[10, 11, "bench", true],
 		[12, 11, "bench", true],

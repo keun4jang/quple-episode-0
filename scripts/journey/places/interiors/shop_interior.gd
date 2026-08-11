@@ -56,7 +56,9 @@ func props() -> Array:
 		[mid + 4, 4, "reception", true],
 		# 진열장 두 줄
 		[mid - 9, 3, "cabinet", true],
-		[mid - 2, 3, "cabinet", true],
+		# "진열대" 대사가 걸리는 그 진열장이다 (아래 `on_built()` 의
+		# `put_spot()` 과 같은 칸) — 금색 테두리로 표시된다.
+		[mid - 2, 3, "cabinet", true, true],
 		[mid + 2, 3, "cabinet", true],
 		[mid + 9, 3, "cabinet", true],
 		# 아이스박스 — 시원한 것들
@@ -95,7 +97,7 @@ func doors() -> Array:
 
 func on_built() -> void:
 	JourneyState.here = place_name()
-	put_spot(Vector2i(W / 2, 6), "진열대", [
+	put_spot(Vector2i(W / 2 - 2, 3), "진열대", [
 		"이것저것 소소한 것들이 놓여 있다.",
 		"여행 중에 필요한 건 대충 다 있는 듯하다.",
 	])
