@@ -130,4 +130,5 @@ func on_built() -> void:
 	put_folk(Vector2i(24, 18), "deer", "갈대 사이의 고라니", "ga_deer", [
 		["…"],
 		["가까이 오라고 하지도, 도망가지도 않는다."],
+		["또 왔구나.", "그래도 자리는 그대로다."],
 	], Vector2.LEFT, false, {})

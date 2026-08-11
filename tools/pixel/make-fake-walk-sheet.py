@@ -32,7 +32,7 @@ ROWS = 3
 # 그대로 맞춰 쓰려고 — 이름을 두 번 기억할 필요가 없다).
 NAMES = [
     "capybara-a", "capybara-b", "capybara-c",
-    "otter", "frog", "deer",
+    "otter", "frog", "deer", "squirrel", "magpie", "owl", "snail",
 ]
 
 

@@ -24,6 +24,8 @@ const PLACES := {
 	"갈밭머리": ["res://scenes/journey/Galbatmeori.tscn", "갈대와 나무데크"],
 	# 담수 3부작 다음, 물을 벗어난 첫 마을.
 	"솔은재": ["res://scenes/journey/Soleunjae.tscn", "소나무 고개"],
+	# 솔은재 다음, 처음으로 밭이 마을 골격인 곳.
+	"꽃눈벌": ["res://scenes/journey/Kkonnunbeol.tscn", "꽃눈 피는 밭머리"],
 	"고향": ["res://scenes/journey/Home.tscn", ""],
 }
 

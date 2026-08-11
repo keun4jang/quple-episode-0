@@ -126,4 +126,5 @@ func on_built() -> void:
 	put_folk(Vector2i(19, 19), "frog", "물가의 개구리", "ba_frog", [
 		["…"],
 		["말이 적어도 연못은 알아듣는 것 같아요."],
+		["오늘도 여기 있었어요.", "연못은 늘 알아채더라고요."],
 	], Vector2.UP, false, {})

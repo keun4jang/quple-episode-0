@@ -144,4 +144,5 @@ func on_built() -> void:
 	put_folk(Vector2i(15, 6), "squirrel", "솔숲의 다람쥐", "so_squirrel", [
 		["…"],
 		["모아 두는 건 서두르는 게 아니라,", "내일의 나를 챙기는 일이에요."],
+		["또 왔어요?", "묻어 둔 솔방울은 아직 거기 있어요."],
 	], Vector2.DOWN, false, {})

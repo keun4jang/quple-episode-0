@@ -131,4 +131,5 @@ func on_built() -> void:
 	put_folk(Vector2i(30, 9), "otter", "돌 위의 수달", "gu_otter", [
 		["매끈한 돌 하나를 오래 들여다보고 있었어요."],
 		["좋은 돌은 멀리 안 가도 물이 다듬어 줘요."],
+		["또 왔네요.", "그 돌, 그대로 있어요."],
 	], Vector2.DOWN, false, {})

@@ -1232,4 +1232,18 @@ func _quest_tests() -> void:
 	ok(Quests.is_unlocked("솔은재"), "2탄 셋을 다 마치면 솔은재가 열린다")
 	ok(Quests.quest_list("솔은재").size() == 5,
 		"솔은재는 항목 5개 (대화·가게·방문·줍기·잠)")
+
+	# ⑧ 꽃눈벌 — 솔은재 다음, 처음으로 밭이 골격인 마을. 같은 결로 잠긴다.
+	ok(not Quests.is_unlocked("꽃눈벌"), "솔은재를 안 마쳤으면 꽃눈벌도 잠겨 있다")
+	JourneyState.visited["솔은재"] = true
+	JourneyState.hearts["cap_sol"] = 1
+	JourneyState.mark_quest("솔은재:가게")
+	JourneyState.mark_quest("솔은재:잠")
+	JourneyState.mark_quest("솔은재:전망")
+	for i in Quests.PICKUP_TOTAL["솔은재"]:
+		JourneyState.taken["솔은재:%d,9" % i] = true
+	JourneyState.photos.append({"place": "솔은재", "subject": "전망"})
+	ok(Quests.is_unlocked("꽃눈벌"), "솔은재를 다 마치면 꽃눈벌이 열린다")
+	ok(Quests.quest_list("꽃눈벌").size() == 5,
+		"꽃눈벌은 항목 5개 (대화·가게·방문·줍기·잠)")
 	JourneyState.reset()
