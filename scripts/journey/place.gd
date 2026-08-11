@@ -63,6 +63,10 @@ var minimap: MiniMap
 var guide: Guide
 ## 소품이 막고 있는 칸. 길찾기가 본다.
 var _blocked: Dictionary = {}
+## 대화가 걸리는 소품의 칸 → 그 소품의 금색 테두리 노드.
+## `_update_near()` 가 가까워진 자리를 찾아 켠다.
+var _prop_outline_at: Dictionary = {}
+var _outlined_prop: Node2D = null
 var _night: CanvasModulate
 var _sleep_at := Vector2.ZERO
 var _has_bed := false
@@ -379,7 +383,7 @@ func _build_props() -> void:
 		s.offset = Vector2(-tex.get_width() / 2.0, -tex.get_height())
 		_props.add_child(s)
 		if talkable:
-			_outline_sprite(s)
+			_prop_outline_at[Vector2i(tx, ty)] = _outline_sprite(s)
 
 		if blocks:
 			# 밑동만 막는다. 나무 꼭대기까지 막으면 뒤로 못 지나간다.
@@ -401,18 +405,26 @@ func _build_props() -> void:
 ## 과 같은 수법이다 — 어두운 복사본 대신 금색 복사본 넉 장을 1px씩
 ## 밀어 뒤에 깐다. `_props` 는 Y 정렬이 있으니 **그 소품 바로 앞자리**에
 ## 넣어야 겹칠 때도 뒤에 깔린다.
-func _outline_sprite(s: Sprite2D) -> void:
+## **가까이 왔을 때만 켠다** — NPC 테두리와 같은 규칙(`Folk.set_talk_near()`).
+## 소품 넷만 늘 금색이면 "이건 왜 계속 중요한가" 를 묻게 된다는
+## 지적을 반영했다. 꺼진 채로 만들고, `_update_near()` 가 그 소품과
+## 짝지어진 자리(`_folk` 안의 `is_spot` Folk)에 가까워지면 켠다.
+func _outline_sprite(s: Sprite2D) -> Node2D:
 	var o := Node2D.new()
 	o.name = s.name + "Outline"
 	o.position = s.position
+	o.set_meta("on", false)
 	var tex := s.texture
 	var off := s.offset
 	o.draw.connect(func() -> void:
+		if not bool(o.get_meta("on", false)):
+			return
 		for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
 			o.draw_texture_rect(tex, Rect2(off + d, tex.get_size()), false,
 				QuoWalker.OUTLINE_TALK))
 	_props.add_child(o)
 	_props.move_child(o, s.get_index())
+	return o
 
 
 ## 주울 것을 뿌린다. 밟으면 주워진다 — 버튼을 안 누른다.
@@ -990,6 +1002,23 @@ func _update_near() -> void:
 	if _near != null and _near.has_method("set_talk_near"):
 		_near.set_talk_near(true)
 	_prev_near = _near
+	# 자리(`is_spot`)는 몸을 숨기고 살아서 테두리를 제 몸에 못 두른다 —
+	# 그 자리와 짝지어 둔 소품(평상·반납함 등)의 테두리를 대신 켠다.
+	var want_prop: Node2D = null
+	if _near != null and _near.is_spot:
+		var st := tile_of(_near.global_position)
+		# 자리와 소품이 늘 같은 칸은 아니다 — 창(office-window)·평상
+		# (home-deck)은 소품이 한 줄 위(anchor)에 있고 자리는 그 앞
+		# (anchor+1)에 있다. 둘 다 찾아본다.
+		want_prop = _prop_outline_at.get(st, _prop_outline_at.get(st + Vector2i(0, -1), null))
+	if want_prop != _outlined_prop:
+		if _outlined_prop != null and is_instance_valid(_outlined_prop):
+			_outlined_prop.set_meta("on", false)
+			_outlined_prop.queue_redraw()
+		if want_prop != null:
+			want_prop.set_meta("on", true)
+			want_prop.queue_redraw()
+		_outlined_prop = want_prop
 	if _mark == null:
 		return
 	var busy := say != null and say.is_busy()

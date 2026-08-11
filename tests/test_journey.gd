@@ -169,6 +169,22 @@ func _place_tests() -> void:
 	# 고향에는 쿼- 낱말이 없다 (docs/world-quo.md 5절)
 	ok(not p.place_name().begins_with("쿼"), "고향은 쿼로 시작하지 않는다")
 
+	# 평상(자리)에 가까이 가면 그 소품(home-deck)의 테두리가 켜지고,
+	# 멀어지면 꺼진다 — 자리는 몸을 숨기고 살아서 소품이 대신 두른다.
+	var deck: Folk = null
+	for c in p.get_children():
+		if c is Folk and c.is_spot and c.who == "평상":
+			deck = c
+	ok(deck != null, "평상 자리가 있다")
+	if deck != null:
+		p.walker.global_position = deck.global_position
+		p._update_near()
+		ok(p._outlined_prop != null, "가까이 가면 평상 테두리가 켜진다")
+		p.walker.global_position = deck.global_position + Vector2(500, 500)
+		p._prev_near = null
+		p._update_near()
+		ok(p._outlined_prop == null, "멀어지면 꺼진다")
+
 	p.queue_free()
 	await get_tree().process_frame
 

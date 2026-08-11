@@ -483,13 +483,110 @@ func _fill_quests() -> void:
 	var list := Quests.quest_list(JourneyState.here)
 	if list.is_empty():
 		_empty("여기서는 딱히 할 일이 없어요")
-		return
 	for q in list:
 		var done: bool = q.get("done", false)
 		var label := String(q.get("label", ""))
 		var text := label + ("  (다 했어요)" if done else "")
 		var col := Color("#A79A8A") if done else Color("#FFF2C8")
 		_bag_grid.add_child(_bag_line(text, 28, col))
+	# **길잡이를 다시 볼 곳.** 처음 안내는 한 줄, 한 번만 뜨고 사라진다 —
+	# 놓치면 못 본다는 게 친구들 피드백이었다. 여기, 막혔을 때 오는
+	# 바로 그 탭에 다시 볼 수 있는 버튼을 둔다.
+	var gb := Button.new()
+	gb.text = "길잡이 다시 보기"
+	gb.custom_minimum_size = Vector2(0, 64)
+	gb.add_theme_font_size_override("font_size", 24)
+	gb.pressed.connect(_open_guide_recap)
+	_bag_grid.add_child(gb)
+
+
+## "길잡이 다시 보기" 판. 처음 봤던 안내를 순서대로 다시 보여준다.
+## 지금 막힌 사람에게는 **아직 안 한 것 중 가장 앞선 줄**이 먼저,
+## 그 아래 전체 목록이 따라온다 — "지금 뭐부터?" 와 "전체 흐름" 을
+## 한 화면에 같이 준다.
+func _open_guide_recap() -> void:
+	if _bag_panel != null:
+		_bag_panel.visible = false
+	AudioManager.page_turn()
+	var layer := CanvasLayer.new()
+	layer.layer = 11
+	add_child(layer)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.10, 0.09, 0.12, 0.66)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(dim)
+
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("#FFFDF6")
+	sb.set_corner_radius_all(18)
+	sb.set_border_width_all(4)
+	sb.border_color = Color("#8C7B68")
+	sb.content_margin_left = 28
+	sb.content_margin_right = 28
+	sb.content_margin_top = 22
+	sb.content_margin_bottom = 22
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	var vp := get_viewport().get_visible_rect().size
+	var h: float = clampf(vp.y * 0.78, 400.0, 700.0)
+	panel.offset_left = -300
+	panel.offset_right = 300
+	panel.offset_top = -h * 0.5
+	panel.offset_bottom = h * 0.5
+	dim.add_child(panel)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	panel.add_child(box)
+
+	var title := Label.new()
+	title.text = "길잡이"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_color_override("font_color", Color("#3A2C2C"))
+	box.add_child(title)
+
+	var step: int = SaveManager.get_flag(Guide.STEP_FLAG, Guide.STEPS.size())
+	var finished: bool = SaveManager.get_flag(Guide.FLAG, false) or step >= Guide.STEPS.size()
+	if not finished:
+		var now := Label.new()
+		now.text = "지금은 — " + String(Guide.STEPS[step][1])
+		now.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		now.custom_minimum_size = Vector2(500, 0)
+		now.add_theme_font_size_override("font_size", 26)
+		now.add_theme_color_override("font_color", Color("#8C6E3F"))
+		box.add_child(now)
+
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 8)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	for i in Guide.STEPS.size():
+		var l := Label.new()
+		l.text = String(Guide.STEPS[i][1])
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(500, 0)
+		l.add_theme_font_size_override("font_size", 24)
+		l.add_theme_color_override("font_color",
+			Color("#A79A8A") if i < step else Color("#4A3A22"))
+		list.add_child(l)
+
+	var close := Button.new()
+	close.text = "닫기"
+	close.custom_minimum_size = Vector2(0, 68)
+	close.add_theme_font_size_override("font_size", 26)
+	close.pressed.connect(func():
+		layer.queue_free()
+		if _bag_panel != null:
+			_bag_panel.visible = true)
+	box.add_child(close)
 
 
 ## 받침을 보고 을/를 을 골라 붙인다.
