@@ -15,7 +15,13 @@ extends CanvasLayer
 ## - 말투는 시키는 말이 아니라 **곁에서 알려 주는 말**로 쓴다
 
 const FLAG := "guide_done"
-const STEP_FLAG := "guide_step"
+## "quests" 를 맨 앞으로 옮기며 순서를 바꿨다. 옛 `guide_step` 값은
+## **자리 번호**라, 순서가 바뀌면 같은 번호가 다른 줄을 가리키게 된다
+## (예: 옛 2번="go" 였는데 새 순서에선 2번="talk"). 진행 중이던 사람이
+## "go" 줄만 보고 "quests" 줄은 영영 못 보는 사고가 난다 — 그래서 키
+## 이름을 바꿔 새로 센다. 이미 다 끝낸 사람(`FLAG` 참)은 어차피 옛
+## 순서로도 다 봤으니 영향이 없다.
+const STEP_FLAG := "guide_step2"
 const FADE := 0.35
 
 ## [열쇠, 안내 문구]. 열쇠는 `done()` 이 받는 이름이다.
