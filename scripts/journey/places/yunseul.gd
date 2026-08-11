@@ -211,11 +211,15 @@ func quest_zones() -> Array:
 
 ## 가게(24,10) 문 앞. 가게는 한 칸만 막으므로 문 앞은 바로 아랫줄이다.
 func doors() -> Array:
-	return [{
-		"tile": Vector2i(24, 11),
-		"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
-		"label": "가게 들어가기",
-	}]
+	return [
+		{"tile": Vector2i(24, 11),
+			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
+			"label": "가게 들어가기"},
+		# 등대 밑동(31,5) 바로 앞. 나선 계단을 오르는 서브맵으로 이어진다.
+		{"tile": Vector2i(31, 6),
+			"scene": "res://scenes/journey/interiors/LighthouseInterior.tscn",
+			"label": "등대 들어가기", "enter_key": "등대안"},
+	]
 
 
 func on_built() -> void:

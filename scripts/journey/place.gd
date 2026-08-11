@@ -1410,10 +1410,13 @@ func _do_enter(d) -> void:
 		# 지금 서 있는 자리를 적어 둔다. 나올 때 그대로 세운다.
 		JourneyState.exit_scene = scene_file_path
 		JourneyState.exit_tile = tile_of(walker.global_position)
-		# 밖에서 안으로 들어가는 문이다 — "그 가게에 들어가 봤다" 는
-		# 이 순간에만 알 수 있다. 안에서는 자기가 어느 마을 가게인지
-		# 모른다 (넷이 씬 하나를 같이 쓰니까).
-		JourneyState.mark_quest("%s:가게" % place_name())
+		# 밖에서 안으로 들어가는 문이다 — "그 서브맵에 들어가 봤다" 는
+		# 이 순간에만 알 수 있다. 안에서는 자기가 어느 마을의 무엇인지
+		# 모른다 (여러 마을이 같은 실내 씬을 나눠 쓰니까). 문마다
+		# `"enter_key"` 로 어떤 퀘스트인지 가린다 — 없으면 "가게"
+		# (지금까지 문이 다 가게였을 때의 기본값).
+		var key: String = String(d.get("enter_key", "가게"))
+		JourneyState.mark_quest("%s:%s" % [place_name(), key])
 	_did("enter")
 	# `SceneTransition.go_to()` 가 문 여는 소리를 낸다 — 여기서 또 내지 않는다.
 	var st := get_node_or_null("/root/SceneTransition")

@@ -208,11 +208,15 @@ func quest_zones() -> Array:
 
 ## 가게(16,12) 문 앞. 한 칸만 막으니 문 앞은 바로 아랫줄이다.
 func doors() -> Array:
-	return [{
-		"tile": Vector2i(16, 13),
-		"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
-		"label": "가게 들어가기",
-	}]
+	return [
+		{"tile": Vector2i(16, 13),
+			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
+			"label": "가게 들어가기"},
+		# 등대 밑동(28,6) 바로 앞.
+		{"tile": Vector2i(28, 7),
+			"scene": "res://scenes/journey/interiors/LighthouseInterior.tscn",
+			"label": "등대 들어가기", "enter_key": "등대안"},
+	]
 
 
 func on_built() -> void:

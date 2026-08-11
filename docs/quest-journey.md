@@ -1,8 +1,10 @@
 # 진짜 행복 — 여행지 퀘스트 (구상)
 
 > 상태: **구현됨.** `scripts/systems/quests.gd`, `JourneyState.quest_flags`,
-> `Folk.gives_item`, `TravelBoard` 잠금 표시. 남은 것은 6절의 "행복첩 안
-> 퀘스트 목록" UI뿐 — 지금은 여행판 잠금 표시로만 진행을 알린다.
+> `Folk.gives_item`, `TravelBoard` 잠금 표시, 배낭 "이 마을에서" 탭.
+> **서브맵도 가게 하나뿐이 아니다** — 윤슬·가풀재·하늬섬엔 등대 안
+> (`LighthouseInterior`)도 있다. "문(`enter_key`)마다 다른 퀘스트를 잠글
+> 수 있다"는 구조라 새 서브맵을 늘리는 비용이 낮다.
 > 마을 이름·순서는 `docs/story-journey.md`/`docs/world-quo.md` 를 따른다.
 
 ## 0. 한 줄

@@ -1093,7 +1093,10 @@ func _quest_tests() -> void:
 		JourneyState.taken["윤슬:%d,0" % i] = true
 	ok(not Quests.village_cleared("윤슬"), "사진이 없으면 아직 못 채운다")
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
-	ok(Quests.village_cleared("윤슬"), "지도·카메라·가게·방문·사진·줍기·잠을 다 채웠다")
+	ok(not Quests.village_cleared("윤슬"), "등대 안에도 안 들어갔으면 아직 못 채운다")
+	JourneyState.mark_quest("윤슬:등대안")
+	ok(Quests.village_cleared("윤슬"),
+		"지도·카메라·가게·방문·사진·줍기·잠·등대안을 다 채웠다")
 	ok(Quests.is_unlocked("볕뉘"), "윤슬을 다 채우면 볕뉘가 열린다")
 	ok(not Quests.is_unlocked("가풀재"), "그렇다고 그다음까지 한 번에 열리진 않는다")
 
@@ -1105,7 +1108,8 @@ func _quest_tests() -> void:
 	JourneyState.reset()
 
 	# ⑤ 배낭 "이 마을에서" 탭이 읽는 목록도 같은 판정을 그대로 쓴다.
-	ok(Quests.quest_list("윤슬").size() == 6, "윤슬은 항목 6개 (지도·카메라 포함)")
+	ok(Quests.quest_list("윤슬").size() == 7,
+		"윤슬은 항목 7개 (지도·카메라·등대안 포함)")
 	ok(Quests.quest_list("볕뉘").size() == 5, "볕뉘는 항목 5개")
 	ok(Quests.quest_list("고향").is_empty(), "고향은 할 일 목록이 없다")
 	for q in Quests.quest_list("윤슬"):
@@ -1124,6 +1128,7 @@ func _quest_tests() -> void:
 	JourneyState.mark_quest("윤슬:가게")
 	JourneyState.mark_quest("윤슬:등대")
 	JourneyState.mark_quest("윤슬:잠")
+	JourneyState.mark_quest("윤슬:등대안")
 	for i in Quests.PICKUP_TOTAL["윤슬"]:
 		JourneyState.taken["윤슬:%d,0" % i] = true
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
@@ -1137,6 +1142,7 @@ func _quest_tests() -> void:
 	JourneyState.hearts["san_gull"] = 1
 	JourneyState.mark_quest("가풀재:가게")
 	JourneyState.mark_quest("가풀재:능선")
+	JourneyState.mark_quest("가풀재:등대안")
 	for i in Quests.PICKUP_TOTAL["가풀재"]:
 		JourneyState.taken["가풀재:%d,2" % i] = true
 	JourneyState.photos.append({"place": "가풀재", "subject": "노을"})
@@ -1144,6 +1150,7 @@ func _quest_tests() -> void:
 	JourneyState.hearts["do_kid"] = 1
 	JourneyState.mark_quest("하늬섬:가게")
 	JourneyState.mark_quest("하늬섬:한바퀴")
+	JourneyState.mark_quest("하늬섬:등대안")
 	for i in Quests.PICKUP_TOTAL["하늬섬"]:
 		JourneyState.taken["하늬섬:%d,3" % i] = true
 	JourneyState.photos.append({"place": "하늬섬", "subject": "돌담"})

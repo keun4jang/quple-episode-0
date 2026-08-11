@@ -217,6 +217,10 @@ func doors() -> Array:
 		{"tile": Vector2i(23, 11),
 			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 			"label": "가게 들어가기"},
+		# 등대 밑동(30,5) 바로 앞.
+		{"tile": Vector2i(30, 6),
+			"scene": "res://scenes/journey/interiors/LighthouseInterior.tscn",
+			"label": "등대 들어가기", "enter_key": "등대안"},
 	]
 
 
