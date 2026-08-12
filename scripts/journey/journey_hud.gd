@@ -538,12 +538,29 @@ func _open_guide_recap() -> void:
 	AudioManager.page_turn()
 	var layer := CanvasLayer.new()
 	layer.layer = 11
+	# **뒤로가기가 닫을 수 있어야 한다.** 화면을 통째로 덮는 것이 이 그룹에
+	# 없으면 뒤로가기가 아무것도 못 닫고, 그 누름이 그대로 종료 카운터에
+	# 쌓여 **두 번째 누름에 앱이 꺼진다** (`back_handler.gd` 가 경고하는 사고).
+	layer.add_to_group("overlay")
+	# 닫히는 길이 어디로 나든(닫기 버튼·바깥 누르기·뒤로가기) 배낭은
+	# 되돌려 놓는다. 나가는 길목 하나에 모아 둬야 빠뜨리지 않는다.
+	layer.tree_exiting.connect(func() -> void:
+		if _bag_panel != null and is_instance_valid(_bag_panel):
+			_bag_panel.visible = true)
 	add_child(layer)
 
 	var dim := ColorRect.new()
 	dim.color = Color(0.10, 0.09, 0.12, 0.66)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	# 바깥을 눌러도 닫힌다 — 펼친 미니맵·크레딧과 같은 결이다.
+	dim.gui_input.connect(func(e: InputEvent) -> void:
+		if is_echo(e):
+			return
+		var tap: bool = (e is InputEventScreenTouch and e.pressed) \
+			or (e is InputEventMouseButton and e.pressed)
+		if tap:
+			layer.queue_free())
 	layer.add_child(dim)
 
 	var panel := PanelContainer.new()
@@ -581,7 +598,9 @@ func _open_guide_recap() -> void:
 	var finished: bool = SaveManager.get_flag(Guide.FLAG, false) or step >= Guide.STEPS.size()
 	if not finished:
 		var now := Label.new()
-		now.text = "지금은 — " + String(Guide.STEPS[step][1])
+		# 줄표(—)를 쓰면 안 된다. PoorStory 에 없어서 폰에서 네모 상자가
+		# 뜬다 (`CLAUDE.md` 폰트 규칙). 가운뎃점은 들어 있다.
+		now.text = "지금은 · " + String(Guide.STEPS[step][1])
 		now.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		now.custom_minimum_size = Vector2(500, 0)
 		now.add_theme_font_size_override("font_size", 26)
@@ -610,10 +629,8 @@ func _open_guide_recap() -> void:
 	close.text = "닫기"
 	close.custom_minimum_size = Vector2(0, 68)
 	close.add_theme_font_size_override("font_size", 26)
-	close.pressed.connect(func():
-		layer.queue_free()
-		if _bag_panel != null:
-			_bag_panel.visible = true)
+	# 배낭 되돌리기는 위의 `tree_exiting` 이 맡는다 — 여기선 닫기만 한다.
+	close.pressed.connect(layer.queue_free)
 	box.add_child(close)
 
 

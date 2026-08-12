@@ -424,6 +424,9 @@ func _add_credits_button() -> void:
 func _show_credits() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 80
+	# 뒤로가기로도 닫힌다. 화면을 덮는 것은 다 이 그룹에 넣는다
+	# (`back_handler.gd` — 없으면 그 누름이 종료 카운터에 쌓인다).
+	layer.add_to_group("overlay")
 	add_child(layer)
 
 	var dim := ColorRect.new()

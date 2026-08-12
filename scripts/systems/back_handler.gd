@@ -66,6 +66,17 @@ func _close_topmost() -> bool:
 	if st != null and ("is_transitioning" in st) and st.is_transitioning:
 		return true
 
+	# 코드로 띄운 덮개(길잡이 다시 보기·크레딧). 씬이 아니라 그때그때
+	# 만드는 것들이라 저마다 그룹을 새로 파는 대신 "overlay" 하나로 모은다 —
+	# 새 덮개를 만들 때 여기 이름을 더할 필요가 없다는 게 요점이다.
+	var ov := tree.get_first_node_in_group("overlay")
+	if ov != null and is_instance_valid(ov):
+		if ov.has_method("close"):
+			ov.close()
+		else:
+			ov.queue_free()
+		return true
+
 	var settings := tree.get_first_node_in_group("settings_ui")
 	if settings != null and settings.visible and settings.has_method("close"):
 		settings.close()

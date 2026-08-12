@@ -970,6 +970,27 @@ func _camera_tests() -> void:
 	JourneyState.here = here_was
 	await get_tree().process_frame
 
+	# ⑤-3 화면을 덮는 것은 **뒤로가기로 닫혀야 한다.**
+	#
+	# "길잡이 다시 보기" 판은 배낭까지 숨기고 화면을 통째로 덮는데,
+	# `back_handler` 가 찾는 그룹 어디에도 없었다. 그래서 폰에서 뒤로가기를
+	# 누르면 아무것도 안 닫히고, 그 누름이 종료 카운터에 쌓여 **두 번째
+	# 누름에 앱이 꺼졌다** (`back_handler.gd` 가 위에서 경고하는 그 사고).
+	tp.hud._open_guide_recap()
+	await get_tree().process_frame
+	ok(get_tree().get_first_node_in_group("overlay") != null,
+		"덮는 판은 'overlay' 그룹에 든다")
+	var bh := get_tree().get_first_node_in_group("back_handler")
+	ok(bh != null, "뒤로가기 처리기가 살아 있다")
+	ok(bh != null and bh._close_topmost(), "뒤로가기가 그 판을 닫는다")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(get_tree().get_first_node_in_group("overlay") == null,
+		"닫고 나면 남지 않는다")
+	ok(tp.hud.bag_open(), "판을 닫으면 숨겼던 배낭이 되돌아온다")
+	tp.hud.toggle_bag()
+	await get_tree().process_frame
+
 	# ⑥ 한 번 누른 것이 두 번으로 오지 않는다
 	#
 	# 엔진이 터치를 마우스로도 흉내내서 `_unhandled_input` 이 같은 탭을
