@@ -196,6 +196,30 @@ const VISIT_LABEL := {
 ## 목록 밖 장소(고향·잿마루)면 빈 배열 — 새 판정을 안 만들고, 3.5절과
 ## 4절의 퀘스트를 순서 그대로 다시 읽는 것뿐이다.
 static func quest_list(village: String) -> Array:
+	# 프롤로그(쿼카컴퍼니가 있는 잿마루)에도 할 일을 둔다.
+	#
+	# **여기가 게임의 첫 화면이다.** 여기에 목록이 없으면, 배낭을 열어 봐도
+	# "여기서는 딱히 할 일이 없어요" 만 뜬다 — 시작하자마자 길잡이가
+	# 할 일을 가리키는데 정작 열어 보면 비어 있는 셈이었다.
+	#
+	# **잠그지 않는다.** 잿마루는 `ORDER` 밖이라 `village_cleared()` 가 늘
+	# 참이다. 다 안 해도 떠날 수 있다 — 벌이 없다는 원칙 그대로,
+	# 이 목록은 "해도 되는 것"을 적어 둔 것뿐이다.
+	if village == "잿마루":
+		return [
+			{"label": "옆자리 동료에게 인사하기",
+				"done": JourneyState.heart("coworker") >= 1},
+			{"label": "창가에서 밖을 내다보기",
+				"done": JourneyState.quest_done("잿마루:본:창밖")},
+			{"label": "반납함에 사원증 넣기",
+				"done": JourneyState.quest_done("잿마루:본:반납함")},
+			{"label": "로비에서 경비 아저씨에게 인사하기",
+				"done": JourneyState.heart("guard") >= 1},
+			{"label": "회사 앞으로 걸어 나가기",
+				"done": JourneyState.quest_done("잿마루:본:회사 앞")},
+			{"label": "정류장에서 첫 여행지 고르기",
+				"done": JourneyState.quest_done("잿마루:정류장")},
+		]
 	if village == "윤슬":
 		# **처음엔 둘만 보여준다.** 지도·카메라를 받기 전에 나머지
 		# 다섯 개까지 다 늘어놓으면 "숙제장"처럼 보인다는 지적이 있었다.

@@ -1124,6 +1124,11 @@ func talk_to_near() -> void:
 	# 사람이 두 칸째 대사를 하고, 첫인사를 영영 못 듣는다.
 	var what := f.lines()
 	f.on_talked()
+	# 소품(spot)은 마음이 안 늘어서(`put_spot` 의 folk_id 가 빈 값) "봤다"는
+	# 기록이 어디에도 안 남는다. 프롤로그처럼 **소품을 들여다보는 것 자체가
+	# 할 일**인 곳이 있어서, 본 것만 표시로 남긴다.
+	if f.is_spot and f.who != "":
+		JourneyState.mark_quest("%s:본:%s" % [place_name(), f.who])
 	# 마음을 다 채우면 엽서를 준다. 떠난 뒤에도 편지가 온다는 뜻이다.
 	if f.heart() >= JourneyState.HEART_MAX:
 		JourneyState.give_postcard(f.folk_id, f.who)
@@ -1216,8 +1221,7 @@ func _unhandled_input(e: InputEvent) -> void:
 	if _can_depart() and _near_tile(at, depart_tile()):
 		walker.stop()
 		stop_walk_to()
-		board.open(place_name())
-		_did("go")
+		_open_board()
 		get_viewport().set_input_as_handled()
 		return
 	# ④ 그 밖에는 **누른 자리로 걸어간다.**
@@ -1442,8 +1446,15 @@ func _on_action() -> void:
 		"depart":
 			walker.stop()
 			stop_walk_to()
-			board.open(place_name())
-			_did("go")
+			_open_board()
+
+
+## 여행판을 연다. 두 군데(정류장 자리를 누르기·선택 버튼)에서 같은 일을
+## 하므로 한곳에 모은다 — 표지판 앞까지 왔다는 표시도 여기서 남긴다.
+func _open_board() -> void:
+	board.open(place_name())
+	JourneyState.mark_quest("%s:정류장" % place_name())
+	_did("go")
 
 
 ## 문을 지나 다른 씬으로. 밖에서 안으로, 또는 안에서 밖으로 — 방향은

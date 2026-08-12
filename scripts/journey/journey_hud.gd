@@ -29,6 +29,10 @@ var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 행
 ## 있다" 는 것만 알리고, 무엇인지는 배낭을 열어야 안다 — 그게 탭 안의
 ## 내용(체크 표시·편지 목록)이 이미 하고 있는 일이다.
 var _dot: Control
+## 배낭이 어디 있는지 가리키는 고리. 길잡이가 "배낭을 열어 보세요" 줄을
+## 띄우고 있는 동안만 켠다 — 글자로 "여기" 라고 쓰는 대신 **직접 그린다.**
+var _bag_ring: Control
+var _ring_t := 0.0
 var _flash: ColorRect
 var _root: Control
 var _pad_cam: Control
@@ -202,6 +206,24 @@ func _build() -> void:
 		_dot.draw_circle(Vector2(11, 11), 8.5, Color("#FFD166")))
 	root.add_child(_dot)
 
+	# 배낭을 가리키는 고리. 배낭 버튼과 같은 자리에 겹쳐 두고 테두리만 그린다.
+	_bag_ring = Control.new()
+	_bag_ring.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_bag_ring.offset_left = -136
+	_bag_ring.offset_top = -136
+	_bag_ring.offset_right = -24
+	_bag_ring.offset_bottom = -24
+	_bag_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bag_ring.visible = false
+	_bag_ring.draw.connect(func() -> void:
+		var mid := _bag_ring.size * 0.5
+		# 숨쉬듯 굵기와 크기가 오간다. 깜빡이면 급해 보인다.
+		var p := 0.5 + 0.5 * sin(_ring_t * 3.0)
+		var rad: float = minf(mid.x, mid.y) - 6.0 + p * 5.0
+		_bag_ring.draw_arc(mid, rad, 0.0, TAU, 48,
+			Color(1.0, 0.82, 0.40, 0.45 + p * 0.45), 4.0 + p * 2.0, true))
+	root.add_child(_bag_ring)
+
 	# 사진 찍을 때 화면이 한 번 하얘진다
 	_flash = ColorRect.new()
 	_flash.color = Color(1, 1, 1, 0)
@@ -330,6 +352,12 @@ func toggle_bag() -> void:
 				break
 		_tab = 4 if left else 0
 		_refill_bag()
+		# **저절로 열린 것도 연 것이다.** 여기서 `_tab` 만 바꾸고 지나가는
+		# 바람에 `quest_tab_opened` 가 안 울렸다. 길잡이 첫 줄이 이 신호를
+		# 기다리는데 영영 안 오니, 배낭을 열어 할 일까지 다 읽은 사람도
+		# 안내가 그 줄에 멈춰 다음(걷기)으로 넘어가질 못했다.
+		if _tab == 4:
+			quest_tab_opened.emit()
 	bag_toggled.emit(_bag_panel.visible)
 
 
@@ -612,7 +640,19 @@ func _on_picked(item: String, _total: int) -> void:
 		_refill_bag()
 
 
-func _process(_delta: float) -> void:
+## 배낭이 어디 있는지 가리킬까. 길잡이가 부른다.
+func point_at_bag(on: bool) -> void:
+	if _bag_ring == null:
+		return
+	if on and (_buttons_hidden or bag_open()):
+		on = false      # 배낭이 이미 열려 있거나 버튼이 치워졌으면 가릴 것이 없다
+	_bag_ring.visible = on
+
+
+func _process(delta: float) -> void:
+	if _bag_ring != null and _bag_ring.visible:
+		_ring_t += delta
+		_bag_ring.queue_redraw()
 	if _clock != null:
 		_clock.text = "%s   %d일째" % [JourneyState.time_text(), JourneyState.day]
 	if _dot != null:

@@ -950,6 +950,26 @@ func _camera_tests() -> void:
 	tp.say.close()
 	await get_tree().process_frame
 
+	# ⑤-2 저절로 열린 "이 마을에서" 도 **연 것으로 친다.**
+	#
+	# 예전엔 `toggle_bag()` 이 `_tab` 만 4로 바꾸고 지나가서
+	# `quest_tab_opened` 가 안 울렸다. 길잡이 첫 줄이 그 신호를 기다리는데
+	# 영영 안 오니, 배낭을 열어 할 일을 다 읽은 사람도 안내가 그 줄에
+	# 멈춰 다음(걷기)으로 넘어가질 못했다.
+	var here_was: String = JourneyState.here
+	JourneyState.here = "잿마루"                  # 할 일이 남아 있는 곳
+	var seen := [false]
+	tp.hud.quest_tab_opened.connect(func(): seen[0] = true)
+	if tp.hud.bag_open():
+		tp.hud.toggle_bag()
+	tp.hud.toggle_bag()
+	await get_tree().process_frame
+	ok(tp.hud._tab == 4, "할 일이 남았으면 '이 마을에서' 부터 열린다")
+	ok(seen[0], "저절로 열려도 '할 일을 봤다' 는 신호가 온다")
+	tp.hud.toggle_bag()
+	JourneyState.here = here_was
+	await get_tree().process_frame
+
 	# ⑥ 한 번 누른 것이 두 번으로 오지 않는다
 	#
 	# 엔진이 터치를 마우스로도 흉내내서 `_unhandled_input` 이 같은 탭을
@@ -1155,6 +1175,23 @@ func _quest_tests() -> void:
 	JourneyState.reset()
 	ok(Quests.quest_list("볕뉘").size() == 6, "볕뉘는 항목 6개 (능 안쪽길 포함)")
 	ok(Quests.quest_list("고향").is_empty(), "고향은 할 일 목록이 없다")
+
+	# ⑤-2 프롤로그(잿마루)에도 할 일이 있다. **게임의 첫 화면이라**
+	# 여기가 비어 있으면 시작하자마자 "할 일은 배낭에" 안내가 거짓이 된다.
+	JourneyState.reset()
+	var jm := Quests.quest_list("잿마루")
+	ok(jm.size() == 6, "잿마루(프롤로그)에도 할 일이 여섯 개 있다")
+	for q in jm:
+		ok(not bool(q["done"]), "갓 시작했으니 아직 안 했다: %s" % q["label"])
+	# 소품을 들여다본 것도 기록으로 남는다 (`Place.talk_to_near`).
+	JourneyState.mark_quest("잿마루:본:창밖")
+	var jm2 := Quests.quest_list("잿마루")
+	ok(bool(jm2[1]["done"]), "창밖을 보면 그 줄이 채워진다")
+	ok(not bool(jm2[0]["done"]), "다른 줄까지 같이 채워지진 않는다")
+	# 그래도 **잠그지 않는다** — 잿마루는 ORDER 밖이라 늘 지나갈 수 있다.
+	ok(Quests.village_cleared("잿마루"), "프롤로그는 다 안 해도 막지 않는다")
+	ok(Quests.is_unlocked("윤슬"), "프롤로그가 윤슬을 잠그지 않는다")
+	JourneyState.reset()
 	for q in Quests.quest_list("윤슬"):
 		ok(not bool(q["done"]), "갓 초기화했으니 아직 다 안 끝났다: %s" % q["label"])
 

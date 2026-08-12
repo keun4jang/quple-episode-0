@@ -36,9 +36,15 @@ const FADE := 0.35
 ## 두 낱말은 꼭 넣는다 — 막혔을 때 돌아올 자리 둘이다.
 ## **"quests" 를 맨 앞에 둔다.** "시작하자마자 퀘스트가 있어야
 ## 뭘 해야 할지 안다" 는 지적 — 걷기부터 가르치고 한참 뒤에야
-## 행복첩을 알려 주면, 그 사이엔 "그냥 둘러보는" 느낌만 남는다.
+## 할 일 목록을 알려 주면, 그 사이엔 "그냥 둘러보는" 느낌만 남는다.
+##
+## 그 줄에서 **"행복첩" 이라 쓰면 안 된다.** 행복첩은 배낭 넷째 칸,
+## 마음을 다 채운 인연에게 받은 엽서를 넣는 곳이라 처음엔 늘 비어 있다.
+## 할 일은 다섯째 칸 "이 마을에서" 에 있다 — 이름을 잘못 대는 바람에
+## "행복첩이 어디 있고, 눌러도 아무것도 없다" 는 말을 들었다.
+## 그래서 칸 이름 대신 **배낭이 있는 자리**를 가리킨다(고리도 같이 켠다).
 const STEPS := [
-	["quests", "이 마을에서 해볼 일은 행복첩에 접어 두었어요."],
+	["quests", "오른쪽 아래 배낭을 열면 여기서 해볼 일이 적혀 있어요."],
 	["walk", "가고 싶은 곳을 톡 누르면 천천히 걸어요."],
 	["talk", "인연을 톡 누르면 다가가서 저절로 말을 걸어요."],
 	["go",   "표지판이 선 자리에 서면 오른쪽 아래 버튼으로 떠날 수 있어요."],
@@ -111,9 +117,14 @@ func _build() -> void:
 ## "map" 단계는 지도를 실제로 받은 뒤에야 뜻이 통한다 — 지도가 없으면
 ## 미니맵 자체가 안 보이는데(`docs/quest-journey.md` 3.5절), 안내가
 ## 먼저 뜨면 "누르라는 게 어디 있지?" 하고 헤매게 된다.
+## "quests" 도 마찬가지다. 할 일이 하나도 없는 곳(고향처럼 목록 밖인
+## 자리)에서 이 줄이 뜨면, 열어 봐야 "여기서는 딱히 할 일이 없어요" 라
+## 안내가 거짓말이 되고 — 신호가 안 오니 **그 줄에서 멈춰 버린다.**
 func _step_ready(key: String) -> bool:
 	if key == "map":
 		return Quests.has_map()
+	if key == "quests":
+		return not Quests.quest_list(JourneyState.here).is_empty()
 	return true
 
 
@@ -137,6 +148,20 @@ func _process(_delta: float) -> void:
 	if mm != null and mm.has_method("is_big") and mm.is_big():
 		busy = true
 	_panel.visible = not busy
+	# 배낭을 열라는 줄일 때만 배낭에 고리를 씌운다. 어디를 눌러야 하는지
+	# 글자로 더 설명하는 대신, 눌러야 할 것을 눈에 띄게 한다.
+	_point_bag(hud, not busy and waiting_for() == "quests")
+
+
+func _point_bag(hud, on: bool) -> void:
+	if hud != null and hud.has_method("point_at_bag"):
+		hud.point_at_bag(on)
+
+
+## 안내가 사라질 때 고리도 같이 끈다. 안 끄면 마지막 프레임 모양 그대로
+## 배낭에 고리가 남는다.
+func _exit_tree() -> void:
+	_point_bag(get_tree().get_first_node_in_group("journey_hud"), false)
 
 
 func _show_step() -> void:
