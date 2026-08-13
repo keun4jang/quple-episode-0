@@ -42,7 +42,10 @@ from _ttf_cmap import cmap_chars
 FONT = "assets/fonts/PoorStory.ttf"
 
 # 터미널에만 찍히는 글자를 쓰는 파일. 게임 화면이 아니다.
-CONSOLE_ONLY = {"tools/shots/sim_journey.gd"}
+CONSOLE_ONLY = {
+    "tools/shots/sim_journey.gd",
+    "tools/shots/shot_screens.gd",
+}
 
 STRING = re.compile(r'"""(.*?)"""|"((?:[^"\\\n]|\\.)*)"', re.S)
 

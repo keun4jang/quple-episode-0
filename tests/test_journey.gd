@@ -1222,8 +1222,8 @@ func _quest_tests() -> void:
 	# 대화 대상이다(갈매기는 방문+사진으로 대신한다).
 	JourneyState.reset()
 	ok(not Quests.is_unlocked("굽이나루"), "1탄을 안 마쳤으면 굽이나루도 잠겨 있다")
-	ok(Quests.quest_list("굽이나루").size() == 5,
-		"굽이나루는 항목 5개 (대화·가게·방문·줍기·잠)")
+	ok(Quests.quest_list("굽이나루").size() == 6,
+		"굽이나루는 항목 6개 (그 마을만의 것 하나 포함)")
 	for name in ["윤슬", "볕뉘", "가풀재", "하늬섬"]:
 		JourneyState.visited[name] = true
 	JourneyState.pick("map")
@@ -1271,6 +1271,9 @@ func _quest_tests() -> void:
 	JourneyState.photos.append({"place": "굽이나루", "subject": "강 굽이"})
 	ok(not Quests.village_cleared("굽이나루"), "잠을 안 잤으면 아직 안 끝났다")
 	JourneyState.mark_quest("굽이나루:잠")
+	ok(not Quests.village_cleared("굽이나루"),
+		"그 마을만의 것을 안 했으면 아직 안 끝났다")
+	JourneyState.mark_quest(Quests._local_flag("굽이나루"))
 	ok(Quests.village_cleared("굽이나루"), "카피바라 마을도 같은 결로 채워진다")
 	ok(Quests.is_unlocked("방울못"), "굽이나루를 다 채우면 방울못이 열린다")
 
@@ -1289,9 +1292,11 @@ func _quest_tests() -> void:
 	JourneyState.mark_quest("굽이나루:데크")
 	JourneyState.mark_quest("방울못:데크")
 	JourneyState.mark_quest("갈밭머리:전망대")
+	for name2 in ["굽이나루", "방울못", "갈밭머리"]:
+		JourneyState.mark_quest(Quests._local_flag(name2))
 	ok(Quests.is_unlocked("솔은재"), "2탄 셋을 다 마치면 솔은재가 열린다")
-	ok(Quests.quest_list("솔은재").size() == 5,
-		"솔은재는 항목 5개 (대화·가게·방문·줍기·잠)")
+	ok(Quests.quest_list("솔은재").size() == 6,
+		"솔은재는 항목 6개 (그 마을만의 것 하나 포함)")
 
 	# ⑧ 꽃눈벌 — 솔은재 다음, 처음으로 밭이 골격인 마을. 같은 결로 잠긴다.
 	ok(not Quests.is_unlocked("꽃눈벌"), "솔은재를 안 마쳤으면 꽃눈벌도 잠겨 있다")
@@ -1303,9 +1308,10 @@ func _quest_tests() -> void:
 	for i in Quests.PICKUP_TOTAL["솔은재"]:
 		JourneyState.taken["솔은재:%d,9" % i] = true
 	JourneyState.photos.append({"place": "솔은재", "subject": "전망"})
+	JourneyState.mark_quest(Quests._local_flag("솔은재"))
 	ok(Quests.is_unlocked("꽃눈벌"), "솔은재를 다 마치면 꽃눈벌이 열린다")
-	ok(Quests.quest_list("꽃눈벌").size() == 5,
-		"꽃눈벌은 항목 5개 (대화·가게·방문·줍기·잠)")
+	ok(Quests.quest_list("꽃눈벌").size() == 6,
+		"꽃눈벌은 항목 6개 (그 마을만의 것 하나 포함)")
 	JourneyState.reset()
 
 

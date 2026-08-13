@@ -97,7 +97,11 @@ func depart_tile() -> Vector2i:
 
 ## "밭 사이 도랑에 꽃잎 뜬 모습 사진 찍기" — 가운데 도랑 자리.
 func quest_zones() -> Array:
-	return [["꽃눈벌:도랑", Vector2i(20, 8), 48.0]]
+	return [
+		["꽃눈벌:도랑", Vector2i(20, 8), 48.0],
+		# 井자 한가운데 밭둑. 여기 서야 아홉 뙈기가 다 보인다.
+		["꽃눈벌:밭둑", Vector2i(19, 14), 48.0],
+	]
 
 
 func doors() -> Array:

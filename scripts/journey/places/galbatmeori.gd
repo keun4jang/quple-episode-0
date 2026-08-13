@@ -93,7 +93,12 @@ func depart_tile() -> Vector2i:
 
 ## "갈대 사이로 보이는 하늘 사진 찍기" — 남쪽 전망대에서.
 func quest_zones() -> Array:
-	return [["갈밭머리:전망대", Vector2i(20, 18), 56.0]]
+	return [
+		["갈밭머리:전망대", Vector2i(20, 18), 56.0],
+		# 데크에서 벗어나 갈대 속으로 몇 걸음 들어가야 나오는 빈자리.
+		# 이 마을은 길이 높낮이가 아니라 시야의 틈으로 나뉜다.
+		["갈밭머리:빈자리", Vector2i(30, 7), 48.0],
+	]
 
 
 func doors() -> Array:

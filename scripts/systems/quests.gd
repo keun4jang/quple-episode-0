@@ -82,6 +82,41 @@ const HAS_TOMB := {
 	"볕뉘": true,
 }
 
+## 마을마다 **딱 하나씩**, 거기서만 할 수 있는 것.
+##
+## 2탄 다섯 곳이 인사·가게·방문+사진·줍기·잠으로 완전히 같은 틀이었다.
+## 이름과 배경만 다르고 할 일의 모양이 똑같으니, 네 번째 마을쯤부터는
+## 새 곳에 와도 새로울 것이 없었다.
+##
+## **하나만 더한다.** 일곱 개, 여덟 개로 늘리면 체크리스트가 된다.
+## "몇 개 모으기" 를 또 만들지 않고, 그 마을의 생김새를 몸으로 알게
+## 되는 자리 하나를 준다 — 굽이도는 강, 둥근 연못, 갈대 틈, 솔숲,
+## 井자로 난 밭둑. 이름도 "목표 지점 방문" 이 아니라 산책하듯 적는다.
+##
+## [종류, 열쇠, 이름]. visit 은 `Place.quest_zones()` 가, prop 은
+## 소품을 들여다볼 때(`Place.talk_to_near`) 표시를 남긴다.
+const LOCAL := {
+	"굽이나루": ["visit", "굽이나루:물굽이", "강이 두 번 굽어 보이는 자리까지 가 보기"],
+	"방울못": ["visit", "방울못:물소리", "데크 끝에서 물소리 듣기"],
+	"갈밭머리": ["visit", "갈밭머리:빈자리", "갈대 사이 빈자리까지 걸어 보기"],
+	"솔은재": ["prop", "솔방울 묻은 자리", "소나무 아래 작은 자리를 살펴보기"],
+	"꽃눈벌": ["visit", "꽃눈벌:밭둑", "가운데 밭둑에서 들판 둘러보기"],
+}
+
+
+## 그 마을만의 할 일을 마쳤나. 없는 마을이면 늘 참이다.
+static func _local_ok(village: String) -> bool:
+	if not LOCAL.has(village):
+		return true
+	return JourneyState.quest_done(_local_flag(village))
+
+
+static func _local_flag(village: String) -> String:
+	var e: Array = LOCAL[village]
+	if String(e[0]) == "prop":
+		return "%s:본:%s" % [village, e[1]]
+	return String(e[1])
+
 
 static func has_map() -> bool:
 	return JourneyState.count("map") > 0
@@ -162,7 +197,7 @@ static func village_cleared(village: String) -> bool:
 		return _talked_all(village) and _shop_entered(village) \
 			and _visited(village) and _picked_all(village) \
 			and _slept_ok(village) and _lighthouse_ok(village) \
-			and _tomb_ok(village)
+			and _tomb_ok(village) and _local_ok(village)
 	return true    # 고향 등 목록 밖 장소는 늘 "클리어"로 친다
 
 
@@ -294,6 +329,12 @@ static func quest_list(village: String) -> Array:
 			out.append({"label": "능 안쪽길에서 볕든 돌담 사진 남기기",
 				"kind": "door", "key": "능입구",
 				"done": JourneyState.quest_done("%s:능안" % village)})
+		# 그 마을만의 것은 **맨 뒤**에. 앞의 다섯을 하며 마을을 한 바퀴
+		# 돈 다음에야 "여기만 이런 게 있네" 가 온다.
+		if LOCAL.has(village):
+			var e: Array = LOCAL[village]
+			out.append({"label": String(e[2]), "kind": String(e[0]),
+				"key": String(e[1]), "done": _local_ok(village)})
 		return out
 	return []
 
