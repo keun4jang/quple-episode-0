@@ -5,8 +5,17 @@ extends Control
 ## 그림을 따로 안 만든다. 바닥 글자판(`ground_map()`)을 그대로 읽어
 ## 칸마다 점을 찍는다 — 지도를 고치면 미니맵도 저절로 따라온다.
 ##
-## **길을 알려 주는 물건이 아니다.** 화살표도 목적지 표시도 안 넣는다.
-## 지금 이 마을이 어떻게 생겼고 내가 어디쯤 있는지, 그거 하나다.
+## **길을 알려 주는 물건은 아니다.** 화살표도 "여기로 가세요" 도 없다.
+## 다만 할 일이 **글자로만** 있어서, 읽어도 지도 위 어디인지 알 수가
+## 없었다 — 목록과 지도가 서로 남이었다. 그래서 조용히 자리만 짚어 준다.
+##
+## 지키는 선:
+##
+## - **접었을 때는 하나만.** 지금 보고 있는 할 일 한 자리뿐이다
+## - **펼쳤을 때만 남은 것들.** 그것도 아직 안 한 것만 — 다 한 것은 지운다
+## - **줍기는 다 안 찍는다.** 가장 가까운 하나만 (`Place.goal_world`)
+## - 글자를 안 쓴다. 폰트에 없는 기호는 폰에서 네모 상자가 된다
+##   (`CLAUDE.md`). 모양은 전부 직접 그린다
 
 ## 접었을 때 / 펼쳤을 때 화면에서 차지하는 최대 크기
 const SMALL := Vector2(148.0, 100.0)
@@ -169,6 +178,8 @@ func _draw() -> void:
 			var p := _to_map(f.global_position, cw, ch)
 			draw_circle(p, maxf(1.6, cw * 0.30), Color(1.0, 0.94, 0.78, 0.9))
 
+	_draw_goals(cw, ch)
+
 	# 나. 천천히 숨쉰다.
 	var w = place.get("walker")
 	if w != null and is_instance_valid(w):
@@ -179,6 +190,67 @@ func _draw() -> void:
 
 	# 테두리는 마지막에 — 점이 밖으로 새 보이지 않게
 	draw_rect(r, Color(1.0, 0.99, 0.94, 0.55), false, 2.0)
+
+
+# ── 할 일 표시 ────────────────────────────────────────────────────────
+
+const GOAL := Color(1.0, 0.97, 0.88, 0.85)        # 남은 할 일
+const GOAL_NOW := Color(0.66, 0.80, 0.60, 0.95)   # 지금 보고 있는 것
+
+## 접었으면 지금 것 하나, 펼쳤으면 남은 것 전부.
+func _draw_goals(cw: float, ch: float) -> void:
+	if not place.has_method("current_goal"):
+		return
+	var now: Dictionary = place.current_goal()
+	var items: Array = place.open_goals() if _big else \
+		([now] if not now.is_empty() else [])
+	var r: float = maxf(2.4, cw * 0.42)
+	for it in items:
+		var at: Vector2 = place.goal_world(it)
+		if at == Vector2.INF:
+			continue
+		var p := _to_map(at, cw, ch)
+		var mine: bool = not now.is_empty() and it == now
+		_goal_shape(p, r, String(it.get("kind", "")),
+			bool(it.get("photo", false)), GOAL_NOW if mine else GOAL)
+		if mine:
+			# 지금 보고 있는 것에는 고리를 하나 더. 숨쉬듯 커졌다 작아진다.
+			var k: float = 1.0 + sin(_dot_t * 2.4) * 0.16
+			draw_arc(p, r * 2.0 * k, 0.0, TAU, 20, GOAL_NOW, maxf(1.2, cw * 0.10), true)
+
+
+## 종류마다 다른 모양. 글자를 안 쓰고 직접 그린다.
+func _goal_shape(p: Vector2, r: float, kind: String, photo: bool, col: Color) -> void:
+	var w: float = maxf(1.2, r * 0.34)
+	match kind:
+		"door":
+			# 문 · 가게 · 등대 · 능 입구 — 작은 네모
+			draw_rect(Rect2(p - Vector2(r, r), Vector2(r * 2.0, r * 2.0)),
+				col, false, w)
+		"visit":
+			# 가 볼 자리 — 빈 동그라미. 사진이 필요하면 바깥에 모서리 넷
+			draw_arc(p, r, 0.0, TAU, 18, col, w, true)
+			if photo:
+				var d: float = r * 1.7
+				for s in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+					draw_line(p + s * d, p + s * (d - r * 0.6), col, w * 0.8, true)
+		"sleep":
+			# 잠자리 — 반달
+			draw_arc(p, r, PI * 0.15, PI * 0.85, 14, col, w, true)
+			draw_arc(p + Vector2(0, -r * 0.5), r * 0.9, PI * 0.2, PI * 0.8,
+				12, col, w * 0.8, true)
+		"depart":
+			# 정류장 — 표지판. 기둥 하나에 판 하나
+			draw_line(p, p + Vector2(0, -r * 1.8), col, w, true)
+			draw_rect(Rect2(p + Vector2(-r * 0.9, -r * 2.4),
+				Vector2(r * 1.8, r * 0.9)), col, false, w * 0.9)
+		"pickup":
+			# 줍기 — 작은 반짝임 (네 갈래)
+			for v in [Vector2(0, -1), Vector2(0, 1), Vector2(-1, 0), Vector2(1, 0)]:
+				draw_line(p + v * (r * 0.35), p + v * (r * 1.25), col, w * 0.9, true)
+		_:
+			# 인연·소품 — 이미 크림색 점이 찍혀 있으니 테두리만 살짝
+			draw_arc(p, r * 1.15, 0.0, TAU, 16, col, w * 0.9, true)
 
 
 func _to_map(world: Vector2, cw: float, ch: float) -> Vector2:

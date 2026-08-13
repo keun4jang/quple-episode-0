@@ -1840,6 +1840,108 @@ func world_of(t: Vector2i) -> Vector2:
 	return Vector2(t.x * TILE + TILE * 0.5, (t.y + 1) * TILE)
 
 
+# ── 할 일이 지도 위 어디인가 ──────────────────────────────────────────
+#
+# 글자로 적힌 할 일과 지도를 잇는 자리다. `Quests.quest_list()` 는 항목마다
+# **무엇인지(`kind`)와 누구/어디인지(`key`)** 만 적어 둔다 — 좌표는 안 적는다.
+# 좌표를 아는 건 마을 스크립트뿐이라, 그 둘을 받아 여기서 자리를 찾는다.
+# 표를 따로 두지 않으니 지도를 고치면 표시도 저절로 따라온다.
+
+## 플레이어가 목록에서 고른 할 일. 빈 값이면 게임이 알아서 하나 잡는다.
+var _goal_key := ""
+
+## 그 항목이 가리키는 자리. 찾을 수 없으면 `Vector2.INF`.
+func goal_world(item: Dictionary) -> Vector2:
+	var kind := String(item.get("kind", ""))
+	var key := String(item.get("key", ""))
+	match kind:
+		"talk":
+			for f in _folk:
+				if is_instance_valid(f) and not f.is_spot and f.folk_id == key:
+					return f.global_position
+		"prop":
+			for f in _folk:
+				if is_instance_valid(f) and f.is_spot and f.who == key:
+					return f.global_position
+		"door":
+			for d in doors():
+				if String(d.get("enter_key", "가게")) == key:
+					return world_of(d["tile"])
+		"visit":
+			for z in quest_zones():
+				if String(z[0]) == key:
+					return world_of(z[1])
+		"sleep":
+			var b := sleep_tile()
+			if b.x >= 0:
+				return world_of(b)
+		"depart":
+			var t := depart_tile()
+			if t.x >= 0:
+				return world_of(t)
+		"pickup":
+			# **남은 것을 다 찍지 않는다.** 전부 찍으면 지도가 지저분해지고
+			# 수집 게임처럼 보인다. 가장 가까운 하나만 가리킨다 — 그것부터
+			# 주우면 다음이 저절로 가까워진다.
+			var best := Vector2.INF
+			var near := INF
+			var from: Vector2 = walker.global_position if walker != null \
+				else Vector2.ZERO
+			for a in _loose:
+				if not is_instance_valid(a):
+					continue
+				var d2 := from.distance_squared_to(a.global_position)
+				if d2 < near:
+					near = d2
+					best = a.global_position
+			return best
+	return Vector2.INF
+
+
+## 사진이 필요한데 카메라가 없으면 아직 가리키지 않는다 — 찍을 수 없는
+## 자리를 가리켜 봐야 "가라는 건지 말라는 건지" 만 된다.
+func _goal_shown(item: Dictionary) -> bool:
+	if bool(item.get("done", false)):
+		return false
+	if bool(item.get("photo", false)) and JourneyState.count("camera") <= 0:
+		return false
+	return goal_world(item) != Vector2.INF
+
+
+## 지금 지도에 표시할 만한 할 일들 (아직 안 한 것만).
+func open_goals() -> Array:
+	var out: Array = []
+	for q in Quests.quest_list(place_name()):
+		if _goal_shown(q):
+			out.append(q)
+	return out
+
+
+## 지금 가리키고 있는 할 일 하나. 고른 게 없으면 **남은 것 중 첫째**를
+## 잡는다 — 목록은 이미 마을마다 걷기 좋은 차례로 적어 두었으니
+## 따로 우선순위를 또 만들지 않는다.
+func current_goal() -> Dictionary:
+	var open := open_goals()
+	if open.is_empty():
+		return {}
+	if _goal_key != "":
+		for q in open:
+			if _goal_id(q) == _goal_key:
+				return q
+		_goal_key = ""      # 그새 다 했거나 사라진 것을 고르고 있었다
+	return open[0]
+
+
+## 항목을 가리키는 이름. `kind` 만으로는 인사 둘을 못 가른다.
+func _goal_id(item: Dictionary) -> String:
+	return "%s:%s" % [item.get("kind", ""), item.get("key", "")]
+
+
+## 목록에서 하나를 골랐다.
+func set_goal(item: Dictionary) -> void:
+	_goal_key = _goal_id(item)
+
+
 ## 여행자를 세운다. **지금 여기 있을 때만.**
 ##
 ## 재회일 때는 대사가 통째로 달라진다. 마음 칸을 따라가지 않고

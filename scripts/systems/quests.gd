@@ -192,9 +192,24 @@ const VISIT_LABEL := {
 }
 
 
-## 배낭(행복첩)에 보여 줄 "이 마을에서" 목록. `[{"label":..,"done":..}]`.
-## 목록 밖 장소(고향·잿마루)면 빈 배열 — 새 판정을 안 만들고, 3.5절과
+## 배낭에 보여 줄 "이 마을에서" 목록.
+## `[{"label":.., "done":.., "kind":.., "key":.., "photo":..}]`.
+## 목록 밖 장소(고향)면 빈 배열 — 새 판정을 안 만들고, 3.5절과
 ## 4절의 퀘스트를 순서 그대로 다시 읽는 것뿐이다.
+##
+## ## `kind` 와 `key` 가 왜 붙어 있나
+##
+## 할 일이 **글자로만** 있었다. "고갯마루 전망 바위까지 가서 사진 찍기"
+## 를 읽어도 그게 지도 위 어디인지 알 길이 없었다 — 목록과 지도가 서로
+## 남이었다. 그래서 항목마다 **무엇인지(`kind`)** 와 **누구/어디인지
+## (`key`)** 를 같이 적는다. 좌표는 여기 안 적는다. 좌표를 아는 건
+## 마을 스크립트뿐이라 `Place.goal_world()` 가 이 둘을 받아 자리를 찾는다.
+##
+## 그래야 **목록·미니맵·테스트가 같은 데이터 하나**를 본다. 지도에
+## 표시할 것을 따로 또 적어 두면 언젠가 둘이 어긋난다.
+##
+## `kind` 는 일곱: talk(인연) · prop(소품) · door(문) · visit(가 볼 자리) ·
+## pickup(줍기) · sleep(잠자리) · depart(정류장).
 static func quest_list(village: String) -> Array:
 	# 프롤로그(쿼카컴퍼니가 있는 잿마루)에도 할 일을 둔다.
 	#
@@ -207,17 +222,17 @@ static func quest_list(village: String) -> Array:
 	# 이 목록은 "해도 되는 것"을 적어 둔 것뿐이다.
 	if village == "잿마루":
 		return [
-			{"label": "옆자리 동료에게 인사하기",
+			{"label": "옆자리 동료에게 인사하기", "kind": "talk", "key": "coworker",
 				"done": JourneyState.heart("coworker") >= 1},
-			{"label": "창가에서 밖을 내다보기",
+			{"label": "창가에서 밖을 내다보기", "kind": "prop", "key": "창밖",
 				"done": JourneyState.quest_done("잿마루:본:창밖")},
-			{"label": "반납함에 사원증 넣기",
+			{"label": "반납함에 사원증 넣기", "kind": "prop", "key": "반납함",
 				"done": JourneyState.quest_done("잿마루:본:반납함")},
-			{"label": "로비에서 경비 아저씨에게 인사하기",
+			{"label": "로비에서 경비 아저씨에게 인사하기", "kind": "talk", "key": "guard",
 				"done": JourneyState.heart("guard") >= 1},
-			{"label": "회사 앞으로 걸어 나가기",
+			{"label": "회사 앞으로 걸어 나가기", "kind": "prop", "key": "회사 앞",
 				"done": JourneyState.quest_done("잿마루:본:회사 앞")},
-			{"label": "정류장에서 첫 여행지 고르기",
+			{"label": "정류장에서 첫 여행지 고르기", "kind": "depart", "key": "",
 				"done": JourneyState.quest_done("잿마루:정류장")},
 		]
 	if village == "윤슬":
@@ -226,41 +241,58 @@ static func quest_list(village: String) -> Array:
 		# 사진 항목은 카메라가 없으면 아예 뜻이 안 통하기도 하고 — 둘 다
 		# 받고 나서야 이 마을이 실제로 "무엇으로 채워지는지" 보여준다.
 		var out0: Array = [
-			{"label": "가게 할머니와 인사하고 지도 받기", "done": has_map()},
-			{"label": "갈매기 소년과 인사하고 카메라 받기", "done": has_camera()},
+			{"label": "가게 할머니와 인사하고 지도 받기", "kind": "talk",
+				"key": "seal", "done": has_map()},
+			{"label": "갈매기 소년과 인사하고 카메라 받기", "kind": "talk",
+				"key": "seagull", "done": has_camera()},
 		]
 		if not (has_map() and has_camera()):
 			return out0
-		out0.append({"label": "가게 들어가 보기", "done": _shop_entered("윤슬")})
-		out0.append({"label": VISIT_LABEL["윤슬"], "done": _visited("윤슬")})
-		out0.append({"label": "떨어진 것 다 줍기", "done": _picked_all("윤슬")})
-		out0.append({"label": "쿼스텔에서 하루 자기",
+		out0.append({"label": "가게 들어가 보기", "kind": "door", "key": "가게",
+			"done": _shop_entered("윤슬")})
+		out0.append({"label": VISIT_LABEL["윤슬"], "kind": "visit",
+			"key": VISIT_KEY["윤슬"], "photo": VISIT_NEEDS_PHOTO.get("윤슬", false),
+			"done": _visited("윤슬")})
+		out0.append({"label": "떨어진 것 다 줍기", "kind": "pickup", "key": "",
+			"done": _picked_all("윤슬")})
+		out0.append({"label": "쿼스텔에서 하루 자기", "kind": "sleep", "key": "",
 			"done": JourneyState.quest_done("윤슬:잠")})
 		if HAS_LIGHTHOUSE.get("윤슬", false):
-			out0.append({"label": "등대 안에 들어가 보기",
-				"done": JourneyState.quest_done("윤슬:등대안")})
+			out0.append({"label": "등대 안에 들어가 보기", "kind": "door",
+				"key": "등대안", "done": JourneyState.quest_done("윤슬:등대안")})
 		return out0
 	if ORDER.has(village):
 		var ids: Array = TALK_FOLK.get(village, [])
 		var out: Array = []
 		if ids.size() >= 1:
 			out.append({"label": "%s와 인사하기" % FOLK_NAME.get(ids[0], ""),
+				"kind": "talk", "key": String(ids[0]),
 				"done": JourneyState.heart(String(ids[0])) >= 1})
-		out.append({"label": "가게 들어가 보기", "done": _shop_entered(village)})
+		out.append({"label": "가게 들어가 보기", "kind": "door", "key": "가게",
+			"done": _shop_entered(village)})
 		if ids.size() >= 2:
 			out.append({"label": "%s와 인사하기" % FOLK_NAME.get(ids[1], ""),
+				"kind": "talk", "key": String(ids[1]),
 				"done": JourneyState.heart(String(ids[1])) >= 1})
 		out.append({"label": VISIT_LABEL.get(village, "방문해 보기"),
+			"kind": "visit", "key": VISIT_KEY.get(village, ""),
+			"photo": VISIT_NEEDS_PHOTO.get(village, false),
 			"done": _visited(village)})
-		out.append({"label": "떨어진 것 다 줍기", "done": _picked_all(village)})
+		out.append({"label": "떨어진 것 다 줍기", "kind": "pickup", "key": "",
+			"done": _picked_all(village)})
 		if NEEDS_SLEEP.get(village, false):
-			out.append({"label": "하룻밤 쉬기",
+			out.append({"label": "하룻밤 쉬기", "kind": "sleep", "key": "",
 				"done": JourneyState.quest_done("%s:잠" % village)})
 		if HAS_LIGHTHOUSE.get(village, false):
-			out.append({"label": "등대 안에 들어가 보기",
+			out.append({"label": "등대 안에 들어가 보기", "kind": "door",
+				"key": "등대안",
 				"done": JourneyState.quest_done("%s:등대안" % village)})
 		if HAS_TOMB.get(village, false):
+			# 표시는 **문 앞**을 가리킨다. 완료는 안쪽 자리에서 나지만
+			# (`TombPathInterior.quest_zones`), 마을 지도에 찍을 수 있는
+			# 자리는 들어가는 문뿐이다.
 			out.append({"label": "능 안쪽길에서 볕든 돌담 사진 남기기",
+				"kind": "door", "key": "능입구",
 				"done": JourneyState.quest_done("%s:능안" % village)})
 		return out
 	return []

@@ -507,3 +507,6 @@ func reset() -> void:
 	exit_scene = ""
 	exit_tile = Vector2i(-1, -1)
 	pending_spawn = Vector2i(-1, -1)
+	# 이게 빠져 있었다. 기록을 지워도 "가게에 들어가 봤다"·"능을 걸었다"
+	# 같은 표시가 그대로 남아, 새로 시작해도 그 퀘스트가 이미 done 이었다.
+	quest_flags = {}

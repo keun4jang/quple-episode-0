@@ -18,6 +18,8 @@ func _ready() -> void:
 	await _camera_tests()
 	_touch_tests()
 	_quest_tests()
+	await _goal_tests()
+	_minimap_kind_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -1304,4 +1306,173 @@ func _quest_tests() -> void:
 	ok(Quests.is_unlocked("꽃눈벌"), "솔은재를 다 마치면 꽃눈벌이 열린다")
 	ok(Quests.quest_list("꽃눈벌").size() == 5,
 		"꽃눈벌은 항목 5개 (대화·가게·방문·줍기·잠)")
+	JourneyState.reset()
+
+
+# ── 할 일이 지도 위 어디인가 ──────────────────────────────────────────
+#
+# 글자로 적힌 할 일과 미니맵 표시가 **같은 데이터 하나**를 보게 만들었으니
+# (`Quests.quest_list` 의 kind/key → `Place.goal_world`), 그 연결이 실제로
+# 이어지는지 마을마다 확인한다. 여기가 끊기면 "할 일은 아는데 어디로
+# 가야 할지 모른다" 는 그 문제가 조용히 돌아온다.
+
+const GOAL_SCENES := {
+	"잿마루": "res://scenes/journey/Jaenmaru.tscn",
+	"윤슬": "res://scenes/journey/Yunseul.tscn",
+	"볕뉘": "res://scenes/journey/Byeotnwi.tscn",
+	"가풀재": "res://scenes/journey/Gapuljae.tscn",
+	"하늬섬": "res://scenes/journey/Hanuiseom.tscn",
+	"굽이나루": "res://scenes/journey/Gubinaru.tscn",
+	"방울못": "res://scenes/journey/Bangulmot.tscn",
+	"갈밭머리": "res://scenes/journey/Galbatmeori.tscn",
+	"솔은재": "res://scenes/journey/Soleunjae.tscn",
+	"꽃눈벌": "res://scenes/journey/Kkonnunbeol.tscn",
+}
+
+## **직접 밟고 서야 하는** 종류만. 문·잠자리는 일부러 막힌 칸을 가리킨다
+## — 건물 그 자체라서, 옆에 서면 버튼이 뜬다. 가 볼 자리는 반지름 안에만
+## 들어가면 되고(꽃눈벌은 도랑 한복판이 목표다), 줍기는 아래에서 따로
+## 더 깐깐하게 본다.
+const GOAL_WALKABLE := ["depart"]
+
+
+func _goal_tests() -> void:
+	print("\n[할 일과 지도]")
+	# 지도·카메라를 다 가진 상태로 본다 — 그래야 마을마다 항목이 다 열린다.
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+
+	for village in GOAL_SCENES:
+		var path: String = GOAL_SCENES[village]
+		if not ResourceLoader.exists(path):
+			ok(false, "%s 씬이 있다" % village)
+			continue
+		var p: Place = load(path).instantiate()
+		add_child(p)
+		await get_tree().process_frame
+		var size: Vector2i = p.tile_size()
+
+		var list := Quests.quest_list(village)
+		var unreachable: Array = []
+		var outside: Array = []
+		var blocked: Array = []
+		for q in list:
+			var at: Vector2 = p.goal_world(q)
+			if at == Vector2.INF:
+				unreachable.append(String(q.get("label", "")))
+				continue
+			var t := p.tile_of(at)
+			if t.x < 0 or t.y < 0 or t.x >= size.x or t.y >= size.y:
+				outside.append(String(q.get("label", "")))
+			elif GOAL_WALKABLE.has(String(q.get("kind", ""))) and not p._walkable(t):
+				blocked.append("%s %s" % [q.get("label", ""), t])
+		ok(unreachable.is_empty(),
+			"%s: 모든 할 일이 지도 위 자리를 안다%s"
+				% [village, "" if unreachable.is_empty() else " — " + str(unreachable)])
+		ok(outside.is_empty(),
+			"%s: 할 일 자리가 지도 밖으로 안 나간다%s"
+				% [village, "" if outside.is_empty() else " — " + str(outside)])
+		ok(blocked.is_empty(),
+			"%s: 걸어가야 하는 자리가 막혀 있지 않다%s"
+				% [village, "" if blocked.is_empty() else " — " + str(blocked)])
+
+		# 가 볼 자리는 반지름 안에 **설 수 있는 칸이 하나라도** 있어야 한다.
+		# 한복판이 물이어도 괜찮지만(꽃눈벌 도랑), 둘레까지 다 막혀 있으면
+		# 그 퀘스트는 영영 안 끝난다.
+		var sealed: Array = []
+		for z in p.quest_zones():
+			var c: Vector2i = z[1]
+			var rad: int = int(ceil(float(z[2]) / 16.0))
+			var reachable := false
+			for dy in range(-rad, rad + 1):
+				for dx in range(-rad, rad + 1):
+					var t2 := c + Vector2i(dx, dy)
+					if p.world_of(t2).distance_to(p.world_of(c)) <= float(z[2]) \
+							and p._walkable(t2):
+						reachable = true
+			if not reachable:
+				sealed.append(String(z[0]))
+		ok(sealed.is_empty(), "%s: 가 볼 자리에 설 수 있다%s"
+			% [village, "" if sealed.is_empty() else " — " + str(sealed)])
+
+		# **줍기는 그 칸을 직접 밟아야 한다.** 줍는 거리가 12px 인데 한 칸이
+		# 16px 이라, 옆 칸에 서서는 안 닿는다. 막힌 칸에 놓이면 영영 못
+		# 줍고 "다 줍기" 가 안 끝나 **다음 마을이 안 열린다.** 실제로
+		# 굽이나루가 그랬다 — 갈매기가 아랫칸까지 막고 있는 자리였다.
+		var stuck: Array = []
+		for e in p.pickups():
+			var pt := Vector2i(e[0], e[1])
+			if not p._walkable(pt):
+				stuck.append("%s %s" % [e[2], pt])
+		ok(stuck.is_empty(), "%s: 못 줍는 자리에 놓인 것이 없다%s"
+			% [village, "" if stuck.is_empty() else " — " + str(stuck)])
+
+		# 접은 미니맵은 **하나만** 가리킨다. 여럿 뜨면 작은 지도가 지저분해진다.
+		var now: Dictionary = p.current_goal()
+		ok(not now.is_empty(), "%s: 가리킬 할 일을 하나 잡는다" % village)
+		ok(p.open_goals().size() >= 1, "%s: 펼치면 남은 할 일이 보인다" % village)
+
+		p.queue_free()
+		await get_tree().process_frame
+
+	# 다 하고 나면 지도에서 사라진다.
+	var sol: Place = load(GOAL_SCENES["솔은재"]).instantiate()
+	add_child(sol)
+	await get_tree().process_frame
+	var before := sol.open_goals().size()
+	JourneyState.hearts["cap_sol"] = 1
+	var after := sol.open_goals().size()
+	ok(after == before - 1, "인사를 마치면 그 표시가 지도에서 빠진다 (%d→%d)"
+		% [before, after])
+
+	# 골라 둔 것이 있으면 그것을 가리킨다.
+	var pick: Dictionary = {}
+	for q in sol.open_goals():
+		if String(q.get("kind", "")) == "sleep":
+			pick = q
+	ok(not pick.is_empty(), "잠자리 항목이 목록에 있다")
+	if not pick.is_empty():
+		sol.set_goal(pick)
+		ok(sol.current_goal() == pick, "목록에서 고른 것을 미니맵이 가리킨다")
+
+	# 카메라가 없으면 사진 목표를 아직 안 가리킨다.
+	JourneyState.bag.erase("camera")
+	var shown := true
+	for q in sol.open_goals():
+		if bool(q.get("photo", false)):
+			shown = false
+	ok(shown, "카메라를 받기 전엔 사진 목표를 안 가리킨다")
+
+	sol.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 미니맵이 그릴 수 있는 종류인가.
+##
+## `_draw()` 는 엔진 밖에서 못 부른다. 대신 **그림이 기대는 약속**을
+## 지킨다: 목록이 내놓는 `kind` 를 미니맵이 다 알고 있어야 한다.
+## 모르는 종류가 생기면 기본 모양으로 조용히 떨어져서, 잠자리가 동그라미로
+## 뜨는 식으로 어긋나도 아무도 모른다.
+const MINIMAP_KINDS := ["talk", "prop", "door", "visit", "pickup", "sleep", "depart"]
+
+func _minimap_kind_test() -> void:
+	print("\n[미니맵이 아는 종류]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	var seen := {}
+	var unknown: Array = []
+	for village in GOAL_SCENES:
+		for q in Quests.quest_list(village):
+			var k := String(q.get("kind", ""))
+			seen[k] = true
+			if not MINIMAP_KINDS.has(k):
+				unknown.append("%s: %s" % [village, k])
+	ok(unknown.is_empty(), "미니맵이 모르는 할 일 종류가 없다%s"
+		% ("" if unknown.is_empty() else " — " + str(unknown)))
+	# 종류를 붙이는 걸 빠뜨리면 빈 문자열이 되어 조용히 기본 모양이 된다.
+	ok(not seen.has(""), "종류가 안 붙은 할 일이 없다")
+	ok(seen.size() >= 6, "쓰이는 종류가 여섯 가지는 된다 (%d)" % seen.size())
 	JourneyState.reset()

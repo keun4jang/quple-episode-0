@@ -506,17 +506,55 @@ func _fill_postcards() -> void:
 ## **조용해지는 것**으로 안다 — 다녀온 여행지를 흐리게 보여 주는 것과
 ## 같은 결이다. 새로 만든 판정이 없다 — `Quests.quest_list()` 가 이미
 ## 있는 기록을 그대로 다시 읽어 올 뿐이다.
+## 이 HUD 를 안고 있는 마을. 할 일이 지도 위 어디인지는 마을만 안다.
+func _place() -> Node:
+	var p := get_parent()
+	return p if p != null and p.has_method("goal_world") else null
+
+
+## 눌러서 지도에 접어 둘 수 있는 할 일 한 줄.
+##
+## 누르면 배낭을 닫는다 — 표시가 미니맵에 뜨는데 배낭이 덮고 있으면
+## 아무 일도 안 일어난 것처럼 보인다. "여기로 가세요" 라고 시키지 않고
+## **접어 뒀다**고만 말한다.
+func _quest_row(text: String, col: Color, item: Dictionary, place: Node) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	b.custom_minimum_size = Vector2(BAG_LINE_WIDTH, 0)
+	b.add_theme_font_size_override("font_size", 28)
+	for st in ["normal", "hover", "pressed", "focus"]:
+		b.add_theme_color_override("font_%s_color" % st, col)
+	b.add_theme_color_override("font_color", col)
+	b.pressed.connect(func() -> void:
+		place.set_goal(item)
+		if _bag_panel != null and _bag_panel.visible:
+			toggle_bag()
+		_say_hint("지도에 살짝 접어 두었어요."))
+	return b
+
+
 func _fill_quests() -> void:
 	_bag_grid.columns = 1
 	var list := Quests.quest_list(JourneyState.here)
 	if list.is_empty():
 		_empty("여기서는 딱히 할 일이 없어요")
+	var place := _place()
 	for q in list:
 		var done: bool = q.get("done", false)
 		var label := String(q.get("label", ""))
 		var text := label + ("  (다 했어요)" if done else "")
 		var col := Color("#A79A8A") if done else Color("#FFF2C8")
-		_bag_grid.add_child(_bag_line(text, 28, col))
+		# **아직 안 한 것은 눌러서 지도에 접어 둘 수 있다.** 목록과 지도가
+		# 서로 남이면 "무엇을" 은 알아도 "어디로" 를 모른다. 다 한 것은
+		# 그냥 글자로 둔다 — 눌러 봐야 갈 데가 없다.
+		if not done and place != null and place.goal_world(q) != Vector2.INF:
+			_bag_grid.add_child(_quest_row(text, col, q, place))
+		else:
+			_bag_grid.add_child(_bag_line(text, 28, col))
 	# **길잡이를 다시 볼 곳.** 처음 안내는 한 줄, 한 번만 뜨고 사라진다 —
 	# 놓치면 못 본다는 게 친구들 피드백이었다. 여기, 막혔을 때 오는
 	# 바로 그 탭에 다시 볼 수 있는 버튼을 둔다.
@@ -647,12 +685,19 @@ func _with_josa(word: String) -> String:
 	return word + ("을" if (c - 0xAC00) % 28 != 0 else "를")
 
 
-func _on_picked(item: String, _total: int) -> void:
-	_hint.text = "%s 주웠어요" % _with_josa(String(NAMES.get(item, item)))
+## 가운데 위에 한 줄 띄웠다 지운다. 주운 것 알림과 같은 자리를 쓴다.
+func _say_hint(text: String) -> void:
+	if _hint == null:
+		return
+	_hint.text = text
 	_hint.modulate.a = 1.0
 	var tw := create_tween()
 	tw.tween_interval(1.1)
 	tw.tween_property(_hint, "modulate:a", 0.0, 0.5)
+
+
+func _on_picked(item: String, _total: int) -> void:
+	_say_hint("%s 주웠어요" % _with_josa(String(NAMES.get(item, item))))
 	if _bag_panel.visible:
 		_refill_bag()
 
