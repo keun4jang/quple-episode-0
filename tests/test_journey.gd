@@ -19,6 +19,8 @@ func _ready() -> void:
 	_touch_tests()
 	_quest_tests()
 	await _goal_tests()
+	await _reach_tests()
+	await _side_path_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -1546,3 +1548,185 @@ func _shop_skin_test() -> void:
 			far.append(str(pos))
 	ok(far.size() <= 1, "곁 물건이 문 앞에서 보이는 자리에 있다%s"
 		% ("" if far.size() <= 1 else " — " + str(far)))
+
+
+# ── 걸어서 닿는가 ─────────────────────────────────────────────────────
+#
+# **칸 하나만 보면 못 잡는다.** 그 칸이 걸을 수 있는 땅이어도, 물이나
+# 소품에 둘러싸여 섬이 되어 있으면 영영 못 간다.
+#
+# 굽이나루가 실제로 그랬다 — 강이 지도를 세로로 완전히 갈라서, 스폰은
+# 서안이고 가게·잠자리·**정류장이 전부 동안**이었다. 건널 데가 한 군데도
+# 없었으니 그 마을에 닿은 사람은 **떠날 수조차 없었다.** 모래톱은 또
+# 따로 떠 있는 섬이라 거기 놓인 줍기 둘도 못 주웠다.
+#
+# 앞의 검사들은 다 통과했다. 칸만 봤지 **이어져 있는지**를 안 봤다.
+
+func _reach_tests() -> void:
+	print("\n[걸어서 닿는가]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	for village in GOAL_SCENES:
+		var p: Place = load(String(GOAL_SCENES[village])).instantiate()
+		add_child(p)
+		await get_tree().process_frame
+
+		var size: Vector2i = p.tile_size()
+		var start: Vector2i = p.spawn_tile()
+		# 스폰에서 시작해 걸을 수 있는 칸을 다 훑는다.
+		var seen := {start: true}
+		var q: Array[Vector2i] = [start]
+		while not q.is_empty():
+			var at: Vector2i = q.pop_back()
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n: Vector2i = at + d
+				if seen.has(n) or n.x < 0 or n.y < 0 or n.x >= size.x or n.y >= size.y:
+					continue
+				if not p._walkable(n):
+					continue
+				seen[n] = true
+				q.append(n)
+
+		var near := func(t: Vector2i) -> bool:
+			for d in [Vector2i.ZERO, Vector2i(1, 0), Vector2i(-1, 0),
+					Vector2i(0, 1), Vector2i(0, -1)]:
+				if seen.has(t + d):
+					return true
+			return false
+
+		# 줍기는 그 칸을 직접 밟아야 한다(줍는 거리 12px < 한 칸 16px).
+		var lost: Array = []
+		for e in p.pickups():
+			if not seen.has(Vector2i(e[0], e[1])):
+				lost.append("%s(%d,%d)" % [e[2], e[0], e[1]])
+		ok(lost.is_empty(), "%s: 주울 것에 다 걸어갈 수 있다%s"
+			% [village, "" if lost.is_empty() else " — " + str(lost)])
+
+		# 문·잠자리는 건물 칸이라 곁에만 설 수 있으면 된다.
+		var shut: Array = []
+		for d2 in p.doors():
+			if not near.call(d2["tile"]):
+				shut.append(String(d2.get("label", "")))
+		var bed: Vector2i = p.sleep_tile()
+		if bed.x >= 0 and not near.call(bed):
+			shut.append("잠자리")
+		ok(shut.is_empty(), "%s: 문과 잠자리 곁에 설 수 있다%s"
+			% [village, "" if shut.is_empty() else " — " + str(shut)])
+
+		# **여기가 제일 중요하다.** 정류장에 못 가면 그 마을에 갇힌다.
+		var go: Vector2i = p.depart_tile()
+		ok(go.x < 0 or seen.has(go),
+			"%s: 정류장까지 걸어갈 수 있다 (갇히지 않는다)" % village)
+
+		# 가 볼 자리는 반지름 안 어딘가에 설 수 있으면 된다.
+		var sealed: Array = []
+		for z in p.quest_zones():
+			var c: Vector2i = z[1]
+			var rad: int = int(ceil(float(z[2]) / 16.0)) + 1
+			var okz := false
+			for dy in range(-rad, rad + 1):
+				for dx in range(-rad, rad + 1):
+					var t2 := c + Vector2i(dx, dy)
+					if seen.has(t2) \
+							and p.world_of(t2).distance_to(p.world_of(c)) <= float(z[2]):
+						okz = true
+			if not okz:
+				sealed.append(String(z[0]))
+		ok(sealed.is_empty(), "%s: 가 볼 자리까지 걸어갈 수 있다%s"
+			% [village, "" if sealed.is_empty() else " — " + str(sealed)])
+
+		p.queue_free()
+		await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 샛길 ──────────────────────────────────────────────────────────────
+#
+# 마을만의 할 일이 **샛길 안쪽**에서 끝난다. 그러니 여기 길이 막혀 있으면
+# 그 마을을 영영 못 끝내고, 다음 마을도 안 열린다. 굽이나루가 강으로
+# 갈려 있던 것과 똑같은 사고가 여기서 또 날 수 있다.
+
+func _side_path_tests() -> void:
+	print("\n[샛길]")
+	JourneyState.reset()
+	var villages: Array = SidePathInterior.PATHS.keys()
+	ok(villages.size() == 3, "샛길이 셋 있다 (%d)" % villages.size())
+	for village in villages:
+		# 그 마을에서 들어온 것처럼 꾸민다.
+		JourneyState.exit_scene = String(GOAL_SCENES.get(village, ""))
+		JourneyState.exit_tile = Vector2i(2, 2)
+		var node: Node = load(
+			"res://scenes/journey/interiors/SidePathInterior.tscn").instantiate()
+		if not (node is Place):
+			ok(false, "%s: 샛길 씬에 스크립트가 붙는다 (붙은 것: %s / %s)"
+				% [village, node.get_class(), str(node.get_script())])
+			node.queue_free()
+			continue
+		var p: Place = node
+		add_child(p)
+		await get_tree().process_frame
+
+		var nm: String = p.place_name()
+		ok(nm != "샛길", "%s: 제 이름을 안다 (%s)" % [village, nm])
+
+		# 완료 열쇠가 `Quests.LOCAL` 의 표시와 짝이어야 한다. 어긋나면
+		# 안쪽까지 걸어가도 그 마을 할 일이 안 끝난다.
+		var want := Quests._local_flag(village)
+		var keys: Array = []
+		for z in p.quest_zones():
+			keys.append(String(z[0]))
+		ok(keys.has(want), "%s: 안쪽 자리가 %s 를 남긴다 %s" % [village, want, keys])
+
+		# 마을 쪽 문의 enter_key 와 **겹치면 안 된다.** 겹치면 문을 지난
+		# 것만으로 끝나서 샛길을 만든 뜻이 없어진다 (능 안쪽길의 그 교훈).
+		var entered := "%s:%s" % [village, "샛길입구"]
+		ok(entered != want, "%s: 문만 지나서는 안 끝난다" % village)
+
+		# 들어온 자리에서 안쪽 자리·나가는 문까지 걸어서 닿는가.
+		var size: Vector2i = p.tile_size()
+		var start: Vector2i = p.spawn_tile()
+		var seen := {start: true}
+		var q: Array[Vector2i] = [start]
+		while not q.is_empty():
+			var at: Vector2i = q.pop_back()
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n: Vector2i = at + d
+				if seen.has(n) or n.x < 0 or n.y < 0 or n.x >= size.x or n.y >= size.y:
+					continue
+				if not p._walkable(n):
+					continue
+				seen[n] = true
+				q.append(n)
+		ok(seen.size() > 20, "%s: 걸어 다닐 자리가 있다 (%d칸)" % [village, seen.size()])
+
+		for z in p.quest_zones():
+			var c: Vector2i = z[1]
+			var rad: int = int(ceil(float(z[2]) / 16.0)) + 1
+			var reach := false
+			for dy in range(-rad, rad + 1):
+				for dx in range(-rad, rad + 1):
+					var t2: Vector2i = c + Vector2i(dx, dy)
+					if seen.has(t2) \
+							and p.world_of(t2).distance_to(p.world_of(c)) <= float(z[2]):
+						reach = true
+			ok(reach, "%s: 안쪽 자리까지 걸어갈 수 있다 %s" % [village, c])
+
+		var out_ok := false
+		for d3 in p.doors():
+			var t3: Vector2i = d3["tile"]
+			for d4 in [Vector2i.ZERO, Vector2i(1, 0), Vector2i(-1, 0),
+					Vector2i(0, 1), Vector2i(0, -1)]:
+				if seen.has(t3 + d4):
+					out_ok = true
+		ok(out_ok, "%s: 다시 나갈 수 있다 (갇히지 않는다)" % village)
+
+		# 안쪽 자리는 들어온 데서 **멀어야** 한다. 두 걸음이면 걷는 맛이 없다.
+		for z in p.quest_zones():
+			var far: int = absi(z[1].x - start.x) + absi(z[1].y - start.y)
+			ok(far >= 10, "%s: 안쪽 자리가 입구에서 멀다 (%d칸)" % [village, far])
+
+		p.queue_free()
+		await get_tree().process_frame
+	JourneyState.exit_scene = ""
+	JourneyState.reset()

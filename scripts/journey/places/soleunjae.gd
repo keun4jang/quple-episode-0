@@ -111,11 +111,16 @@ func quest_zones() -> Array:
 
 
 func doors() -> Array:
-	return [{
-		"tile": Vector2i(27, 11),
-		"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
-		"label": "가게 들어가기",
-	}]
+	return [
+		{"tile": Vector2i(27, 11),
+			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
+			"label": "가게 들어가기"},
+		# 고갯길에서 솔숲 쪽으로 빠지는 샛길. 다람쥐가 말하던 그 자리가
+		# 이 안쪽 끝에 있다 — 마을에 두면 두 걸음이라 걷는 맛이 없었다.
+		{"tile": Vector2i(20, 8),
+			"scene": "res://scenes/journey/interiors/SidePathInterior.tscn",
+			"label": "솔숲 사이로", "enter_key": "샛길입구"},
+	]
 
 
 func on_built() -> void:
@@ -147,11 +152,3 @@ func on_built() -> void:
 		["또 왔어요?", "묻어 둔 솔방울은 아직 거기 있어요."],
 	], Vector2.DOWN, false, {})
 
-	# 이 마을만의 자리. 다람쥐가 "묻어 둔 솔방울" 이라 말하던 그 자리를
-	# 바로 곁에 둔다 — 서브 인연이 흘린 말이 할 일 하나로 이어진다.
-	# 파 보지 않는다. 들여다보고 그대로 두는 것이 이 게임의 결이다.
-	put_spot(Vector2i(16, 6), "솔방울 묻은 자리", [
-		"솔잎이 유난히 도톰하게 쌓인 데가 있다.",
-		"손을 대지는 않았다.",
-		"누가 겨울을 미리 챙겨 둔 자리다.",
-	])

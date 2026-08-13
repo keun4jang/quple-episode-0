@@ -38,8 +38,8 @@ ggggggggggggggggggggggggggswwssswwsggggggg
 ggggggggggggggggggggggggggswwssswwsggggggg
 ggggggggggggggggggggggggggswwssswwsggggggg
 ggggggggggggggggggggggggggswwssswwsgeeeeee
-ggggggggggggggggggggggggggswwwwwwwddddeeee
-ggggggggggggggggggggggggggswwwwwwwddddeeee
+ggggggggggggggggggggggggggswwwdwwwddddeeee
+ggggggggggggggggggggggggggsdddddddddddeeee
 gggggggggggggggggggggggggswwwwwwwddddeeeee
 gggggggggggggggggggggggggswwwwwwwddddeeeee
 ggggggggggggggggggggggggswwwwwwwsgggeeeeee
@@ -101,18 +101,21 @@ func depart_tile() -> Vector2i:
 func quest_zones() -> Array:
 	return [
 		["굽이나루:데크", Vector2i(36, 14), 56.0],
-		# 강이 위에서 한 번, 모래톱을 지나 아래에서 또 한 번 굽는다.
-		# 서안 둔치 이 자리에서만 두 굽이가 한눈에 들어온다.
-		["굽이나루:물굽이", Vector2i(20, 15), 48.0],
 	]
 
 
 func doors() -> Array:
-	return [{
-		"tile": Vector2i(39, 15),
-		"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
-		"label": "가게 들어가기",
-	}]
+	return [
+		{"tile": Vector2i(39, 15),
+			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
+			"label": "가게 들어가기"},
+		# 모래톱에서 강 안쪽으로 더 들어가는 샛길. **문이 아니라 길이다** —
+		# 널 하나 건너 모래가 이어지는 자리다. `enter_key` 는 뜻이 없다.
+		# 다 했다는 표시는 안쪽 자리에서 난다(`SidePathInterior`).
+		{"tile": Vector2i(31, 11),
+			"scene": "res://scenes/journey/interiors/SidePathInterior.tscn",
+			"label": "모래톱 안쪽으로", "enter_key": "샛길입구"},
+	]
 
 
 func on_built() -> void:

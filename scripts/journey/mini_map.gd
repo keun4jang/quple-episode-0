@@ -169,6 +169,18 @@ func _draw() -> void:
 				var col: Color = COLORS.get(String(legend[ch2]), UNKNOWN)
 				draw_rect(Rect2(x * cw, y * ch, cw + 0.6, ch + 0.6), col)
 
+	# 막힌 칸을 살짝 어둡게. 바닥 글자판만 그리면 **소품이 막는 자리가
+	# 안 보인다** — 솔그늘 샛길은 소나무가 길 양옆을 빈틈없이 메워 폭
+	# 서너 칸짜리 외길인데, 미니맵에서는 온통 풀밭으로 보였다. 지도와
+	# 실제로 갈 수 있는 데가 어긋나면 지도를 안 믿게 된다.
+	var blocked: Dictionary = place.get("_blocked")
+	if blocked != null:
+		for bt in blocked:
+			if bt.x < 0 or bt.y < 0 or bt.x >= t.x or bt.y >= t.y:
+				continue
+			draw_rect(Rect2(bt.x * cw, bt.y * ch, cw + 0.6, ch + 0.6),
+				Color(0.16, 0.13, 0.18, 0.30))
+
 	# 인연은 작은 점으로. 이름은 안 쓴다 — 지도가 목록이 되면 안 된다.
 	var folk: Array = place.get("_folk")
 	if folk != null:

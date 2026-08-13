@@ -99,17 +99,20 @@ func depart_tile() -> Vector2i:
 func quest_zones() -> Array:
 	return [
 		["꽃눈벌:도랑", Vector2i(20, 8), 48.0],
-		# 井자 한가운데 밭둑. 여기 서야 아홉 뙈기가 다 보인다.
-		["꽃눈벌:밭둑", Vector2i(19, 14), 48.0],
 	]
 
 
 func doors() -> Array:
-	return [{
-		"tile": Vector2i(18, 10),
-		"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
-		"label": "가게 들어가기",
-	}]
+	return [
+		{"tile": Vector2i(18, 10),
+			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
+			"label": "가게 들어가기"},
+		# 밭과 밭 사이로 난 두렁길. 본 지도가 곧은 井자라, 안쪽은
+		# 일부러 어긋나게 났다.
+		{"tile": Vector2i(10, 12),
+			"scene": "res://scenes/journey/interiors/SidePathInterior.tscn",
+			"label": "밭 사이로", "enter_key": "샛길입구"},
+	]
 
 
 func on_built() -> void:

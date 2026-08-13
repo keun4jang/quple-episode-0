@@ -1914,6 +1914,14 @@ func open_goals() -> Array:
 	for q in Quests.quest_list(place_name()):
 		if _goal_shown(q):
 			out.append(q)
+	if not out.is_empty():
+		return out
+	# 서브맵(가게 안·능 안쪽길·샛길)은 마을 할 일 목록에 없다. 그래도
+	# **여기서도 "어디로" 는 알아야 한다** — 제 안에 남은 자리를 짚어 준다.
+	for z in quest_zones():
+		if not JourneyState.quest_done(String(z[0])):
+			out.append({"label": "", "kind": "visit", "key": String(z[0]),
+				"done": false})
 	return out
 
 

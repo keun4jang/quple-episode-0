@@ -116,3 +116,14 @@ func _run() -> void:
 		p = await _open("res://scenes/journey/interiors/ShopInterior.tscn")
 		await _wait(20)
 		await _shot("shop-%s" % v[0])
+
+	# ⑩ 샛길 — 셋이 서로 달라야 한다
+	for v2 in ["Gubinaru", "Soleunjae", "Kkonnunbeol"]:
+		JourneyState.exit_scene = "res://scenes/journey/%s.tscn" % v2
+		JourneyState.exit_tile = Vector2i(4, 4)
+		p = await _open("res://scenes/journey/interiors/SidePathInterior.tscn")
+		await _wait(20)
+		await _shot("side-%s" % v2)
+		p.minimap.toggle()
+		await _wait(28)
+		await _shot("side-%s-map" % v2)
