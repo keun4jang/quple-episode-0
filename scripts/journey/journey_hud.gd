@@ -171,8 +171,12 @@ func _build() -> void:
 	# 카메라 아이콘이 어두운 갈색이라 윤슬 왼쪽 아래의 쓰러진 나무·우물과
 	# 겹치면 버튼인지 배경 소품인지 갈리지 않았다. 아이콘을 다시 그리는
 	# 대신 뒤에 옅은 원판을 깐다 — 어떤 배경 위에서도 "누르는 것"으로 읽힌다.
-	_pad_cam = _make_pad(root, Control.PRESET_BOTTOM_LEFT, 32, -140, 152, -20)
-	_pad_bag = _make_pad(root, Control.PRESET_BOTTOM_RIGHT, -152, -140, -32, -20)
+	# **버튼과 같은 중심에 둔다.** 받침 원이 버튼보다 12px 바깥으로
+	# 밀려 있어서, 아이콘이 원 안에서 한쪽으로 치우쳐 보였다 — 좌우
+	# 두 버튼이 서로 반대쪽으로 쏠려 더 어긋나 보였다.
+	# 버튼 중심은 좌우 다 화면 끝에서 80px, 위로 80px.
+	_pad_cam = _make_pad(root, Control.PRESET_BOTTOM_LEFT, 20, -140, 140, -20)
+	_pad_bag = _make_pad(root, Control.PRESET_BOTTOM_RIGHT, -140, -140, -20, -20)
 
 	# 사진 — 왼쪽 아래. 배낭과 반대쪽이라 헷갈리지 않는다
 	_cam_btn = TextureButton.new()
@@ -198,10 +202,11 @@ func _build() -> void:
 	_dot.custom_minimum_size = Vector2(22, 22)
 	_dot.size = Vector2(22, 22)
 	_dot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_dot.offset_left = -54
-	_dot.offset_top = -136
-	_dot.offset_right = -32
-	_dot.offset_bottom = -114
+	# 배낭 원 테두리 위 오른쪽 45도. 예전엔 위로 너무 떠 있었다.
+	_dot.offset_left = -57
+	_dot.offset_top = -125
+	_dot.offset_right = -35
+	_dot.offset_bottom = -103
 	_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dot.visible = false
 	_dot.draw.connect(func() -> void:

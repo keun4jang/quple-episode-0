@@ -307,9 +307,16 @@ func _start_new(skip_prologue: bool) -> void:
 	if skip_prologue:
 		SaveManager.autosave("res://scenes/journey/Yunseul.tscn")
 		SceneTransition.go_to("res://scenes/journey/Yunseul.tscn", "hopeful")
-	else:
-		SaveManager.autosave(SaveManager.HUB)
-		SceneTransition.go_to(SaveManager.HUB)
+		return
+	# **왜 떠나는지부터.** 프롤로그(사무실을 걸어 나오는 장면)로 바로
+	# 던져 놓으면 "여기가 어디고 나는 왜 여기 있나" 를 모른 채 걷는다.
+	# 짧은 인트로 넉 장이 먼저 나온다 — 건너뛸 수 있다.
+	var intro := "res://scenes/menu/IntroSlides.tscn"
+	if ResourceLoader.exists(intro):
+		SceneTransition.go_to(intro)
+		return
+	SaveManager.autosave(SaveManager.HUB)
+	SceneTransition.go_to(SaveManager.HUB)
 
 func _on_continue() -> void:
 	SaveManager.load_game()

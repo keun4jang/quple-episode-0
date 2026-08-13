@@ -59,6 +59,17 @@ func _run() -> void:
 	SaveManager.set_flag(Guide.FLAG, false)
 	SaveManager.set_flag(Guide.STEP_FLAG, 0)
 
+	# ⓪ 인트로 넉 장
+	var intro = load("res://scenes/menu/IntroSlides.tscn").instantiate()
+	add_child(intro)
+	await _wait(40)
+	await _shot("intro-1")
+	intro._next(); await _wait(40); await _shot("intro-2")
+	intro._next(); await _wait(40); await _shot("intro-3")
+	intro._next(); await _wait(40); await _shot("intro-4")
+	intro.queue_free()
+	await _wait(4)
+
 	# ① 프롤로그 — 길잡이 첫 줄과 배낭 고리가 같이 보여야 한다
 	var p := await _open("res://scenes/journey/Jaenmaru.tscn")
 	await _wait(90)                       # 길잡이는 1.2초 뒤에 뜬다

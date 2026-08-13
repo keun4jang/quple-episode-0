@@ -50,8 +50,18 @@ func _ready() -> void:
 	# (`is_spot`)는 제 테두리가 안 보이니 짝지은 소품이 대신 한다
 	# (`Place._outline_sprite`).
 	if not is_spot:
-		outline_color = OUTLINE_TALK_FAR
+		outline_color = QuoWalker.talk_pulse()
 		_sync_outline()
+		set_process(true)
+
+
+## 멀리 있는 동안만 깜빡인다. 가까이 오면 `set_talk_near(true)` 가
+## 진한 금색으로 멎게 한다.
+func _process(_delta: float) -> void:
+	if is_spot or _talk_outline_on:
+		return
+	outline_color = QuoWalker.talk_pulse()
+	_sync_outline()
 
 
 ## 말 걸 수 있다는 표시를 **두 단계**로 켠다.
@@ -64,7 +74,7 @@ func set_talk_near(on: bool) -> void:
 	if is_spot or _talk_outline_on == on:
 		return
 	_talk_outline_on = on
-	outline_color = OUTLINE_TALK if on else OUTLINE_TALK_FAR
+	outline_color = OUTLINE_TALK if on else QuoWalker.talk_pulse()
 	_sync_outline()
 
 

@@ -66,6 +66,9 @@ var _blocked: Dictionary = {}
 ## 대화가 걸리는 소품의 칸 → 그 소품의 금색 테두리 노드.
 ## `_update_near()` 가 가까워진 자리를 찾아 켠다.
 var _prop_outline_at: Dictionary = {}
+## 깜빡이는 소품 테두리들. 매 프레임 다시 그려야 해서 따로 들고 있다
+## — 지도마다 몇 개뿐이라 값이 싸다.
+var _talk_outlines: Array = []
 var _outlined_prop: Node2D = null
 var _night: CanvasModulate
 var _sleep_at := Vector2.ZERO
@@ -421,9 +424,10 @@ func _outline_sprite(s: Sprite2D) -> Node2D:
 	# 겉보기엔 그냥 배경인 것들이 그랬다. 멀리서는 옅게, 가까이서는 진하게.
 	o.draw.connect(func() -> void:
 		var col: Color = QuoWalker.OUTLINE_TALK if bool(o.get_meta("on", false)) \
-			else QuoWalker.OUTLINE_TALK_FAR
+			else QuoWalker.talk_pulse()
 		for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
 			o.draw_texture_rect(tex, Rect2(off + d, tex.get_size()), false, col))
+	_talk_outlines.append(o)
 	_props.add_child(o)
 	_props.move_child(o, s.get_index())
 	return o
@@ -971,6 +975,14 @@ const PHOTO_NAMES := {
 
 
 ## 가장 가까운 인연을 찾아 표시를 띄운다.
+## 깜빡이는 소품 테두리를 매 프레임 다시 그린다. 가까이 와서 진한
+## 금색으로 멎은 것은 다시 그릴 것이 없다.
+func _tick_talk_outlines() -> void:
+	for o in _talk_outlines:
+		if is_instance_valid(o) and not bool(o.get_meta("on", false)):
+			o.queue_redraw()
+
+
 func _update_near() -> void:
 	_near = null
 	if walker == null:
@@ -1822,6 +1834,7 @@ func _process(delta: float) -> void:
 	_tick_quest_zones()
 	_update_near()
 	_tick_pending_talk()
+	_tick_talk_outlines()
 	_tick_outline()
 	_tick_tap_mark(delta)
 	_tick_dusk(delta)
