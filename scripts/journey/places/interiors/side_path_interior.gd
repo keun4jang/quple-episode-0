@@ -72,7 +72,14 @@ const PATHS := {
 	"솔은재": {
 		"name": "솔그늘 샛길",
 		"legend": {"g": "grass", "d": "dirt", ".": "dry-grass"},
-		"solid": [],
+		# **소나무만으로는 길이 안 갇힌다.** 막는 소품의 몸은 칸 아래쪽
+		# 8px 뿐이고(`Place._build_props` — "밑동만 막는다"), 주인공 몸은
+		# 6px 라 그 위로 8px 짜리 틈이 남는다. 나무 뒤로 지나갈 수 있는
+		# 건 일부러 그렇게 만든 것이다. 그래서 나무 줄을 벽으로 쓰면
+		# 비스듬히 숲을 가로질러 버린다 — 굽이도는 길이 뜻을 잃는다.
+		# 형제 둘(물·밭)처럼 **바닥으로** 막는다. `_build_solid_floor()`
+		# 가 칸 높이 그대로 이어진 벽을 세운다.
+		"solid": ["grass"],
 		"spawn": [18, 20],
 		"goal_key": "솔은재:솔그늘", "goal": [26, 2], "radius": 40.0,
 		"ambient": "",
@@ -191,6 +198,7 @@ const PATHS := {
 		"spawn": [19, 22],
 		"goal_key": "꽃눈벌:밭사이", "goal": [3, 2], "radius": 40.0,
 		"ambient": "",
+		"spot": [5, 2, "들판 끝", ["여기 서면 지나온 뙈기가 다 내려다보인다.", "누가 몇 해를 갈아 온 자리인지 알 것 같다.", "올라온 길은 벌써 안 보인다."]],
 		"rows": [
 			"ffyyyyyyffffffffffffffffffffffffffffff",
 			"fyyyyyyyyfffffffffffffffffffffffffffff",
