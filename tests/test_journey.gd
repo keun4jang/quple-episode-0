@@ -20,6 +20,7 @@ func _ready() -> void:
 	_quest_tests()
 	await _goal_tests()
 	_minimap_kind_test()
+	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -1482,3 +1483,66 @@ func _minimap_kind_test() -> void:
 	ok(not seen.has(""), "종류가 안 붙은 할 일이 없다")
 	ok(seen.size() >= 6, "쓰이는 종류가 여섯 가지는 된다 (%d)" % seen.size())
 	JourneyState.reset()
+
+
+## 가게 안이 마을마다 달라지는가.
+##
+## 씬 하나를 아홉 마을이 같이 쓴다. 골격은 같아도 바닥과 곁 물건은
+## 달라야 "또 이 방" 이 안 된다. 표에 오타가 나면 조용히 기본 방으로
+## 떨어지므로(마을 이름이 안 맞으면 `_skin()` 이 빈 값을 준다) 여기서 본다.
+func _shop_skin_test() -> void:
+	print("\n[가게 안 변주]")
+	var villages: Array = []
+	for v in GOAL_SCENES:
+		if v != "잿마루":
+			villages.append(v)
+	# 모든 마을이 제 결을 갖고 있나
+	var missing: Array = []
+	for v in villages:
+		if not ShopInterior.SKIN.has(v):
+			missing.append(v)
+	ok(missing.is_empty(), "가게가 있는 마을이 다 제 결을 갖는다%s"
+		% ("" if missing.is_empty() else " — " + str(missing)))
+
+	# 씬 경로 되짚기가 실제 씬 파일 이름과 맞나
+	var wrong: Array = []
+	for v in villages:
+		var base: String = String(GOAL_SCENES[v]).get_file().get_basename()
+		if String(ShopInterior.FROM_SCENE.get(base, "")) != v:
+			wrong.append("%s(%s)" % [v, base])
+	ok(wrong.is_empty(), "어느 마을에서 들어왔는지 되짚을 수 있다%s"
+		% ("" if wrong.is_empty() else " — " + str(wrong)))
+
+	# 곁 물건 그림이 실제로 있나. 없으면 경고만 뜨고 빈자리가 된다.
+	var noart: Array = []
+	var floors := {}
+	for v in villages:
+		var sk: Array = ShopInterior.SKIN[v]
+		floors[String(sk[0])] = true
+		for nm in sk[2]:
+			var art := "res://assets/sprites/%s.png" % nm
+			if not ResourceLoader.exists(art):
+				noart.append("%s: %s" % [v, nm])
+	ok(noart.is_empty(), "곁 물건 그림이 다 있다%s"
+		% ("" if noart.is_empty() else " — " + str(noart)))
+	ok(floors.size() >= 2, "바닥이 한 가지가 아니다 (%d 가지)" % floors.size())
+
+	# 문 앞 통로(가운데 세로줄)를 막는 것이 없어야 들어오자마자 안 갇힌다.
+	var mid: int = ShopInterior.W / 2
+	var blocking: Array = []
+	for pos in ShopInterior.SKIN_POS:
+		if int(pos[0]) == mid:
+			blocking.append(str(pos))
+	ok(blocking.is_empty(), "곁 물건이 문 앞 통로를 안 막는다%s"
+		% ("" if blocking.is_empty() else " — " + str(blocking)))
+
+	# **들어서자마자 보여야 한다.** 문 앞에서 화면에 잡히는 건 가로로
+	# 스무 칸 남짓이다. 바깥 기둥에 뒀더니 마을마다 다르게 해 놓고도
+	# 들어가서는 다른 줄을 몰랐다.
+	var spawn := Vector2i(mid, ShopInterior.H - 2)
+	var far: Array = []
+	for pos in ShopInterior.SKIN_POS:
+		if absi(int(pos[0]) - spawn.x) > 10 or absi(int(pos[1]) - spawn.y) > 8:
+			far.append(str(pos))
+	ok(far.size() <= 1, "곁 물건이 문 앞에서 보이는 자리에 있다%s"
+		% ("" if far.size() <= 1 else " — " + str(far)))

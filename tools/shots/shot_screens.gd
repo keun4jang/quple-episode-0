@@ -108,3 +108,11 @@ func _run() -> void:
 	p.board.open(p.place_name())
 	await _wait(20)
 	await _shot("travel-board")
+
+	# ⑨ 가게 안 — 마을마다 달라야 한다
+	for v in [["Yunseul", "윤슬"], ["Soleunjae", "솔은재"], ["Kkonnunbeol", "꽃눈벌"]]:
+		JourneyState.exit_scene = "res://scenes/journey/%s.tscn" % v[0]
+		JourneyState.exit_tile = Vector2i(4, 4)
+		p = await _open("res://scenes/journey/interiors/ShopInterior.tscn")
+		await _wait(20)
+		await _shot("shop-%s" % v[0])
