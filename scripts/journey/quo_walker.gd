@@ -126,6 +126,11 @@ const OUTLINE_LIGHT := Color(0.98, 0.95, 0.88, 0.75)
 ## 말을 걸 수 있다는 표시. 점을 띄우는 대신 테두리 색 자체를 바꾼다 —
 ## `Folk._ready()` 와 `Place._outline_sprite()` 가 같이 쓴다.
 const OUTLINE_TALK := Color(1.0, 0.82, 0.40, 0.9)
+## 멀리서도 "말 걸 수 있는 것" 인 줄 알아보게 하는 옅은 금색.
+## 가까이 가면 위의 진한 금색으로 바뀐다 — 끄고 켜는 게 아니라
+## **두 단계**다. 가까이 가야만 켜지게 뒀더니 "어디에 말을 걸 수
+## 있는지" 를 옆에 설 때까지 몰랐다.
+const OUTLINE_TALK_FAR := Color(1.0, 0.82, 0.40, 0.34)
 var outline_color := OUTLINE_DARK
 const OUTLINE_STEPS := [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]
 

@@ -416,12 +416,14 @@ func _outline_sprite(s: Sprite2D) -> Node2D:
 	o.set_meta("on", false)
 	var tex := s.texture
 	var off := s.offset
+	# **늘 옅게 그린다.** 가까이 왔을 때만 그렸더니, 대화창이 열리는
+	# 소품인 줄을 옆에 설 때까지 몰랐다 — 평상·창밖·반납함·진열대처럼
+	# 겉보기엔 그냥 배경인 것들이 그랬다. 멀리서는 옅게, 가까이서는 진하게.
 	o.draw.connect(func() -> void:
-		if not bool(o.get_meta("on", false)):
-			return
+		var col: Color = QuoWalker.OUTLINE_TALK if bool(o.get_meta("on", false)) \
+			else QuoWalker.OUTLINE_TALK_FAR
 		for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
-			o.draw_texture_rect(tex, Rect2(off + d, tex.get_size()), false,
-				QuoWalker.OUTLINE_TALK))
+			o.draw_texture_rect(tex, Rect2(off + d, tex.get_size()), false, col))
 	_props.add_child(o)
 	_props.move_child(o, s.get_index())
 	return o

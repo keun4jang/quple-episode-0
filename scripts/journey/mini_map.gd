@@ -181,14 +181,25 @@ func _draw() -> void:
 			draw_rect(Rect2(bt.x * cw, bt.y * ch, cw + 0.6, ch + 0.6),
 				Color(0.16, 0.13, 0.18, 0.30))
 
-	# 인연은 작은 점으로. 이름은 안 쓴다 — 지도가 목록이 되면 안 된다.
+	# 말 걸 수 있는 것은 다 찍는다. 이름은 안 쓴다 — 지도가 목록이 되면
+	# 안 된다.
+	#
+	# **소품 자리(`is_spot`)를 빼먹고 있었다.** 평상·창밖·반납함·진열대처럼
+	# 대화창이 열리는 것들이 지도에 아예 없어서, 마을에 그런 게 있는 줄도
+	# 몰랐다. 인연은 찬 점, 소품 자리는 속 빈 고리로 갈라 그린다 —
+	# 사람인지 물건인지는 알아야 한다.
 	var folk: Array = place.get("_folk")
 	if folk != null:
 		for f in folk:
-			if not is_instance_valid(f) or f.is_spot:
+			if not is_instance_valid(f):
 				continue
 			var p := _to_map(f.global_position, cw, ch)
-			draw_circle(p, maxf(1.6, cw * 0.30), Color(1.0, 0.94, 0.78, 0.9))
+			var rr: float = maxf(1.6, cw * 0.30)
+			if f.is_spot:
+				draw_arc(p, rr, 0.0, TAU, 12, Color(1.0, 0.88, 0.62, 0.85),
+					maxf(1.0, cw * 0.16), true)
+			else:
+				draw_circle(p, rr, Color(1.0, 0.94, 0.78, 0.9))
 
 	_draw_goals(cw, ch)
 

@@ -46,17 +46,25 @@ var _talk_outline_on := false
 
 func _ready() -> void:
 	super._ready()
+	# 말 걸 수 있는 것은 **멀리서도 옅게 빛난다.** 몸을 감춘 소품 자리
+	# (`is_spot`)는 제 테두리가 안 보이니 짝지은 소품이 대신 한다
+	# (`Place._outline_sprite`).
+	if not is_spot:
+		outline_color = OUTLINE_TALK_FAR
+		_sync_outline()
 
 
-## 가까이 왔을 때만 금색 테두리를 켠다 (`Place._update_near()` 가
-## 부른다). 늘 켜 두면 화면에 금색이 너무 많아져서 "가까이 가면
-## 뭔가 된다" 는 뜻이 흐려진다 — 친구들이 "뭘 눌러야 하는지 모르겠다"
-## 고 한 것도 신호가 너무 많았기 때문이다(표시 정리, 2025 피드백).
+## 말 걸 수 있다는 표시를 **두 단계**로 켠다.
+##
+## 한동안 가까이 왔을 때만 켰다. 신호가 둘(느낌표+테두리)이면 흐려진다고
+## 봐서 하나로 줄인 것까지는 맞았는데, **아예 꺼 두니 옆에 설 때까지
+## 말 걸 수 있는 줄을 몰랐다.** 그래서 끄지 않고 옅게 남긴다 —
+## 멀리서는 "저기 뭔가 있다", 가까이서는 "지금 말 걸 수 있다".
 func set_talk_near(on: bool) -> void:
 	if is_spot or _talk_outline_on == on:
 		return
 	_talk_outline_on = on
-	outline_color = OUTLINE_TALK if on else OUTLINE_DARK
+	outline_color = OUTLINE_TALK if on else OUTLINE_TALK_FAR
 	_sync_outline()
 
 
