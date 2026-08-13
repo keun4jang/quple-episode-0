@@ -204,7 +204,10 @@ func _draw_goals(cw: float, ch: float) -> void:
 	var now: Dictionary = place.current_goal()
 	var items: Array = place.open_goals() if _big else \
 		([now] if not now.is_empty() else [])
-	var r: float = maxf(2.4, cw * 0.42)
+	# **접었을 때가 문제다.** 칸 하나가 4px 남짓이라 칸에 비례해 그리면
+	# 점보다 작아져 보이지도 않았다 — 가리키라고 넣은 표시가 안 보이면
+	# 없는 것과 같다. 바닥값을 둬서 작은 지도에서도 읽히게 한다.
+	var r: float = maxf(4.2, cw * 0.42)
 	for it in items:
 		var at: Vector2 = place.goal_world(it)
 		if at == Vector2.INF:
@@ -216,12 +219,13 @@ func _draw_goals(cw: float, ch: float) -> void:
 		if mine:
 			# 지금 보고 있는 것에는 고리를 하나 더. 숨쉬듯 커졌다 작아진다.
 			var k: float = 1.0 + sin(_dot_t * 2.4) * 0.16
-			draw_arc(p, r * 2.0 * k, 0.0, TAU, 20, GOAL_NOW, maxf(1.2, cw * 0.10), true)
+			draw_arc(p, r * 1.9 * k, 0.0, TAU, 20, GOAL_NOW,
+				maxf(1.6, cw * 0.10), true)
 
 
 ## 종류마다 다른 모양. 글자를 안 쓰고 직접 그린다.
 func _goal_shape(p: Vector2, r: float, kind: String, photo: bool, col: Color) -> void:
-	var w: float = maxf(1.2, r * 0.34)
+	var w: float = maxf(1.6, r * 0.34)
 	match kind:
 		"door":
 			# 문 · 가게 · 등대 · 능 입구 — 작은 네모

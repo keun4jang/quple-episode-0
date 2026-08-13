@@ -247,8 +247,8 @@ func _build_bag(root: Control) -> void:
 	sb.content_margin_bottom = 20
 	_bag_panel.add_theme_stylebox_override("panel", sb)
 	_bag_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_bag_panel.offset_left = -320
-	_bag_panel.offset_right = 320
+	_bag_panel.offset_left = -360
+	_bag_panel.offset_right = 360
 	_bag_panel.offset_top = -220
 	_bag_panel.offset_bottom = 220
 	_bag_panel.visible = false
@@ -263,11 +263,15 @@ func _build_bag(root: Control) -> void:
 	_tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	_tabs.add_theme_constant_override("separation", 8)
 	box.add_child(_tabs)
+	# **다섯 칸이 판 밖으로 넘쳤다.** "이 마을에서" 는 여섯 글자라 제 칸을
+	# 넘겨 잡는데, 다섯을 나란히 놓으니 합이 판 안폭보다 넓어 **마지막
+	# 칸이 오른쪽으로 잘렸다** — 하필 할 일이 든, 제일 자주 열 칸이었다.
+	# 판을 넓히고 이름을 "이 마을" 로 줄인다.
 	for i in 5:
 		var b := Button.new()
-		b.text = ["배낭", "사진첩", "편지", "행복첩", "이 마을에서"][i]
-		b.custom_minimum_size = Vector2(126, 60)
-		b.add_theme_font_size_override("font_size", 26)
+		b.text = ["배낭", "사진첩", "편지", "행복첩", "이 마을"][i]
+		b.custom_minimum_size = Vector2(112, 60)
+		b.add_theme_font_size_override("font_size", 24)
 		b.pressed.connect(_pick_tab.bind(i))
 		_tabs.add_child(b)
 
@@ -324,7 +328,7 @@ func _make_pad(root: Control, preset: int, l: float, t: float,
 ## **폭을 직접 준다.** autowrap 을 켠 Label 은 최소폭이 0 이라, 격자가
 ## 폭을 못 얻으면 1px 기준으로 줄을 바꾼다 — 편지 한 통이
 ## "엄/마/(/6/일/째/)" 처럼 글자마다 한 줄로 쏟아져 읽을 수가 없었다.
-const BAG_LINE_WIDTH := 560.0
+const BAG_LINE_WIDTH := 620.0
 
 func _bag_line(text: String, size: int, col: Color) -> Label:
 	var l := Label.new()
@@ -423,8 +427,12 @@ func _fit_bag_panel() -> void:
 	await get_tree().process_frame
 	if _bag_panel == null or not _bag_panel.visible:
 		return
+	# 위 한계가 440 이라 항목이 일곱만 돼도 "길잡이 다시 보기" 가 접힌
+	# 자리 아래로 밀렸다 — 막힌 사람이 찾아올 버튼인데 안 보였다.
+	# 화면 높이를 따라가되 너무 커지진 않게 한다.
+	var vp := get_viewport().get_visible_rect().size
 	var content: float = _bag_grid.get_combined_minimum_size().y
-	var need: float = clampf(content + 168.0, 236.0, 440.0)
+	var need: float = clampf(content + 168.0, 236.0, minf(vp.y * 0.82, 580.0))
 	_bag_panel.offset_top = -need * 0.5
 	_bag_panel.offset_bottom = need * 0.5
 
@@ -529,6 +537,15 @@ func _quest_row(text: String, col: Color, item: Dictionary, place: Node) -> Butt
 	for st in ["normal", "hover", "pressed", "focus"]:
 		b.add_theme_color_override("font_%s_color" % st, col)
 	b.add_theme_color_override("font_color", col)
+	# 다 한 줄은 Label 이고 남은 줄은 Button 이라, 버튼 안여백만큼 글이
+	# 밀려 두 줄이 안 맞았다. 여백을 0 으로 두고 나란히 세운다.
+	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+		var sb := StyleBoxEmpty.new()
+		sb.content_margin_left = 0
+		sb.content_margin_right = 0
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 4
+		b.add_theme_stylebox_override(st, sb)
 	b.pressed.connect(func() -> void:
 		place.set_goal(item)
 		if _bag_panel != null and _bag_panel.visible:
@@ -543,6 +560,7 @@ func _fill_quests() -> void:
 	if list.is_empty():
 		_empty("여기서는 딱히 할 일이 없어요")
 	var place := _place()
+	var tappable := false
 	for q in list:
 		var done: bool = q.get("done", false)
 		var label := String(q.get("label", ""))
@@ -552,9 +570,15 @@ func _fill_quests() -> void:
 		# 서로 남이면 "무엇을" 은 알아도 "어디로" 를 모른다. 다 한 것은
 		# 그냥 글자로 둔다 — 눌러 봐야 갈 데가 없다.
 		if not done and place != null and place.goal_world(q) != Vector2.INF:
+			tappable = true
 			_bag_grid.add_child(_quest_row(text, col, q, place))
 		else:
 			_bag_grid.add_child(_bag_line(text, 28, col))
+	# 눌러도 된다는 걸 아무도 모른다 — 줄이 그냥 글자로 보인다. 한 번만
+	# 조용히 알려 준다. 시키는 말이 아니라 그렇게 할 수 있다는 말로.
+	if tappable:
+		_bag_grid.add_child(
+			_bag_line("할 일을 톡 누르면 지도에 접어 둬요.", 22, Color("#A79A8A")))
 	# **길잡이를 다시 볼 곳.** 처음 안내는 한 줄, 한 번만 뜨고 사라진다 —
 	# 놓치면 못 본다는 게 친구들 피드백이었다. 여기, 막혔을 때 오는
 	# 바로 그 탭에 다시 볼 수 있는 버튼을 둔다.
