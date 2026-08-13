@@ -156,8 +156,11 @@ func _build() -> void:
 	_hint.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
 	_hint.add_theme_constant_override("outline_size", 8)
 	_hint.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_hint.offset_left = -300
-	_hint.offset_right = 300
+	# "고갯마루 전망 바위까지 가서 사진 찍기, 다 했어요" 같은 긴 줄이
+	# 있어서 600px 로는 넘친다. 넓히고 줄바꿈도 켠다.
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint.offset_left = -380
+	_hint.offset_right = 380
 	_hint.offset_top = 90
 	_hint.modulate.a = 0.0
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -709,15 +712,35 @@ func _with_josa(word: String) -> String:
 	return word + ("을" if (c - 0xAC00) % 28 != 0 else "를")
 
 
-## 가운데 위에 한 줄 띄웠다 지운다. 주운 것 알림과 같은 자리를 쓴다.
+## 가운데 위에 한 줄 띄웠다 지운다. 주운 것·마친 일이 같은 자리를 쓴다.
+##
+## **줄을 세운다.** 마지막 것을 주우면 "조약돌 주웠어요" 와 "떨어진 것 다
+## 줍기, 다 했어요" 가 같은 프레임에 겹쳐, 앞엣것이 뜨자마자 지워졌다.
+## 하나씩 차례로 보여 준다.
+var _hint_queue: Array[String] = []
+var _hint_busy := false
+
 func _say_hint(text: String) -> void:
 	if _hint == null:
 		return
-	_hint.text = text
+	_hint_queue.append(text)
+	if not _hint_busy:
+		_drain_hints()
+
+
+func _drain_hints() -> void:
+	if _hint == null or not is_instance_valid(_hint):
+		return
+	if _hint_queue.is_empty():
+		_hint_busy = false
+		return
+	_hint_busy = true
+	_hint.text = _hint_queue.pop_front()
 	_hint.modulate.a = 1.0
 	var tw := create_tween()
 	tw.tween_interval(1.1)
 	tw.tween_property(_hint, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(_drain_hints)
 
 
 func _on_picked(item: String, _total: int) -> void:
@@ -735,15 +758,65 @@ func point_at_bag(on: bool) -> void:
 	_bag_ring.visible = on
 
 
+# ── 하나 마쳤을 때 ────────────────────────────────────────────────────
+#
+# **팝업도 뻥튀기도 없다.** 지금까지는 다 하면 목록이 조용해질 뿐이라,
+# 방금 그게 끝난 건지 몰랐다 — 특히 "가게 들어가 보기" 처럼 딴 일을
+# 하다 저절로 끝나는 것들이 그랬다. 주운 것 알림과 **같은 자리, 같은
+# 크기**로 한 줄만 띄웠다 지운다. 창을 안 띄우고, 진행도를 안 세고,
+# 손을 멈추게 하지 않는다.
+#
+# 마을이 바뀌면 조용히 기준만 새로 잡는다 — 안 그러면 도착하자마자
+# 이미 해 둔 것들이 우르르 다시 뜬다.
+var _done_seen: Dictionary = {}
+var _done_place := ""
+
+## 항목을 가리키는 이름. 종류만으로는 인사 둘을 못 가른다
+## (`Place._goal_id` 와 같은 규칙).
+func _goal_id(item: Dictionary) -> String:
+	return "%s:%s" % [item.get("kind", ""), item.get("key", "")]
+
+func _watch_done(list: Array) -> void:
+	if JourneyState.here != _done_place:
+		_done_place = JourneyState.here
+		_done_seen.clear()
+		for q in list:
+			if bool(q.get("done", false)):
+				_done_seen[_goal_id(q)] = true
+		return
+	var left := 0
+	var just: Array[String] = []
+	for q in list:
+		var id := _goal_id(q)
+		if not bool(q.get("done", false)):
+			left += 1
+			_done_seen.erase(id)      # 되돌아간 것(새 날 등)도 다시 셀 수 있게
+			continue
+		if not _done_seen.has(id):
+			_done_seen[id] = true
+			just.append(String(q.get("label", "")))
+	if just.is_empty():
+		return
+	for label in just:
+		_say_hint("%s, 다 했어요" % label)
+	# 마지막 하나였으면 한 줄 더. 다음 마을이 열렸다는 말은 안 한다 —
+	# 여행판에서 알아채면 된다 (`docs/quest-journey.md` 6절).
+	if left == 0:
+		_say_hint("이 마을에서 해볼 일을 다 했어요.")
+	AudioManager.ui_confirm()
+
+
 func _process(delta: float) -> void:
 	if _bag_ring != null and _bag_ring.visible:
 		_ring_t += delta
 		_bag_ring.queue_redraw()
 	if _clock != null:
 		_clock.text = "%s   %d일째" % [JourneyState.time_text(), JourneyState.day]
+	var list := Quests.quest_list(JourneyState.here)
+	_watch_done(list)
 	if _dot != null:
 		var left := false
-		for q in Quests.quest_list(JourneyState.here):
+		for q in list:
 			if not bool(q.get("done", false)):
 				left = true
 				break

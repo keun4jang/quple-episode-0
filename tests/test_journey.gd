@@ -21,6 +21,7 @@ func _ready() -> void:
 	await _goal_tests()
 	await _reach_tests()
 	await _side_path_tests()
+	await _done_toast_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -1729,4 +1730,68 @@ func _side_path_tests() -> void:
 		p.queue_free()
 		await get_tree().process_frame
 	JourneyState.exit_scene = ""
+	JourneyState.reset()
+
+
+# ── 하나 마쳤을 때 ────────────────────────────────────────────────────
+#
+# 다 하면 목록이 조용해질 뿐이라, 방금 그게 끝난 건지 몰랐다. 한 줄만
+# 띄웠다 지운다 — 창도, 진행도도, 손 멈춤도 없다.
+#
+# **도착하자마자 우르르 뜨면 안 된다.** 마을에 들어서면 이미 해 둔
+# 것들이 다 "방금 끝났다" 로 보일 수 있어서, 기준을 조용히 새로 잡는다.
+
+func _done_toast_tests() -> void:
+	print("\n[마친 표시]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["솔은재"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var hud: JourneyHud = p.hud
+
+	# 이미 해 둔 것이 있는 채로 들어와도 조용해야 한다.
+	JourneyState.hearts["cap_sol"] = 1
+	hud._done_place = ""              # 갓 도착한 셈으로
+	hud._watch_done(Quests.quest_list("솔은재"))
+	ok(hud._hint_queue.is_empty() and not hud._hint_busy,
+		"도착할 때 이미 해 둔 것은 안 알린다")
+
+	# 여기서 하나를 새로 마치면 그때 알린다.
+	JourneyState.mark_quest("솔은재:가게")
+	hud._watch_done(Quests.quest_list("솔은재"))
+	ok(hud._hint_busy, "새로 마치면 한 줄 뜬다")
+	ok(hud._hint.text.ends_with("다 했어요"),
+		"마쳤다고 적는다 (%s)" % hud._hint.text)
+	ok(hud._hint.text.begins_with("가게 들어가 보기"),
+		"무엇을 마쳤는지 적는다 (%s)" % hud._hint.text)
+
+	# 같은 것이 두 번 뜨지 않는다.
+	var before := hud._hint_queue.size()
+	hud._watch_done(Quests.quest_list("솔은재"))
+	ok(hud._hint_queue.size() == before, "같은 것을 두 번 안 알린다")
+
+	# 마지막 하나를 마치면 한 줄 더. 다음 마을 이야기는 안 한다.
+	JourneyState.mark_quest("솔은재:전망")
+	JourneyState.mark_quest("솔은재:잠")
+	JourneyState.mark_quest(Quests._local_flag("솔은재"))
+	JourneyState.photos.append({"place": "솔은재", "subject": "전망"})
+	for i in Quests.PICKUP_TOTAL["솔은재"]:
+		JourneyState.taken["솔은재:%d,9" % i] = true
+	hud._watch_done(Quests.quest_list("솔은재"))
+	var all_line := ""
+	for s in hud._hint_queue:
+		if String(s).begins_with("이 마을에서"):
+			all_line = String(s)
+	if hud._hint.text.begins_with("이 마을에서"):
+		all_line = hud._hint.text
+	ok(all_line != "", "다 마치면 마무리 한 줄이 더 뜬다 (%s)" % all_line)
+	ok(not all_line.contains("열렸") and not all_line.contains("다음"),
+		"다음 마을 이야기는 안 한다")
+
+	# 긴 이름도 화면 안에 들어와야 한다 (줄바꿈이 켜져 있나).
+	ok(hud._hint.autowrap_mode != TextServer.AUTOWRAP_OFF,
+		"긴 이름은 줄을 바꾼다")
+
+	p.queue_free()
+	await get_tree().process_frame
 	JourneyState.reset()

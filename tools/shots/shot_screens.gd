@@ -109,6 +109,13 @@ func _run() -> void:
 	await _wait(20)
 	await _shot("travel-board")
 
+	# ⑧-2 하나 마쳤을 때 뜨는 줄
+	p = await _open("res://scenes/journey/Soleunjae.tscn")
+	await _wait(20)
+	JourneyState.mark_quest("솔은재:가게")
+	await _wait(6)
+	await _shot("done-toast")
+
 	# ⑨ 가게 안 — 마을마다 달라야 한다
 	for v in [["Yunseul", "윤슬"], ["Soleunjae", "솔은재"], ["Kkonnunbeol", "꽃눈벌"]]:
 		JourneyState.exit_scene = "res://scenes/journey/%s.tscn" % v[0]
