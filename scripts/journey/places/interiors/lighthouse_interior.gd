@@ -10,6 +10,7 @@ extends Place
 
 const W := 35
 const H := 18
+const WALL := 2
 
 
 func place_name() -> String:
@@ -20,8 +21,9 @@ func _init() -> void:
 	legend = {
 		"f": "wood-floor",     # 저장고 바닥
 		"s": "granite-step",   # 나선 계단
+		"b": "basalt",         # 등대 벽
 	}
-	solid_tiles = []
+	solid_tiles = ["basalt"]
 
 
 ## 가운데 계단이 고리 모양으로 돈다 — 곧게 놓으면 계단이 아니라 다리로
@@ -35,7 +37,16 @@ func ground_map() -> String:
 			var dx := x - mid
 			var dy := y - (H / 2)
 			var d := sqrt(float(dx * dx) + float(dy * dy) * 2.25)
-			row += "s" if (d >= 5.0 and d <= 6.4) else "f"
+			# 등대도 **방이다.** 바깥 두 칸을 벽으로 두른다 — 안 그러면
+			# 바닥이 허공에서 끊긴다. 아래 가운데는 문간이라 뚫어 둔다.
+			var edge: bool = x < WALL or x >= W - WALL \
+				or y < WALL or y >= H - WALL
+			if y >= H - WALL and absi(x - mid) <= 1:
+				edge = false
+			if edge:
+				row += "b"
+			else:
+				row += "s" if (d >= 5.0 and d <= 6.4) else "f"
 		rows.append(row)
 	return "\n".join(rows)
 

@@ -149,6 +149,7 @@ func _ready() -> void:
 	_read_map()
 	_build_ground()
 	_build_fringes()
+	_build_edges()
 	_build_props()
 	_build_pickups()
 	_build_walls()
@@ -346,6 +347,66 @@ func _variant(at: Vector2) -> int:
 	var y := int(at.y) / TILE
 	var h := (x * 73856093) ^ (y * 19349663)
 	return absi(h) % 8
+
+
+## 바닥이 끝나는 자리에 **경계를 그린다.**
+##
+## 여태 벽이 그려지는 곳이 한 군데도 없었다 — `_build_walls()` 는 안 보이는
+## 충돌체만 세우고, 바닥 타일은 그냥 뚝 끊겼다. 가게 안은 나무바닥이
+## 허공에서 끝났고, 솔그늘 샛길은 못 걷는 풀밭이 걸을 수 있는 풀밭과
+## 똑같이 생겼다 — **어디까지 갈 수 있는지 보고 알 수가 없었다.**
+##
+## 그림을 새로 안 만든다. 걸을 수 있는 칸과 못 가는 칸이 맞닿는 자리마다
+## 걸을 수 있는 쪽에 **그림자를 깔고**, 경계에 어두운 선을 한 줄 긋는다.
+## 위쪽이 막혀 있으면 그림자를 더 길게 뺀다 — 탑다운에서 위는 "벽면" 이라
+## 거기서 빛이 가려지는 게 자연스럽다.
+##
+## 한 번만 그린다(매 프레임이 아니다). 42x22 지도라도 900칸 남짓이다.
+const EDGE_LINE := Color(0.13, 0.11, 0.15, 0.55)
+const EDGE_SHADE := Color(0.13, 0.11, 0.15, 0.30)
+const EDGE_SHADE_SOFT := Color(0.13, 0.11, 0.15, 0.15)
+
+func _build_edges() -> void:
+	var n := Node2D.new()
+	n.name = "Edges"
+	n.z_index = 1        # 바닥·이음새 위, 소품 아래
+	n.draw.connect(func() -> void:
+		for y in _grid.size():
+			for x in (_grid[y] as String).length():
+				if _solid_at(x, y):
+					continue
+				var px := x * TILE
+				var py := y * TILE
+				# 위가 막혔다 = 벽면이 서 있다. 그림자를 길게.
+				if _solid_at(x, y - 1):
+					n.draw_rect(Rect2(px, py, TILE, 5.0), EDGE_SHADE)
+					n.draw_rect(Rect2(px, py + 5.0, TILE, 3.0), EDGE_SHADE_SOFT)
+					n.draw_rect(Rect2(px, py, TILE, 1.0), EDGE_LINE)
+				if _solid_at(x, y + 1):
+					n.draw_rect(Rect2(px, py + TILE - 3.0, TILE, 3.0), EDGE_SHADE)
+					n.draw_rect(Rect2(px, py + TILE - 1.0, TILE, 1.0), EDGE_LINE)
+				if _solid_at(x - 1, y):
+					n.draw_rect(Rect2(px, py, 3.0, TILE), EDGE_SHADE)
+					n.draw_rect(Rect2(px, py, 1.0, TILE), EDGE_LINE)
+				if _solid_at(x + 1, y):
+					n.draw_rect(Rect2(px + TILE - 3.0, py, 3.0, TILE), EDGE_SHADE)
+					n.draw_rect(Rect2(px + TILE - 1.0, py, 1.0, TILE), EDGE_LINE))
+	_ground.add_child(n)
+
+
+## 그 칸이 못 가는 바닥인가. **지도 밖도 막힌 것으로 친다** — 바닥이
+## 허공에서 끊기지 않고 가장자리에도 벽이 서게.
+## 소품은 안 본다(소품은 밑동만 막아서 벽이 아니다, `CLAUDE.md`).
+func _solid_at(x: int, y: int) -> bool:
+	if y < 0 or y >= _grid.size():
+		return true
+	var row: String = _grid[y]
+	if x < 0 or x >= row.length():
+		return true
+	var ch := row[x]
+	if not legend.has(ch):
+		return true
+	return solid_tiles.has(String(legend[ch]))
 
 
 func _build_props() -> void:

@@ -33,7 +33,7 @@ const H := 18
 ## 가로로 스무 칸 남짓이라 **들어가도 안 보였다** — 마을마다 다르게
 ## 해 놓고 정작 다른 줄을 모르는 꼴이었다. 문 앞 통로(x = W/2)와
 ## 이미 골격이 쓰는 칸은 비켜서, 문에서 보이는 자리로 옮겼다.
-const SKIN_POS := [[11, 16], [23, 16], [12, 12], [22, 12], [5, 11]]
+const SKIN_POS := [[11, 15], [23, 15], [12, 12], [22, 12], [5, 11]]
 
 ## 마을마다 다른 결. [바닥, 진열대 둘째 줄, 곁 물건 다섯]
 ##
@@ -83,23 +83,38 @@ func place_name() -> String:
 
 
 func _init() -> void:
-	legend = {"f": "wood-floor"}
-	solid_tiles = []
+	legend = {"f": "wood-floor", "b": "basalt"}
+	solid_tiles = ["basalt"]
 
 
 ## `_init()` 은 씬을 만들 때라 아직 어디서 왔는지 모른다. 바닥은
 ## 지도를 짓기 직전에 정해야 한다.
 func _ready() -> void:
-	legend = {"f": String(_skin()[0])}
+	legend = {"f": String(_skin()[0]), "b": "basalt"}
+	solid_tiles = ["basalt"]
 	super()
 
 
+## 방 둘레에 **벽을 두른다.**
+##
+## 여태 바닥만 깔아서, 나무바닥이 허공에서 뚝 끊겼다 — 방이 아니라
+## 끝없는 마루였다. 바깥 두 칸을 어두운 바닥(`basalt`)으로 두고
+## `solid_tiles` 에 넣으면, 못 가는 칸이 되면서 `Place._build_edges()`
+## 가 경계에 그림자와 선을 그어 준다. 그림을 새로 안 그려도 방이 된다.
+const WALL := 2
+
 func ground_map() -> String:
-	var row := ""
-	for x in W:
-		row += "f"
 	var rows: Array = []
 	for y in H:
+		var row := ""
+		for x in W:
+			var edge: bool = x < WALL or x >= W - WALL \
+				or y < WALL or y >= H - WALL
+			# 아래 가운데는 **문간**이라 뚫어 둔다. 안 뚫으면 들어온
+			# 자리와 나가는 문이 둘 다 벽 속에 박힌다.
+			if y >= H - WALL and absi(x - W / 2) <= 1:
+				edge = false
+			row += "b" if edge else "f"
 		rows.append(row)
 	return "\n".join(rows)
 
