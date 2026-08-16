@@ -72,7 +72,9 @@ func _run() -> void:
 
 	# ① 프롤로그 — 길잡이 첫 줄과 배낭 고리가 같이 보여야 한다
 	var p := await _open("res://scenes/journey/Jaenmaru.tscn")
-	await _wait(90)                       # 길잡이는 1.2초 뒤에 뜬다
+	await _wait(30)                       # 도착 카드가 떠 있는 동안
+	await _shot("arrive-card")
+	await _wait(160)                      # 카드가 걷히고 안내줄만 남는다
 	await _shot("prologue-guide")
 
 	# ② 프롤로그 배낭 — "이 마을에서" 가 먼저 열려야 한다

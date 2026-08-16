@@ -14,6 +14,10 @@ signal acted
 
 var _clock: Label
 var _place_title: Label
+## 도착하자마자 가운데 크게 뜨는 "지금 해볼 일" 한 줄.
+var _arrive_task: Label
+## 첫 마을 동안 화면 위에 늘 떠 있는 안내줄.
+var _task_strip: Label
 var _title_tw: Tween
 var _bag_btn: TextureButton
 var _bag_panel: PanelContainer
@@ -94,6 +98,44 @@ func _build() -> void:
 	_place_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_place_title.modulate.a = 0.0
 	root.add_child(_place_title)
+
+	# 마을 이름 바로 아래. 이름표와 같이 떴다 같이 사라진다.
+	_arrive_task = Label.new()
+	_arrive_task.add_theme_font_size_override("font_size", 32)
+	_arrive_task.add_theme_color_override("font_color", Color("#FFE39A"))
+	_arrive_task.add_theme_color_override("font_outline_color",
+		Color(0.16, 0.13, 0.18))
+	_arrive_task.add_theme_constant_override("outline_size", 10)
+	_arrive_task.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_arrive_task.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_arrive_task.set_anchors_preset(Control.PRESET_CENTER)
+	_arrive_task.offset_left = -420
+	_arrive_task.offset_right = 420
+	_arrive_task.offset_top = 40
+	_arrive_task.offset_bottom = 140
+	_arrive_task.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_arrive_task.modulate.a = 0.0
+	root.add_child(_arrive_task)
+
+	# **첫 마을 동안만 늘 떠 있는 줄.** 처음 잡은 사람은 뭘 하다가도
+	# "그래서 지금 뭘 하라는 거지" 로 돌아온다. 첫 여행지를 떠나고 나면
+	# 조용해진다 — 그때쯤이면 배낭을 열 줄 안다.
+	_task_strip = Label.new()
+	_task_strip.add_theme_font_size_override("font_size", 24)
+	_task_strip.add_theme_color_override("font_color", Color("#FFE39A"))
+	_task_strip.add_theme_color_override("font_outline_color",
+		Color(0.16, 0.13, 0.18))
+	_task_strip.add_theme_constant_override("outline_size", 8)
+	_task_strip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_task_strip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_task_strip.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_task_strip.offset_left = -360
+	_task_strip.offset_right = 360
+	_task_strip.offset_top = 22
+	_task_strip.offset_bottom = 78
+	_task_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_task_strip.visible = false
+	root.add_child(_task_strip)
 
 	# 배낭 — 오른쪽 아래. 엄지가 닿는 곳
 	_bag_btn = TextureButton.new()
@@ -389,14 +431,26 @@ func _pick_tab(i: int) -> void:
 func announce_place(text: String) -> void:
 	if _place_title == null:
 		return
+	# **이름만 띄우고 끝내지 않는다.** 도착하자마자 화면 가운데에 크게
+	# "지금 해볼 일" 하나를 같이 보여 준다 — 배낭을 열어 봐야 아는 것과
+	# 도착하는 순간 눈에 들어오는 것은 다르다. 하나만 적는다. 목록을
+	# 통째로 늘어놓으면 숙제장이 된다.
+	if _arrive_task != null:
+		var goal := _first_task()
+		_arrive_task.text = ("해볼 일 · " + goal) if goal != "" else ""
+		_arrive_task.visible = goal != ""
 	_place_title.text = text
 	if _title_tw != null and _title_tw.is_valid():
 		_title_tw.kill()
 	_place_title.modulate.a = 0.0
-	_title_tw = create_tween()
+	# 할 일을 읽을 시간이 있어야 하니 이름만 띄울 때보다 조금 더 머문다.
+	_arrive_task.modulate.a = 0.0
+	_title_tw = create_tween().set_parallel(true)
 	_title_tw.tween_property(_place_title, "modulate:a", 1.0, 0.5)
-	_title_tw.tween_interval(1.3)
-	_title_tw.tween_property(_place_title, "modulate:a", 0.0, 0.7)
+	_title_tw.tween_property(_arrive_task, "modulate:a", 1.0, 0.5)
+	_title_tw.chain().tween_interval(2.4)
+	_title_tw.chain().tween_property(_place_title, "modulate:a", 0.0, 0.7)
+	_title_tw.tween_property(_arrive_task, "modulate:a", 0.0, 0.7)
 
 
 ## 사진을 찍었다. 화면이 한 번 하얘진다.
@@ -781,6 +835,39 @@ var _done_place := ""
 func _goal_id(item: Dictionary) -> String:
 	return "%s:%s" % [item.get("kind", ""), item.get("key", "")]
 
+## 지금 해볼 일 하나. 마을이 가리키는 것을 그대로 따른다 —
+## 미니맵이 짚는 것과 같은 항목이어야 헷갈리지 않는다.
+func _first_task() -> String:
+	var place := _place()
+	if place != null:
+		var now: Dictionary = place.current_goal()
+		if not now.is_empty():
+			return String(now.get("label", ""))
+	for q in Quests.quest_list(JourneyState.here):
+		if not bool(q.get("done", false)):
+			return String(q.get("label", ""))
+	return ""
+
+
+## 첫 마을 동안만 안내줄을 켠다.
+##
+## 첫 여행지를 떠나기 전까지 — 프롤로그(잿마루)와 첫 여행지(윤슬)다.
+## `departures` 는 정류장에서 실제로 떠날 때마다 는다. 둘째 떠남
+## (=윤슬을 떠남) 뒤에는 조용해진다.
+const STRIP_UNTIL_DEPARTURES := 2
+
+func _tick_task_strip() -> void:
+	if _task_strip == null:
+		return
+	var early: bool = JourneyState.departures < STRIP_UNTIL_DEPARTURES
+	var goal := _first_task() if early else ""
+	var show: bool = early and goal != "" and not bag_open() \
+		and not _buttons_hidden
+	_task_strip.visible = show
+	if show:
+		_task_strip.text = "지금 해볼 일 · " + goal
+
+
 func _watch_done(list: Array) -> void:
 	if JourneyState.here != _done_place:
 		_done_place = JourneyState.here
@@ -819,6 +906,7 @@ func _process(delta: float) -> void:
 		_clock.text = "%s   %d일째" % [JourneyState.time_text(), JourneyState.day]
 	var list := Quests.quest_list(JourneyState.here)
 	_watch_done(list)
+	_tick_task_strip()
 	if _dot != null:
 		var left := false
 		for q in list:

@@ -22,6 +22,7 @@ func _ready() -> void:
 	await _reach_tests()
 	await _side_path_tests()
 	await _done_toast_tests()
+	await _first_map_guide_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -1791,6 +1792,69 @@ func _done_toast_tests() -> void:
 	# 긴 이름도 화면 안에 들어와야 한다 (줄바꿈이 켜져 있나).
 	ok(hud._hint.autowrap_mode != TextServer.AUTOWRAP_OFF,
 		"긴 이름은 줄을 바꾼다")
+
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 첫 마을 안내 ──────────────────────────────────────────────────────
+#
+# 인트로를 보고 지도가 뜬 순간부터 **뭘 하라는 건지 화면에 있어야 한다.**
+# 도착하면 가운데에 크게 한 줄, 그리고 첫 여행지를 떠날 때까지 위쪽에
+# 늘 한 줄. 둘 다 미니맵이 짚는 것과 **같은 항목**이어야 한다 — 셋이
+# 서로 다른 걸 가리키면 없느니만 못하다.
+
+func _first_map_guide_tests() -> void:
+	print("\n[첫 마을 안내]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["잿마루"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var hud: JourneyHud = p.hud
+
+	var goal := hud._first_task()
+	ok(goal != "", "지금 해볼 일을 하나 집는다 (%s)" % goal)
+	# **인연을 다 세운 뒤**에 집어야 한다. 예전엔 화면을 짓는 도중에
+	# 집어서, 말 걸 상대가 아직 없으니 엉뚱하게 맨 끝 항목이 뽑혔다.
+	ok(goal == "옆자리 동료에게 인사하기",
+		"목록 첫 항목을 집는다 (%s)" % goal)
+	var now: Dictionary = p.current_goal()
+	ok(String(now.get("label", "")) == goal,
+		"미니맵이 짚는 것과 같은 항목이다")
+
+	# 도착 카드가 그 항목을 적는다.
+	hud.announce_place(p.place_name())
+	await get_tree().process_frame
+	ok(hud._arrive_task.visible, "도착하면 가운데에 할 일이 뜬다")
+	ok(hud._arrive_task.text.contains(goal),
+		"도착 카드가 그 항목을 적는다 (%s)" % hud._arrive_task.text)
+	ok(hud._place_title.text == p.place_name(), "마을 이름도 같이 뜬다")
+
+	# 첫 여행지를 떠나기 전까지는 위쪽 줄이 늘 떠 있다.
+	JourneyState.departures = 0
+	hud._tick_task_strip()
+	ok(hud._task_strip.visible, "첫 마을에서는 안내줄이 떠 있다")
+	ok(hud._task_strip.text.contains(goal),
+		"안내줄도 같은 항목이다 (%s)" % hud._task_strip.text)
+
+	# 하나 마치면 다음 것으로 저절로 넘어간다.
+	JourneyState.hearts["coworker"] = 1
+	hud._tick_task_strip()
+	ok(not hud._task_strip.text.contains(goal),
+		"마치면 다음 할 일로 넘어간다 (%s)" % hud._task_strip.text)
+
+	# 첫 여행지를 떠나고 나면 조용해진다.
+	JourneyState.departures = JourneyHud.STRIP_UNTIL_DEPARTURES
+	hud._tick_task_strip()
+	ok(not hud._task_strip.visible, "첫 여행지를 떠나면 안내줄이 사라진다")
+
+	# 배낭을 열면 가린다 — 창 위에 겹쳐 뜨면 지저분하다.
+	JourneyState.departures = 0
+	hud.toggle_bag()
+	hud._tick_task_strip()
+	ok(not hud._task_strip.visible, "배낭을 열면 안내줄을 감춘다")
+	hud.toggle_bag()
 
 	p.queue_free()
 	await get_tree().process_frame

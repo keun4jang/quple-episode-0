@@ -161,6 +161,10 @@ func _ready() -> void:
 	_start_sound()
 	on_built()
 	_block_folk_tiles()
+	# **인연을 다 세운 뒤에** 도착 카드를 띄운다. `_build_ui()` 때는
+	# 아직 아무도 없어서 "지금 해볼 일" 이 엉뚱한 것을 짚었다 —
+	# 말 걸 상대가 없으니 자리를 못 찾고 맨 끝 항목이 뽑혔다.
+	hud.announce_place(place_name())
 	if place_name() == "고향":
 		JourneyState.came_home()
 	else:
@@ -686,7 +690,6 @@ func _build_ui() -> void:
 	add_child(hud)
 	hud.shutter.connect(_take_photo)
 	hud.acted.connect(_on_action)
-	hud.announce_place(place_name())
 	hud.bag_toggled.connect(func(open: bool): if open: _did("bag"))
 	hud.quest_tab_opened.connect(func(): _did("quests"))
 
