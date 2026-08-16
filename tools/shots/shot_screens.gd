@@ -77,6 +77,14 @@ func _run() -> void:
 	await _wait(160)                      # 카드가 걷히고 안내줄만 남는다
 	await _shot("prologue-guide")
 
+	# ①-2 얻은 것 카드 + 이름표
+	p.hud.show_got("map")
+	await _wait(20)
+	await _shot("got-map")
+	p.hud.show_got("p-shell")
+	await _wait(20)
+	await _shot("got-shell")
+
 	# ② 프롤로그 배낭 — "이 마을에서" 가 먼저 열려야 한다
 	p.hud.toggle_bag()
 	await _wait(6)

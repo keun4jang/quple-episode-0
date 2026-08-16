@@ -37,6 +37,11 @@ var _dot: Control
 ## 띄우고 있는 동안만 켠다 — 글자로 "여기" 라고 쓰는 대신 **직접 그린다.**
 var _bag_ring: Control
 var _ring_t := 0.0
+## 얻은 것을 그림과 함께 보여 주는 카드.
+var _got: Control
+var _got_art: TextureRect
+var _got_text: Label
+var _got_tw: Tween
 var _flash: ColorRect
 var _root: Control
 var _pad_cam: Control
@@ -52,6 +57,15 @@ const NAMES := {
 	"p-persimmon": "감", "p-pebble": "조약돌", "p-flower": "들꽃",
 	"p-pinecone": "솔방울", "p-acorn": "도토리", "p-feather": "깃털",
 	"p-shell": "조개", "p-seaglass": "바다유리",
+	"map": "지도", "camera": "쿼메라",
+}
+
+## 얻은 것을 보여 줄 그림. 주울 것(`p-*`)은 제 그림을 그대로 쓰고,
+## 받는 물건만 여기 적는다.
+## **지도 그림이 아직 없다** — 수첩으로 대신한다. 진짜 지도 그림이
+## 생기면 여기만 바꾸면 된다.
+const ICONS := {
+	"map": "i-notebook", "camera": "i-camera",
 }
 
 
@@ -255,6 +269,43 @@ func _build() -> void:
 		_dot.draw_circle(Vector2(11, 11), 11.0, Color(0.16, 0.13, 0.18))
 		_dot.draw_circle(Vector2(11, 11), 8.5, Color("#FFD166")))
 	root.add_child(_dot)
+
+	# ── 얻은 것 카드 ──
+	#
+	# 화면 가운데에 **그림과 함께** 잠깐 보여 준다. 위쪽 한 줄로만
+	# 알리던 때는 지도·카메라 같은 중요한 것을 받고도 그냥 지나갔다 —
+	# 무엇을 얻었는지 눈으로 봐야 손에 쥔 느낌이 난다.
+	_got = Control.new()
+	_got.set_anchors_preset(Control.PRESET_CENTER)
+	_got.offset_left = -220
+	_got.offset_right = 220
+	_got.offset_top = -150
+	_got.offset_bottom = 60
+	_got.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_got.modulate.a = 0.0
+	root.add_child(_got)
+
+	_got_art = TextureRect.new()
+	_got_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_got_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_got_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_got_art.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_got_art.offset_top = 0
+	_got_art.offset_bottom = 140
+	_got_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_got.add_child(_got_art)
+
+	_got_text = Label.new()
+	_got_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_got_text.add_theme_font_size_override("font_size", 34)
+	_got_text.add_theme_color_override("font_color", Color("#FFF2C8"))
+	_got_text.add_theme_color_override("font_outline_color",
+		Color(0.16, 0.13, 0.18))
+	_got_text.add_theme_constant_override("outline_size", 10)
+	_got_text.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_got_text.offset_top = -56
+	_got_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_got.add_child(_got_text)
 
 	# 배낭을 가리키는 고리. 배낭 버튼과 같은 자리에 겹쳐 두고 테두리만 그린다.
 	_bag_ring = Control.new()
@@ -803,9 +854,36 @@ func _drain_hints() -> void:
 
 
 func _on_picked(item: String, _total: int) -> void:
-	_say_hint("%s 주웠어요" % _with_josa(String(NAMES.get(item, item))))
+	show_got(item)
 	if _bag_panel.visible:
 		_refill_bag()
+
+
+## 무엇을 얻었는지 그림과 함께 가운데에 띄웠다 지운다.
+##
+## 주운 것은 "주웠어요", 받은 것은 "받았어요" — 줍는 것(`p-*`)과
+## 누가 건네주는 것은 결이 다르다.
+func show_got(item: String) -> void:
+	if _got == null:
+		return
+	var art := String(ICONS.get(item, item))
+	var path := "res://assets/sprites/%s.png" % art
+	_got_art.texture = load(path) as Texture2D if ResourceLoader.exists(path) else null
+	_got_art.visible = _got_art.texture != null
+	var nm := String(NAMES.get(item, item))
+	var verb := "주웠어요" if item.begins_with("p-") else "받았어요"
+	_got_text.text = "%s %s" % [_with_josa(nm), verb]
+	if _got_tw != null and _got_tw.is_valid():
+		_got_tw.kill()
+	_got.modulate.a = 0.0
+	_got.scale = Vector2(0.88, 0.88)
+	_got.pivot_offset = _got.size * 0.5
+	_got_tw = create_tween().set_parallel(true)
+	_got_tw.tween_property(_got, "modulate:a", 1.0, 0.22)
+	_got_tw.tween_property(_got, "scale", Vector2.ONE, 0.28) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	_got_tw.chain().tween_interval(1.25)
+	_got_tw.chain().tween_property(_got, "modulate:a", 0.0, 0.45)
 
 
 ## 배낭이 어디 있는지 가리킬까. 길잡이가 부른다.

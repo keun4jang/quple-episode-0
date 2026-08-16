@@ -88,6 +88,16 @@ var hud: JourneyHud
 func place_name() -> String:
 	return "어딘가"
 
+
+## 화면에 보여 줄 이름. 기본은 `place_name()` 과 같다.
+##
+## **저장 열쇠와 보여 줄 이름을 갈라 둔다.** `place_name()` 은 퀘스트
+## 표시("잿마루:본:창밖")와 방문 기록에 그대로 쓰이는 열쇠라, 바꾸면
+## 지난 세이브가 통째로 어긋난다. 그런데 첫 화면 이름이 "잿마루" 면
+## 처음 잡은 사람은 그게 뭔지 모른다 — 보여 주는 쪽만 바꾼다.
+func display_name() -> String:
+	return place_name()
+
 ## 글자 격자
 func ground_map() -> String:
 	return ""
@@ -164,7 +174,7 @@ func _ready() -> void:
 	# **인연을 다 세운 뒤에** 도착 카드를 띄운다. `_build_ui()` 때는
 	# 아직 아무도 없어서 "지금 해볼 일" 이 엉뚱한 것을 짚었다 —
 	# 말 걸 상대가 없으니 자리를 못 찾고 맨 끝 항목이 뽑혔다.
-	hud.announce_place(place_name())
+	hud.announce_place(display_name())
 	if place_name() == "고향":
 		JourneyState.came_home()
 	else:
@@ -532,6 +542,21 @@ func _build_pickups() -> void:
 		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		s.offset = Vector2(-tex.get_width() / 2.0, -tex.get_height())
 		a.add_child(s)
+
+		# 이름을 달아 준다. 16px 짜리 그림으로는 조개인지 도토리인지
+		# 갈리지 않는다 — 주우러 갈지 말지 보고 정할 수 있어야 한다.
+		var tag := Label.new()
+		tag.text = String(JourneyHud.NAMES.get(item, item))
+		tag.add_theme_font_size_override("font_size", 10)
+		tag.add_theme_color_override("font_color", Color(1.0, 0.95, 0.80, 0.85))
+		tag.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+		tag.add_theme_constant_override("outline_size", 5)
+		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tag.z_index = 40
+		tag.size = Vector2(96, 14)
+		tag.position = Vector2(-48, -tex.get_height() - 14.0)
+		a.add_child(tag)
 
 		a.set_meta("item", item)
 		a.set_meta("tile", t)

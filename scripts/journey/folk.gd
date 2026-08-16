@@ -53,6 +53,32 @@ func _ready() -> void:
 		outline_color = QuoWalker.talk_pulse()
 		_sync_outline()
 		set_process(true)
+		_build_name_tag()
+
+
+## 머리 위에 이름을 단다.
+##
+## 누구인지 말을 걸어 봐야 알았다. 탑다운에서 8px 짜리 얼굴로는 서로
+## 구별이 안 되니, 이름이 곧 그 사람이다. 몸을 감춘 자리 표시
+## (`is_spot`)에는 안 단다 — 거기는 사람이 아니라 물건이다.
+func _build_name_tag() -> void:
+	if who == "":
+		return
+	var l := Label.new()
+	l.name = "NameTag"
+	l.text = who
+	l.add_theme_font_size_override("font_size", 11)
+	l.add_theme_color_override("font_color", Color(1.0, 0.98, 0.92, 0.92))
+	l.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	l.add_theme_constant_override("outline_size", 5)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.z_index = 40
+	# 발밑이 원점이라 키만큼 올린 뒤 한 뼘 더. 폭은 넉넉히 잡고 가운데 정렬.
+	var tall: float = sprite.size().y if sprite != null else 24.0
+	l.size = Vector2(120, 16)
+	l.position = Vector2(-60, -tall - 17.0)
+	add_child(l)
 
 
 ## 멀리 있는 동안만 깜빡인다. 가까이 오면 `set_talk_near(true)` 가
