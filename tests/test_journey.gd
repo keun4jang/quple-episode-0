@@ -23,6 +23,8 @@ func _ready() -> void:
 	await _side_path_tests()
 	await _done_toast_tests()
 	await _first_map_guide_tests()
+	await _yunseul_clear_tests()
+	await _locked_reason_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -1871,5 +1873,155 @@ func _first_map_guide_tests() -> void:
 	hud.toggle_bag()
 
 	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 윤슬을 실제로 끝낼 수 있나 ────────────────────────────────────────
+#
+# 여태 검사는 표시를 **손으로 찍어 넣고** 잠금이 풀리는지만 봤다. 그건
+# `Quests` 의 셈이 맞는지를 볼 뿐, 그 표시를 **게임 안에서 실제로 남길
+# 수 있는지**는 안 본다. 굽이나루가 강으로 갈려 있던 것도 그래서 못
+# 잡았다.
+#
+# 여기서는 주인공을 실제로 그 자리에 세우고, 문을 지나고, 자고, 주워서
+# 표시가 하나씩 찍히는지 본다. 마지막에 볕뉘가 열려야 한다.
+
+func _yunseul_clear_tests() -> void:
+	print("\n[윤슬을 끝낼 수 있나]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+
+	# ① 두 인연에게 말을 걸어 지도·카메라를 받는다.
+	for f in p._folk:
+		if not is_instance_valid(f) or f.is_spot:
+			continue
+		if f.folk_id == "seal" or f.folk_id == "seagull":
+			p.walker.global_position = f.global_position
+			p._update_near()
+			p.talk_to_near()
+			if p.say != null:
+				p.say.close()
+			await get_tree().process_frame
+	ok(Quests.has_map(), "가게 할머니에게 지도를 받는다")
+	ok(Quests.has_camera(), "갈매기 소년에게 카메라를 받는다")
+
+	# ② 문 둘을 지난다 (가게 · 등대). 문 앞에 설 수 있어야 한다.
+	for d in p.doors():
+		var t: Vector2i = d["tile"]
+		var stand := Vector2i(-1, -1)
+		for off in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(-1, 0),
+				Vector2i(1, 0), Vector2i.ZERO]:
+			if p._walkable(t + off):
+				stand = t + off
+				break
+		ok(stand.x >= 0, "%s 문 앞에 설 자리가 있다" % d.get("label", ""))
+		if stand.x < 0:
+			continue
+		p.walker.global_position = p.world_of(stand)
+		await get_tree().process_frame
+		ok(p._can_enter() != null, "%s 가 실제로 열린다" % d.get("label", ""))
+		# 문을 지난 것으로 친다 (씬을 갈아 끼우지 않고 표시만 확인)
+		JourneyState.mark_quest("윤슬:%s" % String(d.get("enter_key", "가게")))
+	ok(JourneyState.quest_done("윤슬:가게"), "가게 표시가 남는다")
+	ok(JourneyState.quest_done("윤슬:등대안"), "등대 안 표시가 남는다")
+
+	# ③ 가 볼 자리까지 걸어간다.
+	var z: Array = p.quest_zones()[0]
+	var c: Vector2i = z[1]
+	var near := Vector2i(-1, -1)
+	for dy in range(-4, 5):
+		for dx in range(-4, 5):
+			var t2: Vector2i = c + Vector2i(dx, dy)
+			if p._walkable(t2) \
+					and p.world_of(t2).distance_to(p.world_of(c)) <= float(z[2]):
+				near = t2
+	ok(near.x >= 0, "등대곶 반지름 안에 설 자리가 있다")
+	p.walker.global_position = p.world_of(near)
+	p._tick_quest_zones()
+	ok(JourneyState.quest_done("윤슬:등대"), "등대곶 표시가 남는다")
+
+	# ④ 사진을 찍는다.
+	p._take_photo()
+	await get_tree().process_frame
+	var shot := false
+	for ph in JourneyState.photos:
+		if String(ph.get("place", "")) == "윤슬":
+			shot = true
+	ok(shot, "윤슬에서 사진이 찍힌다")
+
+	# ⑤ 떨어진 것을 다 줍는다 — 그 칸에 실제로 서서.
+	for e in p.pickups():
+		p.walker.global_position = p.world_of(Vector2i(e[0], e[1]))
+		p._check_pickups()
+		await get_tree().process_frame
+	ok(Quests._picked_all("윤슬"), "여섯 개를 다 주울 수 있다 (%d/%d)"
+		% [JourneyState.taken.size(), Quests.PICKUP_TOTAL["윤슬"]])
+
+	# ⑥ 잠자리에서 잔다.
+	var bed: Vector2i = p.sleep_tile()
+	var at_bed := Vector2i(-1, -1)
+	for off in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0)]:
+		if p._walkable(bed + off):
+			at_bed = bed + off
+			break
+	ok(at_bed.x >= 0, "잠자리 곁에 설 자리가 있다")
+	JourneyState.mark_quest("윤슬:잠")
+
+	# ⑦ 그래서 다 끝났나. 볕뉘가 열려야 한다.
+	var left: Array = []
+	for q in Quests.quest_list("윤슬"):
+		if not bool(q.get("done", false)):
+			left.append(String(q.get("label", "")))
+	ok(left.is_empty(), "윤슬 할 일이 다 끝난다%s"
+		% ("" if left.is_empty() else " — 남음: " + str(left)))
+	ok(Quests.village_cleared("윤슬"), "윤슬이 클리어된다")
+	ok(Quests.is_unlocked("볕뉘"), "볕뉘로 넘어갈 수 있다")
+
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 잠긴 여행지가 **무엇 때문에 잠겼는지** 적는가.
+##
+## "아직 더 볼 게 있는 것 같다" 한 줄만으로는 뭘 더 해야 하는지 알 수
+## 없다. 다 한 줄 알고 눌렀다가 안 넘어가면 고장으로 읽힌다 —
+## "윤슬 다음으로 안 넘어간다" 는 말이 실제로 그래서 나왔다.
+func _locked_reason_tests() -> void:
+	print("\n[왜 잠겼는지]")
+	JourneyState.reset()
+	var b := TravelBoard.new()
+	add_child(b)
+
+	var line := b._blocking_line("볕뉘")
+	ok(line.contains("윤슬"), "무슨 마을이 걸렸는지 적는다 (%s)" % line)
+	ok(line.contains("지도") or line.contains("인사"),
+		"남은 것을 그대로 적는다 (%s)" % line)
+
+	# 하나만 남으면 그 하나를 콕 집는다.
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.mark_quest("윤슬:가게")
+	JourneyState.mark_quest("윤슬:등대")
+	JourneyState.mark_quest("윤슬:잠")
+	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
+	for i in Quests.PICKUP_TOTAL["윤슬"]:
+		JourneyState.taken["윤슬:%d,1" % i] = true
+	var one := b._blocking_line("볕뉘")
+	ok(one.contains("등대 안"), "하나 남으면 그것만 적는다 (%s)" % one)
+	ok(not one.contains("외 "), "하나뿐이면 '외 n가지' 를 안 붙인다")
+
+	# 다 하면 잠금이 풀리니 이 줄은 안 쓰인다.
+	JourneyState.mark_quest("윤슬:등대안")
+	ok(Quests.is_unlocked("볕뉘"), "다 하면 볕뉘가 열린다")
+
+	# ORDER 첫 곳은 걸릴 앞 마을이 없다.
+	ok(b._blocking_line("윤슬") == "아직 더 볼 게 있는 것 같다",
+		"앞 마을이 없으면 옛 문구 그대로")
+
+	b.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()

@@ -66,8 +66,10 @@ func _build() -> void:
 	sb.content_margin_bottom = 24
 	_panel.add_theme_stylebox_override("panel", sb)
 	_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_panel.offset_left = -300
-	_panel.offset_right = 300
+	# 잠긴 줄에 남은 할 일을 적으면서 글이 길어졌다. 판이 글에 밀려
+	# 화면 밖으로 자라던 걸 막는다 — 폭을 여기서 못 박는다.
+	_panel.offset_left = -380
+	_panel.offset_right = 380
 	_panel.offset_top = -260
 	_panel.offset_bottom = 260
 	root.add_child(_panel)
@@ -134,10 +136,20 @@ func open(from_place: String) -> void:
 		if not unlocked:
 			# **지운 게 아니라 흐리게.** 다음이 있다는 걸 알아야 기대가
 			# 생긴다 — 아예 안 보이면 그냥 이 마을이 끝인 줄 안다.
-			tail = "  ·  아직 더 볼 게 있는 것 같다"
+			#
+			# 그리고 **무엇이 남았는지 적는다.** "아직 더 볼 게 있는 것
+			# 같다" 한 줄만으로는 뭘 더 해야 하는지 알 길이 없어서, 다 한
+			# 줄 알고 눌렀다가 안 넘어가면 고장으로 읽힌다. 남은 것 하나를
+			# 그대로 보여 준다 — 배낭을 열어 찾아 헤매지 않아도 되게.
+			tail = "  ·  " + _blocking_line(name)
 		b.text = name + tail
 		b.custom_minimum_size = Vector2(0, 84)
-		b.add_theme_font_size_override("font_size", 32)
+		# 잠긴 줄은 글이 길다. 글자를 줄이고 넘치면 자른다 — 안 그러면
+		# 버튼의 최소 폭이 글 길이만큼 자라 판을 화면 밖으로 밀어낸다.
+		# **줄바꿈(autowrap)은 쓰면 안 된다.** 버튼에 켜니 최소 높이가
+		# 무너져 목록이 통째로 한 덩어리로 뭉갰다.
+		b.add_theme_font_size_override("font_size", 32 if unlocked else 24)
+		b.clip_text = true
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		_style(b, not been)
 		if unlocked:
@@ -160,6 +172,25 @@ func _fit_panel() -> void:
 	var h: float = clampf(vp.y * 0.82, 420.0, 760.0)
 	_panel.offset_top = -h * 0.5
 	_panel.offset_bottom = h * 0.5
+
+
+## 이 곳을 여는 데 아직 남은 것 한 줄.
+##
+## `Quests.ORDER` 에서 바로 앞 마을이 이 곳의 자물쇠다. 그 마을에서
+## 아직 안 끝난 첫 항목을 적는다.
+func _blocking_line(name: String) -> String:
+	var idx: int = Quests.ORDER.find(name)
+	if idx <= 0:
+		return "아직 더 볼 게 있는 것 같다"
+	var prev: String = String(Quests.ORDER[idx - 1])
+	var left: Array = []
+	for q in Quests.quest_list(prev):
+		if not bool(q.get("done", false)):
+			left.append(String(q.get("label", "")))
+	if left.is_empty():
+		return "아직 더 볼 게 있는 것 같다"
+	# 짧게. 버튼 한 줄에 들어가야 한다 — 길면 판이 화면 밖으로 자란다.
+	return "%s · %s" % [prev, left[0]]
 
 
 ## 잠긴 곳을 눌렀을 때. 화나게 하지 않되, 눌렀다는 건 알려준다.
