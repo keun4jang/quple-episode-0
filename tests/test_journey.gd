@@ -1616,6 +1616,20 @@ func _reach_tests() -> void:
 		ok(shut.is_empty(), "%s: 문과 잠자리 곁에 설 수 있다%s"
 			% [village, "" if shut.is_empty() else " — " + str(shut)])
 
+		# **갇힌 웅덩이가 없어야 한다.** 소품 몇 개가 지도 모서리에 몇 칸을
+		# 가둬 놓으면, 몸으로는 비집고 들어가지는데(소품은 밑동만 막는다)
+		# 길찾기는 못 나온다 — 톡 눌러도 아무 데도 못 가고 손으로 밀어
+		# 빠져나와야 한다. 소품 배치를 손볼 때마다 생길 수 있는 사고다.
+		var island: Array = []
+		for yy in size.y:
+			for xx in size.x:
+				var t4 := Vector2i(xx, yy)
+				if p._walkable(t4) and not seen.has(t4):
+					island.append(t4)
+		ok(island.is_empty(), "%s: 갇힌 웅덩이가 없다%s"
+			% [village, "" if island.is_empty() else " — %d칸 %s" % [
+				island.size(), str(island.slice(0, 6))]])
+
 		# **여기가 제일 중요하다.** 정류장에 못 가면 그 마을에 갇힌다.
 		var go: Vector2i = p.depart_tile()
 		ok(go.x < 0 or seen.has(go),
