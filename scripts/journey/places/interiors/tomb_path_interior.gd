@@ -92,6 +92,11 @@ func doors() -> Array:
 	}]
 
 
+## 할 일은 **들어온 마을 것**을 이어 본다 (`Place.quest_village`).
+func quest_village() -> String:
+	return village_we_came_from()
+
+
 func on_built() -> void:
 	JourneyState.here = place_name()
 	# 사람보다 자리가 말한다 — 인연을 안 세운다. 볕 드는 자리 자체가

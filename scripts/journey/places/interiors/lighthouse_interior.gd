@@ -85,6 +85,11 @@ func doors() -> Array:
 	}]
 
 
+## 할 일은 **들어온 마을 것**을 이어 본다 (`Place.quest_village`).
+func quest_village() -> String:
+	return village_we_came_from()
+
+
 func on_built() -> void:
 	JourneyState.here = place_name()
 	put_spot(Vector2i(W / 2, 3), "전망", [

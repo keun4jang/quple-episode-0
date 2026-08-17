@@ -451,7 +451,7 @@ func toggle_bag() -> void:
 		# 남아 있으면 "이 마을에서" 탭으로 먼저 연다 — 다섯째 탭에
 		# 묻혀 있어서 못 찾겠다는 게 제일 큰 지적이었다.
 		var left := false
-		for q in Quests.quest_list(JourneyState.here):
+		for q in Quests.quest_list(_quest_village()):
 			if not bool(q.get("done", false)):
 				left = true
 				break
@@ -627,6 +627,15 @@ func _fill_postcards() -> void:
 ## **조용해지는 것**으로 안다 — 다녀온 여행지를 흐리게 보여 주는 것과
 ## 같은 결이다. 새로 만든 판정이 없다 — `Quests.quest_list()` 가 이미
 ## 있는 기록을 그대로 다시 읽어 올 뿐이다.
+## 이 화면이 보여 줄 할 일이 **어느 마을 것인가.** 실내에서는 들어온
+## 마을 것을 이어 본다 (`Place.quest_village`).
+func _quest_village() -> String:
+	var pl := _place()
+	if pl != null and pl.has_method("quest_village"):
+		return String(pl.quest_village())
+	return JourneyState.here
+
+
 ## 이 HUD 를 안고 있는 마을. 할 일이 지도 위 어디인지는 마을만 안다.
 func _place() -> Node:
 	var p := get_parent()
@@ -669,7 +678,7 @@ func _quest_row(text: String, col: Color, item: Dictionary, place: Node) -> Butt
 
 func _fill_quests() -> void:
 	_bag_grid.columns = 1
-	var list := Quests.quest_list(JourneyState.here)
+	var list := Quests.quest_list(_quest_village())
 	if list.is_empty():
 		_empty("여기서는 딱히 할 일이 없어요")
 	var place := _place()
@@ -905,8 +914,8 @@ func point_at_bag(on: bool) -> void:
 #
 # 마을이 바뀌면 조용히 기준만 새로 잡는다 — 안 그러면 도착하자마자
 # 이미 해 둔 것들이 우르르 다시 뜬다.
-var _done_seen: Dictionary = {}
-var _done_place := ""
+## 어디까지 알렸는지는 `JourneyState.announced` 가 들고 있다 — 화면이
+## 갈려도 남아야 하기 때문이다(문을 지나며 끝나는 할 일이 있다).
 
 ## 항목을 가리키는 이름. 종류만으로는 인사 둘을 못 가른다
 ## (`Place._goal_id` 와 같은 규칙).
@@ -921,7 +930,7 @@ func _first_task() -> String:
 		var now: Dictionary = place.current_goal()
 		if not now.is_empty():
 			return String(now.get("label", ""))
-	for q in Quests.quest_list(JourneyState.here):
+	for q in Quests.quest_list(_quest_village()):
 		if not bool(q.get("done", false)):
 			return String(q.get("label", ""))
 	return ""
@@ -947,12 +956,13 @@ func _tick_task_strip() -> void:
 
 
 func _watch_done(list: Array) -> void:
-	if JourneyState.here != _done_place:
-		_done_place = JourneyState.here
-		_done_seen.clear()
+	# 앱을 켜자마자 이미 해 둔 것이 우르르 뜨지 않게, 첫 한 번은 조용히
+	# 기준만 잡는다.
+	if not JourneyState.announce_ready:
+		JourneyState.announce_ready = true
 		for q in list:
 			if bool(q.get("done", false)):
-				_done_seen[_goal_id(q)] = true
+				JourneyState.announced[_goal_id(q)] = true
 		return
 	var left := 0
 	var just: Array[String] = []
@@ -960,10 +970,10 @@ func _watch_done(list: Array) -> void:
 		var id := _goal_id(q)
 		if not bool(q.get("done", false)):
 			left += 1
-			_done_seen.erase(id)      # 되돌아간 것(새 날 등)도 다시 셀 수 있게
+			JourneyState.announced.erase(id)   # 되돌아간 것도 다시 셀 수 있게
 			continue
-		if not _done_seen.has(id):
-			_done_seen[id] = true
+		if not JourneyState.announced.has(id):
+			JourneyState.announced[id] = true
 			just.append(String(q.get("label", "")))
 	if just.is_empty():
 		return
@@ -982,7 +992,7 @@ func _process(delta: float) -> void:
 		_bag_ring.queue_redraw()
 	if _clock != null:
 		_clock.text = "%s   %d일째" % [JourneyState.time_text(), JourneyState.day]
-	var list := Quests.quest_list(JourneyState.here)
+	var list := Quests.quest_list(_quest_village())
 	_watch_done(list)
 	_tick_task_strip()
 	if _dot != null:

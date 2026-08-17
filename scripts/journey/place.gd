@@ -89,6 +89,35 @@ func place_name() -> String:
 	return "어딘가"
 
 
+## 씬 파일 이름 → 마을 이름. 실내에서 **어느 마을의 할 일인가** 를 되짚는다.
+const VILLAGE_OF_SCENE := {
+	"Yunseul": "윤슬", "Byeotnwi": "볕뉘", "Gapuljae": "가풀재",
+	"Hanuiseom": "하늬섬", "Gubinaru": "굽이나루", "Bangulmot": "방울못",
+	"Galbatmeori": "갈밭머리", "Soleunjae": "솔은재", "Kkonnunbeol": "꽃눈벌",
+	"Jaenmaru": "잿마루", "Home": "고향",
+}
+
+
+## 이 화면에서 보여 줄 할 일이 **어느 마을 것인가.**
+##
+## 밖에서는 그냥 이 마을이다. **실내(가게·등대·능·샛길)에서는 들어온
+## 마을 것을 그대로 이어 본다.**
+##
+## 여태 실내에 들어서면 할 일이 통째로 사라졌다 — `JourneyState.here` 가
+## "가게 안" 이 되는데 그 이름으로는 할 일 목록이 비어 있기 때문이다.
+## 그래서 "가게에 들어가 보기" 를 보고 들어간 사람이, 막상 들어가면
+## 아무 안내도 없고 **방금 그걸 해냈다는 표시조차 못 봤다.** 완료되는
+## 바로 그 순간에 화면이 갈리니 알릴 자리가 없었던 것이다.
+func quest_village() -> String:
+	return place_name()
+
+
+## 들어오기 직전에 있던 마을. 실내가 `quest_village()` 로 쓴다.
+func village_we_came_from() -> String:
+	return String(VILLAGE_OF_SCENE.get(
+		JourneyState.exit_scene.get_file().get_basename(), place_name()))
+
+
 ## 화면에 보여 줄 이름. 기본은 `place_name()` 과 같다.
 ##
 ## **저장 열쇠와 보여 줄 이름을 갈라 둔다.** `place_name()` 은 퀘스트

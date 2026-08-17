@@ -25,6 +25,7 @@ func _ready() -> void:
 	await _first_map_guide_tests()
 	await _yunseul_clear_tests()
 	await _locked_reason_tests()
+	await _indoor_quest_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -1768,7 +1769,7 @@ func _done_toast_tests() -> void:
 
 	# 이미 해 둔 것이 있는 채로 들어와도 조용해야 한다.
 	JourneyState.hearts["cap_sol"] = 1
-	hud._done_place = ""              # 갓 도착한 셈으로
+	JourneyState.announce_ready = false   # 앱을 갓 켠 셈으로
 	hud._watch_done(Quests.quest_list("솔은재"))
 	ok(hud._hint_queue.is_empty() and not hud._hint_busy,
 		"도착할 때 이미 해 둔 것은 안 알린다")
@@ -2024,4 +2025,58 @@ func _locked_reason_tests() -> void:
 
 	b.queue_free()
 	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 실내에서도 할 일이 이어지는가 ─────────────────────────────────────
+#
+# "가게에 들어가 보기" 를 보고 들어갔는데 아무 안내도 없고, **방금 그걸
+# 해냈다는 표시조차 안 떴다.** 완료되는 바로 그 순간에 화면이 갈리기
+# 때문이다 — 실내에서는 `JourneyState.here` 가 "가게 안" 이 되고 그
+# 이름으로는 할 일 목록이 비어 있다. 알릴 자리가 없었다.
+
+func _indoor_quest_tests() -> void:
+	print("\n[실내에서도 할 일이 이어지나]")
+	JourneyState.reset()
+
+	# 윤슬에서 가게 문 앞까지 온 셈으로 꾸민다.
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 12)
+
+	var shop: Place = load(
+		"res://scenes/journey/interiors/ShopInterior.tscn").instantiate()
+	add_child(shop)
+	await get_tree().process_frame
+
+	ok(shop.place_name() == "가게 안", "가게 안이 맞다")
+	ok(shop.quest_village() == "윤슬",
+		"할 일은 들어온 마을(윤슬) 것을 이어 본다 (%s)" % shop.quest_village())
+
+	var hud: JourneyHud = shop.hud
+	ok(hud._quest_village() == "윤슬", "HUD 도 윤슬 것을 읽는다")
+	var list := Quests.quest_list(hud._quest_village())
+	ok(not list.is_empty(), "실내에서도 할 일 목록이 비지 않는다 (%d개)" % list.size())
+	ok(hud._first_task() != "", "실내에서도 지금 할 일을 집는다 (%s)"
+		% hud._first_task())
+
+	# **문을 지나 들어온 순간 "다 했어요" 가 떠야 한다.**
+	# 알린 기록이 화면 너머로 이어지므로, 새 HUD 도 이게 새것인 줄 안다.
+	JourneyState.announced.clear()
+	JourneyState.announce_ready = true          # 기준은 이미 잡힌 셈
+	JourneyState.mark_quest("윤슬:가게")
+	hud._watch_done(Quests.quest_list(hud._quest_village()))
+	var said := hud._hint.text
+	for q in hud._hint_queue:
+		if String(q).contains("가게"):
+			said = String(q)
+	ok(said.contains("가게 들어가 보기"),
+		"들어온 순간 '가게 들어가 보기, 다 했어요' 가 뜬다 (%s)" % said)
+	ok(said.ends_with("다 했어요"), "마쳤다고 적는다")
+
+	shop.queue_free()
+	await get_tree().process_frame
+	JourneyState.exit_scene = ""
 	JourneyState.reset()

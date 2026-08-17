@@ -137,6 +137,20 @@ func _run() -> void:
 	await _wait(6)
 	await _shot("done-toast")
 
+	# ⑧-3 가게에 막 들어선 순간 — 안내와 완료 표시가 같이 있어야 한다
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.here = "윤슬"
+	JourneyState.announce_ready = true
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 12)
+	p = await _open("res://scenes/journey/interiors/ShopInterior.tscn")
+	await _wait(6)
+	JourneyState.mark_quest("윤슬:가게")
+	await _wait(14)
+	await _shot("shop-entered")
+
 	# ⑨ 가게 안 — 마을마다 달라야 한다
 	for v in [["Yunseul", "윤슬"], ["Soleunjae", "솔은재"], ["Kkonnunbeol", "꽃눈벌"]]:
 		JourneyState.exit_scene = "res://scenes/journey/%s.tscn" % v[0]

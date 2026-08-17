@@ -182,6 +182,11 @@ func doors() -> Array:
 	}]
 
 
+## 할 일은 **들어온 마을 것**을 이어 본다 (`Place.quest_village`).
+func quest_village() -> String:
+	return village_we_came_from()
+
+
 func on_built() -> void:
 	JourneyState.here = place_name()
 	# 둘째 줄만 마을마다 다르다. 첫 줄은 어느 가게에서나 같은 말이다.
