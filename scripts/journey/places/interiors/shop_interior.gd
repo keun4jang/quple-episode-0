@@ -78,6 +78,10 @@ func _skin() -> Array:
 	return SKIN.get(from_village(), ["wood-floor", "", []])
 
 
+func pad_wide() -> bool:
+	return false
+
+
 func place_name() -> String:
 	return "가게 안"
 

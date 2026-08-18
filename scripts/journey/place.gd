@@ -250,7 +250,35 @@ func _read_map() -> void:
 	var w := 0
 	for row in _grid:
 		w = maxi(w, (row as String).length())
+
+	# ── 시선을 넓힌다 ──────────────────────────────────────────────
+	#
+	# 마을이 35칸이라 2배(넓게 보기)로 축소하면 지도 밖 회색이 드러났고,
+	# 카메라가 그 배율을 아예 막았다 — 세 단계 중 한 단계가 **어느
+	# 마을에서도 눌리지 않았다.** 지도마다 손으로 칸을 늘리는 대신,
+	# 가장자리 바닥을 오른쪽·아래로 이어 붙인다. 오른쪽·아래만 늘리는
+	# 이유: 왼쪽·위를 늘리면 좌표가 죄다 밀린다 (소품·인연·저장까지).
+	# 실내는 방이 커지면 안 되니 안 늘린다 (`pad_wide()`).
+	if pad_wide():
+		w = maxi(w, PAD_W)
+		for i in _grid.size():
+			var row := String(_grid[i])
+			if row.length() < w and row.length() > 0:
+				_grid[i] = row + row[row.length() - 1].repeat(w - row.length())
+		while _grid.size() < PAD_H:
+			_grid.append(String(_grid[_grid.size() - 1]))
+
 	_size = Vector2i(w, _grid.size())
+
+
+## 시선을 넓힐 때 맞추는 최소 크기. 41x23칸 = 656x368px — 1280x720
+## 화면을 2배로 봐도 (640x360) 지도 밖이 안 드러난다.
+const PAD_W := 41
+const PAD_H := 23
+
+## 실내(가게·등대·샛길)는 안 늘린다 — 방은 방 크기여야 한다.
+func pad_wide() -> bool:
+	return true
 
 
 func tile_texture(name: String) -> Texture2D:
@@ -710,6 +738,8 @@ func _build_pickups() -> void:
 		tag.z_index = 40
 		tag.size = Vector2(96, 14)
 		tag.position = Vector2(-48, -tex.get_height() - 14.0)
+		tag.name = "Tag"
+		tag.modulate.a = 0.0   # 가까이 와야 보인다 — 이름표 규칙과 같다
 		a.add_child(tag)
 
 		a.set_meta("item", item)
@@ -1253,6 +1283,9 @@ func _tick_talk_outlines() -> void:
 			o.queue_redraw()
 
 
+# 이름표가 보이기 시작하는 거리 (px). 화면 반쯤 다가와야 이름이 뜬다.
+const TAG_RANGE := 150.0
+
 func _update_near() -> void:
 	_near = null
 	if walker == null:
@@ -1271,6 +1304,21 @@ func _update_near() -> void:
 		if d < best:
 			best = d
 			_near = f
+		# 이름표는 **가까이 온 이의 것만** 보인다. 화면의 이름이 죄다
+		# 한꺼번에 떠 있으면 서로 겹치고, 지도가 글자밭이 된다.
+		if f.has_method("set_tag_near"):
+			f.set_tag_near(d < TAG_RANGE * TAG_RANGE)
+	# 주울 것의 이름표도 같은 규칙 — 다가와야 스르르 보인다.
+	var dt := get_process_delta_time()
+	for a in _loose:
+		if not is_instance_valid(a):
+			continue
+		var tg := a.get_node_or_null("Tag") as Label
+		if tg == null:
+			continue
+		var on: bool = walker.global_position.distance_squared_to(
+			a.global_position) < TAG_RANGE * TAG_RANGE
+		tg.modulate.a = move_toward(tg.modulate.a, 0.9 if on else 0.0, dt * 4.0)
 	if _near == null and keep != null and is_instance_valid(keep):
 		var far := TALK_RANGE * 1.45
 		if walker.global_position.distance_squared_to(keep.global_position) < far * far:

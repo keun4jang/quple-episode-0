@@ -254,6 +254,10 @@ func _cfg() -> Dictionary:
 	return PATHS.get(from_village(), PATHS.values()[0] if PATHS.size() > 0 else {})
 
 
+func pad_wide() -> bool:
+	return false
+
+
 func place_name() -> String:
 	return String(_cfg().get("name", "샛길"))
 

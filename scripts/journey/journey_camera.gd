@@ -13,7 +13,11 @@ extends Camera2D
 ## 오므리는 동안에는 부드럽게 따라오고, 손을 떼면 가까운 눈금에 붙는다.
 
 const STEPS := [2.0, 3.0, 4.0]
-const DEFAULT_STEP := 1          # 3배
+## 기본을 2배(넓게 보기)로 내렸다. 마을이 41x23칸으로 넓어지면서
+## (`Place.PAD_W`) 이 배율이 처음으로 어느 마을에서나 눌리게 됐다 —
+## 시선이 넓어야 다음 갈 곳이 눈에 들어온다. 얼굴이 보고 싶으면
+## 두 손가락으로 당기면 된다.
+const DEFAULT_STEP := 0          # 2배
 const SNAP_TIME := 0.18
 const FOLLOW := 6.0              # 클수록 딱 붙는다
 

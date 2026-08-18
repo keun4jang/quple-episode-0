@@ -13,6 +13,10 @@ const H := 18
 const WALL := 2
 
 
+func pad_wide() -> bool:
+	return false
+
+
 func place_name() -> String:
 	return "등대 안"
 

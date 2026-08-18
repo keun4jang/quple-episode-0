@@ -118,7 +118,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 카피바라 — 스웨터 차림. 갈대밭 가장자리 쉼터를 지킨다.
-	put_folk(Vector2i(36, 4), "capybara-c", "갈대밭 쉼터 할머니", "cap_galbat", [
+	put_folk(Vector2i(34, 4), "capybara-c", "갈대밭 쉼터 할머니", "cap_galbat", [
 		["바람이 세게 부는 날에도 여긴 이래요."],
 		["말은 천천히 해도 돼요.", "여긴 서두를 데가 없어요."],
 		["따뜻한 자리 하나는 늘 남겨 둬요."],

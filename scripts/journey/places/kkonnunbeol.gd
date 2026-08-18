@@ -174,7 +174,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 카피바라 — 빵집 차림. 사거리 쉼터를 지킨다.
-	put_folk(Vector2i(18, 9), "capybara-b", "밭머리 쉼터 아주머니", "cap_kkot", [
+	put_folk(Vector2i(21, 9), "capybara-b", "밭머리 쉼터 아주머니", "cap_kkot", [
 		["꽃눈 필 때가 젤 바빠요."],
 		["밭이 아홉 뙈기예요.", "그래도 길 잃을 일은 없어요."],
 		["도랑에 꽃잎 뜨는 거 봤어요?", "그거 보러 오는 사람도 있어요."],

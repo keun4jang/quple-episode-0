@@ -233,7 +233,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 카피바라 — 물범의 담수 버전. 조끼 차림, 나루 옆 가게를 지킨다.
-	put_folk(Vector2i(39, 14), "capybara-a", "나루 가게 아저씨", "cap_guinaru", [
+	put_folk(Vector2i(36, 14), "capybara-a", "나루 가게 아저씨", "cap_guinaru", [
 		["어서 와요. 강 여행은 또 다르지."],
 		["강물이 굽어 도는 자리가 여기예요.", "서두를 것 없어요."],
 		["길 묻는 손님한테도 늘 이렇게 말해요.", "천천히 가요."],

@@ -14,6 +14,10 @@ const CX := 18
 const CY := 10
 
 
+func pad_wide() -> bool:
+	return false
+
+
 func place_name() -> String:
 	return "능 안쪽길"
 

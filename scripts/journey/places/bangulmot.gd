@@ -114,7 +114,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 카피바라 — 빵집 차림. 연못가 작은 빵집을 지킨다.
-	put_folk(Vector2i(6, 4), "capybara-b", "연못가 빵집 아주머니", "cap_bangul", [
+	put_folk(Vector2i(8, 4), "capybara-b", "연못가 빵집 아주머니", "cap_bangul", [
 		["빵 냄새 맡고 왔어요?", "많이는 안 팔아요."],
 		["비가 지난 뒤에도 냄새는 남아요.", "그게 좋아서 계속 굽어요."],
 		["연못은 늘 저래요.", "잔잔했다 또 흔들렸다."],

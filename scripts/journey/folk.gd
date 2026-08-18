@@ -79,7 +79,9 @@ func _build_name_tag() -> void:
 	var tall: float = sprite.size().y if sprite != null else 24.0
 	l.size = Vector2(120, 16)
 	l.position = Vector2(-60, -tall - 17.0)
+	l.modulate.a = 0.0     # 가까이 와야 보인다 (`Place.TAG_RANGE`)
 	add_child(l)
+	_tag = l
 
 
 ## 숨 고르기. 몇 초에 한 번, 아주 잠깐 몸이 1px 들썩인다.
@@ -87,6 +89,14 @@ func _build_name_tag() -> void:
 ## 그림자와 이름표는 그대로 둔다 — 몸만 숨을 쉰다.
 var _bob_clock := 0.0
 var _bob_gap := 3.2
+
+## 이름표. 가까이 온 이의 것만 스르르 보인다 — 화면의 이름이 죄다
+## 떠 있으면 서로 겹치고 지도가 글자밭이 된다 (`Place._update_near`).
+var _tag: Label
+var _tag_on := false
+
+func set_tag_near(on: bool) -> void:
+	_tag_on = on
 
 func _ready_bob_seed() -> void:
 	# 같은 화면의 인연들이 한 박자로 들썩이면 기계 같다. 이름으로
@@ -105,6 +115,9 @@ func _process(delta: float) -> void:
 		_bob_clock = 0.0
 	if sprite != null:
 		sprite.position.y = -1.0 if _bob_clock >= _bob_gap else 0.0
+	if _tag != null:
+		_tag.modulate.a = move_toward(_tag.modulate.a,
+			0.95 if _tag_on else 0.0, delta * 4.0)
 	if _talk_outline_on:
 		return
 	outline_color = QuoWalker.talk_pulse()
