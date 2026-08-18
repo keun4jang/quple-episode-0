@@ -218,6 +218,7 @@ func _ready() -> void:
 	_read_map()
 	_build_ground()
 	_build_fringes()
+	_build_decals()
 	_build_edges()
 	_build_props()
 	_build_pickups()
@@ -259,6 +260,7 @@ func _read_map() -> void:
 	# 가장자리 바닥을 오른쪽·아래로 이어 붙인다. 오른쪽·아래만 늘리는
 	# 이유: 왼쪽·위를 늘리면 좌표가 죄다 밀린다 (소품·인연·저장까지).
 	# 실내는 방이 커지면 안 되니 안 늘린다 (`pad_wide()`).
+	_orig_size = Vector2i(w, _grid.size())
 	if pad_wide():
 		w = maxi(w, PAD_W)
 		for i in _grid.size():
@@ -275,6 +277,84 @@ func _read_map() -> void:
 ## 화면을 2배로 봐도 (640x360) 지도 밖이 안 드러난다.
 const PAD_W := 41
 const PAD_H := 23
+
+## 이어 붙이기 전의 원래 크기. 가장자리 프레임이 어디부터가 여백인지
+## 알아야 해서 남겨 둔다.
+var _orig_size := Vector2i.ZERO
+
+## 이어 붙인 여백을 마을 결로 마감하는 소품들. 마을마다 숲·갈대·돌담이
+## 다르다. 목록에 없으면 나무·덤불로 마감한다. 빈 배열이면 안 세운다
+## (하늬섬 — 바다가 이미 액자다).
+const FRAME_KIT := {
+	"윤슬": ["pine", "tree", "boulder"],
+	"볕뉘": ["stone-wall", "tree", "shrub"],
+	"가풀재": ["boulder", "pine", "shrub"],
+	"하늬섬": [],
+	"굽이나루": ["tree", "shrub", "boulder"],
+	"방울못": ["tree", "shrub", "tree"],
+	"갈밭머리": ["beach-grass", "shrub", "beach-grass"],
+	"솔은재": ["pine", "tree", "pine"],
+	"꽃눈벌": ["fence", "tree", "shrub"],
+	"잿마루": ["tree", "shrub", "street-lamp"],
+}
+
+## 여백 띠에 세울 소품 목록. 바깥 두 줄에 서너 칸 간격으로, 넷에 하나는
+## 비워 틈을 낸다 — 벽이 아니라 숲 가장자리로 보여야 한다.
+func _frame_props() -> Array:
+	if not pad_wide() or _orig_size == Vector2i.ZERO:
+		return []
+	var kit: Array = FRAME_KIT.get(place_name(), ["tree", "shrub"])
+	if kit.is_empty():
+		return []
+	var out: Array = []
+	var w := _size.x
+	var h := _size.y
+	var used: Dictionary = {}
+	# 오른쪽 여백: 두 세로줄을 어긋나게.
+	if w > _orig_size.x + 1:
+		for col: int in [w - 2, w - 4]:
+			if col < _orig_size.x:
+				continue
+			var y0 := 1 + (col % 3)
+			for y in range(y0, h - 1, 3):
+				var hh := (col * 73856093) ^ (y * 19349663)
+				if absi(hh) % 4 == 0:
+					continue
+				if _floor_solid(col, y):
+					continue
+				var nm := String(kit[absi(hh >> 4) % kit.size()])
+				out.append([col, y, nm, _frame_blocks(nm)])
+				used[Vector2i(col, y)] = true
+	# 아래 여백: 두 가로줄.
+	if h > _orig_size.y + 1:
+		for rrow: int in [h - 2, h - 4]:
+			if rrow < _orig_size.y:
+				continue
+			var x0 := 1 + (rrow % 3)
+			for x in range(x0, w - 1, 3):
+				var hh2 := (x * 19349663) ^ (rrow * 73856093)
+				if absi(hh2) % 4 == 0 or used.has(Vector2i(x, rrow)):
+					continue
+				if _floor_solid(x, rrow):
+					continue
+				var nm2 := String(kit[absi(hh2 >> 4) % kit.size()])
+				out.append([x, rrow, nm2, _frame_blocks(nm2)])
+	return out
+
+
+## 잔 것은 몸이 없다 — 밟고 지나가도 이상하지 않은 것들.
+func _frame_blocks(name: String) -> bool:
+	return not ["shrub", "beach-grass", "fence", "pebbles"].has(name)
+
+
+## 그 칸 바닥이 못 걷는 바닥인가 (물 위에 나무를 안 세우게).
+func _floor_solid(x: int, y: int) -> bool:
+	if y < 0 or y >= _grid.size():
+		return true
+	var row: String = _grid[y]
+	if x < 0 or x >= row.length() or not legend.has(row[x]):
+		return true
+	return solid_tiles.has(String(legend[row[x]]))
 
 ## 실내(가게·등대·샛길)는 안 늘린다 — 방은 방 크기여야 한다.
 func pad_wide() -> bool:
@@ -453,6 +533,11 @@ func _build_fringes() -> void:
 # 둔다 — 꽃 핀 풀, 금 간 돌, 이끼 낀 돌담, 비질 자국이 난 마당.
 # **열에 하나쯤만** 형제를 깐다. 자주 나오면 그게 다시 무늬가 된다.
 const VARIANT_RATE := 0.17
+## 자연 바닥은 더 자주 섞는다 — 열에 셋. 풀·모래는 원래 균일하지 않다.
+## 사람이 깐 바닥(돌길·마루)은 균일해야 사람이 깐 것으로 보이니 그대로.
+const VARIANT_RATE_NATURAL := 0.31
+const NATURAL_TILES := ["grass", "dry-grass", "sand", "dirt",
+	"clay-earth", "tilled-soil", "water"]
 
 var _variant_cache: Dictionary = {}
 
@@ -471,7 +556,8 @@ func _tile_for(base: String, x: int, y: int) -> String:
 	var h := (x * 374761393 + y * 668265263) ^ 0x27d4eb2d
 	h = (h ^ (h >> 13)) * 1274126177
 	var r := float(absi(h) % 1000) / 1000.0
-	if r >= VARIANT_RATE:
+	var rate := VARIANT_RATE_NATURAL if NATURAL_TILES.has(base) else VARIANT_RATE
+	if r >= rate:
 		return base
 	return String(kinds[absi(h >> 7) % kinds.size()])
 
@@ -500,6 +586,91 @@ func _variant(at: Vector2) -> int:
 const EDGE_LINE := Color(0.13, 0.11, 0.15, 0.55)
 const EDGE_SHADE := Color(0.13, 0.11, 0.15, 0.30)
 const EDGE_SHADE_SOFT := Color(0.13, 0.11, 0.15, 0.15)
+
+# ── 데칼 ──────────────────────────────────────────────────────────────
+#
+# 형제 타일을 늘려도 넓은 면은 여전히 "같은 재질의 반복"이다. 그 위에
+# **흔적**을 얹는다 — 낙엽·풀포기·바큇자국·물결·잔금. 반투명이라 바닥
+# 결이 비치고, 흩뿌리지 않고 **군집으로** 뿌린다 (서너 개가 모여야
+# 바람이 몰아다 놓은 것으로 읽힌다). 좌표 해시라 켤 때마다 같다.
+# 그림은 `tools/pixel/make-decals.py` 가 만든다.
+const DECALS := {
+	"grass": ["dc-leaf-1", "dc-leaf-2", "dc-flower-w", "dc-flower-y",
+		"dc-tuft-1", "dc-tuft-2", "dc-moss"],
+	"dry-grass": ["dc-tuft-dry", "dc-leaf-1", "dc-straw", "dc-flower-w"],
+	"dirt": ["dc-track-h", "dc-track-v", "dc-grit-1", "dc-grit-2",
+		"dc-puddle", "dc-straw"],
+	"clay-earth": ["dc-grit-1", "dc-grit-2", "dc-straw", "dc-puddle"],
+	"sand": ["dc-ripple-1", "dc-ripple-2", "dc-shellbit", "dc-wrack"],
+	"cobble": ["dc-crack", "dc-stain", "dc-pebblebit", "dc-grasscrack"],
+	"stone-slab": ["dc-crack", "dc-stain", "dc-pebblebit"],
+	"slate-path": ["dc-crack", "dc-grasscrack", "dc-stain"],
+	"basalt": ["dc-crack", "dc-pebblebit", "dc-moss"],
+	"tilled-soil": ["dc-sprout", "dc-straw"],
+	"asphalt": ["dc-crack", "dc-stain"],
+}
+
+func _build_decals() -> void:
+	var by_tex: Dictionary = {}
+	for y in _grid.size():
+		var row: String = _grid[y]
+		for x in row.length():
+			if not legend.has(row[x]):
+				continue
+			var base := String(legend[row[x]])
+			if not DECALS.has(base):
+				continue
+			# 군집 씨앗: 40칸에 하나꼴. 씨앗 둘레 5x5 안에서만 돋는다.
+			var sh := (x * 668265263 + y * 374761393) ^ 0x9e3779b9
+			sh = (sh ^ (sh >> 15)) * 2246822519
+			if absi(sh) % 1000 >= 25:
+				continue
+			var kinds: Array = DECALS[base]
+			for i in 3 + absi(sh >> 5) % 5:      # 군집당 3~7개
+				var ox := (absi(sh >> (i * 3)) % 5) - 2
+				var oy := (absi(sh >> (i * 3 + 7)) % 5) - 2
+				var tx := x + ox
+				var ty := y + oy
+				if ty < 0 or ty >= _grid.size():
+					continue
+				var trow: String = _grid[ty]
+				if tx < 0 or tx >= trow.length() or not legend.has(trow[tx]):
+					continue
+				if String(legend[trow[tx]]) != base:
+					continue
+				var name := String(kinds[absi(sh >> (i * 2 + 3)) % kinds.size()])
+				if not by_tex.has(name):
+					by_tex[name] = []
+				by_tex[name].append(Vector2(tx * TILE, ty * TILE))
+
+	for name in by_tex:
+		var path := "res://assets/tiles/%s.png" % name
+		if not ResourceLoader.exists(path):
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_2D
+		var quad := QuadMesh.new()
+		quad.size = Vector2(TILE, TILE)
+		mm.mesh = quad
+		var spots: Array = by_tex[name]
+		mm.instance_count = spots.size()
+		for i in spots.size():
+			var at: Vector2 = spots[i]
+			var v := _variant(at)
+			# 바큇자국·물결은 방향이 있어 안 돌린다. 뒤집기만.
+			var directional: bool = name.begins_with("dc-track") \
+				or name.begins_with("dc-ripple")
+			mm.set_instance_transform_2d(i, Transform2D(
+				0.0 if directional else (v & 4) * (PI * 0.5),
+				Vector2(1.0 if (v & 1) == 0 else -1.0,
+						1.0 if (v & 2) == 0 else -1.0),
+				0.0, at + Vector2(TILE, TILE) * 0.5))
+		var mmi := MultiMeshInstance2D.new()
+		mmi.multimesh = mm
+		mmi.texture = load(path) as Texture2D
+		mmi.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_ground.add_child(mmi)
+
 
 func _build_edges() -> void:
 	var n := Node2D.new()
@@ -571,7 +742,7 @@ func _build_props() -> void:
 	_props.y_sort_enabled = true
 	add_child(_props)
 
-	for p in props():
+	for p in props() + _frame_props():
 		var tx: int = p[0]
 		var ty: int = p[1]
 		var name: String = p[2]
