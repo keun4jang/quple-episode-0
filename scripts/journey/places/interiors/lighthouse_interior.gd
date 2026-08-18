@@ -22,8 +22,9 @@ func _init() -> void:
 		"f": "wood-floor",     # 저장고 바닥
 		"s": "granite-step",   # 나선 계단
 		"b": "basalt",         # 등대 벽
+		"w": "wall-stone",     # 방을 향한 벽 얼굴 (make-wall-tiles.py)
 	}
-	solid_tiles = ["basalt"]
+	solid_tiles = ["basalt", "wall-stone"]
 
 
 ## 가운데 계단이 고리 모양으로 돈다 — 곧게 놓으면 계단이 아니라 다리로
@@ -44,7 +45,7 @@ func ground_map() -> String:
 			if y >= H - WALL and absi(x - mid) <= 1:
 				edge = false
 			if edge:
-				row += "b"
+				row += "w" if y == WALL - 1 else "b"
 			else:
 				row += "s" if (d >= 5.0 and d <= 6.4) else "f"
 		rows.append(row)

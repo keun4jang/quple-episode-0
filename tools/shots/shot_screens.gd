@@ -158,6 +158,11 @@ func _run() -> void:
 		p = await _open("res://scenes/journey/interiors/ShopInterior.tscn")
 		await _wait(20)
 		await _shot("shop-%s" % v[0])
+		if v[0] == "Yunseul":
+			# 위쪽 벽 얼굴(갓돌·벽면·밑선)이 보이는 자리에서 한 장 더.
+			p.walker.global_position = Vector2(17.5 * 16, 5 * 16)
+			await _wait(30)
+			await _shot("shop-wall")
 
 	# ⑩ 샛길 — 셋이 서로 달라야 한다
 	for v2 in ["Gubinaru", "Soleunjae", "Kkonnunbeol"]:

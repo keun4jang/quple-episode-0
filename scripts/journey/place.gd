@@ -289,7 +289,9 @@ func _build_ground() -> void:
 			#
 			# 무작위를 쓰면 켤 때마다 마당이 달라진다. 칸 좌표로 정해진
 			# 값을 만든다.
-			var v := _variant(at)
+			# 벽 얼굴은 위아래가 있다 — 갓돌이 아래로 가면 안 되니
+			# 뒤집기·돌리기에서 뺀다.
+			var v := 0 if String(name).begins_with("wall-") else _variant(at)
 			var t := Transform2D(
 				(v & 4) * (PI * 0.5),                       # 0 또는 90도
 				Vector2(1.0 if (v & 1) == 0 else -1.0,

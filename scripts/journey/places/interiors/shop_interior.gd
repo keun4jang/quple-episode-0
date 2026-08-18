@@ -83,15 +83,15 @@ func place_name() -> String:
 
 
 func _init() -> void:
-	legend = {"f": "wood-floor", "b": "basalt"}
-	solid_tiles = ["basalt"]
+	legend = {"f": "wood-floor", "b": "basalt", "w": "wall-plaster"}
+	solid_tiles = ["basalt", "wall-plaster"]
 
 
 ## `_init()` 은 씬을 만들 때라 아직 어디서 왔는지 모른다. 바닥은
 ## 지도를 짓기 직전에 정해야 한다.
 func _ready() -> void:
-	legend = {"f": String(_skin()[0]), "b": "basalt"}
-	solid_tiles = ["basalt"]
+	legend = {"f": String(_skin()[0]), "b": "basalt", "w": "wall-plaster"}
+	solid_tiles = ["basalt", "wall-plaster"]
 	super()
 
 
@@ -114,7 +114,15 @@ func ground_map() -> String:
 			# 자리와 나가는 문이 둘 다 벽 속에 박힌다.
 			if y >= H - WALL and absi(x - W / 2) <= 1:
 				edge = false
-			row += "b" if edge else "f"
+			if not edge:
+				row += "f"
+			elif y == WALL - 1:
+				# 위쪽 벽에서 방을 향한 마지막 한 줄은 **벽 얼굴**이다 —
+				# 갓돌·벽면·밑선이 그려진 타일 (`make-wall-tiles.py`).
+				# 현무암만 두르면 벽이 아니라 어두운 바닥으로 읽힌다.
+				row += "w"
+			else:
+				row += "b"
 		rows.append(row)
 	return "\n".join(rows)
 
