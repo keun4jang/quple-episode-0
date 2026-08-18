@@ -1285,8 +1285,14 @@ func _tick_pending_door() -> void:
 	var d = _pending_door
 	_pending_door = null
 	if walker.global_position.distance_squared_to(d["world"]) \
-			< TALK_RANGE * TALK_RANGE:
+			< TALK_RANGE * TALK_RANGE * 2.56:
 		_do_enter(d)
+	elif not _retalk_tried:
+		# 조금 못 미쳐 섰다 — 소리 없이 버리면 눌러 놓고 멀뚱히 서 있는
+		# 꼴이 된다. 한 번은 다시 다가간다 (대화 예약과 같은 결).
+		walk_to(d["world"])
+		_pending_door = d
+		_retalk_tried = true
 
 
 ## 정류장을 향해 걷는 중이면, 닿는 순간 여행판을 연다.
@@ -2091,6 +2097,12 @@ func _process(delta: float) -> void:
 	if touch != null and touch.has_method("is_multi") and touch.is_multi() \
 			and is_walking_to() and _walk_to_age < 0.35:
 		stop_walk_to()
+		# 걷기만 멈추면 예약(자동 대화·문·정류장)이 남아서, 확대하려던
+		# 손가락이 대화를 열었다. 뜻이 취소됐으니 예약도 같이 비운다.
+		_pending_talk = null
+		_pending_door = null
+		_pending_depart = false
+		_retalk_tried = false
 	_walk_to_age += delta
 	_check_pickups()
 	_tick_quest_zones()
@@ -2193,6 +2205,16 @@ func open_goals() -> Array:
 	for q in Quests.quest_list(place_name()):
 		if _goal_shown(q):
 			out.append(q)
+	# **자정이 넘으면 남은 할 일이 뭐든 다음 길은 하나다** — 자야
+	# 아침이 온다. 이때 지도가 딴 걸(혹은 아무것도) 가리키면 안내
+	# 한 줄(1.6초)을 놓친 사람은 갈 곳을 모른다.
+	if JourneyState.day_is_over():
+		if _has_bed:
+			return [{"label": "하루 마치기", "kind": "sleep", "key": "",
+				"done": false}]
+		if _has_stop:
+			return [{"label": "다음 길로", "kind": "depart", "key": "",
+				"done": false}]
 	if not out.is_empty():
 		return out
 	# 서브맵(가게 안·능 안쪽길·샛길)은 마을 할 일 목록에 없다. 그래도

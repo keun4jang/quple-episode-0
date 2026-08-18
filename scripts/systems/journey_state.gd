@@ -370,9 +370,12 @@ func give_postcard(folk_id: String, who: String) -> void:
 	var h := 0
 	for i in folk_id.length():
 		h = (h * 31 + folk_id.unicode_at(i)) % 100003
+	# 문장은 **받은 순서**대로 돌린다. 이름 해시로 고르던 때는 12줄로
+	# 늘려도 우연히 여섯 명이 같은 줄에 몰렸다 — 순서면 열두 장까지는
+	# 전부 다르다. 글은 받는 순간 저장되므로 옛 엽서는 안 바뀐다.
 	postcards[folk_id] = {
 		"who": who,
-		"text": POSTCARD_LINES[h % POSTCARD_LINES.size()],
+		"text": POSTCARD_LINES[postcards.size() % POSTCARD_LINES.size()],
 		"place": here,
 		"day": day,
 	}

@@ -133,7 +133,12 @@ func on_built() -> void:
 		["오늘은 바람이 잔잔하네요."],
 		["갈대 사이로 같이 걸을래요?"],
 		["바람 불면 또 봐요."],
-	], Vector2.DOWN, false, {})
+	], Vector2.DOWN, false, {
+		# 아침엔 데크 북단, 낮엔 남쪽 전망대, 저녁엔 서쪽 어귀.
+		"아침": Vector2i(20, 4),
+		"낮": Vector2i(20, 17),
+		"저녁": Vector2i(5, 10),
+	})
 
 	# 고라니 — 선택형 서브 NPC. 갈대 사이에 조용히 서 있는 붙박이.
 	put_folk(Vector2i(24, 18), "deer", "갈대 사이의 고라니", "ga_deer", [

@@ -205,7 +205,12 @@ func on_built() -> void:
 		["오늘은 멀리까지 다 보이네요."],
 		["같이 좀 앉아 있을래요?"],
 		["고갯마루에서 또 봐요."],
-	], Vector2.DOWN, false, {})
+	], Vector2.DOWN, false, {
+		# 아침엔 전망대, 낮엔 쉼터 마당, 저녁엔 아랫길 — 고개를 오르내린다.
+		"아침": Vector2i(19, 3),
+		"낮": Vector2i(23, 10),
+		"저녁": Vector2i(27, 18),
+	})
 
 	# 다람쥐 — 선택형 서브 NPC. 솔숲 사이, 붙박이.
 	put_folk(Vector2i(15, 6), "squirrel", "솔숲의 다람쥐", "so_squirrel", [
