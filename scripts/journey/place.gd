@@ -302,6 +302,38 @@ func _build_ground() -> void:
 		mmi.texture = tex
 		mmi.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_ground.add_child(mmi)
+		_maybe_animate_water(name, mmi)
+
+
+# ── 물 흔들림 ─────────────────────────────────────────────────────────
+#
+# 물만 화면에서 유일하게 완전히 멎어 있었다. 타일 그림마다
+# `tools/pixel/make-water-frames.py` 가 만든 -wf2/-wf3 두 장이 있으면
+# 셋을 돌려 가며 MultiMesh 의 텍스처만 바꾼다 — 인스턴스는 그대로라
+# 비용이 드로우콜 그대로다. 형제 타일(water-2, water-3)은 박자를
+# 다르게 두어 온 수면이 한 몸으로 깜빡이지 않게 한다.
+var _water_anim: Array = []   # [mmi, [tex1, tex2, tex3], 주기, 시계]
+
+func _maybe_animate_water(name: String, mmi: MultiMeshInstance2D) -> void:
+	var p2 := "res://assets/tiles/%s-wf2.png" % name
+	var p3 := "res://assets/tiles/%s-wf3.png" % name
+	if not (ResourceLoader.exists(p2) and ResourceLoader.exists(p3)):
+		return
+	var frames := [mmi.texture, load(p2) as Texture2D, load(p3) as Texture2D]
+	var beats := [0.55, 0.70, 0.65]
+	var i := _water_anim.size() % beats.size()
+	_water_anim.append([mmi, frames, beats[i], float(i) * 0.23])
+
+
+func _tick_water(delta: float) -> void:
+	for a in _water_anim:
+		a[3] += delta
+		if a[3] < a[2]:
+			continue
+		a[3] -= a[2]
+		var frames: Array = a[1]
+		frames.push_back(frames.pop_front())
+		(a[0] as MultiMeshInstance2D).texture = frames[0]
 
 
 # ── 넘침 가장자리 ──────────────────────────────────────────────────────
@@ -472,6 +504,27 @@ func _solid_at(x: int, y: int) -> bool:
 
 
 func _build_props() -> void:
+	# 소품 발밑 그림자. 소품보다 먼저 넣어 늘 소품 아래에 깔린다.
+	# 하나의 노드가 전부 그린다 — 소품마다 노드를 만들면 드로우콜만 는다.
+	var shadows := Node2D.new()
+	shadows.name = "PropShadows"
+	add_child(shadows)
+	var shadow_jobs: Array = []
+	shadows.draw.connect(func() -> void:
+		for j in shadow_jobs:
+			if j[2]:
+				# 건물: 밑변을 따라 얕은 띠 하나. 타원을 깔면 문간까지
+				# 어두워져서 띠가 낫다.
+				shadows.draw_rect(Rect2(j[0] - Vector2(j[1], 0.0),
+					Vector2(j[1] * 2.0, 3.0)), Color(SHADOW_COL, 0.20))
+			else:
+				# 두 겹 타원 — 넓고 옅은 것 위에 좁고 조금 진한 것.
+				# 한 겹보다 가장자리가 부드럽다 (블러 없이).
+				shadows.draw_set_transform(j[0], 0.0, Vector2(1.0, 0.36))
+				shadows.draw_circle(Vector2.ZERO, j[1], Color(SHADOW_COL, 0.08))
+				shadows.draw_circle(Vector2.ZERO, j[1] * 0.65, Color(SHADOW_COL, 0.09))
+				shadows.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE))
+
 	_props = Node2D.new()
 	_props.name = "Props"
 	_props.y_sort_enabled = true
@@ -513,6 +566,10 @@ func _build_props() -> void:
 				s.position.y - tex.get_height(),
 				tex.get_width(), tex.get_height()))
 		s.offset = Vector2(-tex.get_width() / 2.0, -tex.get_height())
+		var sw := _shadow_width(name, tex)
+		if sw > 0.0:
+			shadow_jobs.append([s.position + Vector2(0, -1.0), sw,
+				tex.get_width() >= 44])
 		_props.add_child(s)
 		if talkable:
 			_prop_outline_at[Vector2i(tx, ty)] = _outline_sprite(s)
@@ -531,6 +588,34 @@ func _build_props() -> void:
 			cs.position = s.position + Vector2(0, -4.0)
 			body.add_child(cs)
 			add_child(body)
+
+	shadows.queue_redraw()
+
+
+# 그림자색은 검정이 아니라 보랏빛 도는 어둠 — 흙 위에서 덜 탁하다.
+const SHADOW_COL := Color(0.231, 0.200, 0.251)  # 3B3340
+
+# 발밑 그림자의 반지름(px). 그림 폭 기준인데, 나무는 우듬지가 아니라
+# **줄기**가 땅에 닿으니 줄기폭만큼만 깐다. 0 이면 안 깐다 — 울짱처럼
+# 바닥에 붙은 얇은 것과 물 위 소품이 그렇다.
+func _shadow_width(name: String, tex: Texture2D) -> float:
+	var w := float(tex.get_width())
+	match name:
+		"tree", "pine":
+			return w * 0.18
+		"boulder":
+			return w * 0.35
+		"pebbles":
+			return w * 0.28
+		"fence":
+			return 0.0
+		"street-lamp", "signpost", "mailbox":
+			return w * 0.30
+		"shop", "guesthouse":
+			return w * 0.5
+	if w >= 44:
+		return w * 0.5
+	return w * 0.32
 
 
 ## 소품에 인연과 같은 금색 테두리를 붙인다. `QuoWalker._draw_outline()`
@@ -1009,16 +1094,16 @@ func _tick_outline() -> void:
 const SKY := [
 	# 아침. 예전엔 표가 16시부터 시작이라 7시가 정오와 똑같은 순백이었다 —
 	# 하루의 절반에 무드가 없었다. 푸른 새벽에서 살구빛으로 풀린다.
-	[6.0, Color(0.78, 0.82, 0.96)],    # 푸른 새벽
-	[7.2, Color(1.00, 0.93, 0.84)],    # 살구빛 아침
-	[9.0, Color(1.00, 1.00, 1.00)],    # 낮
-	[16.0, Color(1.00, 1.00, 1.00)],   # 아직 낮
-	[17.0, Color(1.00, 0.96, 0.88)],   # 볕이 노래진다
-	[18.0, Color(1.00, 0.87, 0.72)],   # 금빛. 가장 따뜻한 지점
-	[18.7, Color(1.00, 0.78, 0.70)],   # 노을 산호빛
-	[19.4, Color(0.82, 0.68, 0.76)],   # 보랏빛 박명
-	[20.0, Color(0.60, 0.58, 0.78)],   # 남빛으로 넘어간다
-	[21.0, Color(0.40, 0.44, 0.66)],   # 밤 도착점
+	[6.0, Color(0.933, 0.875, 0.816)],   # 뿌연 새벽 살구
+	[7.0, Color(1.000, 0.945, 0.863)],   # 아침 미색
+	[9.0, Color(1.00, 1.00, 1.00)],      # 낮
+	[16.0, Color(1.00, 1.00, 1.00)],     # 아직 낮
+	[17.0, Color(1.000, 0.949, 0.871)],  # 볕이 노래진다
+	[18.0, Color(1.000, 0.851, 0.722)],  # 금빛. 가장 따뜻한 지점
+	[18.75, Color(0.929, 0.714, 0.663)], # 노을 산호빛
+	[19.5, Color(0.659, 0.553, 0.627)],  # 보랏빛 박명
+	[21.0, Color(0.400, 0.439, 0.557)],  # 남빛 밤
+	[24.0, Color(0.267, 0.302, 0.420)],  # 깊은 밤 도착점
 ]
 
 
@@ -1049,7 +1134,7 @@ func _add_lamp(at: Vector2) -> void:
 	# 밝은 흰 덩어리**가 마을 절반을 덮었다. 가로등은 제 발치나 비추면
 	# 된다 — 눈에 띄면 과한 것이다.
 	l.texture_scale = 1.4
-	l.color = Color(1.0, 0.86, 0.58)
+	l.color = Color(1.0, 0.827, 0.541)  # FFD38A
 	l.blend_mode = Light2D.BLEND_MODE_ADD
 	l.position = at + Vector2(0, -22)
 	l.energy = 0.0
@@ -1078,7 +1163,9 @@ func _lamp_glow() -> Texture2D:
 func _tick_lamps() -> void:
 	if _lamps.is_empty():
 		return
-	var e: float = smoothstep(0.15, 0.75, JourneyState.night_amount()) * 0.55
+	# 17시 반쯤 스미듯 켜져서 19시엔 다 켜진다. 하늘이 산호빛일 때
+	# 등이 먼저 노랗게 서 있어야 저녁이 저녁 같다.
+	var e: float = smoothstep(0.125, 0.5, JourneyState.night_amount()) * 0.55
 	for l in _lamps:
 		if is_instance_valid(l):
 			l.energy = e
@@ -2117,6 +2204,7 @@ func _process(delta: float) -> void:
 	_tick_schedule(delta)
 	_refresh_action()
 	_tick_clock(delta)
+	_tick_water(delta)
 	if not blocked:
 		_tick_footsteps(delta)
 

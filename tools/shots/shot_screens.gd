@@ -169,3 +169,12 @@ func _run() -> void:
 		p.minimap.toggle()
 		await _wait(28)
 		await _shot("side-%s-map" % v2)
+
+	# ⑪ 시각별 하늘빛 — 17시에 갑자기 어두워지지 않는지, 노을 구간이
+	# 실제로 붉은지, 가로등이 19시엔 다 켜져 있는지, 소품 그림자와
+	# 물 흔들림이 보이는지. UI(시계·달력)는 CanvasLayer 라 안 물들어야 한다.
+	for hh in [6.0, 12.0, 17.0, 18.0, 18.75, 19.5, 21.0, 23.9]:
+		JourneyState.minutes = hh * 60.0
+		p = await _open("res://scenes/journey/Yunseul.tscn")
+		await _wait(24)
+		await _shot("sky-%02d%02d" % [int(hh), int(fmod(hh, 1.0) * 60.0)])
