@@ -74,6 +74,10 @@ func _ready() -> void:
 	add_to_group("journey_hud")
 	_build()
 	JourneyState.picked.connect(_on_picked)
+	# 편지가 온 걸 알 길이 소리 하나뿐이었다 — 도착 연출과 겹치면
+	# 그마저 묻힌다. 한 줄로 조용히 알린다. 배낭 점도 같이 켜진다.
+	JourneyState.letter_came.connect(
+		func(_t: String) -> void: _say_hint("편지가 왔어요. 배낭에 넣어 뒀어요."))
 	set_process(true)
 
 

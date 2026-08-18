@@ -66,6 +66,16 @@ var _prev_near: Folk
 var _pending_talk: Folk = null
 ## 멀리서 문을 눌렀다 — 닿으면 저절로 들어간다 (`_pending_talk` 와 같은 결).
 var _pending_door = null
+## 표지판 그림 판들. 어디를 눌러도 정류장으로 친다.
+var _signposts: Array = []
+## 정류장으로 걷는 중 — 닿으면 여행판이 열린다.
+var _pending_depart := false
+## 사진 자리 안내를 이 화면에서 이미 했나.
+var _photo_hint_said := false
+## 탭-걷기를 시작한 지 얼마나 됐나(초). 핀치 오작동 되돌리기용.
+var _walk_to_age := 0.0
+## 다가가기를 한 번 다시 시도했나.
+var _retalk_tried := false
 ## 자정 안내를 이 하루에 이미 했나.
 var _midnight_said := false
 var minimap: MiniMap
@@ -496,6 +506,12 @@ func _build_props() -> void:
 		s.position = Vector2(tx * TILE + TILE * 0.5, (ty + 1) * TILE)
 		if name == "street-lamp":
 			_add_lamp(s.position)
+		# 표지판 그림 전체(2칸 높이)를 "정류장을 눌렀다" 로 친다.
+		# 밑동 칸만 재면 그림의 위쪽 절반이 눌러도 무반응이었다.
+		if name == "signpost":
+			_signposts.append(Rect2(s.position.x - tex.get_width() * 0.5,
+				s.position.y - tex.get_height(),
+				tex.get_width(), tex.get_height()))
 		s.offset = Vector2(-tex.get_width() / 2.0, -tex.get_height())
 		_props.add_child(s)
 		if talkable:
@@ -629,22 +645,27 @@ func _tick_quest_zones() -> void:
 		return
 	for z in quest_zones():
 		var key: String = z[0]
-		if JourneyState.quest_done(key):
-			continue
 		var at: Vector2 = world_of(z[1])
 		var r: float = z[2]
-		if walker.global_position.distance_squared_to(at) <= r * r:
+		if walker.global_position.distance_squared_to(at) > r * r:
+			continue
+		if not JourneyState.quest_done(key):
 			JourneyState.mark_quest(key)
-			# **사진이 필요한 자리면 도착한 그 순간 알려 준다.** 여기 닿아도
-			# 사진까지 찍어야 항목이 끝나는데, 아무 말이 없으면 걸어와 놓고
-			# 영문 모르고 돌아간다 — "다 했어요" 도 안 뜨니(반쪽이니까)
-			# 뭐가 모자란지 알 길이 없었다. 시키는 말이 아니라 권하는 말로.
-			if key == String(Quests.VISIT_KEY.get(quest_village(), "")) \
-					and Quests.VISIT_NEEDS_PHOTO.get(quest_village(), false) \
-					and not Quests._photo_taken(quest_village()) \
-					and JourneyState.count("camera") > 0 \
-					and hud != null:
-				hud.call("_say_hint", "여기예요. 사진 한 장 남겨도 좋겠어요.")
+		# **사진이 필요한 자리면 들어선 순간 알려 준다.** 여기 닿아도
+		# 사진까지 찍어야 항목이 끝나는데, 아무 말이 없으면 걸어와 놓고
+		# 영문 모르고 돌아간다. 시키는 말이 아니라 권하는 말로.
+		#
+		# 표시(quest_done)와 **따로** 본다 — 카메라를 받기 전에 먼저
+		# 밟았으면 표시는 이미 남아 있어서, 표시에 걸어 두면 카메라를
+		# 받고 다시 와도 안내가 영영 안 나왔다. 한 화면에 한 번만 한다.
+		if not _photo_hint_said \
+				and key == String(Quests.VISIT_KEY.get(quest_village(), "")) \
+				and Quests.VISIT_NEEDS_PHOTO.get(quest_village(), false) \
+				and not Quests._photo_taken(quest_village()) \
+				and JourneyState.count("camera") > 0 \
+				and hud != null:
+			_photo_hint_said = true
+			hud.call("_say_hint", "여기예요. 사진 한 장 남겨도 좋겠어요.")
 
 
 ## 주운 것이 위로 톡 떠올랐다 사라진다. 이게 없으면 그냥 없어진 것 같다.
@@ -1268,6 +1289,18 @@ func _tick_pending_door() -> void:
 		_do_enter(d)
 
 
+## 정류장을 향해 걷는 중이면, 닿는 순간 여행판을 연다.
+func _tick_pending_depart() -> void:
+	if not _pending_depart:
+		return
+	if is_walking_to() or (say != null and say.is_busy()):
+		return
+	_pending_depart = false
+	if _can_depart():
+		walker.stop()
+		_open_board()
+
+
 func _tick_pending_talk() -> void:
 	if _pending_talk == null:
 		return
@@ -1276,13 +1309,24 @@ func _tick_pending_talk() -> void:
 		return
 	if is_walking_to() or say == null or say.is_busy():
 		return
-	if walker.global_position.distance_to(_pending_talk.global_position) <= TALK_RANGE:
+	var gap := walker.global_position.distance_to(_pending_talk.global_position)
+	# 몸이 크거나 길이 좁으면 예정한 자리보다 조금 못 미쳐 선다.
+	# 딱 자르면 **말없이 멀뚱히 서 있는** 꼴이 된다 — 넉넉히 받아 준다.
+	if gap <= TALK_RANGE * 1.6:
 		_near = _pending_talk
 		_pending_talk = null
 		talk_to_near()
+	elif not _retalk_tried:
+		# 한 번은 다시 다가가 본다. 첫 길이 소품에 막혀 비켜 섰을 수 있다.
+		# **walk_to 뒤에** 표시를 세운다 — walk_to 가 예약과 함께 이
+		# 표시도 지우므로, 앞에 세우면 지워져서 영영 다시 시도한다.
+		var who := _pending_talk
+		walk_to(_beside(who))
+		_pending_talk = who
+		_retalk_tried = true
 	else:
-		# 길이 막혀 거기까지 못 갔다 — 다음에 다시 눌러야 한다.
 		_pending_talk = null
+		_retalk_tried = false
 
 
 func talk_to_near() -> void:
@@ -1359,11 +1403,24 @@ func _unhandled_input(e: InputEvent) -> void:
 	# 그래서 인연 옆을 지나가려고 땅을 눌렀는데 말이 걸리곤 했다.
 	# 이제는 **그 사람을 직접 눌러야** 한다.
 	var who := _folk_at(at)
+	# 문 후보도 같이 찾는다. **인연과 문이 겹치면 탭에 더 가까운 쪽**이다 —
+	# 가게 할머니가 문 곁에 서 있으면 어느 쪽을 눌렀는지가 곧 뜻이다.
+	# 순서로 정하면(인연 먼저) 문 자리를 눌러도 늘 대화만 열렸다.
+	var door = null
+	for d in _doors:
+		if _near_tile(at, d["tile"]):
+			if door == null or Vector2(d["world"]).distance_to(at) \
+					< Vector2(door["world"]).distance_to(at):
+				door = d
+	if who != null and door != null:
+		var fd: float = (who.global_position + Vector2(0, -12)).distance_to(at)
+		if fd <= Vector2(door["world"]).distance_to(at):
+			door = null
+		else:
+			who = null
 	if who != null:
-		# **앞에 가서** 눌러야 말이 걸린다. 멀리서 누르면 그 앞까지
-		# 걸어간다 — 가서 한 번 더 누르면 그때 말이 걸린다.
-		# 저절로 말이 시작되게 하지 않는다. 다가가는 것과 말을 거는 것은
-		# 다른 마음이고, 그 사이를 사람이 정하는 편이 이 게임에 맞는다.
+		# **앞에 가서** 눌러야 말이 걸린다. 멀리서 누르면 다가가서
+		# 저절로 말을 건다 (`_pending_talk`).
 		if walker.global_position.distance_to(who.global_position) <= TALK_RANGE:
 			stop_walk_to()
 			_near = who
@@ -1377,18 +1434,16 @@ func _unhandled_input(e: InputEvent) -> void:
 	# 저절로 들어가 버리면 안 된다.
 	#
 	# **멀리서 문을 누르면 걸어가서 저절로 들어간다** — 인연을 누르면
-	# 다가가서 저절로 말을 거는 것과 같은 결이다. 문만 "걸어가서 한 번
-	# 더 누르기" 두 단계였다. 문 자체를 눌렀으니 뜻은 이미 분명하다.
-	for d in _doors:
-		if _near_tile(at, d["tile"]):
-			if walker.global_position.distance_squared_to(d["world"]) \
-					< TALK_RANGE * TALK_RANGE:
-				_do_enter(d)
-			else:
-				walk_to(d["world"])
-				_pending_door = d
-			get_viewport().set_input_as_handled()
-			return
+	# 다가가서 저절로 말을 거는 것과 같은 결이다.
+	if door != null:
+		if walker.global_position.distance_squared_to(door["world"]) \
+				< TALK_RANGE * TALK_RANGE:
+			_do_enter(door)
+		else:
+			walk_to(door["world"])
+			_pending_door = door
+		get_viewport().set_input_as_handled()
+		return
 	# ③ 잠자리·정류장은 **그 자리를 눌렀을 때만.**
 	#
 	# 예전엔 서 있기만 하면 화면 아무 데나 눌러도 자거나 여행판이 떴다.
@@ -1399,12 +1454,38 @@ func _unhandled_input(e: InputEvent) -> void:
 		go_to_sleep()
 		get_viewport().set_input_as_handled()
 		return
-	if _can_depart() and _near_tile(at, depart_tile()):
-		walker.stop()
-		stop_walk_to()
-		_open_board()
+	var dep_tap := _near_tile(at, depart_tile())
+	if not dep_tap:
+		for r in _signposts:
+			if (r as Rect2).has_point(at):
+				dep_tap = true
+	if dep_tap and _has_stop:
+		# **정류장도 한 번이면 된다.** 멀리서 표지판을 누르면 걸어가서
+		# 저절로 여행판이 열린다 — 인연·문과 같은 결. 표지판 그림의
+		# 위쪽을 눌러도 통한다(밑동 칸만 재면 절반이 무반응이었다).
+		if _can_depart():
+			walker.stop()
+			stop_walk_to()
+			_open_board()
+		else:
+			walk_to(world_of(depart_tile()))
+			_pending_depart = true
 		get_viewport().set_input_as_handled()
 		return
+	# ③-2 떨어진 물건(이름표 포함)을 눌렀으면 **그 물건 칸으로** 걷는다.
+	#
+	# 이름표는 물건 위에 떠 있어서, 이름표를 누르면 물건 **위쪽**으로
+	# 걸어가 12px 줍기 범위 밖에 멈춰 섰다 — 누른 사람은 주우려던 건데
+	# 아무 일도 안 일어났다. 물건 둘레 한 뼘(그림+이름표 높이)을 다
+	# 그 물건을 누른 것으로 친다.
+	for a in _loose:
+		if not is_instance_valid(a):
+			continue
+		var d2: Vector2 = at - a.global_position
+		if absf(d2.x) <= 24.0 and d2.y <= 8.0 and d2.y >= -44.0:
+			walk_to(a.global_position)
+			get_viewport().set_input_as_handled()
+			return
 	# ④ 그 밖에는 **누른 자리로 걸어간다.**
 	if at != Vector2.INF:
 		walk_to(at)
@@ -1723,9 +1804,13 @@ func _folk_at(at: Vector2) -> Folk:
 		if not is_instance_valid(f):
 			continue
 		# 발끝이 원점이라 몸통은 그 위에 있다.
-		var body := f.global_position + Vector2(0, -12)
+		# 자리 소품(창밖·반납함·평상)은 짝지은 그림이 세로로 길어서,
+		# 밑동만 재면 그림 위쪽을 눌러도 무반응이었다 — 중심을 더 올리고
+		# 판정도 넉넉히 잡는다.
+		var body := f.global_position + Vector2(0, -20 if f.is_spot else -12)
 		var d := body.distance_to(at)
-		if d < TOUCH_SLACK + 8.0 and d < best:
+		var slack: float = TOUCH_SLACK + (22.0 if f.is_spot else 8.0)
+		if d < slack and d < best:
 			best = d
 			found = f
 	return found
@@ -1753,6 +1838,9 @@ func walk_to(at: Vector2) -> void:
 	# 인연을 향해 걷다가 다른 데를 눌렀는데 엉뚱하게 말이 걸리면 안 된다.
 	_pending_talk = null
 	_pending_door = null
+	_pending_depart = false
+	_retalk_tried = false
+	_walk_to_age = 0.0
 	if walker == null:
 		return
 	var from := tile_of(walker.global_position)
@@ -1998,11 +2086,18 @@ func _process(delta: float) -> void:
 				walker.set_input(stick)
 			else:
 				walker.set_input(_tick_goto(delta))
+	# 핀치의 첫 손가락이 탭으로 오인돼 걷기 시작하는 일이 있다 —
+	# 둘째 손가락이 닿은 순간, 방금(0.35초 안) 시작한 탭-걷기는 되돌린다.
+	if touch != null and touch.has_method("is_multi") and touch.is_multi() \
+			and is_walking_to() and _walk_to_age < 0.35:
+		stop_walk_to()
+	_walk_to_age += delta
 	_check_pickups()
 	_tick_quest_zones()
 	_update_near()
 	_tick_pending_talk()
 	_tick_pending_door()
+	_tick_pending_depart()
 	_tick_talk_outlines()
 	_tick_outline()
 	_tick_tap_mark(delta)
@@ -2175,6 +2270,11 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 		return null
 	var f := put_folk(t, sheet, who, folk_id, lines, Vector2.DOWN, true)
 	if JourneyState.is_reunion(place_name()):
+		# **재회가 온 줄은 알아야 한다.** 여태는 알아서 발견하지 못하면
+		# 조용히 지나갔다 — 게임의 심장이 뛰었는데 아무도 몰랐다.
+		# 가리키지는 않는다. 낯익다는 말 한 줄이면 둘러보게 된다.
+		if hud != null:
+			hud.call("_say_hint", "낯익은 얼굴이 보여요.")
 		JourneyState.reunions += 1
 		JourneyState.since_reunion = 0
 		var nth: int = JourneyState.reunions - 1
