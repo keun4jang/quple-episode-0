@@ -77,7 +77,11 @@ var wanderer_place := "윤슬"
 ## 어디서 만났었나
 var wanderer_seen: Dictionary = {}
 ## 여행자가 갈 수 있는 곳 (고향은 뺀다 — 남의 고향에 갈 리 없다)
-const WANDERER_STOPS := ["윤슬", "볕뉘", "가풀재", "하늬섬"]
+##
+## **2탄 다섯 곳도 돈다.** 여기 빠져 있던 동안 게임 후반 절반에서
+## 재회가 한 번도 안 일어났다 — 이 게임의 심장이 반 토막이었다.
+const WANDERER_STOPS := ["윤슬", "볕뉘", "가풀재", "하늬섬",
+	"굽이나루", "방울못", "갈밭머리", "솔은재", "꽃눈벌"]
 
 
 func wanderer_here(place: String) -> bool:
@@ -260,16 +264,62 @@ const LETTERS := [
 ## 1탄에 여행지가 넷뿐이라 `places_visited()` 는 아무리 다녀도 4 에서 멈춘다.
 ## 세 곳마다 한 통이면 편지가 평생 한 통이었다. 같은 곳에 다시 가는 것도
 ## 떠난 것이니, 떠난 횟수로 센다.
+## 보낸 사람 이름 → folk_id. **안 만난 이의 편지는 아직 안 보낸다** —
+## 모르는 사람에게서 편지가 오면 다정한 게 아니라 이상하다. 버리지는
+## 않는다: 만나고 나면 다음 차례에 온다. 필수 인연·가족은 늘 보낸다.
+const LETTER_NEEDS_MEET := {
+	"돌 위의 수달": "gu_otter", "솔숲의 다람쥐": "so_squirrel",
+	"물가의 개구리": "ba_frog", "갈대 사이의 고라니": "ga_deer",
+}
+
+
+func _letter_ok(entry: Dictionary) -> bool:
+	var id: String = String(LETTER_NEEDS_MEET.get(
+		String(entry.get("who", "")), ""))
+	return id == "" or heart(id) > 0
+
+
 func maybe_letter() -> void:
 	var due := int(arrivals / 2)
 	while letters_sent < due and letters_sent < LETTERS.size():
-		var entry: Dictionary = LETTERS[letters_sent]
-		var who: String = String(entry.get("who", "엄마"))
-		var text: String = String(entry.get("text", ""))
-		letters.append({"who": who, "text": text, "day": day, "read": false})
-		letters_sent += 1
-		letter_came.emit(text)
+		# 다음 보낼 것을 고른다. 아직 못 보낼 것(안 만난 이의 것)은
+		# 뒤로 미루고, 그다음 보낼 수 있는 것을 앞당긴다.
+		var pick := -1
+		for i in range(letters_sent, LETTERS.size()):
+			if letters_skipped_has(i):
+				continue
+			if _letter_ok(LETTERS[i]):
+				pick = i
+				break
+		if pick < 0:
+			return          # 지금은 보낼 수 있는 게 없다. 다음 도착 때 다시.
+		# 앞당겨 보냈으면 그 사이 것들은 "건너뛴 것" 으로 적어 둔다.
+		for i in range(letters_sent, pick):
+			if not letters_skipped.has(i):
+				letters_skipped.append(i)
+		var entry: Dictionary = LETTERS[pick]
+		letters.append({"who": String(entry.get("who", "엄마")),
+			"text": String(entry.get("text", "")), "day": day, "read": false})
+		letters_sent = pick + 1
+		letter_came.emit(String(entry.get("text", "")))
 		AudioManager.message_arrive()
+		# 건너뛰었던 것 중 이제 보낼 수 있는 게 있으면 이번에 같이 온다 —
+		# 늦게 만난 인연의 편지가 밀린 채 영영 안 오지 않게.
+		for i in letters_skipped.duplicate():
+			if _letter_ok(LETTERS[i]):
+				letters_skipped.erase(i)
+				var e2: Dictionary = LETTERS[i]
+				letters.append({"who": String(e2.get("who", "엄마")),
+					"text": String(e2.get("text", "")), "day": day, "read": false})
+				letter_came.emit(String(e2.get("text", "")))
+
+
+## 건너뛴 편지 차례들. 만나면 그때 온다.
+var letters_skipped: Array = []
+
+
+func letters_skipped_has(i: int) -> bool:
+	return letters_skipped.has(i)
 
 
 func unread_letters() -> int:
@@ -294,6 +344,8 @@ func came_home() -> void:
 ##
 ## 한동안 이름만 적어 뒀더니, 평상에 앉아 넘겨 보는 장면이 그냥
 ## 이름 목록이었다. 여행 끝에 읽는 것이 명단이면 안 된다.
+## 여섯 줄로는 27명이 돌려 쓰다 여덟 명이 같은 문장을 받았다 —
+## 여행 끝에 읽는 엽서첩이 복사지처럼 보였다. 열두 줄로 늘린다.
 const POSTCARD_LINES := [
 	"그때 그 자리, 아직 그대로예요.",
 	"바람이 좋아서 문득 생각났어요.",
@@ -301,6 +353,12 @@ const POSTCARD_LINES := [
 	"다음에 오면 그거 또 해요.",
 	"혼자 걷다 보면 여기 생각날 거예요.",
 	"오늘 노을이 그날이랑 비슷했어요.",
+	"별일은 없어요. 그게 제일 좋은 소식이죠.",
+	"당신이 서 있던 자리에 오늘은 볕이 들었어요.",
+	"길이 여러 갈래면 당신 생각이 나요.",
+	"천천히 와요. 여긴 급한 게 없어요.",
+	"그날 웃던 얼굴, 가끔 떠올라요.",
+	"비 오는 날엔 손님이 없어서 좋고, 개면 개서 좋아요.",
 ]
 
 
@@ -444,6 +502,7 @@ func to_dict() -> Dictionary:
 		"wanderer_seen": wanderer_seen.duplicate(),
 		"letters": letters.duplicate(true),
 		"letters_sent": letters_sent,
+		"letters_skipped": letters_skipped,
 		"postcards": postcards.duplicate(true),
 		"arrivals": arrivals,
 		"departures": departures,
@@ -470,6 +529,7 @@ func from_dict(d: Dictionary) -> void:
 		if d.get("wanderer_seen") is Dictionary else {}
 	letters = d.get("letters", []).duplicate(true) if d.get("letters") is Array else []
 	letters_sent = int(d.get("letters_sent", 0))
+	letters_skipped = d.get("letters_skipped", [])
 	postcards = d.get("postcards", {}).duplicate(true) \
 		if d.get("postcards") is Dictionary else {}
 	arrivals = maxi(0, int(d.get("arrivals", 0)))
@@ -507,6 +567,7 @@ func reset() -> void:
 	wanderer_seen = {}
 	letters = []
 	letters_sent = 0
+	letters_skipped = []
 	postcards = {}
 	photos = []
 	arrivals = 0

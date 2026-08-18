@@ -29,7 +29,12 @@ const PICK_RANGE := 12.0
 ## 없다. 두 칸으로 넉넉히 잡는다.
 const TALK_RANGE := 32.0
 ## 실제 1초에 게임 시간이 얼마나 흐르나. 하루(18시간)가 약 9분.
-const MINUTES_PER_SECOND := 2.0
+## 하루(아침 6시~자정)가 실시간 몇 분인가를 정한다.
+## 2.0(=하루 9분)일 때는 마을 할 일이 2~3분에 끝나서, **노을(17시)은
+## 5분 넘게 멍하니 기다려야만 왔다** — 대부분 노을도 밤도 못 보고
+## 자고 떠났다. 3.0(=하루 6분)이면 할 일이 끝나갈 때쯤 노을이 든다.
+## 시간이 빨라도 벌은 없다 — 자정엔 시계가 멈추고 자면 아침이다.
+const MINUTES_PER_SECOND := 3.0
 
 ## 글자 → 바닥 그림. 하위 클래스가 채운다.
 var legend: Dictionary = {}
@@ -59,6 +64,10 @@ var _prev_near: Folk
 ## 버튼을 눌러라" 는 문법을 처음 배우는 사람에게는 두 단계다 — 인연을
 ## 직접 눌러 다가가는 중이면, 도착이 곧 "말 걸겠다" 는 뜻으로 본다.
 var _pending_talk: Folk = null
+## 멀리서 문을 눌렀다 — 닿으면 저절로 들어간다 (`_pending_talk` 와 같은 결).
+var _pending_door = null
+## 자정 안내를 이 하루에 이미 했나.
+var _midnight_said := false
 var minimap: MiniMap
 var guide: Guide
 ## 소품이 막고 있는 칸. 길찾기가 본다.
@@ -626,6 +635,16 @@ func _tick_quest_zones() -> void:
 		var r: float = z[2]
 		if walker.global_position.distance_squared_to(at) <= r * r:
 			JourneyState.mark_quest(key)
+			# **사진이 필요한 자리면 도착한 그 순간 알려 준다.** 여기 닿아도
+			# 사진까지 찍어야 항목이 끝나는데, 아무 말이 없으면 걸어와 놓고
+			# 영문 모르고 돌아간다 — "다 했어요" 도 안 뜨니(반쪽이니까)
+			# 뭐가 모자란지 알 길이 없었다. 시키는 말이 아니라 권하는 말로.
+			if key == String(Quests.VISIT_KEY.get(quest_village(), "")) \
+					and Quests.VISIT_NEEDS_PHOTO.get(quest_village(), false) \
+					and not Quests._photo_taken(quest_village()) \
+					and JourneyState.count("camera") > 0 \
+					and hud != null:
+				hud.call("_say_hint", "여기예요. 사진 한 장 남겨도 좋겠어요.")
 
 
 ## 주운 것이 위로 톡 떠올랐다 사라진다. 이게 없으면 그냥 없어진 것 같다.
@@ -920,6 +939,16 @@ func _tick_clock(delta: float) -> void:
 		or (hud != null and hud.bag_open())
 	if not paused:
 		JourneyState.advance_time(delta * MINUTES_PER_SECOND)
+		# **자정에는 다음 길을 가리켜 준다.** 자정이 되면 시계도 하늘도
+		# 멈추는데 아무 말이 없어서, 처음 겪는 사람은 게임이 멈춘 줄
+		# 알았다. 빠져나가는 길은 자는 것뿐이니 그것만 조용히 알린다.
+		# 하루에 한 번만 — 잔소리가 되면 안 된다.
+		if JourneyState.day_is_over() and not _midnight_said and hud != null:
+			_midnight_said = true
+			if _has_bed:
+				hud.call("_say_hint", "오늘은 여기까지예요. 잠자리에 들면 아침이 와요.")
+			else:
+				hud.call("_say_hint", "오늘은 여기까지예요. 정류장에서 떠나면 아침이 와요.")
 	if _night != null:
 		_night.color = sky_tint(JourneyState.minutes)
 	_tick_lamps()
@@ -1226,6 +1255,19 @@ func go_to_sleep() -> void:
 
 
 ## 다가가던 인연 앞에 도착했으면 저절로 말을 건다.
+## 문을 향해 걷는 중이면, 닿는 순간 들어간다.
+func _tick_pending_door() -> void:
+	if _pending_door == null:
+		return
+	if is_walking_to() or (say != null and say.is_busy()):
+		return
+	var d = _pending_door
+	_pending_door = null
+	if walker.global_position.distance_squared_to(d["world"]) \
+			< TALK_RANGE * TALK_RANGE:
+		_do_enter(d)
+
+
 func _tick_pending_talk() -> void:
 	if _pending_talk == null:
 		return
@@ -1333,11 +1375,18 @@ func _unhandled_input(e: InputEvent) -> void:
 		return
 	# ② 문도 **그 자리를 눌렀을 때만** 열린다. 지나가려고 근처를 눌렀는데
 	# 저절로 들어가 버리면 안 된다.
+	#
+	# **멀리서 문을 누르면 걸어가서 저절로 들어간다** — 인연을 누르면
+	# 다가가서 저절로 말을 거는 것과 같은 결이다. 문만 "걸어가서 한 번
+	# 더 누르기" 두 단계였다. 문 자체를 눌렀으니 뜻은 이미 분명하다.
 	for d in _doors:
-		if _near_tile(at, d["tile"]) \
-				and walker.global_position.distance_squared_to(d["world"]) \
+		if _near_tile(at, d["tile"]):
+			if walker.global_position.distance_squared_to(d["world"]) \
 					< TALK_RANGE * TALK_RANGE:
-			_do_enter(d)
+				_do_enter(d)
+			else:
+				walk_to(d["world"])
+				_pending_door = d
 			get_viewport().set_input_as_handled()
 			return
 	# ③ 잠자리·정류장은 **그 자리를 눌렀을 때만.**
@@ -1703,6 +1752,7 @@ func walk_to(at: Vector2) -> void:
 	# 다른 목적의 이동이면 다가가서 자동으로 말 걸려던 건 잊는다 —
 	# 인연을 향해 걷다가 다른 데를 눌렀는데 엉뚱하게 말이 걸리면 안 된다.
 	_pending_talk = null
+	_pending_door = null
 	if walker == null:
 		return
 	var from := tile_of(walker.global_position)
@@ -1952,6 +2002,7 @@ func _process(delta: float) -> void:
 	_tick_quest_zones()
 	_update_near()
 	_tick_pending_talk()
+	_tick_pending_door()
 	_tick_talk_outlines()
 	_tick_outline()
 	_tick_tap_mark(delta)
@@ -2106,9 +2157,14 @@ const REUNION := [
 
 ## 넷째부터. 제목이 나오는 셋째 줄을 **되풀이하면 안 된다** — 그 말은
 ## 게임 전체에서 두 번뿐이다. 넷째부터는 놀람이 아니라 익숙함이다.
+## 두 벌뿐이면 넷째 재회부터 같은 두 마디가 영원히 번갈아 나온다 —
+## 2탄까지 돌면 재회가 열 번을 넘는데, 다섯째부터는 이미 다 들은 말이었다.
 const REUNION_LATER := [
 	[["그", "오늘도 만났네."], ["나", "네. 어쩐지 그럴 것 같았어요."]],
 	[["그", "이제 놀랍지도 않지?"], ["나", "…네. 그게 좋아요."]],
+	[["그", "이번엔 어디서 왔어요?"], ["나", "…그냥, 걷다 보니."]],
+	[["나", "또 만났네요."], ["그", "우리 이제 인사도 짧아졌다."]],
+	[["그", "여기도 좋네요."], ["나", "네. 여기도요."]],
 ]
 
 

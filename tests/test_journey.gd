@@ -26,6 +26,8 @@ func _ready() -> void:
 	await _yunseul_clear_tests()
 	await _locked_reason_tests()
 	await _indoor_quest_tests()
+	await _door_tap_tests()
+	await _reunion2_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -438,11 +440,11 @@ func _reunion_tests() -> void:
 
 	# 여행자는 한 번에 한 곳에만 있다
 	var seen := {}
-	for i in 8:
+	for i in JourneyState.WANDERER_STOPS.size() * 2:
 		seen[JourneyState.wanderer_place] = true
 		JourneyState.move_wanderer()
 	ok(seen.size() == JourneyState.WANDERER_STOPS.size(),
-		"여행자가 네 곳을 다 돈다 (%d)" % seen.size())
+		"여행자가 아홉 곳을 다 돈다 (%d)" % seen.size())
 	ok(not seen.has("고향"), "남의 고향에는 안 간다")
 
 	# 목록 순서대로 여행하는 **가장 평범한 진행**에서 재회가 일어나는가.
@@ -597,8 +599,20 @@ func _extras_tests() -> void:
 	for i in JourneyState.LETTERS.size() * 2:
 		JourneyState.visit("윤슬")
 		JourneyState.maybe_letter()
+	# 안 만난 서브 인연 넷(수달·다람쥐·개구리·고라니)의 편지는 아직 안 온다 —
+	# 모르는 사람에게서 편지가 오면 다정한 게 아니라 이상하다.
+	var gated: int = JourneyState.LETTER_NEEDS_MEET.size()
+	ok(JourneyState.letters.size() == JourneyState.LETTERS.size() - gated,
+		"안 만난 이의 편지는 안 온다 (%d/%d)" %
+			[JourneyState.letters.size(), JourneyState.LETTERS.size()])
+	# 만나고 나면 밀렸던 편지가 온다.
+	for id in JourneyState.LETTER_NEEDS_MEET.values():
+		JourneyState.hearts[String(id)] = 1
+	JourneyState.visit("윤슬")
+	JourneyState.visit("윤슬")
+	JourneyState.maybe_letter()
 	ok(JourneyState.letters.size() == JourneyState.LETTERS.size(),
-		"다니다 보면 편지가 다 온다 (%d/%d)" %
+		"만나고 나면 밀렸던 편지가 온다 (%d/%d)" %
 			[JourneyState.letters.size(), JourneyState.LETTERS.size()])
 	ok(JourneyState.unread_letters() == JourneyState.LETTERS.size(),
 		"안 읽은 걸로 뜬다 (%d)" % JourneyState.unread_letters())
@@ -2079,4 +2093,67 @@ func _indoor_quest_tests() -> void:
 	shop.queue_free()
 	await get_tree().process_frame
 	JourneyState.exit_scene = ""
+	JourneyState.reset()
+
+
+## 멀리서 문을 눌러도 한 번이면 되는가.
+##
+## 인연은 탭 한 번(다가가서 저절로 말 걸기)인데 문만 "걸어가서 한 번 더"
+## 두 단계였다 — "가게 들어가 보기" 가 퀘스트인데 제일 마찰이 컸다.
+## 실제 씬 전환은 여기서 못 밟으니(테스트 씬이 갈린다) 예약과 취소만 본다.
+func _door_tap_tests() -> void:
+	print("\n[문 한 번에 들어가기]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+
+	var d: Dictionary = p._doors[0]
+	# 문에서 먼 곳에 세운다.
+	p.walker.global_position = p.world_of(Vector2i(5, 15))
+	await get_tree().process_frame
+
+	# 문 칸을 화면 좌표로 눌러 본 것처럼 — 탭 핸들러를 직접 부른다.
+	var scr: Vector2 = p.get_viewport().get_canvas_transform() * Vector2(d["world"])
+	var tap := InputEventScreenTouch.new()
+	tap.index = 0
+	tap.pressed = true
+	tap.position = scr
+	p._unhandled_input(tap)
+	ok(p._pending_door != null and p.is_walking_to(),
+		"멀리서 문을 누르면 걸어가면서 문을 기억한다")
+
+	# 다른 데를 누르면 예약이 풀린다 — 마음이 바뀐 것이다.
+	p.walk_to(p.world_of(Vector2i(8, 15)))
+	ok(p._pending_door == null, "다른 데로 가면 문 예약이 풀린다")
+
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 2탄에서도 재회가 일어나는가.
+##
+## WANDERER_STOPS 에 2탄이 빠져 있던 동안, 게임 후반 절반에서 재회가
+## 한 번도 안 일어났다 — 이 게임의 심장이 반 토막이었다.
+func _reunion2_tests() -> void:
+	print("\n[2탄 재회]")
+	JourneyState.reset()
+	for v in ["굽이나루", "방울못", "갈밭머리", "솔은재", "꽃눈벌"]:
+		ok(JourneyState.WANDERER_STOPS.has(v), "%s 도 여행자가 들른다" % v)
+	# 윤슬에서 이미 만난 뒤, 너구리가 굽이나루에 와 있는 상황.
+	JourneyState.wanderer_seen["윤슬"] = true
+	JourneyState.last_met = "윤슬"
+	JourneyState.wanderer_place = "굽이나루"
+	var p: Place = load(GOAL_SCENES["굽이나루"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var rac: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "raccoon":
+			rac = f
+	ok(rac != null, "너구리가 굽이나루에 서 있다")
+	ok(JourneyState.reunions >= 1, "재회로 센다 (%d)" % JourneyState.reunions)
+	p.queue_free()
+	await get_tree().process_frame
 	JourneyState.reset()
