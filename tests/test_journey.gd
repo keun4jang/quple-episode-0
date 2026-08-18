@@ -1197,8 +1197,11 @@ func _quest_tests() -> void:
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
 	ok(not Quests.village_cleared("윤슬"), "등대 안에도 안 들어갔으면 아직 못 채운다")
 	JourneyState.mark_quest("윤슬:등대안")
+	ok(not Quests.village_cleared("윤슬"),
+		"부두 끝까지 안 나가 봤으면 아직 못 채운다")
+	JourneyState.mark_quest("윤슬:부두끝")
 	ok(Quests.village_cleared("윤슬"),
-		"지도·카메라·가게·방문·사진·줍기·잠·등대안을 다 채웠다")
+		"지도·카메라·가게·방문·사진·줍기·잠·등대안·부두끝을 다 채웠다")
 	ok(Quests.is_unlocked("볕뉘"), "윤슬을 다 채우면 볕뉘가 열린다")
 	ok(not Quests.is_unlocked("가풀재"), "그렇다고 그다음까지 한 번에 열리진 않는다")
 
@@ -1215,10 +1218,10 @@ func _quest_tests() -> void:
 		"지도·카메라를 받기 전엔 윤슬 목록이 둘뿐이다")
 	JourneyState.pick("map")
 	JourneyState.pick("camera")
-	ok(Quests.quest_list("윤슬").size() == 7,
-		"둘 다 받으면 나머지(가게·방문·줍기·잠·등대안)까지 다 보인다")
+	ok(Quests.quest_list("윤슬").size() == 8,
+		"둘 다 받으면 나머지(가게·방문·줍기·잠·등대안·부두끝)까지 다 보인다")
 	JourneyState.reset()
-	ok(Quests.quest_list("볕뉘").size() == 6, "볕뉘는 항목 6개 (능 안쪽길 포함)")
+	ok(Quests.quest_list("볕뉘").size() == 7, "볕뉘는 항목 7개 (능 안쪽길·흙마당 포함)")
 	ok(Quests.quest_list("고향").is_empty(), "고향은 할 일 목록이 없다")
 
 	# ⑤-2 프롤로그(잿마루)에도 할 일이 있다. **게임의 첫 화면이라**
@@ -1254,6 +1257,7 @@ func _quest_tests() -> void:
 	JourneyState.mark_quest("윤슬:등대")
 	JourneyState.mark_quest("윤슬:잠")
 	JourneyState.mark_quest("윤슬:등대안")
+	JourneyState.mark_quest("윤슬:부두끝")
 	for i in Quests.PICKUP_TOTAL["윤슬"]:
 		JourneyState.taken["윤슬:%d,0" % i] = true
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
@@ -1262,6 +1266,7 @@ func _quest_tests() -> void:
 	JourneyState.mark_quest("볕뉘:가게")
 	JourneyState.mark_quest("볕뉘:능")
 	JourneyState.mark_quest("볕뉘:능안")
+	JourneyState.mark_quest("볕뉘:흙마당")
 	for i in Quests.PICKUP_TOTAL["볕뉘"]:
 		JourneyState.taken["볕뉘:%d,1" % i] = true
 	JourneyState.hearts["san_seal"] = 1
@@ -1269,6 +1274,7 @@ func _quest_tests() -> void:
 	JourneyState.mark_quest("가풀재:가게")
 	JourneyState.mark_quest("가풀재:능선")
 	JourneyState.mark_quest("가풀재:등대안")
+	JourneyState.mark_quest("가풀재:부두끝")
 	for i in Quests.PICKUP_TOTAL["가풀재"]:
 		JourneyState.taken["가풀재:%d,2" % i] = true
 	JourneyState.photos.append({"place": "가풀재", "subject": "노을"})
@@ -1277,6 +1283,7 @@ func _quest_tests() -> void:
 	JourneyState.mark_quest("하늬섬:가게")
 	JourneyState.mark_quest("하늬섬:한바퀴")
 	JourneyState.mark_quest("하늬섬:등대안")
+	JourneyState.mark_quest("하늬섬:언덕")
 	for i in Quests.PICKUP_TOTAL["하늬섬"]:
 		JourneyState.taken["하늬섬:%d,3" % i] = true
 	JourneyState.photos.append({"place": "하늬섬", "subject": "돌담"})
@@ -1785,22 +1792,22 @@ func _done_toast_tests() -> void:
 	JourneyState.hearts["cap_sol"] = 1
 	JourneyState.announce_ready = false   # 앱을 갓 켠 셈으로
 	hud._watch_done(Quests.quest_list("솔은재"))
-	ok(hud._hint_queue.is_empty() and not hud._hint_busy,
+	ok(hud._cele_queue.is_empty() and not hud._cele_busy,
 		"도착할 때 이미 해 둔 것은 안 알린다")
 
-	# 여기서 하나를 새로 마치면 그때 알린다.
+	# 여기서 하나를 새로 마치면 그때 가운데 잔치가 뜬다.
 	JourneyState.mark_quest("솔은재:가게")
 	hud._watch_done(Quests.quest_list("솔은재"))
-	ok(hud._hint_busy, "새로 마치면 한 줄 뜬다")
-	ok(hud._hint.text.ends_with("다 했어요"),
-		"마쳤다고 적는다 (%s)" % hud._hint.text)
-	ok(hud._hint.text.begins_with("가게 들어가 보기"),
-		"무엇을 마쳤는지 적는다 (%s)" % hud._hint.text)
+	ok(hud._cele_busy, "새로 마치면 축하가 뜬다")
+	ok(hud._cele_big.text == "다 했어요!",
+		"마쳤다고 크게 적는다 (%s)" % hud._cele_big.text)
+	ok(hud._cele_sub.text.begins_with("가게 들어가 보기"),
+		"무엇을 마쳤는지 적는다 (%s)" % hud._cele_sub.text)
 
 	# 같은 것이 두 번 뜨지 않는다.
-	var before := hud._hint_queue.size()
+	var before := hud._cele_queue.size()
 	hud._watch_done(Quests.quest_list("솔은재"))
-	ok(hud._hint_queue.size() == before, "같은 것을 두 번 안 알린다")
+	ok(hud._cele_queue.size() == before, "같은 것을 두 번 안 알린다")
 
 	# 마지막 하나를 마치면 한 줄 더. 다음 마을 이야기는 안 한다.
 	JourneyState.mark_quest("솔은재:전망")
@@ -1811,17 +1818,17 @@ func _done_toast_tests() -> void:
 		JourneyState.taken["솔은재:%d,9" % i] = true
 	hud._watch_done(Quests.quest_list("솔은재"))
 	var all_line := ""
-	for s in hud._hint_queue:
-		if String(s).begins_with("이 마을에서"):
-			all_line = String(s)
-	if hud._hint.text.begins_with("이 마을에서"):
-		all_line = hud._hint.text
-	ok(all_line != "", "다 마치면 마무리 한 줄이 더 뜬다 (%s)" % all_line)
+	for s in hud._cele_queue:
+		if String(s[0]).begins_with("이 마을"):
+			all_line = String(s[0]) + " " + String(s[1])
+	if hud._cele_big.text.begins_with("이 마을"):
+		all_line = hud._cele_big.text + " " + hud._cele_sub.text
+	ok(all_line != "", "다 마치면 한 번 더 크게 뜬다 (%s)" % all_line)
 	ok(not all_line.contains("열렸") and not all_line.contains("다음"),
 		"다음 마을 이야기는 안 한다")
 
 	# 긴 이름도 화면 안에 들어와야 한다 (줄바꿈이 켜져 있나).
-	ok(hud._hint.autowrap_mode != TextServer.AUTOWRAP_OFF,
+	ok(hud._cele_sub.autowrap_mode != TextServer.AUTOWRAP_OFF,
 		"긴 이름은 줄을 바꾼다")
 
 	p.queue_free()
@@ -2023,6 +2030,7 @@ func _locked_reason_tests() -> void:
 	JourneyState.mark_quest("윤슬:등대")
 	JourneyState.mark_quest("윤슬:잠")
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
+	JourneyState.mark_quest("윤슬:부두끝")
 	for i in Quests.PICKUP_TOTAL["윤슬"]:
 		JourneyState.taken["윤슬:%d,1" % i] = true
 	var one := b._blocking_line("볕뉘")
@@ -2082,13 +2090,13 @@ func _indoor_quest_tests() -> void:
 	JourneyState.announce_ready = true          # 기준은 이미 잡힌 셈
 	JourneyState.mark_quest("윤슬:가게")
 	hud._watch_done(Quests.quest_list(hud._quest_village()))
-	var said := hud._hint.text
-	for q in hud._hint_queue:
-		if String(q).contains("가게"):
-			said = String(q)
+	var said := hud._cele_sub.text
+	for q in hud._cele_queue:
+		if String(q[1]).contains("가게"):
+			said = String(q[1])
 	ok(said.contains("가게 들어가 보기"),
-		"들어온 순간 '가게 들어가 보기, 다 했어요' 가 뜬다 (%s)" % said)
-	ok(said.ends_with("다 했어요"), "마쳤다고 적는다")
+		"들어온 순간 '가게 들어가 보기' 축하가 뜬다 (%s)" % said)
+	ok(hud._cele_busy, "축하가 실제로 돌고 있다")
 
 	shop.queue_free()
 	await get_tree().process_frame

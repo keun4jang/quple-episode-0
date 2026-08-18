@@ -2220,6 +2220,7 @@ func _process(delta: float) -> void:
 	_refresh_action()
 	_tick_clock(delta)
 	_tick_water(delta)
+	_tick_goal_arrow(delta)
 	if not blocked:
 		_tick_footsteps(delta)
 
@@ -2303,6 +2304,43 @@ func _goal_shown(item: Dictionary) -> bool:
 
 
 ## 지금 지도에 표시할 만한 할 일들 (아직 안 한 것만).
+# ── 지금 할 일 화살표 ─────────────────────────────────────────────────
+#
+# 미니맵과 목록이 짚어 줘도, 화면 안에서는 **어느 것**인지 몰랐다 —
+# 사무실 창 여섯이 똑같이 생겼는데 그중 하나만 "창밖" 자리인 게 그랬다.
+# 지금 할 일 자리 위에 금색 화살표 하나가 둥실둥실 떠서 그 하나를
+# 짚는다. 가까이 가면 치운다 — 다 왔는데도 흔들리면 성가시다.
+var _goal_arrow: Node2D
+var _arrow_clock := 0.0
+
+func _tick_goal_arrow(delta: float) -> void:
+	if _goal_arrow == null:
+		_goal_arrow = Node2D.new()
+		_goal_arrow.z_index = 60
+		_goal_arrow.draw.connect(func() -> void:
+			# 아래를 가리키는 세모. 폰트에 없는 글자라 직접 그린다.
+			var pts := PackedVector2Array([
+				Vector2(-7, -10), Vector2(7, -10), Vector2(0, 0)])
+			for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+				var o := PackedVector2Array()
+				for p in pts:
+					o.append(p + d * 1.5)
+				_goal_arrow.draw_colored_polygon(o, Color(0.16, 0.13, 0.18))
+			_goal_arrow.draw_colored_polygon(pts, Color(1.0, 0.83, 0.35)))
+		add_child(_goal_arrow)
+	_arrow_clock += delta
+	var g := current_goal()
+	var at := goal_world(g) if not g.is_empty() else Vector2.INF
+	var near: bool = walker != null and at != Vector2.INF \
+		and walker.global_position.distance_to(at) < 30.0
+	if at == Vector2.INF or near:
+		_goal_arrow.visible = false
+		return
+	_goal_arrow.visible = true
+	var bob := sin(_arrow_clock * 4.2) * 3.0
+	_goal_arrow.position = at + Vector2(0.0, -26.0 + bob)
+
+
 func open_goals() -> Array:
 	var out: Array = []
 	for q in Quests.quest_list(place_name()):

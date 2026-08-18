@@ -41,6 +41,12 @@ var _ring_t := 0.0
 var _got: Control
 var _got_art: TextureRect
 var _got_text: Label
+var _cele: Control
+var _cele_rays: Node2D
+var _cele_big: Label
+var _cele_sub: Label
+var _cele_queue: Array = []
+var _cele_busy := false
 var _got_tw: Tween
 var _flash: ColorRect
 var _root: Control
@@ -311,6 +317,58 @@ func _build() -> void:
 	_got_text.offset_top = -56
 	_got_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_got.add_child(_got_text)
+
+	# 할 일 하나를 마쳤을 때 가운데서 터지는 축하. 잔치 소품(빛살)은
+	# 폰트에 없는 글자 대신 직접 그린다.
+	_cele = Control.new()
+	_cele.set_anchors_preset(Control.PRESET_CENTER)
+	_cele.offset_left = -280
+	_cele.offset_right = 280
+	_cele.offset_top = -120
+	_cele.offset_bottom = 80
+	_cele.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cele.modulate.a = 0.0
+	root.add_child(_cele)
+
+	_cele_rays = Node2D.new()
+	_cele_rays.position = Vector2(280, 70)
+	_cele_rays.set_meta("t", 0.0)
+	_cele_rays.draw.connect(func() -> void:
+		var t: float = _cele_rays.get_meta("t", 0.0)
+		if t <= 0.0 or t >= 1.0:
+			return
+		var a := 1.0 - t
+		_cele_rays.draw_arc(Vector2.ZERO, 26.0 + 96.0 * t, 0.0, TAU, 40,
+			Color(1.0, 0.83, 0.35, a * 0.55), 3.0)
+		for i in 10:
+			var ang := TAU * float(i) / 10.0 + 0.3
+			var at := Vector2.from_angle(ang) * (30.0 + 110.0 * t)
+			_cele_rays.draw_circle(at, lerpf(4.5, 1.5, t),
+				Color(1.0, 0.9, 0.55, a)))
+	_cele.add_child(_cele_rays)
+
+	_cele_big = Label.new()
+	_cele_big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cele_big.add_theme_font_size_override("font_size", 46)
+	_cele_big.add_theme_color_override("font_color", Color("#FFE39A"))
+	_cele_big.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	_cele_big.add_theme_constant_override("outline_size", 12)
+	_cele_big.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_cele_big.offset_top = 20
+	_cele_big.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cele.add_child(_cele_big)
+
+	_cele_sub = Label.new()
+	_cele_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cele_sub.add_theme_font_size_override("font_size", 24)
+	_cele_sub.add_theme_color_override("font_color", Color("#FFF2C8"))
+	_cele_sub.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	_cele_sub.add_theme_constant_override("outline_size", 8)
+	_cele_sub.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_cele_sub.offset_top = -66
+	_cele_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_cele_sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cele.add_child(_cele_sub)
 
 	# 배낭을 가리키는 고리. 배낭 버튼과 같은 자리에 겹쳐 두고 테두리만 그린다.
 	_bag_ring = Control.new()
@@ -982,13 +1040,49 @@ func _watch_done(list: Array) -> void:
 			just.append(String(q.get("label", "")))
 	if just.is_empty():
 		return
+	# 한 줄 알림에서 **가운데 잔치**로 바꿨다 — 하나 마칠 때마다
+	# 손맛이 있어야 다음 것도 하고 싶어진다는 요청. 창을 안 띄우고
+	# 손을 안 멈추게 하는 건 그대로다 (눌리지 않는 그림일 뿐이다).
 	for label in just:
-		_say_hint("%s, 다 했어요" % label)
-	# 마지막 하나였으면 한 줄 더. 다음 마을이 열렸다는 말은 안 한다 —
-	# 여행판에서 알아채면 된다 (`docs/quest-journey.md` 6절).
+		_celebrate("다 했어요!", String(label))
+	# 마지막 하나였으면 한 번 더 크게. 다음 마을이 열렸다는 말은 안
+	# 한다 — 여행판에서 알아채면 된다 (`docs/quest-journey.md` 6절).
 	if left == 0:
-		_say_hint("이 마을에서 해볼 일을 다 했어요.")
+		_celebrate("이 마을을 다 돌았어요!", "해볼 일을 모두 마쳤어요")
+
+
+func _celebrate(big: String, sub: String) -> void:
+	if _cele == null:
+		return
+	_cele_queue.append([big, sub])
+	if not _cele_busy:
+		_drain_cele()
+
+
+func _drain_cele() -> void:
+	if _cele == null or not is_instance_valid(_cele):
+		return
+	if _cele_queue.is_empty():
+		_cele_busy = false
+		return
+	_cele_busy = true
+	var next: Array = _cele_queue.pop_front()
+	_cele_big.text = String(next[0])
+	_cele_sub.text = String(next[1])
 	AudioManager.ui_confirm()
+	_cele.modulate.a = 0.0
+	_cele.scale = Vector2(0.7, 0.7)
+	_cele.pivot_offset = _cele.size * 0.5
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(_cele, "modulate:a", 1.0, 0.18)
+	tw.tween_property(_cele, "scale", Vector2.ONE, 0.38) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_method(func(t: float) -> void:
+		_cele_rays.set_meta("t", t)
+		_cele_rays.queue_redraw(), 0.0, 1.0, 0.8)
+	tw.chain().tween_interval(0.9)
+	tw.chain().tween_property(_cele, "modulate:a", 0.0, 0.35)
+	tw.chain().tween_callback(_drain_cele)
 
 
 func _process(delta: float) -> void:

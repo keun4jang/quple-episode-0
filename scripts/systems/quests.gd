@@ -102,6 +102,16 @@ const HAS_TOMB := {
 ## (`샛길입구`), 진짜 표시는 안쪽 자리에 닿아야 남는다
 ## (`SidePathInterior.quest_zones()`). 능 안쪽길에서 쓴 그 수법이다.
 const LOCAL := {
+	# 1탄 넷도 하나씩. 말 걸기가 아니라 **몸으로 하는 것**만 고른다 —
+	# 부두 끝까지 나가 보고, 마당까지 내려가 보고, 언덕에 올라 본다.
+	"윤슬": ["visit", "윤슬:부두끝", "부두 끝까지 걸어 나가 보기",
+		"윤슬:부두끝"],
+	"볕뉘": ["visit", "볕뉘:흙마당", "볕 드는 흙마당까지 내려가 보기",
+		"볕뉘:흙마당"],
+	"가풀재": ["visit", "가풀재:부두끝", "부두 끝에서 마을 올려다보기",
+		"가풀재:부두끝"],
+	"하늬섬": ["visit", "하늬섬:언덕", "북쪽 언덕에 올라 바다 내려다보기",
+		"하늬섬:언덕"],
 	"굽이나루": ["door", "샛길입구", "모래톱 안쪽 물굽이까지 가 보기",
 		"굽이나루:물굽이"],
 	"방울못": ["visit", "방울못:물소리", "데크 끝에서 물소리 듣기",
@@ -200,7 +210,7 @@ static func village_cleared(village: String) -> bool:
 		return has_map() and has_camera() \
 			and _shop_entered("윤슬") and _visited("윤슬") \
 			and _picked_all("윤슬") and _slept_ok("윤슬") \
-			and _lighthouse_ok("윤슬")
+			and _lighthouse_ok("윤슬") and _local_ok("윤슬")
 	if TALK_FOLK.has(village):
 		return _talked_all(village) and _shop_entered(village) \
 			and _visited(village) and _picked_all(village) \
@@ -303,6 +313,9 @@ static func quest_list(village: String) -> Array:
 		if HAS_LIGHTHOUSE.get("윤슬", false):
 			out0.append({"label": "등대 안에 들어가 보기", "kind": "door",
 				"key": "등대안", "done": JourneyState.quest_done("윤슬:등대안")})
+		var e0: Array = LOCAL["윤슬"]
+		out0.append({"label": String(e0[2]), "kind": String(e0[0]),
+			"key": String(e0[1]), "done": _local_ok("윤슬")})
 		return out0
 	if ORDER.has(village):
 		var ids: Array = TALK_FOLK.get(village, [])
