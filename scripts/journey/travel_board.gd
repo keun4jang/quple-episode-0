@@ -64,7 +64,7 @@ func _build() -> void:
 	sb.content_margin_right = 30
 	sb.content_margin_top = 24
 	sb.content_margin_bottom = 24
-	_panel.add_theme_stylebox_override("panel", sb)
+	_panel.add_theme_stylebox_override("panel", Paper.lift(sb))
 	_panel.set_anchors_preset(Control.PRESET_CENTER)
 	# 잠긴 줄에 남은 할 일을 적으면서 글이 길어졌다. 판이 글에 밀려
 	# 화면 밖으로 자라던 걸 막는다 — 폭을 여기서 못 박는다.
@@ -112,11 +112,12 @@ func _style(b: Button, strong: bool) -> void:
 	sb.set_corner_radius_all(14)
 	sb.set_border_width_all(4)
 	sb.border_color = Color("#8C7B68")
+	Paper.lift(sb)
 	b.add_theme_stylebox_override("normal", sb)
 	b.add_theme_stylebox_override("hover", sb)
 	var pr := sb.duplicate() as StyleBoxFlat
 	pr.bg_color = Color("#FFE39A")
-	b.add_theme_stylebox_override("pressed", pr)
+	b.add_theme_stylebox_override("pressed", Paper.press(pr))
 	b.add_theme_color_override("font_color", Color("#3A2C2C"))
 
 

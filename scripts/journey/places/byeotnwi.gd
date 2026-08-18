@@ -256,3 +256,8 @@ func _put_raccoon() -> void:
 	], [
 		"나 여기 어제 왔는데요.",
 	])
+
+
+## 볕 — 노랗게 데워진 초록. 같은 나무 그림이 마을마다 딴 빛을 띠게 한다 (`Place.FOLIAGE`).
+func foliage_tint() -> Color:
+	return Color(1.00, 0.99, 0.93)

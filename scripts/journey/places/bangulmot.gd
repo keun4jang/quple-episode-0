@@ -155,3 +155,8 @@ func on_built() -> void:
 	], [
 		"연못이 조용해서 하루 더 있었어요.",
 	])
+
+
+## 못가 — 물기 어린 초록. 같은 나무 그림이 마을마다 딴 빛을 띠게 한다 (`Place.FOLIAGE`).
+func foliage_tint() -> Color:
+	return Color(0.96, 1.00, 0.98)

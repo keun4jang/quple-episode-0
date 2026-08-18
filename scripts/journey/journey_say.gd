@@ -55,7 +55,7 @@ func _build() -> void:
 	sb.content_margin_right = 14
 	sb.content_margin_top = 7
 	sb.content_margin_bottom = 7
-	_panel.add_theme_stylebox_override("panel", sb)
+	_panel.add_theme_stylebox_override("panel", Paper.lift(sb))
 	_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	# **창 자신도 눌러진다.** PanelContainer 는 기본으로 누름을 삼키는데,
 	# 이 창은 화면 아래 한가운데 — 엄지가 제일 먼저 가는 자리다.
@@ -111,11 +111,12 @@ func _small_btn(text: String, fn: Callable) -> Button:
 	sb.set_corner_radius_all(10)
 	sb.set_border_width_all(2)
 	sb.border_color = Color("#B9A88F")
+	Paper.lift(sb)
 	b.add_theme_stylebox_override("normal", sb)
 	b.add_theme_stylebox_override("hover", sb)
 	var pr := sb.duplicate() as StyleBoxFlat
 	pr.bg_color = Color("#FFE39A")
-	b.add_theme_stylebox_override("pressed", pr)
+	b.add_theme_stylebox_override("pressed", Paper.press(pr))
 	var dis := sb.duplicate() as StyleBoxFlat
 	dis.bg_color = Color("#EFEAE1")
 	dis.border_color = Color("#DCD3C4")

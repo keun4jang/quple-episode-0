@@ -158,3 +158,8 @@ func on_built() -> void:
 	], [
 		"갈대 소리가 좋아서 왔어요.",
 	])
+
+
+## 갈대 — 금빛 도는 초록. 같은 나무 그림이 마을마다 딴 빛을 띠게 한다 (`Place.FOLIAGE`).
+func foliage_tint() -> Color:
+	return Color(1.00, 0.98, 0.90)

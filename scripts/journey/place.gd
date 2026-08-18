@@ -154,6 +154,17 @@ func ground_map() -> String:
 func props() -> Array:
 	return []
 
+
+## 이 여행지의 풀·나무가 도는 빛. 마을마다 살짝 다르게 물들여
+## **같은 나무 그림 아홉 벌**이 아홉 마을로 보이게 한다.
+## 그림을 새로 안 그리고 물만 들인다 — 5~8% 안쪽, 눈치채기보다
+## 느껴지는 정도가 맞다. 기본은 안 물들인다.
+func foliage_tint() -> Color:
+	return Color.WHITE
+
+## 물이 드는 것들 — 살아 있는 초록만. 사람이 만든 것과 돌은 그대로.
+const FOLIAGE := ["tree", "pine", "shrub", "beach-grass"]
+
 ## 주울 것. [(타일x, 타일y, 아이템이름)]
 ##
 ## 한 번 주우면 다시 안 생긴다. 같은 자리를 왔다 갔다 하며 퍼 담는 게임이
@@ -568,6 +579,8 @@ func _build_props() -> void:
 				s.position.y - tex.get_height(),
 				tex.get_width(), tex.get_height()))
 		s.offset = Vector2(-tex.get_width() / 2.0, -tex.get_height())
+		if FOLIAGE.has(name):
+			s.self_modulate = foliage_tint()
 		var sw := _shadow_width(name, tex)
 		if sw > 0.0:
 			shadow_jobs.append([s.position + Vector2(0, -1.0), sw,

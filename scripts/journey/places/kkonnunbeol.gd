@@ -214,3 +214,8 @@ func on_built() -> void:
 	], [
 		"꽃눈 핀다길래 와 봤어요.",
 	])
+
+
+## 꽃밭 — 분홍기 도는 초록. 같은 나무 그림이 마을마다 딴 빛을 띠게 한다 (`Place.FOLIAGE`).
+func foliage_tint() -> Color:
+	return Color(1.00, 0.97, 0.95)

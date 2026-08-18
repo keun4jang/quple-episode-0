@@ -230,3 +230,8 @@ func on_built() -> void:
 	], [
 		"고개 넘다가 하루 쉬어 가요.",
 	])
+
+
+## 솔숲 — 깊고 어두운 초록. 같은 나무 그림이 마을마다 딴 빛을 띠게 한다 (`Place.FOLIAGE`).
+func foliage_tint() -> Color:
+	return Color(0.93, 0.98, 0.95)

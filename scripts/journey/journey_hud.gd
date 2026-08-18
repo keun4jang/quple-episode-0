@@ -192,11 +192,12 @@ func _build() -> void:
 	asb.set_corner_radius_all(30)
 	asb.set_border_width_all(3)
 	asb.border_color = Color("#8C6E3F")
+	Paper.lift(asb)
 	_act_btn.add_theme_stylebox_override("normal", asb)
 	_act_btn.add_theme_stylebox_override("hover", asb)
 	var apr := asb.duplicate() as StyleBoxFlat
 	apr.bg_color = Color("#FFD166")
-	_act_btn.add_theme_stylebox_override("pressed", apr)
+	_act_btn.add_theme_stylebox_override("pressed", Paper.press(apr))
 	_act_btn.add_theme_color_override("font_color", Color("#4A3A22"))
 	_act_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_act_btn.offset_left = -180
@@ -761,7 +762,7 @@ func _open_guide_recap() -> void:
 	sb.content_margin_right = 28
 	sb.content_margin_top = 22
 	sb.content_margin_bottom = 22
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.add_theme_stylebox_override("panel", Paper.lift(sb))
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	var vp := get_viewport().get_visible_rect().size
 	var h: float = clampf(vp.y * 0.78, 400.0, 700.0)

@@ -272,3 +272,8 @@ func on_built() -> void:
 	], [
 		"나 계단 오르다 죽는 줄 알았어요.",
 	])
+
+
+## 고갯바람 — 서늘한 초록. 같은 나무 그림이 마을마다 딴 빛을 띠게 한다 (`Place.FOLIAGE`).
+func foliage_tint() -> Color:
+	return Color(0.96, 0.99, 1.00)

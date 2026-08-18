@@ -320,3 +320,8 @@ func on_built() -> void:
 	], [
 		"바다가 좋아서 돌아왔어요.",
 	])
+
+
+## 바닷바람 — 아주 살짝 청록. 같은 나무 그림이 마을마다 딴 빛을 띠게 한다 (`Place.FOLIAGE`).
+func foliage_tint() -> Color:
+	return Color(0.97, 1.00, 0.99)
