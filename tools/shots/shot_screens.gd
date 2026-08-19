@@ -194,3 +194,26 @@ func _run() -> void:
 		p.walker.global_position = Vector2(sz.x * 8.0, sz.y * 8.0)
 		await _wait(30)
 		await _shot("floor-%s" % v3[0])
+
+	# ⑬ 폰에서 겪은 그 상황 — 아침 윤슬. 가게 할머니가 나무에 안 가리고,
+	# 목표 화살표가 이름표를 안 덮어야 한다.
+	JourneyState.reset()
+	JourneyState.minutes = 6.0 * 60.0 + 13.0
+	SaveManager.set_flag(Guide.FLAG, true)
+	p = await _open("res://scenes/journey/Yunseul.tscn")
+	p.walker.global_position = Vector2(13 * 16 + 8, 13 * 16)
+	await _wait(40)
+	await _shot("morning-granny")
+
+	# ⑭ 얻은 것 카드와 축하가 **차례로** 떠야 한다 (겹치면 글자가 뭉갠다)
+	p.hud.show_got("map")
+	p.hud._celebrate("다 했어요!", "가게 할머니와 인사하고 지도 받기")
+	await _wait(30)
+	await _shot("center-1-got")      # 얻은 것 카드만 (축하는 줄 서서 기다린다)
+	p.hud._got_queue.clear()
+	p.hud._got_busy = false
+	p.hud._cele_queue.clear()
+	p.hud._celebrate("다 했어요!", "가게 할머니와 인사하고 지도 받기")
+	await _wait(24)
+	await _shot("center-2-cele")     # 그다음 축하만
+

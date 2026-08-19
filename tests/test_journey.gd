@@ -1832,6 +1832,20 @@ func _done_toast_tests() -> void:
 	ok(hud._cele_sub.autowrap_mode != TextServer.AUTOWRAP_OFF,
 		"긴 이름은 줄을 바꾼다")
 
+	# **화면 가운데는 한 번에 하나만.** 지도를 받는 순간이 곧 그 할 일을
+	# 마치는 순간이라, 얻은 것 카드와 축하가 같은 자리에 겹쳐 떠서
+	# 그림과 글자가 서로 뭉갰다 (폰에서 확인). 줄을 세워 차례로 띄운다.
+	hud._got_queue.clear()
+	hud._cele_queue.clear()
+	hud._got_busy = false
+	hud._cele_busy = false
+	hud.show_got("map")
+	hud._celebrate("다 했어요!", "가게 할머니와 인사하고 지도 받기")
+	ok(hud._got_busy and not hud._cele_busy,
+		"얻은 것 카드가 먼저 뜨고 축하는 기다린다")
+	ok(hud._cele_queue.size() == 1, "기다리는 축하가 줄에 남아 있다")
+	ok(not (hud._got_busy and hud._cele_busy), "둘이 같이 뜨지 않는다")
+
 	p.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
@@ -2251,6 +2265,98 @@ func _placement_lint_tests() -> void:
 						bad_folk.append("%s 몸이 %s를 밟음" % [f.who, no])
 		ok(bad_folk.is_empty(), "%s: 인연 몸이 문·퀘스트·줍기·정류장을 안 밟는다%s"
 			% [village, "" if bad_folk.is_empty() else " — " + str(bad_folk)])
+
+		# ── 소품이 인연·줍는 것을 덮는가 ───────────────────────────────
+		#
+		# 폰에서 가게 할머니가 나무 우듬지에 통째로 가려져 있었다.
+		# 그림 기준점이 **칸 아래 가운데**라 위로 자라고(나무 52x56,
+		# 가게 67x64, 등대 42x96), Y 정렬은 **밑변**으로 앞뒤가 갈린다 —
+		# 밑변이 더 아래(y 큰)인 것이 앞에 그려진다. 그래서 한 칸 위에
+		# 선 인연이 통째로 뒤로 숨는다. 눈으로는 못 잡는다. 재서 잡는다.
+		var covers: Array = []
+		var boxes: Array = []          # [겹칠 사각형, 밑변]
+		for pr in p.props():
+			var ptex := load("res://assets/sprites/%s.png" % pr[2]) as Texture2D
+			if ptex == null:
+				continue
+			var pb: float = (float(pr[1]) + 1.0) * 16.0
+			boxes.append([Rect2(float(pr[0]) * 16.0 + 8.0 - ptex.get_width() / 2.0,
+				pb - ptex.get_height(), ptex.get_width(), ptex.get_height()), pb,
+				String(pr[2]), Vector2i(pr[0], pr[1])])
+
+		var targets: Array = []        # [이름, 칸, 크기]
+		for f in p._folk:
+			if not is_instance_valid(f) or f.is_spot or f.sprite == null:
+				continue
+			var cell: Vector2 = Vector2(f.sprite.size())
+			var seen_at: Array = [p.tile_of(f.global_position + Vector2(0, -1))]
+			for k in f.schedule:
+				if not seen_at.has(f.schedule[k]):
+					seen_at.append(f.schedule[k])
+			for t3 in seen_at:
+				targets.append([f.who, t3, cell])
+		for e in p.pickups():
+			var itex := load("res://assets/sprites/%s.png" % e[2]) as Texture2D
+			if itex != null:
+				targets.append([String(e[2]), Vector2i(e[0], e[1]),
+					Vector2(itex.get_size())])
+
+		for t4 in targets:
+			var tt: Vector2i = t4[1]
+			var cz: Vector2 = t4[2]
+			var tb: float = (float(tt.y) + 1.0) * 16.0
+			var me := Rect2(float(tt.x) * 16.0 + 8.0 - cz.x / 2.0, tb - cz.y, cz.x, cz.y)
+			var area: float = maxf(cz.x * cz.y, 1.0)
+			for b in boxes:
+				if float(b[1]) <= tb:      # 뒤에 그려지면 안 가린다
+					continue
+				var hit: Rect2 = (b[0] as Rect2).intersection(me)
+				var ratio: float = hit.get_area() / area
+				if ratio > 0.25:
+					covers.append("%s%s를 %s%s가 %d%%" % [t4[0], tt, b[2], b[3],
+						int(ratio * 100.0)])
+		ok(covers.is_empty(), "%s: 소품이 인연·줍는 것을 안 덮는다%s"
+			% [village, "" if covers.is_empty() else " — " + str(covers)])
+
+		# ── 이름표끼리 겹치는가 ────────────────────────────────────────
+		#
+		# 이름표는 폭을 120 으로 잡아 두었지만 실제로 겹치는 건 **글자**다.
+		# 폰트로 재서 본다. 이름표는 150px 안에 들어야 보이므로
+		# (`Place.TAG_RANGE`), 그 안에 같이 드는 짝만 따진다.
+		var clash: Array = []
+		for part2 in ["아침", "낮", "저녁"]:
+			var tags: Array = []
+			for f2 in p._folk:
+				if not is_instance_valid(f2) or f2.is_spot or f2.who == "":
+					continue
+				var t5: Vector2i = p.tile_of(f2.global_position + Vector2(0, -1))
+				if f2.schedule.has(part2):
+					t5 = f2.schedule[part2]
+				var tall2: float = 24.0
+				if f2.sprite != null:
+					tall2 = f2.sprite.size().y
+				var fnt: Font = f2.get_node("NameTag").get_theme_font("font")
+				var tw: float = 96.0
+				if fnt != null:
+					tw = fnt.get_string_size(f2.who,
+						HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+				var cx: float = float(t5.x) * 16.0 + 8.0
+				var cy: float = (float(t5.y) + 1.0) * 16.0 - tall2 - 17.0
+				tags.append([f2.who, Rect2(cx - tw / 2.0, cy, tw, 16.0),
+					Vector2(cx, (float(t5.y) + 1.0) * 16.0)])
+			for i2 in tags.size():
+				for j2 in range(i2 + 1, tags.size()):
+					var a2: Array = tags[i2]
+					var b2: Array = tags[j2]
+					if not (a2[1] as Rect2).intersects(b2[1]):
+						continue
+					# 둘 다 한 화면에 이름이 뜰 만큼 주인공에게 가까운가
+					var mid: Vector2 = ((a2[2] as Vector2) + (b2[2] as Vector2)) * 0.5
+					if mid.distance_to(a2[2]) <= Place.TAG_RANGE \
+							and mid.distance_to(b2[2]) <= Place.TAG_RANGE:
+						clash.append("%s %s↔%s" % [part2, a2[0], b2[0]])
+		ok(clash.is_empty(), "%s: 이름표끼리 안 겹친다%s"
+			% [village, "" if clash.is_empty() else " — " + str(clash)])
 
 		p.queue_free()
 		await get_tree().process_frame

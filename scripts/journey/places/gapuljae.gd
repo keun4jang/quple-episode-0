@@ -180,11 +180,11 @@ func props() -> Array:
 func pickups() -> Array:
 	return [
 		[12, 4, "p-shell"],        # 부두
-		[19, 5, "p-seaglass"],
-		[32, 6, "p-shell"],        # 곶
+		[21, 4, "p-seaglass"],
+		[32, 4, "p-shell"],        # 곶
 		[8, 7, "p-pebble"],        # 골목
 		[12, 15, "p-flower"],
-		[24, 17, "p-pinecone"],    # 능선
+		[24, 15, "p-pinecone"],    # 능선
 	]
 
 
@@ -206,7 +206,7 @@ func depart_tile() -> Vector2i:
 ## 둘째 층 큰길. 좌판이나 벤치 콜라이더에 걸리지 않는 칸이어야
 ## 여행자가 물건을 뚫고 서 있지 않는다.
 func wanderer_tile() -> Vector2i:
-	return Vector2i(20, 11)
+	return Vector2i(19, 11)
 
 
 ## "노을은 계단에서 봐야 해요" — 부두(1층)에서 능선(3층)까지 다 오른
@@ -266,7 +266,7 @@ func on_built() -> void:
 	], Vector2.LEFT, false, {
 		# 아침: 부두 한가운데. 배는 새벽에 들어온다 —
 		# 들어오는 배를 보는 게 이 청년의 아침이다.
-		"아침": Vector2i(13, 6),
+		"아침": Vector2i(17, 2),
 		# 낮: 부두 어귀. 짐을 부리고 오가는 사람을 맞는다.
 		"낮": Vector2i(17, 4),
 		# 저녁: 등대로 오르는 곶 층계. "노을은 계단에서 봐야 해요"를

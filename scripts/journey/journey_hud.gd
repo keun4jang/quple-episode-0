@@ -47,6 +47,8 @@ var _cele_big: Label
 var _cele_sub: Label
 var _cele_queue: Array = []
 var _cele_busy := false
+var _got_queue: Array = []
+var _got_busy := false
 var _got_tw: Tween
 var _flash: ColorRect
 var _root: Control
@@ -935,9 +937,28 @@ func _on_picked(item: String, _total: int) -> void:
 ##
 ## 주운 것은 "주웠어요", 받은 것은 "받았어요" — 줍는 것(`p-*`)과
 ## 누가 건네주는 것은 결이 다르다.
+## 화면 가운데는 **한 번에 하나만.** 지도를 받는 순간이 곧 "인사하고
+## 지도 받기" 를 마치는 순간이라, 얻은 것 카드와 축하가 같은 자리에
+## 겹쳐 떠서 그림과 글자가 서로 뭉갰다 (폰에서 확인). 둘을 한 줄에
+## 세워 차례로 보여 준다.
 func show_got(item: String) -> void:
 	if _got == null:
 		return
+	_got_queue.append(item)
+	_drain_center()
+
+
+func _drain_center() -> void:
+	if _got_busy or _cele_busy:
+		return
+	if not _got_queue.is_empty():
+		_show_got_now(String(_got_queue.pop_front()))
+	elif not _cele_queue.is_empty():
+		_show_cele_now(_cele_queue.pop_front())
+
+
+func _show_got_now(item: String) -> void:
+	_got_busy = true
 	var art := String(ICONS.get(item, item))
 	var path := "res://assets/sprites/%s.png" % art
 	_got_art.texture = load(path) as Texture2D if ResourceLoader.exists(path) else null
@@ -956,6 +977,9 @@ func show_got(item: String) -> void:
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	_got_tw.chain().tween_interval(1.25)
 	_got_tw.chain().tween_property(_got, "modulate:a", 0.0, 0.45)
+	_got_tw.chain().tween_callback(func() -> void:
+		_got_busy = false
+		_drain_center())
 
 
 ## 배낭이 어디 있는지 가리킬까. 길잡이가 부른다.
@@ -1055,18 +1079,13 @@ func _celebrate(big: String, sub: String) -> void:
 	if _cele == null:
 		return
 	_cele_queue.append([big, sub])
-	if not _cele_busy:
-		_drain_cele()
+	_drain_center()
 
 
-func _drain_cele() -> void:
+func _show_cele_now(next: Array) -> void:
 	if _cele == null or not is_instance_valid(_cele):
 		return
-	if _cele_queue.is_empty():
-		_cele_busy = false
-		return
 	_cele_busy = true
-	var next: Array = _cele_queue.pop_front()
 	_cele_big.text = String(next[0])
 	_cele_sub.text = String(next[1])
 	AudioManager.ui_confirm()
@@ -1082,7 +1101,9 @@ func _drain_cele() -> void:
 		_cele_rays.queue_redraw(), 0.0, 1.0, 0.8)
 	tw.chain().tween_interval(0.9)
 	tw.chain().tween_property(_cele, "modulate:a", 0.0, 0.35)
-	tw.chain().tween_callback(_drain_cele)
+	tw.chain().tween_callback(func() -> void:
+		_cele_busy = false
+		_drain_center())
 
 
 func _process(delta: float) -> void:

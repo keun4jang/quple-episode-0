@@ -196,7 +196,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 카피바라 — 스웨터 차림. 고개 중턱 쉼터를 지킨다.
-	put_folk(Vector2i(25, 9), "capybara-c", "고개 쉼터 아저씨", "cap_sol", [
+	put_folk(Vector2i(23, 12), "capybara-c", "고개 쉼터 아저씨", "cap_sol", [
 		["여기까지 올라오면 다리가 좀 뻐근하지."],
 		["앉았다 가요.", "고개는 도망 안 가."],
 		["서두르는 사람은 여기서 다 놓쳐요.", "천천히 봐야 보이는 게 있거든."],
@@ -205,7 +205,7 @@ func on_built() -> void:
 	], Vector2.DOWN, false, {})
 
 	# 갈매기 — 정상 전망대, 먼 곳을 본다.
-	put_folk(Vector2i(17, 5), "seagull", "고갯마루의 갈매기", "so_gull", [
+	put_folk(Vector2i(18, 4), "seagull", "고갯마루의 갈매기", "so_gull", [
 		["여기서 보면 다 작아 보여요."],
 		["고갯마루까지 가 봤어요?", "여기가 딱 거기예요."],
 		["오늘은 멀리까지 다 보이네요."],
@@ -213,7 +213,7 @@ func on_built() -> void:
 		["고갯마루에서 또 봐요."],
 	], Vector2.DOWN, false, {
 		# 아침엔 전망대, 낮엔 쉼터 마당, 저녁엔 아랫길 — 고개를 오르내린다.
-		"아침": Vector2i(17, 5),
+		"아침": Vector2i(18, 4),
 		"낮": Vector2i(23, 10),
 		"저녁": Vector2i(27, 18),
 	})

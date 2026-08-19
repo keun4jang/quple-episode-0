@@ -196,7 +196,7 @@ func on_built() -> void:
 	], Vector2.DOWN, false, {
 		# 아침엔 꽃눈나무, 낮엔 도랑가, 저녁엔 남쪽 밭머리.
 		"아침": Vector2i(6, 2),
-		"낮": Vector2i(15, 9),
+		"낮": Vector2i(16, 9),
 		"저녁": Vector2i(22, 18),
 	})
 

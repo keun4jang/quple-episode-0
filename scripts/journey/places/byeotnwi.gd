@@ -167,10 +167,10 @@ func props() -> Array:
 
 func pickups() -> Array:
 	return [
-		[3, 3, "p-pinecone"],
+		[5, 3, "p-pinecone"],
 		[18, 6, "p-flower"],
 		[27, 4, "p-acorn"],
-		[7, 16, "p-pebble"],
+		[5, 16, "p-pebble"],
 		[26, 16, "p-acorn"],
 		[11, 19, "p-pebble"],
 	]
@@ -189,7 +189,7 @@ func depart_tile() -> Vector2i:
 
 
 func wanderer_tile() -> Vector2i:
-	return Vector2i(21, 11)
+	return Vector2i(21, 10)
 
 
 ## 능(16,6) 한 바퀴 — 울타리 안쪽 박석까지 들어와 봤는지만 본다.

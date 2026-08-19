@@ -909,6 +909,9 @@ func _build_pickups() -> void:
 		tag.z_index = 40
 		tag.size = Vector2(96, 14)
 		tag.position = Vector2(-48, -tex.get_height() - 14.0)
+		# 인연 이름표와 같은 규칙 — 위가 없으면 아래에 단다.
+		if a.position.y + tag.position.y < 2.0:
+			tag.position = Vector2(-48, 4.0)
 		tag.name = "Tag"
 		tag.modulate.a = 0.0   # 가까이 와야 보인다 — 이름표 규칙과 같다
 		a.add_child(tag)
@@ -2557,7 +2560,17 @@ func _tick_goal_arrow(delta: float) -> void:
 		return
 	_goal_arrow.visible = true
 	var bob := sin(_arrow_clock * 4.2) * 3.0
-	_goal_arrow.position = at + Vector2(0.0, -26.0 + bob)
+	# **이름표 위로 올린다.** 26px 로 두면 인연 머리 위 이름표
+	# (-키-17, 높이 16) 한복판에 화살표가 박혀 이름을 가렸다 —
+	# 폰에서 "가게 할머니" 가 "…할머니" 로 보였다. 이름표가 붙는
+	# 종류(인연·줍는 것)는 그 위로 비켜 준다.
+	var lift := 26.0
+	match String(g.get("kind", "")):
+		"talk":
+			lift = 50.0
+		"pickup":
+			lift = 38.0
+	_goal_arrow.position = at + Vector2(0.0, -lift + bob)
 
 
 func open_goals() -> Array:

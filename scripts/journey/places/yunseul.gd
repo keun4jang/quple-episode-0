@@ -219,7 +219,7 @@ func props() -> Array:
 
 func pickups() -> Array:
 	return [
-		[24, 7, "p-shell"],        # 백사장
+		[24, 5, "p-shell"],        # 백사장
 		[12, 7, "p-shell"],
 		[6, 7, "p-seaglass"],
 		[19, 8, "p-pebble"],
@@ -297,7 +297,7 @@ func on_built() -> void:
 		# 아침 자리가 골목 맨 끝(1,12)이었는데, 첫 과업("지도 받기")의
 		# 상대가 **미니맵도 없는 유일한 구간**에서 지도 반대편 끝에
 		# 있었다 — 골목 어귀로 당긴다. 살림 도는 결은 그대로다.
-		"아침": Vector2i(8, 12),
+		"아침": Vector2i(11, 12),
 		"낮": Vector2i(22, 14),
 		"저녁": Vector2i(17, 14),
 	}, "map")
@@ -318,7 +318,7 @@ func on_built() -> void:
 		# 시간표 이동이 눈앞 순간이동 없이 일어난다.
 		"아침": Vector2i(13, 6),
 		"낮": Vector2i(18, 7),
-		"저녁": Vector2i(30, 2),
+		"저녁": Vector2i(29, 2),
 	}, "camera")
 
 	# 여행자. 다음 여행지에서 다시 만난다 — 1탄의 심장
