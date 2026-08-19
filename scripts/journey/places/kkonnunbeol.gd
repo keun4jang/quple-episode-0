@@ -115,6 +115,10 @@ func props() -> Array:
 		[3, 11, "jars", false],
 		[5, 12, "tools", false],
 		[4, 13, "pebbles", false],
+		# ── 남쪽 밭둑 까치 쉼터 (장면) — 씻고 앉고 부리는 자리
+		[17, 15, "washtub", false],
+		[17, 19, "bench", true],
+		[23, 18, "tools", false],
 	]
 
 
@@ -174,7 +178,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 카피바라 — 빵집 차림. 사거리 쉼터를 지킨다.
-	put_folk(Vector2i(21, 9), "capybara-b", "밭머리 쉼터 아주머니", "cap_kkot", [
+	put_folk(Vector2i(23, 9), "capybara-b", "밭머리 쉼터 아주머니", "cap_kkot", [
 		["꽃눈 필 때가 젤 바빠요."],
 		["밭이 아홉 뙈기예요.", "그래도 길 잃을 일은 없어요."],
 		["도랑에 꽃잎 뜨는 거 봤어요?", "그거 보러 오는 사람도 있어요."],

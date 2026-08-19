@@ -84,6 +84,13 @@ func props() -> Array:
 		# 축대. 계단은 놓였는데 층과 층 사이 높이차가 0 이라 아직 평지로
 		# 읽혔다. 단 옆에 세워 "여기가 한 층 아래"라고 말해 준다.
 		[4, 7, "retaining-wall", true],
+		# ── 면집 앞 마당 (장면) — 좌판과 장독이 있어야 장사 중이다
+		[21, 12, "stall", true],
+		[17, 12, "jars", true],
+		# ── 능선 쉼터 (가풀재:능선 장면 곁)
+		[16, 18, "bench", true],
+		[13, 18, "pebbles", false],
+		[20, 17, "boulder", true],
 		[10, 7, "retaining-wall", true],
 		[24, 9, "retaining-wall", true],
 		[29, 9, "retaining-wall", true],
@@ -259,7 +266,7 @@ func on_built() -> void:
 	], Vector2.LEFT, false, {
 		# 아침: 부두 한가운데. 배는 새벽에 들어온다 —
 		# 들어오는 배를 보는 게 이 청년의 아침이다.
-		"아침": Vector2i(15, 2),
+		"아침": Vector2i(13, 6),
 		# 낮: 부두 어귀. 짐을 부리고 오가는 사람을 맞는다.
 		"낮": Vector2i(17, 4),
 		# 저녁: 등대로 오르는 곶 층계. "노을은 계단에서 봐야 해요"를

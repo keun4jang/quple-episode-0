@@ -115,6 +115,9 @@ func props() -> Array:
 		[21, 6, "boulder", true],
 		[12, 7, "boulder", true],
 		[15, 7, "pebbles", false],
+		# ── 언덕 꼭대기 (하늬섬:언덕 장면 둘레)
+		[16, 4, "boulder", true],
+		[16, 8, "pebbles", false],
 
 		# ── 동쪽 곶과 등대 ────────────────────────────────────────────
 		# 등대는 96px(여섯 칸)짜리라 발을 6번 줄에 둬야 꼭대기가 바다에 걸린다.
@@ -135,7 +138,7 @@ func props() -> Array:
 		[10, 14, "clothesline", true],
 		[12, 14, "pump", true],
 		[7, 14, "firewood", false],
-		[15, 13, "boulder", true],
+		[12, 14, "boulder", true],
 		[19, 12, "bench", true],
 		[21, 13, "flower-pots", false],
 		# 쿼장. 좌판 셋이 모여야 장이다 — 두 줄로 오와 열을 맞춘다.
@@ -228,7 +231,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 쿼장 좌판 앞
-	put_folk(Vector2i(23, 11), "seal", "쿼귤 파는 할머니", "do_seal", [
+	put_folk(Vector2i(21, 12), "seal", "쿼귤 파는 할머니", "do_seal", [
 		["쿼귤 하나 먹어 봐.", "여기 건 달아."],
 		["바람이 세지? 늘 이래."],
 		["섬은 작아서 하루면 다 봐요.", "그래도 사흘은 있어야 알지."],
@@ -240,7 +243,7 @@ func on_built() -> void:
 		# 떠나는 자리 (4,12) 와는 50px 떨어져 있어 "출발" 표시를 안 가린다.
 		"아침": Vector2i(1, 11),
 		# 낮: 쿼장 좌판 앞. 원래 서 있던 자리다.
-		"낮": Vector2i(23, 11),
+		"낮": Vector2i(21, 12),
 		# 저녁: 우체통과 벤치 사이. 좌판을 닫은 사람이 벤치 곁에서
 		# 바다 쪽을 보며 하루를 닫는다.
 		"저녁": Vector2i(26, 13),
@@ -261,7 +264,7 @@ func on_built() -> void:
 		"낮": Vector2i(16, 9),
 		# 저녁: 등대 아래 풀밭. 여기서 태어난 아이는 불 켜지는 걸
 		# 다 보고도 또 본다.
-		"저녁": Vector2i(28, 8),
+		"저녁": Vector2i(26, 9),
 	})
 
 	put_wanderer("raccoon", "배낭 멘 너구리", "raccoon", [

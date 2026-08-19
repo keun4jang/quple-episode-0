@@ -66,6 +66,13 @@ func props() -> Array:
 		[16, 18, "beach-grass", false],
 		# ── 데크 곁 ────────────────────────────────────────────────
 		[20, 4, "street-lamp", true],
+		# ── 갈대 장터 (가게 곁) — 할머니의 좌판과 장독
+		[33, 7, "stall", true],
+		[32, 3, "jars", true],
+		[37, 8, "flower-pots", false],
+		# ── 전망대 쉼터 (갈매기의 자리)
+		[23, 15, "bench", true],
+		[18, 16, "pebbles", false],
 	]
 
 
@@ -136,7 +143,7 @@ func on_built() -> void:
 	], Vector2.DOWN, false, {
 		# 아침엔 데크 북단, 낮엔 남쪽 전망대, 저녁엔 서쪽 어귀.
 		"아침": Vector2i(20, 4),
-		"낮": Vector2i(20, 17),
+		"낮": Vector2i(22, 16),
 		"저녁": Vector2i(5, 10),
 	})
 

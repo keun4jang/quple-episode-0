@@ -28,6 +28,7 @@ func _ready() -> void:
 	await _indoor_quest_tests()
 	await _door_tap_tests()
 	await _reunion2_tests()
+	await _placement_lint_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -1950,20 +1951,23 @@ func _yunseul_clear_tests() -> void:
 	ok(JourneyState.quest_done("윤슬:가게"), "가게 표시가 남는다")
 	ok(JourneyState.quest_done("윤슬:등대안"), "등대 안 표시가 남는다")
 
-	# ③ 가 볼 자리까지 걸어간다.
-	var z: Array = p.quest_zones()[0]
-	var c: Vector2i = z[1]
-	var near := Vector2i(-1, -1)
-	for dy in range(-4, 5):
-		for dx in range(-4, 5):
-			var t2: Vector2i = c + Vector2i(dx, dy)
-			if p._walkable(t2) \
-					and p.world_of(t2).distance_to(p.world_of(c)) <= float(z[2]):
-				near = t2
-	ok(near.x >= 0, "등대곶 반지름 안에 설 자리가 있다")
-	p.walker.global_position = p.world_of(near)
-	p._tick_quest_zones()
-	ok(JourneyState.quest_done("윤슬:등대"), "등대곶 표시가 남는다")
+	# ③ 가 볼 자리를 **전부** 걸어가 본다 — 등대곶도 부두 끝도.
+	# 예전엔 첫째 것만 갔는데, 부두 끝이 우연히(갈매기 소년 곁이라)
+	# 찍히는 바람에 빠진 걸 몰랐다.
+	for z0 in p.quest_zones():
+		var z: Array = z0
+		var c: Vector2i = z[1]
+		var near := Vector2i(-1, -1)
+		for dy in range(-4, 5):
+			for dx in range(-4, 5):
+				var t2: Vector2i = c + Vector2i(dx, dy)
+				if p._walkable(t2) \
+						and p.world_of(t2).distance_to(p.world_of(c)) <= float(z[2]):
+					near = t2
+		ok(near.x >= 0, "%s 반지름 안에 설 자리가 있다" % z[0])
+		p.walker.global_position = p.world_of(near)
+		p._tick_quest_zones()
+		ok(JourneyState.quest_done(String(z[0])), "%s 표시가 남는다" % z[0])
 
 	# ④ 사진을 찍는다.
 	p._take_photo()
@@ -2164,4 +2168,90 @@ func _reunion2_tests() -> void:
 	ok(JourneyState.reunions >= 1, "재회로 센다 (%d)" % JourneyState.reunions)
 	p.queue_free()
 	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 배치 규칙 ─────────────────────────────────────────────────────────
+#
+# 상담이 준 보호 마스크를 자동 검사로 옮겼다. 좌표를 손으로 고칠 때마다
+# 눈으로 다시 재지 않아도, 문·퀘스트 둘레와 인연의 몸이 서로를 밟으면
+# 여기서 걸린다.
+#
+# - 문(D)·퀘스트(Q) 중심 체비셰프 1칸: 막는 소품·인연 몸 금지
+# - 인연 몸 = 제 칸 + 아랫칸. 시간표의 아침/낮/저녁 자리도 다 본다
+# - 인연 몸이 문·줍기·정류장·잠자리 칸을 밟으면 안 된다
+# - 인연은 걸을 수 있는 칸에 서야 한다 (물·지도 밖 금지)
+
+func _placement_lint_tests() -> void:
+	print("\n[배치 규칙]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	for village in GOAL_SCENES:
+		var p: Place = load(GOAL_SCENES[village]).instantiate()
+		add_child(p)
+		await get_tree().process_frame
+
+		# 보호해야 하는 칸들. 문마다 그 문이 달린 건물(바로 윗칸 소품)은
+		# 예외다 — 문이 건물 앞인 것은 겹침이 아니라 그 문의 정의다.
+		# 가 볼 자리(반지름 안이면 됨)는 소품 검사에서 빼고, 인연 몸
+		# 검사에만 넣는다 — 등대 자체가 목표인 곳이 있다.
+		var guard: Array[Vector2i] = []
+		var owners: Array[Vector2i] = []
+		for d in p.doors():
+			guard.append(d["tile"])
+			owners.append((d["tile"] as Vector2i) + Vector2i(0, -1))
+		var fguard: Array[Vector2i] = guard.duplicate()
+		for z in p.quest_zones():
+			fguard.append(z[1])
+
+		# 막는 소품이 문 둘레를 밟는가.
+		var bad_prop: Array = []
+		for pr in p.props():
+			if not (pr[3] if pr.size() > 3 else true):
+				continue
+			var pt := Vector2i(pr[0], pr[1])
+			if owners.has(pt):
+				continue
+			for g in guard:
+				if maxi(absi(pt.x - g.x), absi(pt.y - g.y)) <= 1:
+					bad_prop.append("%s %s가 %s 곁" % [pr[2], pt, g])
+		ok(bad_prop.is_empty(), "%s: 막는 소품이 문·퀘스트 둘레를 안 밟는다%s"
+			% [village, "" if bad_prop.is_empty() else " — " + str(bad_prop)])
+
+		# 인연 몸이 보호칸·줍기·정류장을 밟는가. 시간표 자리까지 다.
+		var body_no: Array[Vector2i] = guard.duplicate()
+		for pk in p.pickups():
+			body_no.append(Vector2i(pk[0], pk[1]))
+		if p.depart_tile() != Vector2i(-1, -1):
+			body_no.append(p.depart_tile())
+		if p.sleep_tile() != Vector2i(-1, -1):
+			body_no.append(p.sleep_tile())
+		var bad_folk: Array = []
+		for f in p._folk:
+			if not is_instance_valid(f) or f.is_spot:
+				continue
+			# 발밑 칸. 몸의 원점이 칸 아랫변이라 그대로 재면 한 칸
+			# 아래로 밀린다 (`Place._tick_outline` 과 같은 보정).
+			var fp := f.global_position + Vector2(0, -1)
+			var spots: Array[Vector2i] = [p.tile_of(fp)]
+			for k in f.schedule:
+				spots.append(f.schedule[k])
+			for s in spots:
+				# 바닥으로만 본다 — 인연은 제 칸을 스스로 막으니
+				# `_walkable` 로 재면 전원이 걸린다.
+				if p._floor_solid(s.x, s.y):
+					bad_folk.append("%s가 못 서는 칸 %s" % [f.who, s])
+				for body in [s, s + Vector2i(0, 1)]:
+					for g2 in fguard:
+						if maxi(absi(body.x - g2.x), absi(body.y - g2.y)) <= 1:
+							bad_folk.append("%s 몸 %s가 %s 곁" % [f.who, body, g2])
+				for no in body_no:
+					if s == no or s + Vector2i(0, 1) == no:
+						bad_folk.append("%s 몸이 %s를 밟음" % [f.who, no])
+		ok(bad_folk.is_empty(), "%s: 인연 몸이 문·퀘스트·줍기·정류장을 안 밟는다%s"
+			% [village, "" if bad_folk.is_empty() else " — " + str(bad_folk)])
+
+		p.queue_free()
+		await get_tree().process_frame
 	JourneyState.reset()

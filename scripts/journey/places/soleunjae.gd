@@ -138,6 +138,12 @@ func props() -> Array:
 		[34, 21, "tree", true],
 		# ── 길가 ─────────────────────────────────────────────────────
 		[20, 5, "shrub", false],
+		# ── 정상 전망대 둘레 (솔은재:전망 장면)
+		[24, 5, "pebbles", false],
+		[16, 5, "boulder", true],
+		# ── 샛길 어귀 쉼터 (다람쥐의 자리)
+		[14, 8, "boulder", true],
+		[14, 12, "bench", true],
 	]
 
 
@@ -199,7 +205,7 @@ func on_built() -> void:
 	], Vector2.DOWN, false, {})
 
 	# 갈매기 — 정상 전망대, 먼 곳을 본다.
-	put_folk(Vector2i(19, 3), "seagull", "고갯마루의 갈매기", "so_gull", [
+	put_folk(Vector2i(17, 5), "seagull", "고갯마루의 갈매기", "so_gull", [
 		["여기서 보면 다 작아 보여요."],
 		["고갯마루까지 가 봤어요?", "여기가 딱 거기예요."],
 		["오늘은 멀리까지 다 보이네요."],
@@ -207,7 +213,7 @@ func on_built() -> void:
 		["고갯마루에서 또 봐요."],
 	], Vector2.DOWN, false, {
 		# 아침엔 전망대, 낮엔 쉼터 마당, 저녁엔 아랫길 — 고개를 오르내린다.
-		"아침": Vector2i(19, 3),
+		"아침": Vector2i(17, 5),
 		"낮": Vector2i(23, 10),
 		"저녁": Vector2i(27, 18),
 	})

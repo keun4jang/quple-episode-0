@@ -80,7 +80,7 @@ func props() -> Array:
 		[39, 14, "shop", true],          # 카피바라 가게
 		[39, 17, "guesthouse", true],    # 쉼터
 		[40, 15, "signpost", false],
-		[38, 16, "mailbox", true],
+		[34, 18, "mailbox", true],
 		# 건물 밑동. 마당에서 안 가려지는 곳은 y15 와 y17~19 뿐이다.
 		[37, 15, "flower-pots", false],
 		[36, 17, "flower-pots", false],
@@ -118,6 +118,10 @@ func props() -> Array:
 		[31, 2, "fence", true],
 		[32, 2, "fence", true],
 		[31, 3, "bench", true],
+		# ── 둔치 모래톱 쉼터 (갈매기의 자리)
+		[32, 6, "bench", true],
+		[33, 2, "pebbles", false],
+		[37, 5, "beach-grass", false],
 
 		# ── 동안 숲 (오른쪽 가장자리를 두른다) ──────────────────────
 		[38, 5, "pine", true],
@@ -233,7 +237,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 카피바라 — 물범의 담수 버전. 조끼 차림, 나루 옆 가게를 지킨다.
-	put_folk(Vector2i(36, 14), "capybara-a", "나루 가게 아저씨", "cap_guinaru", [
+	put_folk(Vector2i(33, 15), "capybara-a", "나루 가게 아저씨", "cap_guinaru", [
 		["어서 와요. 강 여행은 또 다르지."],
 		["강물이 굽어 도는 자리가 여기예요.", "서두를 것 없어요."],
 		["길 묻는 손님한테도 늘 이렇게 말해요.", "천천히 가요."],
@@ -253,11 +257,11 @@ func on_built() -> void:
 		# 저녁엔 데크에서 노을을 본다 — 하루가 흐르는 게 보인다.
 		"아침": Vector2i(35, 3),
 		"낮": Vector2i(29, 12),
-		"저녁": Vector2i(35, 15),
+		"저녁": Vector2i(33, 4),
 	})
 
 	# 수달 — 선택형 서브 NPC. 필수 퀘스트에 안 넣는다(강가 돌 위, 붙박이).
-	put_folk(Vector2i(30, 9), "otter", "돌 위의 수달", "gu_otter", [
+	put_folk(Vector2i(29, 12), "otter", "돌 위의 수달", "gu_otter", [
 		["매끈한 돌 하나를 오래 들여다보고 있었어요."],
 		["좋은 돌은 멀리 안 가도 물이 다듬어 줘요."],
 		["또 왔네요.", "그 돌, 그대로 있어요."],

@@ -53,6 +53,13 @@ func props() -> Array:
 		[2, 4, "flower-pots", false],
 		[2, 17, "jars", true],
 		[9, 7, "bench", true],
+		# ── 빵집 앞 꽃마당 (장면) — 좌판·화분·장독이 마당을 만든다
+		[10, 8, "stall", true],
+		[4, 8, "flower-pots", false],
+		[10, 4, "jars", true],
+		# ── 남쪽 물소리 데크 곁 쉼터
+		[16, 19, "bench", true],
+		[22, 18, "beach-grass", false],
 		[9, 15, "bench", true],
 		# ── 동쪽 ────────────────────────────────────────────────────
 		[32, 10, "signpost", false],
@@ -123,7 +130,7 @@ func on_built() -> void:
 	], Vector2.DOWN, false, {})
 
 	# 갈매기 — 연못 데크 높은 안내판 자리.
-	put_folk(Vector2i(19, 3), "seagull", "안내판의 갈매기", "ba_gull", [
+	put_folk(Vector2i(16, 3), "seagull", "안내판의 갈매기", "ba_gull", [
 		["연못은 밤에 별을 담아요."],
 		["데크를 한 바퀴 돌면 다 보여요.", "서두를 것 없어요."],
 		["오늘은 물이 참 잔잔하네요."],
@@ -132,7 +139,7 @@ func on_built() -> void:
 	], Vector2.DOWN, false, {
 		# 아침엔 안내판 곁, 낮엔 동쪽 마당, 저녁엔 남쪽 데크 —
 		# 연못을 하루에 걸쳐 반 바퀴 돈다.
-		"아침": Vector2i(19, 3),
+		"아침": Vector2i(16, 3),
 		"낮": Vector2i(28, 8),
 		"저녁": Vector2i(17, 16),
 	})

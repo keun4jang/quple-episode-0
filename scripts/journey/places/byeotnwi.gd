@@ -153,6 +153,15 @@ func props() -> Array:
 		# ── 쿼스 서는 자리. 표지판은 안 막는다 — 그 위로 걸어가도 된다
 		[32, 12, "bench", true],
 		[33, 10, "signpost", false],
+		# ── 흙마당 생활터 (볕뉘:흙마당 장면) — 빨래·장작이 있어야 산다
+		[12, 18, "bench", true],
+		[8, 16, "washtub", false],
+		[7, 17, "firewood", true],
+		[13, 15, "jars", true],
+		# ── 두 가게 사이 장터 — 아주머니 낮 자리(10,12) 곁
+		[23, 12, "stall", true],
+		[25, 13, "flower-pots", false],
+		[21, 13, "jars", true],
 	]
 
 
@@ -216,7 +225,7 @@ func on_built() -> void:
 	JourneyState.here = place_name()
 	JourneyState.visit(place_name())
 
-	put_folk(Vector2i(9, 10), "seal", "쿼빵집 아주머니", "ju_seal", [
+	put_folk(Vector2i(10, 12), "seal", "쿼빵집 아주머니", "ju_seal", [
 		["갓 구운 쿼빵 있어요.", "식기 전에 드세요."],
 		["여긴 다들 천천히 걸어요.", "급할 게 없거든."],
 		["저 능은 천 년쯤 됐대요.", "…라고들 하죠."],
@@ -224,9 +233,9 @@ func on_built() -> void:
 		["냄새 나면 또 들어와요."],
 	], Vector2.DOWN, false, {
 		# 아침: 가게 문 바로 앞. 문을 열고 김 나는 빵을 내놓는 중이다.
-		"아침": Vector2i(8, 10),
+		"아침": Vector2i(7, 12),
 		# 낮: 가게 옆 돌길. 오가는 사람에게 빵을 판다.
-		"낮": Vector2i(9, 10),
+		"낮": Vector2i(10, 12),
 		# 저녁: 가로등 곁 벤치. "앉았다 가요" 하던 사람이 하루 끝엔 본인이 앉는다.
 		"저녁": Vector2i(24, 13),
 	})
@@ -243,7 +252,7 @@ func on_built() -> void:
 		# 낮: 능 앞 박석. 제 자리를 지키며 바람 소리를 듣는다.
 		"낮": Vector2i(20, 7),
 		# 저녁: 펌프 곁 흙마당. 해가 지면 집 마당으로 돌아간다.
-		"저녁": Vector2i(9, 16),
+		"저녁": Vector2i(19, 8),
 	})
 
 	_put_raccoon()
