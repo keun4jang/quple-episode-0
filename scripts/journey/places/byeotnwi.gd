@@ -66,7 +66,7 @@ gg.....gdddggggggggggggbbbgg.....gg
 ## 소나무 셋이 모여 숲 가장자리가 되고, 항아리 넷이 모여 장독대가 된다.
 ##
 ## 막는 소품의 콜라이더는 가로로 그림 폭의 70% 만큼 퍼진다.
-## 소나무·나무·가게·쿼스텔은 세 칸을 먹으니 길목에는 안 둔다.
+## 소나무·나무·가게·호스텔은 세 칸을 먹으니 길목에는 안 둔다.
 ## 돌길 한복판(y10~12)은 비워 둔다 — 걸을 자리가 있어야 마을이다.
 func props() -> Array:
 	return [
@@ -150,7 +150,7 @@ func props() -> Array:
 		[33, 19, "tree", true],
 		[28, 20, "shrub", false],
 
-		# ── 쿼스 서는 자리. 표지판은 안 막는다 — 그 위로 걸어가도 된다
+		# ── 버스 서는 자리. 표지판은 안 막는다 — 그 위로 걸어가도 된다
 		[32, 12, "bench", true],
 		[33, 10, "signpost", false],
 		# ── 흙마당 생활터 (볕뉘:흙마당 장면) — 빨래·장작이 있어야 산다
@@ -225,8 +225,8 @@ func on_built() -> void:
 	JourneyState.here = place_name()
 	JourneyState.visit(place_name())
 
-	put_folk(Vector2i(10, 12), "seal", "쿼빵집 아주머니", "ju_seal", [
-		["갓 구운 쿼빵 있어요.", "식기 전에 드세요."],
+	put_folk(Vector2i(10, 12), "seal", "빵집 아주머니", "ju_seal", [
+		["갓 구운 빵 있어요.", "식기 전에 드세요."],
 		["여긴 다들 천천히 걸어요.", "급할 게 없거든."],
 		["저 능은 천 년쯤 됐대요.", "…라고들 하죠."],
 		["빵 식는 동안만 앉았다 가요."],
@@ -278,5 +278,5 @@ func foliage_tint() -> Color:
 ## 가게가 둘이다. 아랫것이 본래의  가게, (27, 9) 것은 찻집이다.
 func sign_of(prop_name: String, at: Vector2i = Vector2i.ZERO) -> String:
 	if prop_name == "shop" and at == Vector2i(27, 9):
-		return "쿼차방"
+		return "찻집"
 	return super(prop_name, at)

@@ -50,7 +50,7 @@ gffgggggfffddddffffffffffdddffffffffff
 ## 을 따라 어긋나게 선다. 그래야 격자가 보인다.
 func props() -> Array:
 	return [
-		# ── 사거리 쉼터: 가게·쿼스텔과 그 발치 ───────────────────────
+		# ── 사거리 쉼터: 가게·호스텔과 그 발치 ───────────────────────
 		# 건물은 발치에 잔 것들을 두어야 세상에 붙어 선다.
 		[18, 9, "shop", true],
 		[30, 9, "guesthouse", true],

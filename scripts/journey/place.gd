@@ -819,12 +819,12 @@ func _build_props() -> void:
 # 나무 간판을 건다 — 멀리서도 "저기가 가게구나" 가 보여야 한다.
 #
 # **마을마다 다른 이름을 단다.** 아홉 곳이 다 "가게" 면 간판을 다는 뜻이
-# 없다. 파는 사람이 누구인지가 이미 정해져 있으니(쿼빵집 아주머니,
-# 쿼면집 아저씨…) 그 결을 그대로 간판에 옮긴다.
+# 없다. 파는 사람이 누구인지가 이미 정해져 있으니(빵집 아주머니,
+# 국수집 아저씨…) 그 결을 그대로 간판에 옮긴다.
 # `CLAUDE.md`: 쿼카가 만든 것에는 쿼가 붙고, 실제 상표는 흉내 내지 않는다.
 const SHOP_SIGN := {
-	"윤슬": "윤슬가게", "볕뉘": "쿼빵집", "가풀재": "쿼면집",
-	"하늬섬": "쿼귤가게", "굽이나루": "나루가게", "방울못": "못가 쿼빵집",
+	"윤슬": "윤슬가게", "볕뉘": "빵집", "가풀재": "국수집",
+	"하늬섬": "귤가게", "굽이나루": "나루가게", "방울못": "못가 빵집",
 	"갈밭머리": "갈대쉼터", "솔은재": "고개쉼터", "꽃눈벌": "밭머리쉼터",
 }
 
@@ -836,7 +836,7 @@ func sign_of(prop_name: String, _at: Vector2i = Vector2i.ZERO) -> String:
 		"shop":
 			return String(SHOP_SIGN.get(place_name(), "가게"))
 		"guesthouse":
-			return "쿼스텔"
+			return "호스텔"
 		"lighthouse":
 			return "등대"
 	return ""
@@ -852,7 +852,7 @@ func _build_signs() -> void:
 		if tex == null:
 			continue
 		var bottom: float = (float(p[1]) + 1.0) * TILE
-		# 지붕 위에 건다. 다만 등대·쿼스텔처럼 키가 큰 것은 꼭대기까지
+		# 지붕 위에 건다. 다만 등대·호스텔처럼 키가 큰 것은 꼭대기까지
 		# 올리면 하늘에 뜬 글자가 되니, 눈높이쯤에서 멈춘다.
 		var top: float = bottom - minf(float(tex.get_height()), 58.0)
 		_add_sign(Vector2(float(p[0]) * TILE + TILE * 0.5, top - 3.0), text)
@@ -882,7 +882,7 @@ func _add_sign(at: Vector2, text: String) -> void:
 		tw = fnt.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 	var w: float = ceilf(tw) + 12.0
 	var h := 15.0
-	# **겹치면 한 칸 올린다.** 가게와 쿼스텔이 세 칸 옆에 나란히 선
+	# **겹치면 한 칸 올린다.** 가게와 호스텔이 세 칸 옆에 나란히 선
 	# 마을(솔은재)에서 간판 둘이 서로를 반쯤 먹었다. 자리를 손으로
 	# 맞추는 대신, 이미 걸린 간판과 부딪히면 위로 비켜 준다.
 	for _try in 4:
@@ -1548,7 +1548,7 @@ func _what_is_near() -> String:
 
 ## 사진에 적을 이름. 없는 건 "풍경"으로 뭉뚱그린다.
 const PHOTO_NAMES := {
-	"lighthouse": "등대", "guesthouse": "쿼스텔", "shop": "가게",
+	"lighthouse": "등대", "guesthouse": "호스텔", "shop": "가게",
 	"stall": "좌판", "home-house": "집", "home-persimmon": "감나무",
 	"home-deck": "평상", "home-garden": "밭", "jars": "장독대",
 	"clothesline": "빨랫줄", "pump": "펌프", "parasol": "파라솔",

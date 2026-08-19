@@ -75,10 +75,10 @@ ggggggggggg...ggggggggggggggg..gggg
 ## 부두에 어구가 모여 있고, 골목 어귀에 장독대가 셋, 능선에 솔숲.
 ##
 ## 막는 소품의 콜라이더는 가로로 스프라이트 폭의 70% 만큼 퍼진다.
-## 쿼스텔(59px)·가게(48px)·소나무(70px)·나무(52px) 는 **세 칸**을 막는다.
+## 호스텔(59px)·가게(48px)·소나무(70px)·나무(52px) 는 **세 칸**을 막는다.
 ## 그래서 큰 것은 층과 층을 잇는 길목에 두지 않는다 —
 ## 부두(y5)에서 첫째 층(y7~8), 둘째 층(y10~12) 으로 내려가는 길이
-## 뚫려 있어야 처음 서는 자리에서 나루로도 쿼스텔로도 갈 수 있다.
+## 뚫려 있어야 처음 서는 자리에서 나루로도 호스텔로도 갈 수 있다.
 func props() -> Array:
 	return [
 		# 축대. 계단은 놓였는데 층과 층 사이 높이차가 0 이라 아직 평지로
@@ -127,7 +127,7 @@ func props() -> Array:
 		[5, 6, "jars", true],
 		[6, 6, "jars", true],
 
-		# ── 첫째 층: 쿼장 골목 ────────────────────────────────────────
+		# ── 첫째 층: 시장 골목 ────────────────────────────────────────
 		# 좌판은 한 칸씩 띄워 세운다. 붙여 놓으면 골목이 막힌다.
 		[11, 7, "stall", true],
 		[13, 7, "stall", true],
@@ -158,7 +158,7 @@ func props() -> Array:
 		[18, 12, "mailbox", true],
 		[21, 12, "bench", true],
 		[23, 10, "shop", true],
-		# 쿼스텔은 비탈 끝에 앉아 항구를 내려다본다. 문 앞은 (26,12).
+		# 호스텔은 비탈 끝에 앉아 항구를 내려다본다. 문 앞은 (26,12).
 		[26, 11, "guesthouse", true],
 		[29, 11, "shrub", false],
 
@@ -193,7 +193,7 @@ func spawn_tile() -> Vector2i:
 	return Vector2i(14, 11)
 
 
-## 쿼스텔 문 앞. 쿼스텔은 11번 줄 x25~27 을 막으므로 문 앞은 12번 줄이다.
+## 호스텔 문 앞. 호스텔은 11번 줄 x25~27 을 막으므로 문 앞은 12번 줄이다.
 func sleep_tile() -> Vector2i:
 	return Vector2i(26, 12)
 
@@ -240,7 +240,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 좌판 (13,7) 앞. 아저씨가 제 가게 앞에 서 있는 셈이다.
-	put_folk(Vector2i(13, 8), "seal", "쿼면집 아저씨", "san_seal", [
+	put_folk(Vector2i(13, 8), "seal", "국수집 아저씨", "san_seal", [
 		["앉아요. 국물부터 한 술 떠 봐."],
 		["이 동네는 계단이 많아서.", "다리 아프지."],
 		["나도 젊을 땐 배를 탔어요."],
@@ -292,5 +292,5 @@ func foliage_tint() -> Color:
 ## 가게가 둘이다. 아랫것이 본래의  가게, (23, 10) 것은 찻집이다.
 func sign_of(prop_name: String, at: Vector2i = Vector2i.ZERO) -> String:
 	if prop_name == "shop" and at == Vector2i(23, 10):
-		return "쿼차방"
+		return "찻집"
 	return super(prop_name, at)

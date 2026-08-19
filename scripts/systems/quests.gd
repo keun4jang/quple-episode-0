@@ -221,9 +221,9 @@ static func village_cleared(village: String) -> bool:
 
 ## 마을마다 물범·갈매기·카피바라를 부르는 이름. 화면에 보여 줄 때만 쓴다.
 const FOLK_NAME := {
-	"ju_seal": "쿼빵집 아주머니", "ju_kid": "능 지키는 아이",
-	"san_seal": "쿼면집 아저씨", "san_gull": "부두 청년",
-	"do_seal": "쿼귤 파는 할머니", "do_kid": "자전거 탄 아이",
+	"ju_seal": "빵집 아주머니", "ju_kid": "능 지키는 아이",
+	"san_seal": "국수집 아저씨", "san_gull": "부두 청년",
+	"do_seal": "귤 파는 할머니", "do_kid": "자전거 탄 아이",
 	"cap_guinaru": "나루 가게 아저씨",
 	"cap_bangul": "연못가 빵집 아주머니",
 	"cap_galbat": "갈대밭 쉼터 할머니",
@@ -308,7 +308,7 @@ static func quest_list(village: String) -> Array:
 			"done": _visited("윤슬")})
 		out0.append({"label": "떨어진 것 다 줍기", "kind": "pickup", "key": "",
 			"done": _picked_all("윤슬")})
-		out0.append({"label": "쿼스텔에서 하루 자기", "kind": "sleep", "key": "",
+		out0.append({"label": "호스텔에서 하루 자기", "kind": "sleep", "key": "",
 			"done": JourneyState.quest_done("윤슬:잠")})
 		if HAS_LIGHTHOUSE.get("윤슬", false):
 			out0.append({"label": "등대 안에 들어가 보기", "kind": "door",

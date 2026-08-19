@@ -65,7 +65,7 @@ const NAMES := {
 	"p-persimmon": "감", "p-pebble": "조약돌", "p-flower": "들꽃",
 	"p-pinecone": "솔방울", "p-acorn": "도토리", "p-feather": "깃털",
 	"p-shell": "조개", "p-seaglass": "바다유리",
-	"map": "지도", "camera": "쿼메라",
+	"map": "지도", "camera": "카메라",
 }
 
 ## 얻은 것을 보여 줄 그림. 주울 것(`p-*`)은 제 그림을 그대로 쓰고,

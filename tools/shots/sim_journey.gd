@@ -79,7 +79,7 @@ func _ready() -> void:
 	var d0 := JourneyState.day
 	place.go_to_sleep()
 	await get_tree().create_timer(2.2).timeout
-	ok(JourneyState.day == d0 + 1, "쿼스텔에서 자고 다음 날")
+	ok(JourneyState.day == d0 + 1, "호스텔에서 자고 다음 날")
 
 	# 떠난다 → 볕뉘에서 재회
 	await _walk_to(place.depart_tile(), 26.0)

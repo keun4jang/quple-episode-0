@@ -179,8 +179,8 @@ func _place_tests() -> void:
 	ok(p.walker.global_position.x > -8.0 and p.walker.global_position.y > -8.0,
 		"지도 밖으로 안 나간다")
 
-	# 고향에는 쿼- 낱말이 없다 (docs/world-quo.md 5절)
-	ok(not p.place_name().begins_with("쿼"), "고향은 쿼로 시작하지 않는다")
+	# 고향 이름은 끝까지 짓지 않는다 (`CLAUDE.md`)
+	ok(p.place_name() == "고향", "고향은 이름이 따로 없다")
 
 	# 평상(자리)에 가까이 가면 그 소품(home-deck)의 테두리가 켜지고,
 	# 멀어지면 꺼진다 — 자리는 몸을 숨기고 살아서 소품이 대신 두른다.
@@ -364,7 +364,7 @@ func _place2_tests() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	ok(p.place_name() == "윤슬", "이름이 쿼로 시작한다")
+	ok(p.place_name() == "윤슬", "이름이 순우리말이다")
 	ok(JourneyState.places_visited() == 1, "다녀온 곳으로 센다")
 
 	var sz := p.tile_size()
@@ -401,7 +401,7 @@ func _place2_tests() -> void:
 		% [same, p.legend.size()])
 	home.queue_free()
 
-	ok(p.sleep_tile().x >= 0, "쿼스텔에서 잘 수 있다")
+	ok(p.sleep_tile().x >= 0, "호스텔에서 잘 수 있다")
 	p.queue_free()
 	await get_tree().process_frame
 
@@ -2320,7 +2320,7 @@ func _placement_lint_tests() -> void:
 
 		# **주인공도 같이 본다.** 인연만 재다가 놓쳤다 — 하늬섬은 도착
 		# 자리가 가게 그림 속이라 마을에 내리자마자 주인공이 안 보였고,
-		# 굽이나루는 쿼스텔이 문 앞과 정류장을 통째로 덮었다.
+		# 굽이나루는 호스텔이 문 앞과 정류장을 통째로 덮었다.
 		var hero_tex := load("res://assets/sprites/hero-walk.png") as Texture2D
 		var hidden_hero: Array = []
 		if hero_tex != null:

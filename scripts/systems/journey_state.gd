@@ -200,7 +200,7 @@ var photos: Array = []
 ## `docs/quest-journey.md` 8절이 세운 원칙이다. 대화·줍기·사진은 이미
 ## 있는 기록(마음 칸·`taken`·`photos`)에서 다시 계산하고, **새로 계산할
 ## 수 없는 것**(어느 자리를 밟아 봤는지, 가게에 들어가 봤는지, 그 마을
-## 쿼스텔에서 자 봤는지)만 여기 남긴다.
+## 호스텔에서 자 봤는지)만 여기 남긴다.
 var quest_flags: Dictionary = {}
 
 
@@ -229,12 +229,12 @@ const LETTERS := [
 		"text": "오늘도 바람이 좋아. 지도는 잘 쓰고 있지? 없어도 그만이지만."},
 	{"who": "갈매기 소년",
 		"text": "등대는 밤에 더 예뻐요. 다음에 또 와서 보면 되고, 안 와도 괜찮아요."},
-	{"who": "쿼빵집 아주머니", "text": "쿼빵은 그대로야. 자네가 없어도 여긴 똑같이 돌아가."},
+	{"who": "빵집 아주머니", "text": "빵은 그대로야. 자네가 없어도 여긴 똑같이 돌아가."},
 	{"who": "능 지키는 아이",
 		"text": "저는 아직 여기 있어요. 언젠가 나가 볼 거지만, 오늘은 아니고요."},
-	{"who": "쿼면집 아저씨", "text": "국물은 늘 있으니 생각나면 와. 안 그래도 상관없고."},
+	{"who": "국수집 아저씨", "text": "국물은 늘 있으니 생각나면 와. 안 그래도 상관없고."},
 	{"who": "부두 청년", "text": "오늘 노을이 좋았어요. 혼자 봤는데, 그것도 나쁘지 않았어요."},
-	{"who": "쿼귤 파는 할머니", "text": "바람이 세졌어. 그래도 여기는 늘 이래."},
+	{"who": "귤 파는 할머니", "text": "바람이 세졌어. 그래도 여기는 늘 이래."},
 	{"who": "자전거 탄 아이",
 		"text": "섬 한 바퀴 기록 세웠어요. 다음에 같이 재 볼래요? 아님 말고요."},
 	{"who": "배낭 멘 너구리", "text": "어디쯤 있어요? 나도 몰라요, 나도 어디쯤인지."},
@@ -519,6 +519,32 @@ func to_dict() -> Dictionary:
 	}
 
 
+## 쿼- 이름을 원래 낱말로 되돌렸다 (쿼이스크림 -> 아이스크림).
+## 이미 배달된 편지와 엽서에는 옛 이름이 **글자 그대로** 박혀 저장돼
+## 있어서, 지난 세이브를 그대로 두면 한 배낭 안에서 이름이 두 가지가
+## 된다. 불러올 때 조용히 갈아 끼운다.
+const OLD_QUO := {
+	"쿼스텔": "호스텔", "쿼빵집": "빵집", "쿼면집": "국수집",
+	"쿼귤": "귤", "쿼빵": "빵", "쿼이스크림": "아이스크림",
+	"쿼메라": "카메라", "쿼장": "시장", "쿼차방": "찻집",
+}
+
+func _rename_old_quo() -> void:
+	for l in letters:
+		for k in ["who", "text"]:
+			var v := String(l.get(k, ""))
+			for a in OLD_QUO:
+				v = v.replace(String(a), String(OLD_QUO[a]))
+			l[k] = v
+	for k2 in postcards.keys():
+		var pv: Variant = postcards[k2]
+		if pv is String:
+			var t := String(pv)
+			for a2 in OLD_QUO:
+				t = t.replace(String(a2), String(OLD_QUO[a2]))
+			postcards[k2] = t
+
+
 func from_dict(d: Dictionary) -> void:
 	bag = d.get("bag", {}).duplicate() if d.get("bag") is Dictionary else {}
 	taken = d.get("taken", {}).duplicate() if d.get("taken") is Dictionary else {}
@@ -541,6 +567,7 @@ func from_dict(d: Dictionary) -> void:
 	since_reunion = maxi(0, int(d.get("since_reunion", 0)))
 	last_met = String(d.get("last_met", ""))
 	photos = d.get("photos", []).duplicate(true) if d.get("photos") is Array else []
+	_rename_old_quo()
 	exit_scene = String(d.get("exit_scene", ""))
 	var et: Array = d.get("exit_tile", [-1, -1])
 	exit_tile = Vector2i(int(et[0]), int(et[1])) if et.size() == 2 else Vector2i(-1, -1)
