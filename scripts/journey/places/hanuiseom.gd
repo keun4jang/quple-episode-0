@@ -58,16 +58,16 @@ wwwwwssssssssss.....sssssssssswwwww
 wwwssss...gggggggccccgggg...sssswww
 wwsss..gggcccccccccggggg..gggssssww
 wsss..gggccccccccgggcccgggggg..sssw
-wss.gggggccccccggggdddgggccgg..ssww
-wssgggggccccccddddddddddddggg..swww
-wssgggggg..ddddddddgggddddddddggssw
-wsgggggdddddddccccccggggggdddddddsw
-wsdddddddddccccccccgggggg..gggdddsw
-wsdddddcccccccccccgggggcccggggg.sww
-wwss.ggggccccccccgggggcccggggg.ssww
+wss.gggggccccccggggdddgggccccccssww
+wssgggggccccccddddddggddddggg..swww
+wssgggggggg.dddddddgggdddddddgggssw
+wsgggggdddddddccccccccccggdddddddsw
+wsdddddddggccccccccgccccg..gggdddsw
+wsdddddcccccgggcccggccccccggggg.sww
+wwss.ggggcccgggccgggggcccggggg.ssww
 wwwsss..gggggcccccgggggggg..sssswww
-wwwwwssss..gggggggggggg..ssssswwwww
-wwwwwwwwsssss..ggggg..ssssswwwwwwww
+wwwwws.....gggggggggggg..ssssswwwww
+wwwwwwww..sss..ggggg..ssssswwwwwwww
 wwwwwwwwwwwwssssssssssswwwwwwwwwwww
 """
 

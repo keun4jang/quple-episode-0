@@ -61,17 +61,17 @@ sssssswwwwsssssssssswwsssssssssssss
 ssssssswwssssssssssssssssssssssssss
 ssssssssssssssccccsssssssssssssssss
 sssssssssssssccccccssssssssssssssss
-sssscccccssssccccccssssmmmmmsssssss
-cccccccccssssccccccccccmmmmmmsssmmm
-ccccccccccccccccccccccc....mmmmmmmm
-ccccccggggccccccccccccc....mmmmmmmm
-eeeeeeggggcccccccccccccmmmmmmmmmmmm
-eeeeeeeeee.....ccccccccmmmmmmmmgggg
-.....eeeeegggggcccccc.....cccccgggg
-ggggg.....ggggg......gggggcccccgggg
-gggggggggggggggggggggggggg.....gggg
-gggggggg....ggggggggggggggggggggggg
-ggggggggg...ggggggggggggggggggggggg
+sssscccccsssscccccccsssmmmmmsssssss
+ccccccsccssssccccccscccmmmmmmsssmmm
+cccccccggccccccsccccccc....mmmmmmmm
+ccccccggggccccccgccccmm....mmmmmmmm
+eeeeeeggggccccccgccccmmmmmmmmmmmmmm
+eeeeeeeeee.....ccccgcmmmmmmmmmmgggg
+.....eeeeegggggccc........cccccgggg
+ggggg.....gggggccc....ggggcccccgggg
+gggggggggggggcccccgggggggg.....gggg
+gggggggg....gcccccggggggggggggggggg
+ggggggggg...gcccccggggggggggggggggg
 """
 
 

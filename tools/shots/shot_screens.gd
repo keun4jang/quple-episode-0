@@ -183,3 +183,14 @@ func _run() -> void:
 		p = await _open("res://scenes/journey/Yunseul.tscn")
 		await _wait(24)
 		await _shot("sky-%02d%02d" % [int(hh), int(fmod(hh, 1.0) * 60.0)])
+
+	# ⑫ 마을 바닥 — 길이 굽어 보이는지 본다. 2배 줌이면 41x23칸이
+	# 거의 다 한 화면에 든다. 정오·인연 있는 그대로.
+	JourneyState.minutes = 12.0 * 60.0
+	for v3 in [["Yunseul", "윤슬"], ["Kkonnunbeol", "꽃눈벌"],
+			["Hanuiseom", "하늬섬"]]:
+		p = await _open("res://scenes/journey/%s.tscn" % v3[0])
+		var sz: Vector2i = p.tile_size()
+		p.walker.global_position = Vector2(sz.x * 8.0, sz.y * 8.0)
+		await _wait(30)
+		await _shot("floor-%s" % v3[0])
