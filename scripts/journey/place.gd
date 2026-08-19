@@ -221,6 +221,7 @@ func _ready() -> void:
 	_build_decals()
 	_build_edges()
 	_build_props()
+	_build_signs()
 	_build_pickups()
 	_build_walls()
 	_build_doors()
@@ -675,7 +676,12 @@ func _build_decals() -> void:
 func _build_edges() -> void:
 	var n := Node2D.new()
 	n.name = "Edges"
-	n.z_index = 1        # 바닥·이음새 위, 소품 아래
+	# **0 이어야 한다.** Godot 은 z 통을 먼저 가르고 그 통 안에서만
+	# Y 정렬을 한다. 소품·인연·주인공이 전부 z 0 이라 z 1 로 두면
+	# "소품 아래" 가 아니라 **사람 가슴 위에** 어두운 띠가 그어졌다 —
+	# 물가를 걸을 때마다 그랬다. `_ground` 는 Y 정렬이 꺼져 있고 이
+	# 노드가 마지막 자식이라, 0 이어도 바닥·이음새 위에 그려진다.
+	n.z_index = 0
 	n.draw.connect(func() -> void:
 		for y in _grid.size():
 			for x in (_grid[y] as String).length():
@@ -804,6 +810,117 @@ func _build_props() -> void:
 			add_child(body)
 
 	shadows.queue_redraw()
+
+
+# ── 건물 간판 ─────────────────────────────────────────────────────────
+#
+# 들어갈 수 있는 건물이 그림만으로는 안 읽혔다. 차양이 있는 집이 가게인지
+# 남의 집인지 알 길이 없어서, 문 앞까지 가 봐야 알았다. 지붕 위에 작은
+# 나무 간판을 건다 — 멀리서도 "저기가 가게구나" 가 보여야 한다.
+#
+# **마을마다 다른 이름을 단다.** 아홉 곳이 다 "가게" 면 간판을 다는 뜻이
+# 없다. 파는 사람이 누구인지가 이미 정해져 있으니(쿼빵집 아주머니,
+# 쿼면집 아저씨…) 그 결을 그대로 간판에 옮긴다.
+# `CLAUDE.md`: 쿼카가 만든 것에는 쿼가 붙고, 실제 상표는 흉내 내지 않는다.
+const SHOP_SIGN := {
+	"윤슬": "윤슬가게", "볕뉘": "쿼빵집", "가풀재": "쿼면집",
+	"하늬섬": "쿼귤가게", "굽이나루": "나루가게", "방울못": "못가 쿼빵집",
+	"갈밭머리": "갈대쉼터", "솔은재": "고개쉼터", "꽃눈벌": "밭머리쉼터",
+}
+
+## 간판을 다는 건물과 그 이름. 가게는 마을마다 다르다.
+## 한 마을에 가게가 둘인 곳(볕뉘·가풀재)은 칸으로 갈라 다른 이름을 단다 —
+## 같은 간판이 둘이면 간판이 아니라 무늬다.
+func sign_of(prop_name: String, _at: Vector2i = Vector2i.ZERO) -> String:
+	match prop_name:
+		"shop":
+			return String(SHOP_SIGN.get(place_name(), "가게"))
+		"guesthouse":
+			return "쿼스텔"
+		"lighthouse":
+			return "등대"
+	return ""
+
+
+func _build_signs() -> void:
+	for p in props():
+		var nm: String = p[2]
+		var text := sign_of(nm, Vector2i(p[0], p[1]))
+		if text == "":
+			continue
+		var tex := load("res://assets/sprites/%s.png" % nm) as Texture2D
+		if tex == null:
+			continue
+		var bottom: float = (float(p[1]) + 1.0) * TILE
+		# 지붕 위에 건다. 다만 등대·쿼스텔처럼 키가 큰 것은 꼭대기까지
+		# 올리면 하늘에 뜬 글자가 되니, 눈높이쯤에서 멈춘다.
+		var top: float = bottom - minf(float(tex.get_height()), 58.0)
+		_add_sign(Vector2(float(p[0]) * TILE + TILE * 0.5, top - 3.0), text)
+
+
+## 나무 간판 하나. 글자 폭에 맞춰 판을 짜고 그 위에 이름을 얹는다.
+func _add_sign(at: Vector2, text: String) -> void:
+	var holder := Node2D.new()
+	holder.name = "Sign"
+	holder.position = at
+	# 인연 이름표(40)보다 아래, 소품(0)보다 위. 사람이 간판을 가린다.
+	holder.z_index = 30
+	add_child(holder)
+
+	var lab := Label.new()
+	lab.text = text
+	lab.add_theme_font_size_override("font_size", 11)
+	lab.add_theme_color_override("font_color", Color(0.227, 0.173, 0.173))
+	lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(lab)
+
+	var fnt: Font = lab.get_theme_font("font")
+	var tw: float = 40.0
+	if fnt != null:
+		tw = fnt.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+	var w: float = ceilf(tw) + 12.0
+	var h := 15.0
+	# **겹치면 한 칸 올린다.** 가게와 쿼스텔이 세 칸 옆에 나란히 선
+	# 마을(솔은재)에서 간판 둘이 서로를 반쯤 먹었다. 자리를 손으로
+	# 맞추는 대신, 이미 걸린 간판과 부딪히면 위로 비켜 준다.
+	for _try in 4:
+		var mine := Rect2(holder.position.x - w * 0.5,
+			holder.position.y - h, w, h)
+		var bump := false
+		for other in _signs:
+			if is_instance_valid(other) \
+					and (other.get_meta("rect", Rect2()) as Rect2).intersects(mine):
+				bump = true
+				break
+		if not bump:
+			break
+		holder.position.y -= h + 2.0
+	holder.set_meta("rect", Rect2(holder.position.x - w * 0.5,
+		holder.position.y - h, w, h))
+	holder.set_meta("name", text)
+	lab.size = Vector2(w, h)
+	lab.position = Vector2(-w * 0.5, -h)
+
+	holder.draw.connect(func() -> void:
+		var r := Rect2(-w * 0.5, -h, w, h)
+		# 발치 그림자 한 줄 — 판이 벽에서 조금 떠 있어 보인다
+		holder.draw_rect(Rect2(r.position + Vector2(1, 2), r.size),
+			Color(0.231, 0.200, 0.251, 0.25))
+		holder.draw_rect(r, Color(0.545, 0.431, 0.290))            # 나무 테
+		holder.draw_rect(Rect2(r.position + Vector2(1, 1),
+			r.size - Vector2(2, 2)), Color(0.965, 0.906, 0.784))   # 판 면
+		# 위 모서리에 밝은 선, 아래에 어두운 선 — 판이 두께를 갖는다
+		holder.draw_line(r.position + Vector2(1, 1),
+			r.position + Vector2(r.size.x - 1, 1), Color(1, 1, 1, 0.5))
+		holder.draw_line(r.position + Vector2(1, r.size.y - 1),
+			r.position + Vector2(r.size.x - 1, r.size.y - 1),
+			Color(0.42, 0.33, 0.22, 0.6)))
+	_signs.append(holder)
+
+
+var _signs: Array = []
 
 
 # 그림자색은 검정이 아니라 보랏빛 도는 어둠 — 흙 위에서 덜 탁하다.

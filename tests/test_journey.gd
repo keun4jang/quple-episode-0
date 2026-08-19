@@ -2318,6 +2318,37 @@ func _placement_lint_tests() -> void:
 		ok(covers.is_empty(), "%s: 소품이 인연·줍는 것을 안 덮는다%s"
 			% [village, "" if covers.is_empty() else " — " + str(covers)])
 
+		# **주인공도 같이 본다.** 인연만 재다가 놓쳤다 — 하늬섬은 도착
+		# 자리가 가게 그림 속이라 마을에 내리자마자 주인공이 안 보였고,
+		# 굽이나루는 쿼스텔이 문 앞과 정류장을 통째로 덮었다.
+		var hero_tex := load("res://assets/sprites/hero-walk.png") as Texture2D
+		var hidden_hero: Array = []
+		if hero_tex != null:
+			var hw: float = float(hero_tex.get_width()) / 4.0
+			var hh: float = float(hero_tex.get_height()) / 3.0
+			var spots2: Array = []
+			if p.spawn_tile() != Vector2i(-1, -1):
+				spots2.append(["도착", p.spawn_tile()])
+			if p.sleep_tile() != Vector2i(-1, -1):
+				spots2.append(["잠자리", p.sleep_tile()])
+			if p.depart_tile() != Vector2i(-1, -1):
+				spots2.append(["정류장", p.depart_tile()])
+			for d3 in p.doors():
+				spots2.append(["문앞", Vector2i(d3["tile"])])
+			for sp in spots2:
+				var st: Vector2i = sp[1]
+				var hb: float = (float(st.y) + 1.0) * 16.0
+				var hrect := Rect2(float(st.x) * 16.0 + 8.0 - hw / 2.0,
+					hb - hh, hw, hh)
+				for b2 in boxes:
+					if float(b2[1]) <= hb:
+						continue
+					var hit2: Rect2 = (b2[0] as Rect2).intersection(hrect)
+					if hit2.get_area() / (hw * hh) > 0.4:
+						hidden_hero.append("%s%s를 %s%s" % [sp[0], st, b2[2], b2[3]])
+		ok(hidden_hero.is_empty(), "%s: 주인공이 서는 자리가 안 가려진다%s"
+			% [village, "" if hidden_hero.is_empty() else " — " + str(hidden_hero)])
+
 		# ── 이름표끼리 겹치는가 ────────────────────────────────────────
 		#
 		# 이름표는 폭을 120 으로 잡아 두었지만 실제로 겹치는 건 **글자**다.
@@ -2326,6 +2357,27 @@ func _placement_lint_tests() -> void:
 		var clash: Array = []
 		for part2 in ["아침", "낮", "저녁"]:
 			var tags: Array = []
+			# 여행자는 그날 그 마을에 있을 때만 세워지지만 칸은 고정이라,
+			# 붙박이를 그 곁에 세우면 두 이름이 늘 겹친다. 같이 잰다.
+			var wt: Vector2i = p.wanderer_tile()
+			var already := false
+			for f3 in p._folk:
+				if is_instance_valid(f3) and f3.who == "배낭 멘 너구리":
+					already = true
+			if wt != Vector2i(-1, -1) and not already:
+				var rtex := load("res://assets/sprites/raccoon-walk.png") as Texture2D
+				var rtall: float = 24.0
+				if rtex != null:
+					rtall = float(rtex.get_height()) / 3.0
+				var rw := "배낭 멘 너구리"
+				var rfnt: Font = ThemeDB.get_default_theme().default_font
+				var rtw: float = 77.0
+				if rfnt != null:
+					rtw = rfnt.get_string_size(rw, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+				var rcx: float = float(wt.x) * 16.0 + 8.0
+				tags.append([rw, Rect2(rcx - rtw / 2.0,
+					(float(wt.y) + 1.0) * 16.0 - rtall - 17.0, rtw, 16.0),
+					Vector2(rcx, (float(wt.y) + 1.0) * 16.0)])
 			for f2 in p._folk:
 				if not is_instance_valid(f2) or f2.is_spot or f2.who == "":
 					continue
@@ -2357,6 +2409,34 @@ func _placement_lint_tests() -> void:
 						clash.append("%s %s↔%s" % [part2, a2[0], b2[0]])
 		ok(clash.is_empty(), "%s: 이름표끼리 안 겹친다%s"
 			% [village, "" if clash.is_empty() else " — " + str(clash)])
+
+		# ── 건물 간판 ──────────────────────────────────────────────────
+		#
+		# 들어갈 수 있는 건물에는 간판이 있어야 하고, 간판끼리도
+		# 인연 이름표와도 안 겹쳐야 한다.
+		# 실제로 걸린 간판을 그대로 읽는다 — 자리를 다시 셈하면
+		# 자동으로 비켜 준 것을 못 본다.
+		var signs: Array = []
+		for sg in p._signs:
+			if is_instance_valid(sg):
+				signs.append([String(sg.get_meta("name", "")),
+					sg.get_meta("rect", Rect2())])
+		var doors_with_sign := 0
+		for d2 in p.doors():
+			var above := Vector2i(d2["tile"]) + Vector2i(0, -1)
+			for pr3 in p.props():
+				if Vector2i(pr3[0], pr3[1]) == above \
+						and p.sign_of(String(pr3[2]), above) != "":
+					doors_with_sign += 1
+		ok(doors_with_sign > 0 or p.doors().is_empty(),
+			"%s: 들어갈 수 있는 건물에 간판이 있다 (%d개)" % [village, doors_with_sign])
+		var sclash: Array = []
+		for i3 in signs.size():
+			for j3 in range(i3 + 1, signs.size()):
+				if (signs[i3][1] as Rect2).intersects(signs[j3][1]):
+					sclash.append("%s↔%s" % [signs[i3][0], signs[j3][0]])
+		ok(sclash.is_empty(), "%s: 간판끼리 안 겹친다%s"
+			% [village, "" if sclash.is_empty() else " — " + str(sclash)])
 
 		p.queue_free()
 		await get_tree().process_frame

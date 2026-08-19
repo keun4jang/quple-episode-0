@@ -78,7 +78,7 @@ func props() -> Array:
 		# ── 나루 마당 (동안) ────────────────────────────────────────
 		# 붙박이 넷. 좌표 고정.
 		[39, 14, "shop", true],          # 카피바라 가게
-		[39, 17, "guesthouse", true],    # 쉼터
+		[37, 12, "guesthouse", true],    # 쉼터
 		[40, 15, "signpost", false],
 		[34, 18, "mailbox", true],
 		# 건물 밑동. 마당에서 안 가려지는 곳은 y15 와 y17~19 뿐이다.
@@ -126,7 +126,7 @@ func props() -> Array:
 		# ── 동안 숲 (오른쪽 가장자리를 두른다) ──────────────────────
 		[38, 5, "pine", true],
 		[40, 7, "pine", true],
-		[37, 8, "tree", true],
+		[40, 9, "tree", true],
 		[39, 10, "shrub", false],
 
 		# ── 남동 숲 (오른쪽 아래 귀퉁이) ────────────────────────────
@@ -199,8 +199,11 @@ func spawn_tile() -> Vector2i:
 	return Vector2i(10, 10)
 
 
+## 쿼스텔 문 앞. 쿼스텔은 여섯 칸 높이(96px)라 마당 아래에 세우면
+## 가게·표지판·정류장을 통째로 덮는다. 마당 위쪽에 세우고 문 앞은
+## 그 아랫줄이다.
 func sleep_tile() -> Vector2i:
-	return Vector2i(39, 17)
+	return Vector2i(36, 13)
 
 
 func depart_tile() -> Vector2i:

@@ -141,7 +141,7 @@ func _process(_delta: float) -> void:
 	if _panel == null or _shown == "":
 		return
 	var busy := false
-	for g in ["journey_say", "travel_board"]:
+	for g in ["journey_say", "travel_board", "settings_ui"]:
 		var n := get_tree().get_first_node_in_group(g)
 		if n != null and n.visible:
 			busy = true

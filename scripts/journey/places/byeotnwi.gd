@@ -274,3 +274,9 @@ func _put_raccoon() -> void:
 ## 볕 — 노랗게 데워진 초록. 같은 나무 그림이 마을마다 딴 빛을 띠게 한다 (`Place.FOLIAGE`).
 func foliage_tint() -> Color:
 	return Color(1.00, 0.99, 0.93)
+
+## 가게가 둘이다. 아랫것이 본래의  가게, (27, 9) 것은 찻집이다.
+func sign_of(prop_name: String, at: Vector2i = Vector2i.ZERO) -> String:
+	if prop_name == "shop" and at == Vector2i(27, 9):
+		return "쿼차방"
+	return super(prop_name, at)

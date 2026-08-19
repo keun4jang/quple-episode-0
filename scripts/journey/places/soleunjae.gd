@@ -196,7 +196,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 카피바라 — 스웨터 차림. 고개 중턱 쉼터를 지킨다.
-	put_folk(Vector2i(23, 12), "capybara-c", "고개 쉼터 아저씨", "cap_sol", [
+	put_folk(Vector2i(25, 13), "capybara-c", "고개 쉼터 아저씨", "cap_sol", [
 		["여기까지 올라오면 다리가 좀 뻐근하지."],
 		["앉았다 가요.", "고개는 도망 안 가."],
 		["서두르는 사람은 여기서 다 놓쳐요.", "천천히 봐야 보이는 게 있거든."],

@@ -117,10 +117,13 @@ func _process(delta: float) -> void:
 		sprite.position.y = -1.0 if _bob_clock >= _bob_gap else 0.0
 	if _tag != null:
 		# **위가 없으면 아래에 단다.** 지도 맨 윗줄에 선 인연은 이름이
-		# 지도 밖 허공에 떠서 위쪽 안내줄·시계와 겹쳤다. 시간대마다
-		# 자리를 옮기니 만들 때 한 번이 아니라 그때그때 정한다.
+		# 위쪽 시계·안내줄·설정 버튼 밑으로 들어가 안 읽혔다. 지도
+		# 좌표가 아니라 **화면 좌표**로 본다 — 카메라가 어디를 보고
+		# 있느냐에 달린 문제라서, 지도 위쪽만 따지면 못 잡는다.
 		var above: float = -(sprite.size().y if sprite != null else 24.0) - 17.0
-		_tag.position.y = 4.0 if global_position.y + above < 2.0 else above
+		var on_screen: float = (get_viewport_transform()
+			* (global_position + Vector2(0, above))).y
+		_tag.position.y = 4.0 if on_screen < 64.0 else above
 		_tag.modulate.a = move_toward(_tag.modulate.a,
 			0.95 if _tag_on else 0.0, delta * 4.0)
 	if _talk_outline_on:

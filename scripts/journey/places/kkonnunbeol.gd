@@ -148,8 +148,10 @@ func sleep_tile() -> Vector2i:
 func depart_tile() -> Vector2i:
 	return Vector2i(13, 18)
 
+## 여행자 자리. 밭머리 쉼터 아주머니(23,9) 곁에 두면 이름표 둘이
+## 한 줄에서 뭉갠다 — 두 줄 아래 길로 내렸다.
 func wanderer_tile() -> Vector2i:
-	return Vector2i(22, 9)
+	return Vector2i(25, 11)
 
 
 

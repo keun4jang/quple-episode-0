@@ -288,3 +288,9 @@ func on_built() -> void:
 ## 고갯바람 — 서늘한 초록. 같은 나무 그림이 마을마다 딴 빛을 띠게 한다 (`Place.FOLIAGE`).
 func foliage_tint() -> Color:
 	return Color(0.96, 0.99, 1.00)
+
+## 가게가 둘이다. 아랫것이 본래의  가게, (23, 10) 것은 찻집이다.
+func sign_of(prop_name: String, at: Vector2i = Vector2i.ZERO) -> String:
+	if prop_name == "shop" and at == Vector2i(23, 10):
+		return "쿼차방"
+	return super(prop_name, at)

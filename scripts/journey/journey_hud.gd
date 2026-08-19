@@ -951,10 +951,34 @@ func show_got(item: String) -> void:
 func _drain_center() -> void:
 	if _got_busy or _cele_busy:
 		return
+	# **덮여 있으면 기다린다.** 정류장에서 떠날 때의 축하는 여행판 뒤에,
+	# 문을 지날 때의 축하는 씬 전환 암전 뒤에 통째로 가려 한 번도 못
+	# 봤다. 덮개가 걷힌 뒤에 띄운다 (`_tick_center_gate` 가 다시 부른다).
+	if _center_covered():
+		return
 	if not _got_queue.is_empty():
 		_show_got_now(String(_got_queue.pop_front()))
 	elif not _cele_queue.is_empty():
 		_show_cele_now(_cele_queue.pop_front())
+
+
+## 화면 가운데를 덮고 있는 것이 있나. 있으면 축하를 미룬다.
+func _center_covered() -> bool:
+	var tr := get_node_or_null("/root/SceneTransition")
+	if tr != null and bool(tr.get("is_transitioning")):
+		return true
+	for g in ["travel_board", "journey_say", "overlay"]:
+		for n in get_tree().get_nodes_in_group(g):
+			if n is CanvasItem and (n as CanvasItem).visible:
+				return true
+			if n is CanvasLayer and (n as CanvasLayer).visible:
+				return true
+	if bag_open():
+		return true
+	# 도착 카드(마을 이름 + 해볼 일)도 같은 자리를 쓴다
+	if _place_title != null and _place_title.modulate.a > 0.05:
+		return true
+	return false
 
 
 func _show_got_now(item: String) -> void:
@@ -1112,6 +1136,9 @@ func _process(delta: float) -> void:
 		_bag_ring.queue_redraw()
 	if _clock != null:
 		_clock.text = "%s   %d일째" % [JourneyState.time_text(), JourneyState.day]
+	if (not _got_queue.is_empty() or not _cele_queue.is_empty()) \
+			and not _got_busy and not _cele_busy:
+		_drain_center()          # 덮개가 걷혔으면 그때 띄운다
 	var list := Quests.quest_list(_quest_village())
 	_watch_done(list)
 	_tick_task_strip()
