@@ -271,6 +271,10 @@ func _goal_shape(p: Vector2, r: float, kind: String, photo: bool, col: Color) ->
 			draw_line(p, p + Vector2(0, -r * 1.8), col, w, true)
 			draw_rect(Rect2(p + Vector2(-r * 0.9, -r * 2.4),
 				Vector2(r * 1.8, r * 0.9)), col, false, w * 0.9)
+		"trace":
+			# 숨은 자취 — 대각선 네 갈래 반짝임. 줍기(십자)와 갈라 둔다
+			for v in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+				draw_line(p + v * (r * 0.3), p + v * (r * 1.0), col, w * 0.9, true)
 		"pickup":
 			# 줍기 — 작은 반짝임 (네 갈래)
 			for v in [Vector2(0, -1), Vector2(0, 1), Vector2(-1, 0), Vector2(1, 0)]:

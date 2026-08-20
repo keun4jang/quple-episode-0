@@ -1858,7 +1858,8 @@ func talk_to_near() -> void:
 	# 기록이 어디에도 안 남는다. 프롤로그처럼 **소품을 들여다보는 것 자체가
 	# 할 일**인 곳이 있어서, 본 것만 표시로 남긴다.
 	if f.is_spot and f.who != "":
-		JourneyState.mark_quest("%s:본:%s" % [place_name(), f.who])
+		var spot_name: String = f.spot_key if f.spot_key != "" else f.who
+		JourneyState.mark_quest("%s:본:%s" % [place_name(), spot_name])
 	# 마음을 다 채우면 엽서를 준다. 떠난 뒤에도 편지가 온다는 뜻이다.
 	if f.heart() >= JourneyState.HEART_MAX:
 		JourneyState.give_postcard(f.folk_id, f.who)
@@ -2629,6 +2630,7 @@ func _process(delta: float) -> void:
 	_tick_clock(delta)
 	_tick_water(delta)
 	_tick_goal_arrow(delta)
+	_tick_traces()
 	if not blocked:
 		_tick_footsteps(delta)
 
@@ -2682,6 +2684,25 @@ func goal_world(item: Dictionary) -> Vector2:
 			var t := depart_tile()
 			if t.x >= 0:
 				return world_of(t)
+		"trace":
+			# 아직 못 찾은 반짝이는 자리 중 **가장 가까운 것** 하나만
+			# 짚는다 — 셋을 다 찍으면 찾기가 아니라 배달이 된다.
+			var tb := Vector2.INF
+			var tn := INF
+			var tfrom: Vector2 = walker.global_position if walker != null \
+				else Vector2.ZERO
+			for f in _folk:
+				if not is_instance_valid(f) or not f.is_spot:
+					continue
+				if not f.spot_key.begins_with(key):
+					continue
+				if JourneyState.quest_done("%s:본:%s" % [place_name(), f.spot_key]):
+					continue
+				var td := tfrom.distance_squared_to(f.global_position)
+				if td < tn:
+					tn = td
+					tb = f.global_position
+			return tb
 		"pickup":
 			# **남은 것을 다 찍지 않는다.** 전부 찍으면 지도가 지저분해지고
 			# 수집 게임처럼 보인다. 가장 가까운 하나만 가리킨다 — 그것부터
@@ -2889,6 +2910,51 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 ##
 ## 눈에 안 보이는 Folk 를 세워 두는 것뿐이다. 표시도 대사도 같은 길을
 ## 타므로 따로 만들 게 없다.
+# ── 숨은 자취 ─────────────────────────────────────────────────────────
+#
+# "가서 좌표를 밟는" 방문과 다르게, **마을을 살펴보며 찾는** 놀이다.
+# 인연이 말한 자리 셋이 마을 어딘가에서 잔잔하게 반짝인다 — 가까이
+# 걸어가 살펴보면(자리 표시와 같은 대화) 하나씩 기록된다. 찾은 것은
+# 되돌아가지 않고, 셋을 다 찾으면 샛길이 끝난다 (`Quests.SIDE`).
+#
+# 반짝임은 그림이 아니라 **코드로 그린다** — 폰트에도 스프라이트에도
+# 없는 것이라서다 (`CLAUDE.md`).
+var _traces: Array = []
+
+func put_trace(t: Vector2i, key: String, lines: Array) -> void:
+	var flag := "%s:본:%s" % [place_name(), key]
+	var f := put_spot(t, "반짝이는 자리", lines)
+	f.spot_key = key
+	if JourneyState.quest_done(flag):
+		return                     # 찾은 자리는 더 안 반짝인다
+	var glint := Node2D.new()
+	glint.name = "Trace_" + key
+	glint.position = world_of(t) - Vector2(0, TILE * 0.5)
+	glint.z_index = 8
+	glint.set_meta("flag", flag)
+	glint.set_meta("seed", float(absi(hash(key)) % 100))
+	glint.draw.connect(func() -> void:
+		if JourneyState.quest_done(String(glint.get_meta("flag"))):
+			return                 # 찾는 순간 조용해진다
+		var ph: float = _arrow_clock * 2.2 + float(glint.get_meta("seed"))
+		# 잔잔한 윤슬 — 작은 빛 세 톨이 어긋난 박자로 깜빡인다
+		for i in 3:
+			var a: float = clampf(sin(ph + float(i) * 2.1) * 0.5 + 0.5, 0.0, 1.0)
+			var at := Vector2([-5.0, 4.0, 0.0][i], [2.0, -1.0, -5.0][i])
+			glint.draw_circle(at, 1.4 + a * 0.8, Color(1.0, 0.95, 0.75, 0.25 + a * 0.55))
+			glint.draw_line(at + Vector2(-3.2, 0), at + Vector2(3.2, 0),
+				Color(1.0, 0.95, 0.75, a * 0.35), 1.0)
+	)
+	add_child(glint)
+	_traces.append(glint)
+
+
+func _tick_traces() -> void:
+	for g in _traces:
+		if is_instance_valid(g):
+			g.queue_redraw()
+
+
 func put_spot(t: Vector2i, what: String, lines: Array) -> Folk:
 	var f := Folk.new()
 	f.who = what

@@ -166,6 +166,10 @@ const SIDE := {
 			"label": "부두 끝을 아침에도 저녁에도 보기"},
 		{"key": "윤슬:샛길:고르기", "kind": "talk", "map": "seal",
 			"label": "조개와 바다유리 중 하나를 골라 할머니에게 보여 주기"},
+		# 숨은 자취 — 좌표를 안 찍어 준다. 지도의 표시는 "가장 가까운
+		# 못 찾은 자리" 하나만 짚는다 (`Place.goal_world` 의 trace).
+		{"key": "윤슬:샛길:자취", "kind": "trace", "map": "빛자리",
+			"label": "갈매기 소년이 말한 반짝이는 자리 셋 찾기"},
 	],
 }
 
@@ -217,6 +221,10 @@ static func side_done(village: String, key: String) -> bool:
 			# 같은 자리를 두 시간대에 — 그래야 "비교" 다
 			return JourneyState.quest_done("윤슬:부두끝@아침") \
 				and JourneyState.quest_done("윤슬:부두끝@저녁")
+		"윤슬:샛길:자취":
+			return JourneyState.quest_done("윤슬:본:빛자리1") \
+				and JourneyState.quest_done("윤슬:본:빛자리2") \
+				and JourneyState.quest_done("윤슬:본:빛자리3")
 	return JourneyState.quest_done(key)
 
 

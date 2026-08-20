@@ -35,6 +35,7 @@ func _ready() -> void:
 	await _how_to_play_tests()
 	await _mark_timing_tests()
 	await _order_tests()
+	await _trace_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -1231,7 +1232,7 @@ func _quest_tests() -> void:
 	# ⑤ 배낭 "이 마을에서" 탭이 읽는 목록도 같은 판정을 그대로 쓴다.
 	# 지도·카메라를 받기 전엔 딱 둘만 보여준다("숙제장" 처럼 안 보이게).
 	# **다섯 줄만 보인다** — 매듭 한 줄(지금 단계)과 샛길 넷.
-	ok(Quests.quest_list("윤슬").size() == 5, "윤슬 목록은 다섯 줄")
+	ok(Quests.quest_list("윤슬").size() == 6, "윤슬 목록은 여섯 줄 (이야기 + 샛길 다섯)")
 	ok(String(Quests.quest_list("윤슬")[0]["label"]).begins_with("이야기 1/3"),
 		"매듭 줄은 지금 단계와 몇 번째인지를 적는다 (%s)"
 			% Quests.quest_list("윤슬")[0]["label"])
@@ -1514,7 +1515,7 @@ func _goal_tests() -> void:
 ## 지킨다: 목록이 내놓는 `kind` 를 미니맵이 다 알고 있어야 한다.
 ## 모르는 종류가 생기면 기본 모양으로 조용히 떨어져서, 잠자리가 동그라미로
 ## 뜨는 식으로 어긋나도 아무도 모른다.
-const MINIMAP_KINDS := ["talk", "prop", "door", "visit", "pickup", "sleep", "depart"]
+const MINIMAP_KINDS := ["talk", "prop", "door", "visit", "pickup", "sleep", "depart", "trace"]
 
 func _minimap_kind_test() -> void:
 	print("\n[미니맵이 아는 종류]")
@@ -2766,5 +2767,80 @@ func _order_tests() -> void:
 	ok(String(now2.get("label", "")).contains("등대곶"),
 		"저녁이 되면 등대곶을 짚는다 (%s)" % now2.get("label", ""))
 	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 숨은 자취 ─────────────────────────────────────────────────────────
+#
+# 첫 미니게임. 인연이 말한 자리 셋이 마을 어딘가에서 반짝이고, 가까이
+# 걸어가 살펴보면 하나씩 기록된다. 좌표를 지도에 다 찍어 주지 않는다 —
+# 지도는 "가장 가까운 못 찾은 자리" 하나만 짚는다.
+
+func _trace_tests() -> void:
+	print("\n[숨은 자취]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+
+	# 자리 셋이 서고, 반짝임도 셋이다
+	var spots: Array = []
+	for f in p._folk:
+		if is_instance_valid(f) and f.is_spot and f.spot_key.begins_with("빛자리"):
+			spots.append(f)
+	ok(spots.size() == 3, "반짝이는 자리가 셋 선다 (%d)" % spots.size())
+	ok(p._traces.size() == 3, "반짝임도 셋 그려진다 (%d)" % p._traces.size())
+
+	# 서로 여덟 칸 넘게 떨어져 있고, 곁에 설 자리가 있다
+	for i in spots.size():
+		var t := p.tile_of(spots[i].global_position + Vector2(0, -1))
+		var can_stand := false
+		for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if p._walkable(t + off):
+				can_stand = true
+		ok(can_stand, "자리 %d 곁에 설 수 있다 %s" % [i + 1, t])
+		for j in range(i + 1, spots.size()):
+			var t2 := p.tile_of(spots[j].global_position + Vector2(0, -1))
+			ok(t.distance_to(Vector2(t2)) >= 8.0 or absi(t.x - t2.x) + absi(t.y - t2.y) >= 8,
+				"자리끼리 여덟 칸 넘게 떨어져 있다 (%s ~ %s)" % [t, t2])
+
+	# 지도는 가장 가까운 못 찾은 자리 하나만 짚는다
+	var row: Dictionary = {}
+	for q in Quests.quest_list("윤슬"):
+		if String(q.get("kind", "")) == "trace":
+			row = q
+	ok(not row.is_empty(), "목록에 자취 줄이 있다")
+	p.walker.global_position = p.world_of(Vector2i(13, 7))
+	var g1 := p.goal_world(row)
+	ok(g1 != Vector2.INF, "지도가 한 자리를 짚는다")
+	ok(p.tile_of(g1 + Vector2(0, -1)).distance_to(Vector2(12, 5)) <= 1.5,
+		"부두 곁에 서면 부두 곁 자리를 짚는다 (%s)" % p.tile_of(g1))
+
+	# 살펴보면 하나씩 기록되고, 반짝임은 그 자리만 멎는다
+	ok(not Quests.side_done("윤슬", "윤슬:샛길:자취"), "아직 하나도 못 찾았다")
+	for f2 in spots:
+		p._near = f2
+		p.talk_to_near()
+		await get_tree().process_frame
+		if p.say != null and p.say.has_method("close"):
+			p.say.close()
+	ok(JourneyState.quest_done("윤슬:본:빛자리1")
+		and JourneyState.quest_done("윤슬:본:빛자리2")
+		and JourneyState.quest_done("윤슬:본:빛자리3"),
+		"세 자리가 서로 다른 표시로 남는다")
+	ok(Quests.side_done("윤슬", "윤슬:샛길:자취"), "셋을 다 찾으면 샛길이 끝난다")
+	ok(p.goal_world(row) == Vector2.INF, "다 찾으면 지도가 더 안 짚는다")
+
+	# 다시 들어와도 찾은 자리는 조용하다
+	p.queue_free()
+	await get_tree().process_frame
+	var p2: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p2)
+	await get_tree().process_frame
+	ok(p2._traces.is_empty(), "찾은 자리는 다시 안 반짝인다 (%d)" % p2._traces.size())
+	p2.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
