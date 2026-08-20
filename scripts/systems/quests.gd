@@ -125,6 +125,116 @@ const LOCAL := {
 }
 
 
+# ── 마음매듭 · 샛길 ───────────────────────────────────────────────────
+#
+# 여태 마을마다 할 일이 예닐곱 줄이었는데, 하는 일의 **동사**가 다섯
+# 가지(말 걸기·문 지나기·가 보기·줍기·자기)뿐이라 아홉 마을이 다
+# 같았다. 체크박스를 더 얹어도 반복은 그대로다.
+#
+# 그래서 **줄을 늘리는 대신 엮는다.**
+#   - 마음매듭 하나: 그 마을의 이야기. 세 단계로 이어진다.
+#     단계마다 조건이 다르다 — 언제 갔는지, 무엇을 들고 갔는지,
+#     며칠째인지를 본다
+#   - 샛길 넷: 골라서 하는 짧은 이야기. **둘만 해도 다음 마을이 열린다**
+#
+# 100% 를 요구하지 않는다. 다 하라고 하면서 고르라고 하면 가짜 선택이다.
+#
+# 지금은 **윤슬 하나만** 이 구조다. 여기서 재미가 확인되면 나머지
+# 여덟 곳으로 넓힌다 (`docs/planning/` 상담 1단계 — 수직 슬라이스).
+const KNOT := {
+	"윤슬": {
+		"title": "빛은 한 번에 보이지 않는다",
+		"steps": [
+			{"key": "윤슬:매듭:1", "kind": "talk", "map": "seal",
+				"label": "가게 할머니와 갈매기 소년에게 인사하기"},
+			{"key": "윤슬:매듭:2", "kind": "visit", "map": "윤슬:등대",
+				"photo": true,
+				"label": "저녁에 등대곶에서 불 켜진 등대 사진 남기기"},
+			{"key": "윤슬:매듭:3", "kind": "talk", "map": "seagull",
+				"label": "다음 날 바다유리를 소년에게 보여 주기"},
+		],
+	},
+}
+
+const SIDE := {
+	"윤슬": [
+		{"key": "윤슬:샛길:가게", "kind": "door", "map": "가게",
+			"label": "가게에 들어가 물건 구경하기"},
+		{"key": "윤슬:샛길:등대안", "kind": "door", "map": "등대안",
+			"label": "등대 안에 올라가 보기"},
+		{"key": "윤슬:샛길:부두", "kind": "visit", "map": "윤슬:부두끝",
+			"label": "부두 끝을 아침에도 저녁에도 보기"},
+		{"key": "윤슬:샛길:고르기", "kind": "talk", "map": "seal",
+			"label": "조개와 바다유리 중 하나를 골라 할머니에게 보여 주기"},
+	],
+}
+
+
+## 매듭 한 단계를 마쳤나. 단계마다 보는 것이 다르다.
+static func knot_step_done(village: String, i: int) -> bool:
+	if not KNOT.has(village):
+		return false
+	var st: Dictionary = KNOT[village]["steps"][i]
+	match String(st["key"]):
+		"윤슬:매듭:1":
+			# 둘 다에게 인사하면 지도와 카메라가 손에 들어온다.
+			# 옛 세이브는 표시로 이어 붙인다 (`_migrate_knots`).
+			return (has_map() and has_camera()) \
+				or JourneyState.quest_done("윤슬:매듭:1")
+		"윤슬:매듭:2":
+			# **저녁에** 가야 한다. 등대에 불이 들어오는 시간이다
+			return JourneyState.quest_done("윤슬:등대@저녁") \
+				and _photo_taken("윤슬")
+		"윤슬:매듭:3":
+			return JourneyState.quest_done("윤슬:매듭:3")
+	return JourneyState.quest_done(String(st["key"]))
+
+
+## 지금 이어가고 있는 단계 번호. 다 마쳤으면 단계 수를 돌려준다.
+static func knot_at(village: String) -> int:
+	if not KNOT.has(village):
+		return 0
+	var steps: Array = KNOT[village]["steps"]
+	for i in steps.size():
+		if not knot_step_done(village, i):
+			return i
+	return steps.size()
+
+
+static func knot_done(village: String) -> bool:
+	if not KNOT.has(village):
+		return true
+	return knot_at(village) >= (KNOT[village]["steps"] as Array).size()
+
+
+static func side_done(village: String, key: String) -> bool:
+	match key:
+		"윤슬:샛길:가게":
+			return _shop_entered("윤슬")
+		"윤슬:샛길:등대안":
+			return JourneyState.quest_done("윤슬:등대안")
+		"윤슬:샛길:부두":
+			# 같은 자리를 두 시간대에 — 그래야 "비교" 다
+			return JourneyState.quest_done("윤슬:부두끝@아침") \
+				and JourneyState.quest_done("윤슬:부두끝@저녁")
+	return JourneyState.quest_done(key)
+
+
+static func sides_done(village: String) -> int:
+	if not SIDE.has(village):
+		return 0
+	var n := 0
+	for e in SIDE[village]:
+		if side_done(village, String(e["key"])):
+			n += 1
+	return n
+
+
+## 다음 마을이 열리는 조건. **다 하라고 하지 않는다** —
+## 매듭 하나와 샛길 둘이면 된다 (마을 콘텐츠의 60% 남짓).
+const SIDES_NEEDED := 2
+
+
 ## 그 마을만의 할 일을 마쳤나. 없는 마을이면 늘 참이다.
 static func _local_ok(village: String) -> bool:
 	if not LOCAL.has(village):
@@ -206,11 +316,9 @@ static func _tomb_ok(village: String) -> bool:
 
 ## 그 마을의 퀘스트를 다 마쳤나.
 static func village_cleared(village: String) -> bool:
-	if village == "윤슬":
-		return has_map() and has_camera() \
-			and _shop_entered("윤슬") and _visited("윤슬") \
-			and _picked_all("윤슬") and _slept_ok("윤슬") \
-			and _lighthouse_ok("윤슬") and _local_ok("윤슬")
+	# 매듭이 있는 마을은 **100% 를 안 본다** — 이야기 하나와 샛길 둘.
+	if KNOT.has(village):
+		return knot_done(village) and sides_done(village) >= SIDES_NEEDED
 	if TALK_FOLK.has(village):
 		return _talked_all(village) and _shop_entered(village) \
 			and _visited(village) and _picked_all(village) \
@@ -288,35 +396,33 @@ static func quest_list(village: String) -> Array:
 			{"label": "정류장에서 첫 여행지 고르기", "kind": "depart", "key": "",
 				"done": JourneyState.quest_done("잿마루:정류장")},
 		]
-	if village == "윤슬":
-		# **처음엔 둘만 보여준다.** 지도·카메라를 받기 전에 나머지
-		# 다섯 개까지 다 늘어놓으면 "숙제장"처럼 보인다는 지적이 있었다.
-		# 사진 항목은 카메라가 없으면 아예 뜻이 안 통하기도 하고 — 둘 다
-		# 받고 나서야 이 마을이 실제로 "무엇으로 채워지는지" 보여준다.
-		var out0: Array = [
-			{"label": "가게 할머니와 인사하고 지도 받기", "kind": "talk",
-				"key": "seal", "done": has_map()},
-			{"label": "갈매기 소년과 인사하고 카메라 받기", "kind": "talk",
-				"key": "seagull", "done": has_camera()},
-		]
-		if not (has_map() and has_camera()):
-			return out0
-		out0.append({"label": "가게 들어가 보기", "kind": "door", "key": "가게",
-			"done": _shop_entered("윤슬")})
-		out0.append({"label": VISIT_LABEL["윤슬"], "kind": "visit",
-			"key": VISIT_KEY["윤슬"], "photo": VISIT_NEEDS_PHOTO.get("윤슬", false),
-			"done": _visited("윤슬")})
-		out0.append({"label": "떨어진 것 다 줍기", "kind": "pickup", "key": "",
-			"done": _picked_all("윤슬")})
-		out0.append({"label": "호스텔에서 하루 자기", "kind": "sleep", "key": "",
-			"done": JourneyState.quest_done("윤슬:잠")})
-		if HAS_LIGHTHOUSE.get("윤슬", false):
-			out0.append({"label": "등대 안에 들어가 보기", "kind": "door",
-				"key": "등대안", "done": JourneyState.quest_done("윤슬:등대안")})
-		var e0: Array = LOCAL["윤슬"]
-		out0.append({"label": String(e0[2]), "kind": String(e0[0]),
-			"key": String(e0[1]), "done": _local_ok("윤슬")})
-		return out0
+	# ── 매듭이 있는 마을 ──────────────────────────────────────────
+	#
+	# 목록에는 **다섯 줄**만 보인다 — 매듭 한 줄과 샛길 넷. 매듭 줄은
+	# 지금 이어가는 **한 단계**만 적는다. 세 단계를 한꺼번에 늘어놓으면
+	# 그것도 결국 체크리스트다.
+	if KNOT.has(village):
+		var out2: Array = []
+		var steps: Array = KNOT[village]["steps"]
+		var at: int = knot_at(village)
+		var cur: Dictionary = steps[mini(at, steps.size() - 1)]
+		out2.append({
+			# **층을 글자로 나눈다.** 매듭 줄과 샛길 줄이 똑같이 생기면
+			# 다시 체크리스트로 읽힌다. 폰트에 없는 그림글자는 못 쓰니
+			# 앞머리 낱말로 가른다 (`CLAUDE.md` 폰트 규칙).
+			"label": "이야기 %d/%d · %s" % [mini(at + 1, steps.size()),
+				steps.size(), String(cur["label"])],
+			"kind": String(cur["kind"]), "key": String(cur["map"]),
+			"photo": bool(cur.get("photo", false)),
+			"done": knot_done(village),
+		})
+		for e in SIDE[village]:
+			out2.append({
+				"label": "샛길 · " + String(e["label"]),
+				"kind": String(e["kind"]), "key": String(e["map"]),
+				"done": side_done(village, String(e["key"])),
+			})
+		return out2
 	if ORDER.has(village):
 		var ids: Array = TALK_FOLK.get(village, [])
 		var out: Array = []

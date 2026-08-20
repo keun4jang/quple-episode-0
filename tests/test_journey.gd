@@ -29,6 +29,7 @@ func _ready() -> void:
 	await _door_tap_tests()
 	await _reunion2_tests()
 	await _placement_lint_tests()
+	await _old_save_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -1187,23 +1188,30 @@ func _quest_tests() -> void:
 	ok(JourneyState.count("map") == 1, "지도는 한 장뿐이다 (다시 안 받는다)")
 	f.queue_free()
 
-	# ③ 윤슬을 실제로 다 채우면 클리어된다.
+	# ③ 윤슬은 **매듭 하나와 샛길 둘**로 열린다. 100% 가 아니다.
 	JourneyState.pick("camera")
-	JourneyState.mark_quest("윤슬:가게")
+	ok(Quests.knot_step_done("윤슬", 0), "둘에게 인사하면 매듭 첫 단계가 끝난다")
+	ok(not Quests.knot_done("윤슬"), "아직 매듭이 다 안 끝났다")
+	# 낮에 등대곶에 가 봐야 소용없다 — 저녁이어야 한다
 	JourneyState.mark_quest("윤슬:등대")
-	JourneyState.mark_quest("윤슬:잠")
-	for i in Quests.PICKUP_TOTAL["윤슬"]:
-		JourneyState.taken["윤슬:%d,0" % i] = true
-	ok(not Quests.village_cleared("윤슬"), "사진이 없으면 아직 못 채운다")
+	JourneyState.mark_quest("윤슬:등대@낮")
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
-	ok(not Quests.village_cleared("윤슬"), "등대 안에도 안 들어갔으면 아직 못 채운다")
+	ok(not Quests.knot_step_done("윤슬", 1),
+		"낮에 간 것으로는 둘째 단계가 안 끝난다")
+	JourneyState.day = 2
+	JourneyState.mark_quest("윤슬:등대@저녁")
+	ok(Quests.knot_step_done("윤슬", 1), "저녁에 가서 사진을 남기면 끝난다")
+	ok(not Quests.village_cleared("윤슬"), "매듭 셋째 단계가 남았다")
+	JourneyState.mark_quest("윤슬:매듭:3")
+	ok(Quests.knot_done("윤슬"), "매듭 셋을 다 지났다")
+	ok(not Quests.village_cleared("윤슬"), "샛길 둘이 아직 모자란다")
+	JourneyState.mark_quest("윤슬:가게")
+	ok(Quests.sides_done("윤슬") == 1, "샛길 하나 (%d)" % Quests.sides_done("윤슬"))
+	ok(not Quests.village_cleared("윤슬"), "샛길 하나로는 아직")
 	JourneyState.mark_quest("윤슬:등대안")
-	ok(not Quests.village_cleared("윤슬"),
-		"부두 끝까지 안 나가 봤으면 아직 못 채운다")
-	JourneyState.mark_quest("윤슬:부두끝")
-	ok(Quests.village_cleared("윤슬"),
-		"지도·카메라·가게·방문·사진·줍기·잠·등대안·부두끝을 다 채웠다")
-	ok(Quests.is_unlocked("볕뉘"), "윤슬을 다 채우면 볕뉘가 열린다")
+	ok(Quests.village_cleared("윤슬"), "매듭 하나 + 샛길 둘이면 열린다")
+	ok(Quests.sides_done("윤슬") < 4, "**샛길 넷을 다 할 필요는 없다**")
+	ok(Quests.is_unlocked("볕뉘"), "윤슬을 채우면 볕뉘가 열린다")
 	ok(not Quests.is_unlocked("가풀재"), "그렇다고 그다음까지 한 번에 열리진 않는다")
 
 	# ④ 옛 세이브(이 갱신 전) 는 지도·카메라를 자동으로 받는다.
@@ -1215,12 +1223,17 @@ func _quest_tests() -> void:
 
 	# ⑤ 배낭 "이 마을에서" 탭이 읽는 목록도 같은 판정을 그대로 쓴다.
 	# 지도·카메라를 받기 전엔 딱 둘만 보여준다("숙제장" 처럼 안 보이게).
-	ok(Quests.quest_list("윤슬").size() == 2,
-		"지도·카메라를 받기 전엔 윤슬 목록이 둘뿐이다")
+	# **다섯 줄만 보인다** — 매듭 한 줄(지금 단계)과 샛길 넷.
+	ok(Quests.quest_list("윤슬").size() == 5, "윤슬 목록은 다섯 줄")
+	ok(String(Quests.quest_list("윤슬")[0]["label"]).begins_with("이야기 1/3"),
+		"매듭 줄은 지금 단계와 몇 번째인지를 적는다 (%s)"
+			% Quests.quest_list("윤슬")[0]["label"])
+	ok(String(Quests.quest_list("윤슬")[1]["label"]).begins_with("샛길 · "),
+		"샛길 줄은 매듭 줄과 다르게 보인다")
 	JourneyState.pick("map")
 	JourneyState.pick("camera")
-	ok(Quests.quest_list("윤슬").size() == 8,
-		"둘 다 받으면 나머지(가게·방문·줍기·잠·등대안·부두끝)까지 다 보인다")
+	ok(String(Quests.quest_list("윤슬")[0]["label"]).begins_with("이야기 2/3"),
+		"인사를 마치면 매듭 줄이 다음 단계로 넘어간다")
 	JourneyState.reset()
 	ok(Quests.quest_list("볕뉘").size() == 7, "볕뉘는 항목 7개 (능 안쪽길·흙마당 포함)")
 	ok(Quests.quest_list("고향").is_empty(), "고향은 할 일 목록이 없다")
@@ -1259,6 +1272,9 @@ func _quest_tests() -> void:
 	JourneyState.mark_quest("윤슬:잠")
 	JourneyState.mark_quest("윤슬:등대안")
 	JourneyState.mark_quest("윤슬:부두끝")
+	# 윤슬은 매듭 구조다 — 저녁 등대 + 다음 날 바다유리
+	JourneyState.mark_quest("윤슬:등대@저녁")
+	JourneyState.mark_quest("윤슬:매듭:3")
 	for i in Quests.PICKUP_TOTAL["윤슬"]:
 		JourneyState.taken["윤슬:%d,0" % i] = true
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
@@ -1966,6 +1982,9 @@ func _yunseul_clear_tests() -> void:
 	ok(JourneyState.quest_done("윤슬:등대안"), "등대 안 표시가 남는다")
 
 	# ③ 가 볼 자리를 **전부** 걸어가 본다 — 등대곶도 부두 끝도.
+	# **저녁에 간다.** 매듭 둘째 단계가 시간대를 본다 — 등대에 불이
+	# 들어오는 시간이어야 한다.
+	JourneyState.minutes = 19.0 * 60.0
 	# 예전엔 첫째 것만 갔는데, 부두 끝이 우연히(갈매기 소년 곁이라)
 	# 찍히는 바람에 빠진 걸 몰랐다.
 	for z0 in p.quest_zones():
@@ -1982,6 +2001,23 @@ func _yunseul_clear_tests() -> void:
 		p.walker.global_position = p.world_of(near)
 		p._tick_quest_zones()
 		ok(JourneyState.quest_done(String(z[0])), "%s 표시가 남는다" % z[0])
+
+	# ③-2 부두 끝은 **아침에도** 가 본다 — 샛길이 두 시간대를 본다.
+	JourneyState.minutes = 8.0 * 60.0
+	for z1 in p.quest_zones():
+		if String(z1[0]) != "윤슬:부두끝":
+			continue
+		var c1: Vector2i = z1[1]
+		for dy1 in range(-3, 4):
+			for dx1 in range(-3, 4):
+				var t3: Vector2i = c1 + Vector2i(dx1, dy1)
+				if p._walkable(t3) \
+						and p.world_of(t3).distance_to(p.world_of(c1)) <= float(z1[2]):
+					p.walker.global_position = p.world_of(t3)
+					p._tick_quest_zones()
+	ok(JourneyState.quest_done("윤슬:부두끝@아침")
+		and JourneyState.quest_done("윤슬:부두끝@저녁"),
+		"부두 끝을 아침·저녁 두 번 본 것이 따로 남는다")
 
 	# ④ 사진을 찍는다.
 	p._take_photo()
@@ -2010,12 +2046,43 @@ func _yunseul_clear_tests() -> void:
 	ok(at_bed.x >= 0, "잠자리 곁에 설 자리가 있다")
 	JourneyState.mark_quest("윤슬:잠")
 
-	# ⑦ 그래서 다 끝났나. 볕뉘가 열려야 한다.
+	# ⑥-2 **다음 날**, 바다유리를 들고 소년을 다시 찾아간다.
+	# 이것이 이 마을 이야기의 마지막 단계다 — 하루를 넘겨야 한다.
+	ok(not Quests.knot_done("윤슬"), "아직 매듭이 안 끝났다 (하루를 안 넘겼다)")
+	JourneyState.day += 1
+	var boy: Folk = null
+	for f4 in p._folk:
+		if is_instance_valid(f4) and f4.folk_id == "seagull":
+			boy = f4
+	ok(boy != null, "갈매기 소년이 있다")
+	ok(JourneyState.count("p-seaglass") > 0, "바다유리를 들고 있다")
+	if boy != null:
+		var said2: Array = p._knot_on_talk(boy)
+		ok(not said2.is_empty(), "바다유리를 보여 주면 그때만 하는 말이 나온다")
+	ok(Quests.knot_done("윤슬"), "매듭 셋을 다 지났다")
+
+	# ⑥-3 샛길 "고르기" — 조개와 바다유리 중 하나를 골라 할머니에게.
+	var granny: Folk = null
+	for f5 in p._folk:
+		if is_instance_valid(f5) and f5.folk_id == "seal":
+			granny = f5
+	if granny != null:
+		var said3: Array = p._knot_on_talk(granny)
+		ok(not said3.is_empty(), "고른 것에 따라 다른 말이 나온다")
+	ok(Quests.side_done("윤슬", "윤슬:샛길:고르기"), "고르기 샛길이 끝난다")
+	var chose := JourneyState.quest_done("윤슬:골랐다:p-shell") \
+		or JourneyState.quest_done("윤슬:골랐다:p-seaglass")
+	ok(chose, "무엇을 골랐는지 기록에 남는다")
+
+	# ⑦ 그래서 열리나. **다 안 해도 열려야 한다** — 매듭 하나와 샛길 둘.
+	ok(Quests.knot_done("윤슬"), "매듭을 마쳤다")
+	ok(Quests.sides_done("윤슬") >= Quests.SIDES_NEEDED,
+		"샛길을 둘 넘게 했다 (%d/4)" % Quests.sides_done("윤슬"))
 	var left: Array = []
 	for q in Quests.quest_list("윤슬"):
 		if not bool(q.get("done", false)):
 			left.append(String(q.get("label", "")))
-	ok(left.is_empty(), "윤슬 할 일이 다 끝난다%s"
+	ok(true, "안 한 것이 남아 있어도 된다%s"
 		% ("" if left.is_empty() else " — 남음: " + str(left)))
 	ok(Quests.village_cleared("윤슬"), "윤슬이 클리어된다")
 	ok(Quests.is_unlocked("볕뉘"), "볕뉘로 넘어갈 수 있다")
@@ -2049,14 +2116,16 @@ func _locked_reason_tests() -> void:
 	JourneyState.mark_quest("윤슬:잠")
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
 	JourneyState.mark_quest("윤슬:부두끝")
+	JourneyState.mark_quest("윤슬:등대@저녁")
 	for i in Quests.PICKUP_TOTAL["윤슬"]:
 		JourneyState.taken["윤슬:%d,1" % i] = true
 	var one := b._blocking_line("볕뉘")
-	ok(one.contains("등대 안"), "하나 남으면 그것만 적는다 (%s)" % one)
+	ok(one.contains("바다유리"), "하나 남으면 그것만 적는다 (%s)" % one)
 	ok(not one.contains("외 "), "하나뿐이면 '외 n가지' 를 안 붙인다")
 
 	# 다 하면 잠금이 풀리니 이 줄은 안 쓰인다.
 	JourneyState.mark_quest("윤슬:등대안")
+	JourneyState.mark_quest("윤슬:매듭:3")
 	ok(Quests.is_unlocked("볕뉘"), "다 하면 볕뉘가 열린다")
 
 	# ORDER 첫 곳은 걸릴 앞 마을이 없다.
@@ -2112,8 +2181,8 @@ func _indoor_quest_tests() -> void:
 	for q in hud._cele_queue:
 		if String(q[1]).contains("가게"):
 			said = String(q[1])
-	ok(said.contains("가게 들어가 보기"),
-		"들어온 순간 '가게 들어가 보기' 축하가 뜬다 (%s)" % said)
+	ok(said.contains("가게에 들어가"),
+		"들어온 순간 가게 샛길 축하가 뜬다 (%s)" % said)
 	ok(hud._cele_busy, "축하가 실제로 돌고 있다")
 
 	shop.queue_free()
@@ -2490,4 +2559,50 @@ func _placement_lint_tests() -> void:
 
 		p.queue_free()
 		await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 옛 세이브 이어 붙이기 ─────────────────────────────────────────────
+#
+# 윤슬을 "마음매듭 + 샛길" 로 갈아엎었다. **이미 한 일을 다시 시키면
+# 안 된다** — 특히 이미 윤슬을 떠난 사람의 다음 마을이 도로 잠기면
+# 그건 갱신이 아니라 사고다.
+
+func _old_save_tests() -> void:
+	print("\n[옛 세이브]")
+
+	# ① 옛 판에서 윤슬을 마치고 볕뉘까지 가 본 사람
+	JourneyState.reset()
+	JourneyState.from_dict({
+		"here": "볕뉘",
+		"visited": {"윤슬": true, "볕뉘": true},
+		"quest_flags": {
+			"윤슬:가게": true, "윤슬:등대": true, "윤슬:잠": true,
+			"윤슬:등대안": true, "윤슬:부두끝": true,
+		},
+		"photos": [{"place": "윤슬", "subject": "등대"}],
+	})
+	ok(Quests.knot_done("윤슬"), "옛 세이브의 윤슬 매듭이 끝난 것으로 이어진다")
+	ok(Quests.village_cleared("윤슬"), "윤슬이 그대로 마친 상태다")
+	ok(Quests.is_unlocked("볕뉘"), "볕뉘가 도로 잠기지 않는다")
+
+	# ② 옛 판에서 윤슬을 하던 중이던 사람 — 낮에 등대를 봤다
+	JourneyState.reset()
+	JourneyState.from_dict({
+		"here": "윤슬",
+		"visited": {"윤슬": true},
+		"quest_flags": {"윤슬:등대": true, "윤슬:부두끝": true},
+		"photos": [{"place": "윤슬", "subject": "등대"}],
+	})
+	ok(JourneyState.quest_done("윤슬:등대@저녁"),
+		"시간대 조건이 없던 시절의 등대 방문을 저녁으로 쳐 준다")
+	ok(Quests.side_done("윤슬", "윤슬:샛길:부두"),
+		"부두 끝도 아침·저녁 둘 다 본 것으로 쳐 준다")
+	ok(not Quests.knot_done("윤슬"),
+		"그래도 새 마지막 단계(바다유리)는 남아 있다")
+
+	# ③ 갓 시작한 사람은 아무것도 안 받는다
+	JourneyState.reset()
+	ok(not Quests.knot_done("윤슬"), "새 여행은 매듭이 처음부터다")
+	ok(Quests.knot_at("윤슬") == 0, "첫 단계부터 시작한다")
 	JourneyState.reset()

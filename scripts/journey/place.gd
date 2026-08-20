@@ -1072,6 +1072,18 @@ func _tick_quest_zones() -> void:
 			continue
 		if not JourneyState.quest_done(key):
 			JourneyState.mark_quest(key)
+		# **언제 왔는지도 남긴다.** 같은 자리를 아침에 본 것과 저녁에
+		# 본 것은 다른 일이다 (`Quests.KNOT` · `SIDE`).
+		JourneyState.mark_quest("%s@%s" % [key, day_part()])
+		# **놓쳐도 막히지 않게 알려 준다.** 저녁에 와야 하는 자리에
+		# 낮에 왔으면, 헛걸음이 아니라 "다시 오면 된다" 로 만든다.
+		# 벌이 없는 게임이니 조건을 놓친 것이 손해가 되면 안 된다.
+		if key == "윤슬:등대" and day_part() != "저녁" \
+				and not _dusk_hint_said and hud != null \
+				and not Quests.knot_step_done("윤슬", 1) \
+				and Quests.knot_step_done("윤슬", 0):
+			_dusk_hint_said = true
+			hud.call("_say_hint", "해가 지면 등대에 불이 들어와요. 그때 다시 와 봐요.")
 		# **사진이 필요한 자리면 들어선 순간 알려 준다.** 여기 닿아도
 		# 사진까지 찍어야 항목이 끝나는데, 아무 말이 없으면 걸어와 놓고
 		# 영문 모르고 돌아간다. 시키는 말이 아니라 권하는 말로.
@@ -1507,6 +1519,52 @@ func _tick_lamps() -> void:
 			l.energy = e
 
 
+## 인연에게 말을 걸 때, **손에 든 것**과 **며칠째인지**를 본다.
+##
+## 윤슬의 매듭 셋째 단계와 샛길 "고르기" 가 여기서 판정된다. 말을
+## 거는 행동은 같은데 조건이 붙으면 다른 일이 된다 — 이것이 체크박스와
+## 이야기의 차이다. 조건이 맞으면 그때만 하는 말을 돌려준다.
+func _knot_on_talk(f: Folk) -> Array:
+	if place_name() != "윤슬" or f == null or f.is_spot:
+		return []
+
+	# 매듭 3 — 바다유리를 들고, 등대를 본 **다음 날** 소년에게.
+	if f.folk_id == "seagull" and not JourneyState.quest_done("윤슬:매듭:3"):
+		if Quests.knot_step_done("윤슬", 1) \
+				and JourneyState.count("p-seaglass") > 0 \
+				and JourneyState.day > JourneyState.quest_day("윤슬:등대@저녁"):
+			JourneyState.mark_quest("윤슬:매듭:3")
+			return [
+				["그거 바다유리네요.", "어디서 주웠어요?"],
+				["…등대 밑이요?", "거기 저녁에 가 봤구나."],
+				["나는 매일 보는데도 매일 달라요.", "아저씨도 그랬어요?"],
+			]
+
+	# 샛길 — 조개와 바다유리 중 **하나를 골라** 할머니에게.
+	if f.folk_id == "seal" and not JourneyState.quest_done("윤슬:샛길:고르기"):
+		var has_shell: bool = JourneyState.count("p-shell") > 0
+		var has_glass: bool = JourneyState.count("p-seaglass") > 0
+		if has_shell or has_glass:
+			# 둘 다 있으면 **더 적게 가진 쪽**을 내민다 — 아끼는 것을
+			# 내미는 셈이다. 고른 것은 기록에 남아 나중에 쓰인다.
+			var pick := "p-seaglass" if has_glass else "p-shell"
+			if has_shell and has_glass:
+				if JourneyState.count("p-shell") < JourneyState.count("p-seaglass"):
+					pick = "p-shell"
+			JourneyState.mark_quest("윤슬:샛길:고르기")
+			JourneyState.mark_quest("윤슬:골랐다:%s" % pick)
+			if pick == "p-shell":
+				return [
+					["조개를 주웠구나.", "그거 여기 흔한 건데."],
+					["흔한 걸 주워 오는 사람이 있어.", "그런 사람이 또 와."],
+				]
+			return [
+				["바다유리네. 그건 귀해.", "오래 굴러야 그렇게 돼."],
+				["급한 사람은 못 찾아.", "자네는 찾았고."],
+			]
+	return []
+
+
 ## 사진을 찍는다.
 ##
 ## 화면을 그림으로 저장하지 않는다. 남는 건 결국 **어디서 언제 무엇을
@@ -1788,6 +1846,11 @@ func talk_to_near() -> void:
 	# **대사를 먼저 고르고** 마음을 올린다. 순서를 바꾸면 처음 만난
 	# 사람이 두 칸째 대사를 하고, 첫인사를 영영 못 듣는다.
 	var what := f.lines()
+	# **무엇을 들고 왔는지 본다.** 그냥 또 말 거는 것과, 무언가를
+	# 손에 쥐고 찾아오는 것은 다른 일이다 (`Quests.KNOT`).
+	var extra := _knot_on_talk(f)
+	if not extra.is_empty():
+		what = extra
 	f.on_talked()
 	# 소품(spot)은 마음이 안 늘어서(`put_spot` 의 folk_id 가 빈 값) "봤다"는
 	# 기록이 어디에도 안 남는다. 프롤로그처럼 **소품을 들여다보는 것 자체가
@@ -2649,6 +2712,7 @@ func _goal_shown(item: Dictionary) -> bool:
 # 사무실 창 여섯이 똑같이 생겼는데 그중 하나만 "창밖" 자리인 게 그랬다.
 # 지금 할 일 자리 위에 금색 화살표 하나가 둥실둥실 떠서 그 하나를
 # 짚는다. 가까이 가면 치운다 — 다 왔는데도 흔들리면 성가시다.
+var _dusk_hint_said := false
 var _goal_arrow: Node2D
 var _arrow_clock := 0.0
 

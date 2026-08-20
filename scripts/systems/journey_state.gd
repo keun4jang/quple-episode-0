@@ -204,8 +204,19 @@ var photos: Array = []
 var quest_flags: Dictionary = {}
 
 
+## 언제 마쳤는지도 같이 적는다. "다음 날 다시 오기" 같은 약속을
+## 판정하려면 **며칠째에 했는지**를 알아야 한다.
+var quest_days: Dictionary = {}
+
 func mark_quest(key: String) -> void:
+	if not quest_flags.has(key):
+		quest_days[key] = day
 	quest_flags[key] = true
+
+
+## 그 일을 마친 날. 아직 안 했으면 아주 큰 수.
+func quest_day(key: String) -> int:
+	return int(quest_days.get(key, 99999))
 
 
 func quest_done(key: String) -> bool:
@@ -516,6 +527,7 @@ func to_dict() -> Dictionary:
 		"exit_scene": exit_scene,
 		"exit_tile": [exit_tile.x, exit_tile.y],
 		"quest_flags": quest_flags.duplicate(),
+		"quest_days": quest_days.duplicate(),
 	}
 
 
@@ -528,6 +540,40 @@ const OLD_QUO := {
 	"쿼귤": "귤", "쿼빵": "빵", "쿼이스크림": "아이스크림",
 	"쿼메라": "카메라", "쿼장": "시장", "쿼차방": "찻집",
 }
+
+## 마을 이야기(마음매듭)로 갈아엎기 전의 세이브를 이어 붙인다.
+##
+## **이미 한 일을 다시 시키지 않는다.** 옛 판에는 "등대곶에 가서 사진
+## 찍기" 에 시간대 조건이 없었다. 새 판은 저녁을 요구하므로, 옛 표시가
+## 있으면 저녁에 본 것으로 쳐 준다. 부두 끝도 마찬가지다.
+##
+## 그리고 **이미 윤슬을 떠난 사람**은 매듭을 통째로 마친 것으로 둔다 —
+## 안 그러면 다음 마을이 도로 잠긴다.
+func _migrate_knots() -> void:
+	if quest_done("윤슬:등대") and not quest_done("윤슬:등대@저녁"):
+		for ph in photos:
+			if String(ph.get("place", "")) == "윤슬":
+				mark_quest("윤슬:등대@저녁")
+				break
+	if quest_done("윤슬:부두끝"):
+		mark_quest("윤슬:부두끝@아침")
+		mark_quest("윤슬:부두끝@저녁")
+	var moved_on := false
+	for v in ["볕뉘", "가풀재", "하늬섬", "굽이나루", "방울못",
+			"갈밭머리", "솔은재", "꽃눈벌"]:
+		if visited.has(v):
+			moved_on = true
+	if moved_on:
+		# **배낭은 건드리지 않는다.** 불러올 때 물건이 늘면 "저장하고
+		# 불러와도 그대로" 가 깨진다. 대신 매듭 첫 단계를 지났다는
+		# 표시만 남긴다.
+		mark_quest("윤슬:매듭:1")
+		mark_quest("윤슬:등대@저녁")
+		mark_quest("윤슬:부두끝@아침")
+		mark_quest("윤슬:부두끝@저녁")
+		mark_quest("윤슬:매듭:3")
+		mark_quest("윤슬:샛길:고르기")
+
 
 func _rename_old_quo() -> void:
 	for l in letters:
@@ -573,6 +619,9 @@ func from_dict(d: Dictionary) -> void:
 	exit_tile = Vector2i(int(et[0]), int(et[1])) if et.size() == 2 else Vector2i(-1, -1)
 	quest_flags = d.get("quest_flags", {}).duplicate() \
 		if d.get("quest_flags") is Dictionary else {}
+	quest_days = d.get("quest_days", {}).duplicate() \
+		if d.get("quest_days") is Dictionary else {}
+	_migrate_knots()
 	# **이 갱신 전에 만든 세이브는 지도·카메라 개념이 없었다** — 그때는
 	# 둘 다 처음부터 켜져 있었으니까. `quest_flags` 자체가 없다는 건 이
 	# 세이브가 그 시절 것이라는 뜻이다. 이미 여행 중이던 사람에게서
@@ -608,6 +657,7 @@ func reset() -> void:
 	exit_scene = ""
 	exit_tile = Vector2i(-1, -1)
 	pending_spawn = Vector2i(-1, -1)
+	quest_days = {}
 	# 이게 빠져 있었다. 기록을 지워도 "가게에 들어가 봤다"·"능을 걸었다"
 	# 같은 표시가 그대로 남아, 새로 시작해도 그 퀘스트가 이미 done 이었다.
 	quest_flags = {}

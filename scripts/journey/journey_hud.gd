@@ -1057,7 +1057,12 @@ const STRIP_UNTIL_DEPARTURES := 2
 func _tick_task_strip() -> void:
 	if _task_strip == null:
 		return
-	var early: bool = JourneyState.departures < STRIP_UNTIL_DEPARTURES
+	# 첫 마을 동안, 그리고 **마을 이야기(매듭)를 이어가는 동안**에는
+	# 위쪽에 지금 단계를 늘 띄운다 — 하루를 넘겨 이어지는 약속이라
+	# "내가 뭘 하던 중이었지" 가 사라지면 안 된다 (오늘의 약속).
+	var v2 := _quest_village()
+	var early: bool = JourneyState.departures < STRIP_UNTIL_DEPARTURES \
+		or (Quests.KNOT.has(v2) and not Quests.knot_done(v2))
 	var goal := _first_task() if early else ""
 	var show: bool = early and goal != "" and not bag_open() \
 		and not _buttons_hidden
