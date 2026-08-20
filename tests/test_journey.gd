@@ -6,6 +6,8 @@ var _fail := 0
 
 
 func _ready() -> void:
+	# "화면 보는 법" 판은 화면을 덮는다 — 검사 중에는 이미 본 것으로 둔다.
+	SaveManager.set_flag(HowToPlay.FLAG, true)
 	await get_tree().process_frame
 	await _sprite_tests()
 	await _walker_tests()
@@ -30,6 +32,7 @@ func _ready() -> void:
 	await _reunion2_tests()
 	await _placement_lint_tests()
 	await _old_save_tests()
+	await _how_to_play_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -265,6 +268,8 @@ func _pickup_tests() -> void:
 	ok(JourneyState.count("p-shell") == 2, "복원하면 개수까지 돌아온다")
 	ok(JourneyState.is_taken(pname, first), "복원하면 주운 자리도 돌아온다")
 	SaveManager.clear_save()
+	# 저장을 지우면 표시도 같이 날아간다 — 안내판을 다시 꺼 둔다.
+	SaveManager.set_flag(HowToPlay.FLAG, true)
 	ok(JourneyState.total() == 0, "기록 초기화가 배낭도 비운다")
 
 
@@ -2606,3 +2611,43 @@ func _old_save_tests() -> void:
 	ok(not Quests.knot_done("윤슬"), "새 여행은 매듭이 처음부터다")
 	ok(Quests.knot_at("윤슬") == 0, "첫 단계부터 시작한다")
 	JourneyState.reset()
+
+
+# ── 화면 보는 법 ──────────────────────────────────────────────────────
+#
+# 조작은 단계별로 알려 주는데(`Guide`) **귀퉁이에 뭐가 있는지**는
+# 아무도 안 알려 줬다. 처음 한 번 뜨는 판이라 놓치면 못 보므로,
+# 다시 볼 길이 있는지까지 같이 본다.
+
+func _how_to_play_tests() -> void:
+	print("\n[화면 보는 법]")
+	SaveManager.set_flag(HowToPlay.FLAG, false)
+	var card := HowToPlay.open(get_tree())
+	ok(card != null, "판이 열린다")
+	await get_tree().process_frame
+	ok(card.is_in_group("overlay"), "덮는 판이니 'overlay' 그룹에 든다")
+	ok(HowToPlay.open(get_tree()) == null, "두 번 겹쳐 열리지 않는다")
+
+	# 귀퉁이마다 이름과 한 줄 설명이 있다
+	ok(HowToPlay.SPOTS.size() >= 5,
+		"귀퉁이를 다섯 자리 넘게 짚는다 (%d)" % HowToPlay.SPOTS.size())
+	var names: Array = []
+	for sp in HowToPlay.SPOTS:
+		names.append(String(sp[3]))
+	for must in ["배낭", "작은 지도", "설정"]:
+		ok(names.has(must), "%s 자리를 알려 준다" % must)
+	ok(HowToPlay.HOWS.size() == 3, "조작은 세 줄로 적는다")
+
+	# 닫으면 표시가 남아 다시 안 뜬다
+	card._close()
+	await get_tree().process_frame
+	ok(SaveManager.get_flag(HowToPlay.FLAG, false), "닫으면 본 것으로 남는다")
+	ok(get_tree().get_first_node_in_group("how_to_play") == null,
+		"닫고 나면 남지 않는다")
+
+	# 그래도 언제든 다시 열 수 있다 (배낭 > 길잡이 다시 보기)
+	var again := HowToPlay.open(get_tree())
+	ok(again != null, "본 뒤에도 다시 열 수 있다")
+	again.queue_free()
+	await get_tree().process_frame
+	SaveManager.set_flag(HowToPlay.FLAG, true)

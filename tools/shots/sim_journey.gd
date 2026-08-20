@@ -10,8 +10,12 @@ var place: Place
 
 
 func _ready() -> void:
+	# "화면 보는 법" 판은 화면을 덮는다 — 검사 중에는 이미 본 것으로 둔다.
+	SaveManager.set_flag(HowToPlay.FLAG, true)
 	JourneyState.reset()
 	SaveManager.clear_save()
+	# 저장을 지우면 표시도 같이 날아간다 — 안내판을 다시 꺼 둔다.
+	SaveManager.set_flag(HowToPlay.FLAG, true)
 	await get_tree().process_frame
 
 	await _load("res://scenes/journey/Jaenmaru.tscn")

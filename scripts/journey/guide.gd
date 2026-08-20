@@ -21,7 +21,7 @@ const FLAG := "guide_done"
 ## "go" 줄만 보고 "quests" 줄은 영영 못 보는 사고가 난다 — 그래서 키
 ## 이름을 바꿔 새로 센다. 이미 다 끝낸 사람(`FLAG` 참)은 어차피 옛
 ## 순서로도 다 봤으니 영향이 없다.
-const STEP_FLAG := "guide_step3"
+const STEP_FLAG := "guide_step4"
 const FADE := 0.35
 
 ## [열쇠, 안내 문구]. 열쇠는 `done()` 이 받는 이름이다.
@@ -51,10 +51,18 @@ const FADE := 0.35
 ## 쉬기, 정류장에서 첫 여행지 고르기가 이미 거기 다 적혀 있다.
 ## 버튼도 그때그때 제 이름을 단다("들어가기"·"자기"·"떠나기").
 ## 가르치는 대신 **하면서 익히게** 한다.
+## **일곱로 늘렸다.** 셋만 두었더니 조작은 알아도 **화면에 뭐가 있는지**
+## 를 끝내 모르는 사람이 있었다 — 작은 지도도, 오른쪽 버튼도, 두 손가락
+## 확대도 아무도 안 알려 준다. 다만 앞의 세 실패를 되풀이하지 않는다:
+## 각 줄은 `_step_ready()` 로 **그것이 실제로 있을 때만** 뜬다.
 const STEPS := [
 	["quests", "오른쪽 아래 배낭을 열면 여기서 해볼 일이 적혀 있어요."],
 	["walk", "가고 싶은 곳을 톡 누르면 천천히 걸어요."],
 	["talk", "인연을 톡 누르면 다가가서 저절로 말을 걸어요."],
+	["act", "가까이 가면 오른쪽에 버튼이 떠요. 눌러서 들어가거나 떠나요."],
+	["map", "오른쪽 위 작은 지도를 누르면 크게 볼 수 있어요."],
+	["pick", "바닥에 떨어진 건 밟고 지나가면 주워져요."],
+	["zoom", "두 손가락으로 벌리면 가까이, 오므리면 멀리 봐요."],
 ]
 
 var _at := 0
@@ -68,6 +76,19 @@ func _ready() -> void:
 	layer = 9
 	add_to_group("guide")
 	_build()
+	# **화면 보는 법은 누구에게나 한 번.** 단계 안내를 이미 다 본
+	# 사람도 귀퉁이에 뭐가 있는지는 배운 적이 없다. 그래서 이 판은
+	# `FLAG` 와 따로 센다.
+	if not SaveManager.get_flag(HowToPlay.FLAG, false):
+		# 도착 카드(마을 이름 + 해볼 일)가 걷힌 뒤에 띄운다.
+		await get_tree().create_timer(3.6).timeout
+		if not is_inside_tree():
+			return
+		var card := HowToPlay.open(get_tree())
+		if card != null:
+			await card.closed
+		if not is_inside_tree():
+			return
 	if SaveManager.get_flag(FLAG, false):
 		queue_free()
 		return
@@ -129,6 +150,10 @@ func _step_ready(key: String) -> bool:
 		return Quests.has_map()
 	if key == "quests":
 		return not Quests.quest_list(JourneyState.here).is_empty()
+	# 프롤로그(사무실)에는 주울 것이 없고, 지도를 받기 전에는 확대해도
+	# 볼 것이 마땅치 않다. 여행지에 닿은 뒤에 알려 준다.
+	if key == "pick" or key == "zoom":
+		return Quests.ORDER.has(JourneyState.here)
 	return true
 
 

@@ -155,7 +155,12 @@ func _screen_to_world(p: Vector2) -> Vector2:
 
 
 ## 손을 떼면 가까운 눈금에 붙는다.
+## 두 손가락을 떼면 가까운 눈금에 붙는다. 이때 안내에도 알린다 —
+## "두 손가락으로 벌리면" 을 해 본 셈이다.
 func _snap_to_step() -> void:
+	var pl := get_parent()
+	if pl != null and pl.has_method("_did"):
+		pl.call("_did", "zoom")
 	var best := -1
 	var gap := INF
 	for i in STEPS.size():

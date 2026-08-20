@@ -874,6 +874,17 @@ func _open_guide_recap() -> void:
 			Color("#A79A8A") if i < step else Color("#4A3A22"))
 		list.add_child(l)
 
+	# **화면 보는 법을 다시 볼 자리.** 처음 한 번 뜨고 마는 판이라,
+	# 나중에 "이 버튼이 뭐였지" 하고 돌아올 곳이 있어야 한다.
+	var howto := Button.new()
+	howto.text = "화면 보는 법"
+	howto.custom_minimum_size = Vector2(0, 68)
+	howto.add_theme_font_size_override("font_size", 26)
+	howto.pressed.connect(func() -> void:
+		layer.queue_free()
+		HowToPlay.open(get_tree()))
+	box.add_child(howto)
+
 	var close := Button.new()
 	close.text = "닫기"
 	close.custom_minimum_size = Vector2(0, 68)

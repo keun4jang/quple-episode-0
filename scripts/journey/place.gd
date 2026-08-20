@@ -1054,6 +1054,7 @@ func _check_pickups() -> void:
 		var item: String = a.get_meta("item")
 		var t: Vector2i = a.get_meta("tile")
 		JourneyState.pick(item)
+		_did("pick")
 		AudioManager.pickup()
 		JourneyState.mark_taken(place_name(), t)
 		picked_up.emit(item)

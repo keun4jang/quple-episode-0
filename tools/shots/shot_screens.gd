@@ -58,6 +58,7 @@ func _run() -> void:
 	JourneyState.reset()
 	SaveManager.set_flag(Guide.FLAG, false)
 	SaveManager.set_flag(Guide.STEP_FLAG, 0)
+	SaveManager.set_flag(HowToPlay.FLAG, true)
 
 	# ⓪ 인트로 넉 장
 	var intro = load("res://scenes/menu/IntroSlides.tscn").instantiate()
@@ -217,3 +218,12 @@ func _run() -> void:
 	await _wait(24)
 	await _shot("center-2-cele")     # 그다음 축하만
 
+	# ⑮ 화면 보는 법 — 처음 한 번 뜨는 안내판. 네 귀퉁이에 고리가
+	# 실제 그 자리에 놓이는지, 글자가 화면 밖으로 안 나가는지 본다.
+	p = await _open("res://scenes/journey/Yunseul.tscn")
+	await _wait(10)
+	var card := HowToPlay.open(get_tree())
+	await _wait(20)
+	await _shot("how-to-play")
+	if card != null:
+		card.queue_free()
