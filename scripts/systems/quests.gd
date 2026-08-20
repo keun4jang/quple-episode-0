@@ -148,7 +148,7 @@ const KNOT := {
 			{"key": "윤슬:매듭:1", "kind": "talk", "map": "seal",
 				"label": "가게 할머니와 갈매기 소년에게 인사하기"},
 			{"key": "윤슬:매듭:2", "kind": "visit", "map": "윤슬:등대",
-				"photo": true,
+				"photo": true, "when": "저녁",
 				"label": "저녁에 등대곶에서 불 켜진 등대 사진 남기기"},
 			{"key": "윤슬:매듭:3", "kind": "talk", "map": "seagull",
 				"label": "다음 날 바다유리를 소년에게 보여 주기"},
@@ -406,14 +406,23 @@ static func quest_list(village: String) -> Array:
 		var steps: Array = KNOT[village]["steps"]
 		var at: int = knot_at(village)
 		var cur: Dictionary = steps[mini(at, steps.size() - 1)]
+		# **아직 때가 아니면 그렇다고 적는다.** "저녁에 등대곶" 이
+		# 아침 내내 "지금 해볼 일" 로 떠 있으면, 할 수 없는 것을 계속
+		# 시키는 셈이다. 목록에는 남기되 지금 할 것으로는 안 고른다
+		# (`Place.current_goal`).
+		var when := String(cur.get("when", ""))
+		var waiting: bool = when != "" and JourneyState.day_part() != when \
+			and not knot_done(village)
 		out2.append({
 			# **층을 글자로 나눈다.** 매듭 줄과 샛길 줄이 똑같이 생기면
 			# 다시 체크리스트로 읽힌다. 폰트에 없는 그림글자는 못 쓰니
 			# 앞머리 낱말로 가른다 (`CLAUDE.md` 폰트 규칙).
-			"label": "이야기 %d/%d · %s" % [mini(at + 1, steps.size()),
-				steps.size(), String(cur["label"])],
+			"label": "이야기 %d/%d · %s%s" % [mini(at + 1, steps.size()),
+				steps.size(), String(cur["label"]),
+				"  (%s에)" % when if waiting else ""],
 			"kind": String(cur["kind"]), "key": String(cur["map"]),
 			"photo": bool(cur.get("photo", false)),
+			"waiting": waiting,
 			"done": knot_done(village),
 		})
 		for e in SIDE[village]:
@@ -424,27 +433,29 @@ static func quest_list(village: String) -> Array:
 			})
 		return out2
 	if ORDER.has(village):
+		# ── 순서 ──────────────────────────────────────────────────
+		#
+		# 어긋난 데가 둘 있었다.
+		#  - 가게가 **인사 둘 사이**에 끼어 있었다. 사람을 만나다 말고
+		#    가게에 들어갔다 다시 나와 사람을 만나는 꼴이다
+		#  - **하룻밤 쉬기가 중간**에 있었다. 자면 하루가 끝나는데 그
+		#    아래로 등대 안·능 안쪽길·그 마을만의 것이 남아 있었다 —
+		#    목록이 "자라" 고 한 다음에 "아직 셋 남았다" 고 하는 셈이다
+		#
+		# 지금 순서: 사람 -> 실내 -> 멀리 가 보기 -> 그 마을만의 것 ->
+		# 남은 것 줍기 -> 자기. **잠은 언제나 맨 뒤다.**
 		var ids: Array = TALK_FOLK.get(village, [])
 		var out: Array = []
-		if ids.size() >= 1:
-			out.append({"label": "%s와 인사하기" % FOLK_NAME.get(ids[0], ""),
-				"kind": "talk", "key": String(ids[0]),
-				"done": JourneyState.heart(String(ids[0])) >= 1})
+		for id in ids:
+			out.append({"label": "%s와 인사하기" % FOLK_NAME.get(id, ""),
+				"kind": "talk", "key": String(id),
+				"done": JourneyState.heart(String(id)) >= 1})
 		out.append({"label": "가게 들어가 보기", "kind": "door", "key": "가게",
 			"done": _shop_entered(village)})
-		if ids.size() >= 2:
-			out.append({"label": "%s와 인사하기" % FOLK_NAME.get(ids[1], ""),
-				"kind": "talk", "key": String(ids[1]),
-				"done": JourneyState.heart(String(ids[1])) >= 1})
 		out.append({"label": VISIT_LABEL.get(village, "방문해 보기"),
 			"kind": "visit", "key": VISIT_KEY.get(village, ""),
 			"photo": VISIT_NEEDS_PHOTO.get(village, false),
 			"done": _visited(village)})
-		out.append({"label": "떨어진 것 다 줍기", "kind": "pickup", "key": "",
-			"done": _picked_all(village)})
-		if NEEDS_SLEEP.get(village, false):
-			out.append({"label": "하룻밤 쉬기", "kind": "sleep", "key": "",
-				"done": JourneyState.quest_done("%s:잠" % village)})
 		if HAS_LIGHTHOUSE.get(village, false):
 			out.append({"label": "등대 안에 들어가 보기", "kind": "door",
 				"key": "등대안",
@@ -456,12 +467,17 @@ static func quest_list(village: String) -> Array:
 			out.append({"label": "능 안쪽길에서 볕든 돌담 사진 남기기",
 				"kind": "door", "key": "능입구",
 				"done": JourneyState.quest_done("%s:능안" % village)})
-		# 그 마을만의 것은 **맨 뒤**에. 앞의 다섯을 하며 마을을 한 바퀴
-		# 돈 다음에야 "여기만 이런 게 있네" 가 온다.
+		# 그 마을만의 것은 한 바퀴 돈 다음에야 "여기만 이런 게 있네" 가 온다
 		if LOCAL.has(village):
 			var e: Array = LOCAL[village]
 			out.append({"label": String(e[2]), "kind": String(e[0]),
 				"key": String(e[1]), "done": _local_ok(village)})
+		out.append({"label": "떨어진 것 다 줍기", "kind": "pickup", "key": "",
+			"done": _picked_all(village)})
+		# **잠은 맨 뒤.** 자면 하루가 끝난다
+		if NEEDS_SLEEP.get(village, false):
+			out.append({"label": "하룻밤 쉬기", "kind": "sleep", "key": "",
+				"done": JourneyState.quest_done("%s:잠" % village)})
 		return out
 	return []
 

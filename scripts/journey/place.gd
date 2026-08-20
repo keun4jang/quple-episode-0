@@ -2082,12 +2082,7 @@ func _tick_tap_mark(delta: float) -> void:
 
 ## 지금이 하루 중 언제인가.
 func day_part() -> String:
-	var h := JourneyState.minutes / 60.0
-	if h < 11.0:
-		return "아침"
-	if h < 17.0:
-		return "낮"
-	return "저녁"
+	return JourneyState.day_part()
 
 
 var _sched_t := 0.0
@@ -2803,6 +2798,13 @@ func current_goal() -> Dictionary:
 			if _goal_id(q) == _goal_key:
 				return q
 		_goal_key = ""      # 그새 다 했거나 사라진 것을 고르고 있었다
+	# **지금 할 수 없는 것은 안 고른다.** "저녁에 등대곶" 이 아침
+	# 내내 "지금 해볼 일" 로 떠 있으면, 할 수 없는 것을 계속 시키는
+	# 셈이다. 목록에는 그대로 두되(때가 오면 그리 간다) 화살표와
+	# 위쪽 줄은 지금 할 수 있는 것을 짚는다.
+	for q in open:
+		if not bool(q.get("waiting", false)):
+			return q
 	return open[0]
 
 

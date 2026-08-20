@@ -215,6 +215,17 @@ func mark_quest(key: String) -> void:
 
 
 ## 그 일을 마친 날. 아직 안 했으면 아주 큰 수.
+## 지금이 하루의 어느 참인가. `Place` 에만 있던 것을 여기로 올렸다 —
+## 할 일 목록도 시간대를 봐야 한다 ("저녁에 등대곶").
+func day_part() -> String:
+	var h := minutes / 60.0
+	if h < 11.0:
+		return "아침"
+	if h < 17.0:
+		return "낮"
+	return "저녁"
+
+
 func quest_day(key: String) -> int:
 	return int(quest_days.get(key, 99999))
 

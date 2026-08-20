@@ -34,6 +34,7 @@ func _ready() -> void:
 	await _old_save_tests()
 	await _how_to_play_tests()
 	await _mark_timing_tests()
+	await _order_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -2700,5 +2701,70 @@ func _mark_timing_tests() -> void:
 		"가게 앞에 서 있는 것만으로는 안 들어간 것이다")
 	ok(not JourneyState.quest_done("윤슬:잠"), "잠자리 곁에 선 것도 잔 것이 아니다")
 	y.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 할 일 순서 ────────────────────────────────────────────────────────
+#
+# 어긋난 데가 둘 있었다. 가게가 **인사 둘 사이**에 끼어 있었고,
+# **하룻밤 쉬기가 중간**에 있어서 목록이 "자라" 고 한 다음에도 셋이
+# 남아 있었다 — 자면 하루가 끝나는데.
+
+func _order_tests() -> void:
+	print("\n[할 일 순서]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+
+	for v in ["볕뉘", "가풀재", "하늬섬", "굽이나루", "솔은재", "꽃눈벌"]:
+		var list := Quests.quest_list(v)
+		var kinds: Array = []
+		for q in list:
+			kinds.append(String(q.get("kind", "")))
+		# 잠은 언제나 맨 뒤
+		if kinds.has("sleep"):
+			ok(kinds[kinds.size() - 1] == "sleep",
+				"%s: 하룻밤 쉬기가 맨 뒤다 (%s)" % [v, str(kinds)])
+		# 인사끼리 붙어 있다 — 사이에 딴 일이 안 낀다
+		var first := kinds.find("talk")
+		var last := -1
+		for i in kinds.size():
+			if kinds[i] == "talk":
+				last = i
+		if first >= 0 and last > first:
+			var between := true
+			for i in range(first, last + 1):
+				if kinds[i] != "talk":
+					between = false
+			ok(between, "%s: 인사 사이에 딴 일이 안 낀다 (%s)" % [v, str(kinds)])
+		# 줍기는 잠 바로 앞 — 마을을 돌고 남은 것을 줍는다
+		if kinds.has("pickup") and kinds.has("sleep"):
+			ok(kinds.find("pickup") == kinds.find("sleep") - 1,
+				"%s: 줍기가 잠 바로 앞이다" % v)
+
+	# 아직 때가 아닌 것은 "지금 해볼 일" 로 안 고른다
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.minutes = 8.0 * 60.0          # 아침
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var head: Dictionary = Quests.quest_list("윤슬")[0]
+	ok(bool(head.get("waiting", false)),
+		"아침에는 '저녁에 등대곶' 이 기다리는 중으로 적힌다")
+	ok(String(head.get("label", "")).contains("저녁에"),
+		"언제 오면 되는지 줄에 적힌다 (%s)" % head.get("label", ""))
+	var now: Dictionary = p.current_goal()
+	ok(not bool(now.get("waiting", false)),
+		"지금 해볼 일은 지금 할 수 있는 것으로 고른다 (%s)"
+			% now.get("label", ""))
+	# 저녁이 되면 그것이 지금 할 일이 된다
+	JourneyState.minutes = 19.0 * 60.0
+	var now2: Dictionary = p.current_goal()
+	ok(String(now2.get("label", "")).contains("등대곶"),
+		"저녁이 되면 등대곶을 짚는다 (%s)" % now2.get("label", ""))
+	p.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
