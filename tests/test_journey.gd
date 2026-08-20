@@ -2349,6 +2349,56 @@ func _placement_lint_tests() -> void:
 		ok(hidden_hero.is_empty(), "%s: 주인공이 서는 자리가 안 가려진다%s"
 			% [village, "" if hidden_hero.is_empty() else " — " + str(hidden_hero)])
 
+		# ── 소품이 소품에 묻히는가 ─────────────────────────────────────
+		#
+		# 가게 뒤 화분처럼 **그려도 화면에 한 픽셀도 안 나오는** 소품이
+		# 열넷 있었다. 사각형으로 재면 나무 우듬지가 네모가 아니라서
+		# 크게 부풀려지므로, 불투명 픽셀(알파)로 센다. 앞에 그려지는
+		# 것들을 다 겹쳐서 "몇 %가 안 보이나" 를 낸다.
+		var imgs: Dictionary = {}
+		var buried: Array = []
+		for i4 in boxes.size():
+			var meb: Rect2 = boxes[i4][0]
+			var mename: String = boxes[i4][2]
+			if not imgs.has(mename):
+				var t6 := load("res://assets/sprites/%s.png" % mename) as Texture2D
+				imgs[mename] = t6.get_image() if t6 != null else null
+			var mi: Image = imgs[mename]
+			if mi == null:
+				continue
+			var seen: Dictionary = {}
+			var mine := 0
+			var gone := 0
+			for py in range(0, int(meb.size.y), 2):
+				for px in range(0, int(meb.size.x), 2):
+					if mi.get_pixel(px, py).a <= 0.06:
+						continue
+					mine += 1
+					var wx: float = meb.position.x + float(px)
+					var wy: float = meb.position.y + float(py)
+					for j4 in boxes.size():
+						if j4 == i4 or float(boxes[j4][1]) <= float(boxes[i4][1]):
+							continue
+						var ob: Rect2 = boxes[j4][0]
+						if not ob.has_point(Vector2(wx, wy)):
+							continue
+						var oname: String = boxes[j4][2]
+						if not imgs.has(oname):
+							var t7 := load("res://assets/sprites/%s.png" % oname) as Texture2D
+							imgs[oname] = t7.get_image() if t7 != null else null
+						var oi: Image = imgs[oname]
+						if oi == null:
+							continue
+						if oi.get_pixel(int(wx - ob.position.x),
+								int(wy - ob.position.y)).a > 0.06:
+							gone += 1
+							break
+			if mine > 0 and float(gone) / float(mine) > 0.6:
+				buried.append("%s%s %d%%" % [mename, boxes[i4][3],
+					int(float(gone) / float(mine) * 100.0)])
+		ok(buried.is_empty(), "%s: 그려도 안 보이는 소품이 없다%s"
+			% [village, "" if buried.is_empty() else " — " + str(buried)])
+
 		# ── 이름표끼리 겹치는가 ────────────────────────────────────────
 		#
 		# 이름표는 폭을 120 으로 잡아 두었지만 실제로 겹치는 건 **글자**다.

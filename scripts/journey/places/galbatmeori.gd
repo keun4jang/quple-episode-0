@@ -57,7 +57,7 @@ func props() -> Array:
 		# ── 동쪽 카피바라 쉼터 ──────────────────────────────────────
 		[36, 4, "shop", true],
 		[38, 11, "guesthouse", true],
-		[35, 3, "flower-pots", false],
+		[33, 3, "flower-pots", false],
 		[38, 4, "fence", true],
 		# ── 남쪽 전망대 ────────────────────────────────────────────
 		[20, 16, "bench", true],
@@ -69,7 +69,7 @@ func props() -> Array:
 		# ── 갈대 장터 (가게 곁) — 할머니의 좌판과 장독
 		[33, 7, "stall", true],
 		[32, 3, "jars", true],
-		[37, 8, "flower-pots", false],
+		[36, 8, "flower-pots", false],
 		# ── 전망대 쉼터 (갈매기의 자리)
 		[23, 15, "bench", true],
 		[18, 16, "pebbles", false],

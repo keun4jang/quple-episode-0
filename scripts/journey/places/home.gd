@@ -79,7 +79,7 @@ func props() -> Array:
 		[3, 4, "boulder", true],
 		[27, 3, "boulder", true],
 		[7, 4, "shrub", false],
-		[20, 4, "shrub", false],
+		[21, 3, "shrub", false],
 		[30, 4, "shrub", false],
 
 		# ── 집. 문이 디딤돌 바로 위에 오게 맞춘다 — 디딤돌은 x17~19

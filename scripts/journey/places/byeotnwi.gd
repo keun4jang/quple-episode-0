@@ -85,7 +85,7 @@ func props() -> Array:
 		[33, 1, "pine", true],
 		[32, 5, "pine", true],
 		[30, 7, "tree", true],
-		[27, 6, "shrub", false],
+		[27, 5, "shrub", false],
 		[20, 2, "shrub", false],
 
 		# ── 능. 낮은 봉분과 그 앞 박석
@@ -94,7 +94,7 @@ func props() -> Array:
 		[17, 4, "boulder", true],
 		[20, 5, "flower-pots", false],
 		[12, 8, "boulder", true],
-		[23, 8, "boulder", true],
+		[22, 9, "boulder", true],
 		# 능을 두른 낮은 울. 세로로만 서니 위아래로는 막지 않는다 —
 		# 섬돌(x16~19)로 오르는 길은 늘 열려 있다.
 		[11, 5, "fence", true],
@@ -102,7 +102,7 @@ func props() -> Array:
 		[11, 7, "fence", true],
 		[24, 5, "fence", true],
 		[24, 6, "fence", true],
-		[24, 7, "fence", true],
+		[23, 6, "fence", true],
 
 		# ── 돌길 북쪽. 낮은 기와지붕이 늘어선 쪽
 		[4, 9, "guesthouse", true],
@@ -155,7 +155,7 @@ func props() -> Array:
 		[33, 10, "signpost", false],
 		# ── 흙마당 생활터 (볕뉘:흙마당 장면) — 빨래·장작이 있어야 산다
 		[12, 18, "bench", true],
-		[8, 16, "washtub", false],
+		[8, 15, "washtub", false],
 		[7, 17, "firewood", true],
 		[13, 15, "jars", true],
 		# ── 두 가게 사이 장터 — 아주머니 낮 자리(10,12) 곁

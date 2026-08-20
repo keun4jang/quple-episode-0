@@ -92,7 +92,9 @@ func props() -> Array:
 		[13, 18, "pebbles", false],
 		[20, 17, "boulder", true],
 		[10, 7, "retaining-wall", true],
-		[24, 9, "retaining-wall", true],
+		# (24,9) 축대는 지웠다 — 그 줄 x21~28 이 가게(23,10)와
+		# 호스텔(26,11) 그림에 통째로 덮여 어디에도 보일 자리가 없다.
+		# 층이 갈리는 선은 (29,9) 하나로 충분히 읽힌다.
 		[29, 9, "retaining-wall", true],
 		# ── 바다와 현무암 곶 ──────────────────────────────────────────
 		# 등대는 96px(여섯 칸)짜리라 발을 5번 줄에 둬야 꼭대기가 안 잘린다.
@@ -103,7 +105,7 @@ func props() -> Array:
 		[31, 8, "pebbles", false],
 		[34, 9, "pebbles", false],
 		[34, 4, "beach-grass", false],
-		[25, 6, "beach-grass", false],
+		[24, 5, "beach-grass", false],
 		# 부표는 물 위에 뜬다. 물은 어차피 못 걷는 칸이라 막지 않는다 —
 		# 텅 빈 바다에 눈이 걸릴 것이 몇 개는 있어야 한다.
 		[11, 1, "buoy", false],
@@ -116,7 +118,7 @@ func props() -> Array:
 		[14, 3, "dock", false],
 		[17, 3, "dock", false],
 		[15, 1, "net", false],
-		[12, 5, "net", false],
+		[12, 4, "net", false],
 		[10, 4, "icebox", false],
 		[16, 4, "icebox", false],
 		[19, 4, "firewood", false],

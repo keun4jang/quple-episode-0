@@ -80,7 +80,7 @@ func props() -> Array:
 		[39, 14, "shop", true],          # 카피바라 가게
 		[37, 12, "guesthouse", true],    # 쉼터
 		[40, 15, "signpost", false],
-		[34, 18, "mailbox", true],
+		[34, 17, "mailbox", true],
 		# 건물 밑동. 마당에서 안 가려지는 곳은 y15 와 y17~19 뿐이다.
 		[37, 15, "flower-pots", false],
 		[36, 17, "flower-pots", false],

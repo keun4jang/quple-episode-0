@@ -87,9 +87,9 @@ func props() -> Array:
 	return [
 		# 돌담. 이 섬 이름이 "검은 돌담과 바람" 인데 정작 돌담이 없었다.
 		# 밭과 길 사이에 낮게 두른다 — 바람을 막으려고 쌓은 것이다.
-		[9, 9, "stone-wall", true],
+		[7, 9, "stone-wall", true],
 		[12, 9, "stone-wall", true],
-		[22, 12, "stone-wall", true],
+		[22, 14, "stone-wall", true],
 		[25, 12, "stone-wall", true],
 		[6, 13, "stone-wall", true],
 		# ── 북쪽 백사장과 바다 ────────────────────────────────────────
@@ -104,7 +104,7 @@ func props() -> Array:
 		[5, 4, "net", false],
 		[29, 4, "net", false],
 		[4, 5, "icebox", false],
-		[30, 5, "washtub", false],
+		[30, 4, "washtub", false],
 
 		# ── 북쪽 현무암 언덕 ──────────────────────────────────────────
 		# 검은 돌담 대신 바위를 늘어놓는다. 여섯이 모여야 언덕이다.
