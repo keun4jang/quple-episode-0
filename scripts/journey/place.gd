@@ -1242,6 +1242,7 @@ func _build_ui() -> void:
 
 	board = TravelBoard.new()
 	board.name = "Board"
+	board.chose.connect(_on_chose)
 	add_child(board)
 
 	# 처음 잡은 사람을 위한 안내. 다 해 보면 두 번 다시 안 나온다.
@@ -2226,8 +2227,17 @@ func _on_action() -> void:
 ## 하므로 한곳에 모은다 — 표지판 앞까지 왔다는 표시도 여기서 남긴다.
 func _open_board() -> void:
 	board.open(place_name())
-	JourneyState.mark_quest("%s:정류장" % place_name())
+	# **여기서 표시를 남기면 안 된다.** 할 일은 "첫 여행지 고르기" 인데
+	# 판을 열어 보기만 해도 다 한 것이 됐다 — 아직 아무 데도 안 골랐는데
+	# 목록에 "(다 했어요)" 가 붙었다. 진짜로 고른 순간에 남긴다
+	# (`_on_chose`, `TravelBoard._pick`).
 	_did("go")
+
+
+## 여행지를 실제로 골랐다. 그때 정류장 표시를 남긴다 — 떠나기 직전이라
+## 아직 이 마을의 이름을 쓸 수 있다 (씬이 바뀌면 못 쓴다).
+func _on_chose(_path: String) -> void:
+	JourneyState.mark_quest("%s:정류장" % place_name())
 
 
 ## 문을 지나 다른 씬으로. 밖에서 안으로, 또는 안에서 밖으로 — 방향은

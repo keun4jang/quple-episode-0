@@ -21,6 +21,7 @@ func _ready() -> void:
 	reset_btn.pressed.connect(_on_reset)
 	_close_on_outside_tap()
 	_add_home_button()
+	_add_howto_button()
 	_add_update_row()
 	_make_scrollable()
 
@@ -91,6 +92,38 @@ func _make_scrollable() -> void:
 ## 안드로이드 뒤로가기는 한 화면 뒤로만 간다. 앱을 죽이는 것 말고는
 ## 메인화면으로 돌아갈 방법이 없었던 셈이다.
 ## 메인화면에서 연 설정에는 이 버튼을 넣지 않는다 — 이미 거기다.
+## "화면 보는 법" 을 언제든 다시 볼 자리.
+##
+## 처음 한 번 뜨고 마는 판이라, 나중에 "이 버튼이 뭐였지" 하고 돌아올
+## 곳이 필요하다. 배낭 안쪽 깊이 묻어 두면 못 찾는다 — 설정은 어디서든
+## 오른쪽 위에 있다. 다만 **여행 중일 때만** 보여 준다. 메인 화면에서
+## 열면 고리가 아무것도 없는 자리를 가리킨다.
+func _add_howto_button() -> void:
+	var body := close_btn.get_parent()
+	if body == null:
+		return
+	if get_tree().get_first_node_in_group("journey_hud") == null:
+		return
+	if body.has_node("HowToBtn"):
+		return
+	var b := Button.new()
+	b.name = "HowToBtn"
+	b.text = "화면 보는 법"
+	b.custom_minimum_size = close_btn.custom_minimum_size
+	b.add_theme_font_size_override("font_size",
+		close_btn.get_theme_font_size("font_size"))
+	for st in ["normal", "hover", "pressed"]:
+		var sb := close_btn.get_theme_stylebox(st)
+		if sb != null:
+			b.add_theme_stylebox_override(st, sb)
+	b.add_theme_color_override("font_color", close_btn.get_theme_color("font_color"))
+	b.pressed.connect(func() -> void:
+		close()
+		HowToPlay.open(get_tree()))
+	body.add_child(b)
+	body.move_child(b, close_btn.get_index())
+
+
 func _add_home_button() -> void:
 	var body := close_btn.get_parent()
 	if body == null:
@@ -241,6 +274,10 @@ func _go_home() -> void:
 	SceneTransition.go_to("res://scenes/menu/MainMenu3D.tscn")
 
 func open() -> void:
+	# 여행 중에 열렸으면 "화면 보는 법" 버튼을 붙인다. 창은 마을마다
+	# 새로 만들어지지만 메인 화면에서 만들어질 때도 있어서, 여는
+	# 순간에 한 번 더 본다.
+	_add_howto_button()
 	_reset_armed = false
 	reset_hint.text = ""
 	_refresh_version()

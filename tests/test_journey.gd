@@ -33,6 +33,7 @@ func _ready() -> void:
 	await _placement_lint_tests()
 	await _old_save_tests()
 	await _how_to_play_tests()
+	await _mark_timing_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -2651,3 +2652,53 @@ func _how_to_play_tests() -> void:
 	again.queue_free()
 	await get_tree().process_frame
 	SaveManager.set_flag(HowToPlay.FLAG, true)
+
+
+# ── 표시가 너무 일찍 남지 않는가 ──────────────────────────────────────
+#
+# "정류장에서 첫 여행지 고르기" 가 **여행판을 열기만 해도** 다 한 것이
+# 됐다. 아직 아무 데도 안 골랐는데 목록에 "(다 했어요)" 가 붙었다.
+# 할 일의 이름이 "고르기" 면 고른 순간에 남아야 한다.
+#
+# 같은 종류의 실수를 다른 데서도 안 하는지 같이 본다 — 문은 지나야,
+# 잠은 자야, 가 볼 자리는 닿아야 남는다.
+
+func _mark_timing_tests() -> void:
+	print("\n[표시 시점]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["잿마루"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+
+	# ① 여행판을 열기만 해서는 안 남는다
+	p._open_board()
+	await get_tree().process_frame
+	ok(not JourneyState.quest_done("잿마루:정류장"),
+		"여행판을 열기만 해서는 '첫 여행지 고르기' 가 안 끝난다")
+	var row := ""
+	for q in Quests.quest_list("잿마루"):
+		if String(q.get("kind", "")) == "depart":
+			row = String(q.get("label", "")) \
+				+ ("  (다 했어요)" if bool(q.get("done", false)) else "")
+	ok(not row.ends_with("(다 했어요)"),
+		"목록에도 다 했다고 안 적힌다 (%s)" % row)
+	p.board.visible = false
+
+	# ② 실제로 고르면 그때 남는다
+	p._on_chose("res://scenes/journey/Yunseul.tscn")
+	ok(JourneyState.quest_done("잿마루:정류장"),
+		"여행지를 고르면 그때 남는다")
+
+	# ③ 문은 지나야, 잠은 자야 남는다
+	JourneyState.reset()
+	p.queue_free()
+	await get_tree().process_frame
+	var y: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(y)
+	await get_tree().process_frame
+	ok(not JourneyState.quest_done("윤슬:가게"),
+		"가게 앞에 서 있는 것만으로는 안 들어간 것이다")
+	ok(not JourneyState.quest_done("윤슬:잠"), "잠자리 곁에 선 것도 잔 것이 아니다")
+	y.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()

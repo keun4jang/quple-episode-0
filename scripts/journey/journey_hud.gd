@@ -776,6 +776,17 @@ func _fill_quests() -> void:
 	gb.pressed.connect(_open_guide_recap)
 	_bag_grid.add_child(gb)
 
+	# **화면 보는 법도 여기 바로 둔다.** 길잡이 판 안에 한 번 더
+	# 들어가야 나오면 못 찾는다 — 막혔을 때 오는 자리에 바로 있어야 한다.
+	var hb := Button.new()
+	hb.text = "화면 보는 법"
+	hb.custom_minimum_size = Vector2(0, 64)
+	hb.add_theme_font_size_override("font_size", 24)
+	hb.pressed.connect(func() -> void:
+		toggle_bag()
+		HowToPlay.open(get_tree()))
+	_bag_grid.add_child(hb)
+
 
 ## "길잡이 다시 보기" 판. 처음 봤던 안내를 순서대로 다시 보여준다.
 ## 지금 막힌 사람에게는 **아직 안 한 것 중 가장 앞선 줄**이 먼저,
