@@ -165,6 +165,23 @@ func _run() -> void:
 			await _wait(30)
 			await _shot("shop-wall")
 
+	# ⑨-2 마을 선반 — 값이 없는 가게. 세 판을 다 찍어 둔다. 잠긴 것이
+	# 흐리게만 보이는지, 이름이 판 밖으로 안 넘치는지 눈으로 본다.
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 12)
+	p = await _open("res://scenes/journey/interiors/ShopInterior.tscn")
+	JourneyState.pick("p-shell")
+	JourneyState.pick("p-seaglass")
+	await _wait(16)
+	for kind: String in [ShelfPanel.KIND_FOOD, ShelfPanel.KIND_KEEP,
+			ShelfPanel.KIND_SHOW]:
+		var sp := ShelfPanel.open(p, "윤슬", kind)
+		await _wait(10)
+		await _shot("shelf-%s" % kind)
+		if sp != null:
+			sp._close()
+		await _wait(4)
+
 	# ⑩ 샛길 — 셋이 서로 달라야 한다
 	for v2 in ["Gubinaru", "Soleunjae", "Kkonnunbeol"]:
 		JourneyState.exit_scene = "res://scenes/journey/%s.tscn" % v2

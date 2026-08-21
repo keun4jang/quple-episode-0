@@ -172,7 +172,22 @@ func props() -> Array:
 		# 손님 자리 — 문 앞 통로 바로 옆
 		[mid - 3, 15, "bench", true],
 		[mid + 3, 15, "bench", true],
-	] + _skin_props()
+	] + _shelf_props() + _skin_props()
+
+
+## 마을 선반 둘 - 먹거리 좌판과 물건 진열장.
+##
+## 여태 누를 자리만 찍고 **그릴 것을 안 놓았다.** 빈 바닥에 이름표만
+## 뜨니 무엇을 누르는지 알 수가 없었다. 셋째(기억 선반)는 위쪽 금테
+## 진열장을 그대로 쓴다.
+func _shelf_props() -> Array:
+	if not Items.has(from_village()):
+		return []
+	var mid := W / 2
+	return [
+		[mid - 5, 6, "stall", true, true],
+		[mid + 5, 6, "cabinet", true, true],
+	]
 
 
 ## 마을마다 다른 곁 물건. 정해진 자리에 이름만 갈아 끼운다.
@@ -201,11 +216,50 @@ func quest_village() -> String:
 
 func on_built() -> void:
 	JourneyState.here = place_name()
-	# 둘째 줄만 마을마다 다르다. 첫 줄은 어느 가게에서나 같은 말이다.
-	var lines: Array = ["이것저것 소소한 것들이 놓여 있다."]
-	var mine := String(_skin()[1])
-	lines.append(mine if mine != "" else "여행 중에 필요한 건 대충 다 있는 듯하다.")
-	put_spot(Vector2i(W / 2 - 2, 3), "진열대", lines)
+	var mid := W / 2
+	# 금테 진열장 한 칸에 **둘을 걸면 안 된다.** 선반이 있는 마을은 그
+	# 자리가 기억 선반이고, 없는 마을만 여태처럼 "진열대" 를 들여다본다.
+	if not Items.has(village_we_came_from()):
+		# 둘째 줄만 마을마다 다르다. 첫 줄은 어느 가게에서나 같은 말이다.
+		var lines: Array = ["이것저것 소소한 것들이 놓여 있다."]
+		var mine := String(_skin()[1])
+		lines.append(mine if mine != "" else "여행 중에 필요한 건 대충 다 있는 듯하다.")
+		put_spot(Vector2i(mid - 2, 3), "진열대", lines)
+
+	# ── 마을 선반 ────────────────────────────────────────────────
+	#
+	# 여태 가게는 **들어갔다 나오는 빈 방**이었다. 주인은 밖에 서 있고
+	# 안에는 아무도 없었다. 값을 붙이는 대신(`Items` 주석), 주인을
+	# 안에 세우고 누를 자리 셋을 둔다 — 먹거리·이 마을 물건·기억 선반.
+	#
+	# **셋만 켠다.** 진열장을 죄다 누르게 하면 어디를 눌러야 할지
+	# 모르게 된다. 나머지는 분위기로 둔다.
+	var v := village_we_came_from()
+	if not Items.has(v):
+		return
+	var d: Dictionary = Items.of(v)
+	put_folk(Vector2i(mid, 5), _owner_sheet(v), String(d.get("owner", "가게")),
+		"", d.get("hello", [["천천히 둘러봐."]]), Vector2.DOWN)
+	_shelf(Vector2i(mid - 5, 6), "선반:food", "오늘의 먹거리")
+	_shelf(Vector2i(mid + 5, 6), "선반:keep", "이 마을 물건")
+	_shelf(Vector2i(mid - 2, 3), "선반:show", "기억 선반")
+
+
+## 가게 주인 그림. 밖에 선 그 사람과 같은 얼굴이어야 한다.
+func _owner_sheet(v: String) -> String:
+	match v:
+		"윤슬", "볕뉘", "가풀재", "하늬섬":
+			return "seal"
+	return "capybara-a"
+
+
+## 누를 수 있는 선반 하나. 자리 표시를 그대로 쓴다 —
+## 걸어가서 한 번 누르면 판이 뜬다 (`Place.talk_to_near`).
+func _shelf(t: Vector2i, key: String, what: String) -> void:
+	# `put_spot()` 이 한 겹 더 씌운다 (`lines_by_heart = [lines]`) —
+	# 여기서 또 씌우면 대사 한 줄이 배열이 돼서 터진다.
+	var f := put_spot(t, what, ["…"])
+	f.spot_key = key
 
 
 func bgm_track() -> String:

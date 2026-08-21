@@ -1847,6 +1847,12 @@ func talk_to_near() -> void:
 	walker.stop()
 	# **대사를 먼저 고르고** 마음을 올린다. 순서를 바꾸면 처음 만난
 	# 사람이 두 칸째 대사를 하고, 첫인사를 영영 못 듣는다.
+	# 가게 선반은 대화 대신 **판**이 뜬다. 자리 표시를 그대로 쓰되
+	# (걸어가서 한 번 누르기) 여는 것만 다르다 (`ShelfPanel`).
+	if f.is_spot and f.spot_key.begins_with("선반:"):
+		var kind := f.spot_key.substr(3)
+		ShelfPanel.open(self, quest_village(), kind)
+		return
 	var what := f.lines()
 	# **무엇을 들고 왔는지 본다.** 그냥 또 말 거는 것과, 무언가를
 	# 손에 쥐고 찾아오는 것은 다른 일이다 (`Quests.KNOT`).
@@ -2189,7 +2195,7 @@ func _refresh_action() -> void:
 		return
 	var door = _can_enter()
 	if door != null:
-		hud.set_action("enter", String(door.get("label", "들어가기")))
+		hud.set_action("enter", _door_label(door))
 		return
 	if _can_sleep():
 		hud.set_action("sleep", "자기")
@@ -2198,6 +2204,19 @@ func _refresh_action() -> void:
 		hud.set_action("depart", "떠나기")
 		return
 	hud.set_action("", "")
+
+
+## 문에 적을 말. 가게에 **볼 것이 남았으면** 한 마디 덧붙인다.
+##
+## 안 그러면 가게는 한 번 들어갔다 나오면 끝인 방이 된다. 새 물건이
+## 선반에 놓여도(자취를 다 찾았다든지) 다시 들어갈 이유를 알 길이 없다.
+## **무엇이 생겼는지는 안 적는다** - 그건 들어가서 보는 재미다.
+func _door_label(door: Dictionary) -> String:
+	var label := String(door.get("label", "들어가기"))
+	if label.begins_with("가게") and Items.something_new(quest_village()):
+		# 버튼이 좁다 - "들어가기" 를 덜어 낸 자리에 넣는다.
+		return label.trim_suffix(" 들어가기") + " (새 물건)"
+	return label
 
 
 func _on_action() -> void:
@@ -2961,6 +2980,7 @@ func put_spot(t: Vector2i, what: String, lines: Array) -> Folk:
 	f.is_spot = true
 	f.folk_id = ""            # 마음이 안 는다 — 물건이니까
 	f.lines_by_heart = [lines]
+	f.at_tile = t
 	f.position = world_of(t)
 	add_child(f)
 	f.hide_body()
@@ -2984,6 +3004,7 @@ func put_folk(t: Vector2i, sheet: String, who: String, folk_id: String,
 	var at := t
 	if not schedule.is_empty():
 		at = schedule.get(day_part(), t)
+	f.at_tile = at
 	f.position = world_of(at)
 	add_child(f)
 	f.face(facing)

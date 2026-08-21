@@ -132,6 +132,9 @@ func props() -> Array:
 		[4, 13, "street-lamp", true],
 		[7, 13, "shrub", true],
 		[12, 13, "mailbox", true],
+		# 회사 앞 가로등. "회사 앞" 자리(13,13)가 올려다보는 것이다 -
+		# 이게 없으면 빈 인도 한 칸에 이름표만 뜬다.
+		[13, 12, "street-lamp", true],
 		# 문 닫은 좌판 둘. 새벽이라 아무도 없다
 		[23, 13, "stall", true],
 		[25, 13, "stall", true],

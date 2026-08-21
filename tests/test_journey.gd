@@ -36,6 +36,7 @@ func _ready() -> void:
 	await _mark_timing_tests()
 	await _order_tests()
 	await _trace_tests()
+	await _shelf_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -2310,6 +2311,28 @@ func _placement_lint_tests() -> void:
 		ok(bad_prop.is_empty(), "%s: 막는 소품이 문·퀘스트 둘레를 안 밟는다%s"
 			% [village, "" if bad_prop.is_empty() else " — " + str(bad_prop)])
 
+		# 누를 자리(`is_spot`)에는 **볼 것이 깔려 있어야 한다.**
+		#
+		# 가게 선반 셋을 빈 바닥 위에 찍어 둔 적이 있다. 옆에 서야만
+		# 이름표가 뜨니, 아무것도 없는 자리를 누를 이유가 없었다.
+		# 빛나는 자취만 뺀다 - 그건 제 빛을 스스로 그린다.
+		var prop_at: Dictionary = {}
+		for pr2 in p.props():
+			prop_at[Vector2i(pr2[0], pr2[1])] = String(pr2[2])
+		var bare: Array = []
+		for f0 in p._folk:
+			if not is_instance_valid(f0) or not f0.is_spot:
+				continue
+			if f0.who == "반짝이는 자리":
+				continue
+			# 바로 윗칸도 친다 - 창밖처럼 **소품 앞에 서서 올려다보는**
+			# 자리가 있다 (문이 건물 앞칸인 것과 같은 규칙).
+			if not prop_at.has(f0.at_tile) \
+				and not prop_at.has(f0.at_tile + Vector2i(0, -1)):
+				bare.append("%s%s" % [f0.who, f0.at_tile])
+		ok(bare.is_empty(), "%s: 누를 자리마다 소품이 깔려 있다%s"
+			% [village, "" if bare.is_empty() else " - " + str(bare)])
+
 		# 인연 몸이 보호칸·줍기·정류장을 밟는가. 시간표 자리까지 다.
 		var body_no: Array[Vector2i] = guard.duplicate()
 		for pk in p.pickups():
@@ -2842,5 +2865,204 @@ func _trace_tests() -> void:
 	await get_tree().process_frame
 	ok(p2._traces.is_empty(), "찾은 자리는 다시 안 반짝인다 (%d)" % p2._traces.size())
 	p2.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 마을 선반 ─────────────────────────────────────────────────────────
+#
+# 가게를 넣되 **경제는 안 넣는다** (`Items` 주석). 값·잔액·재고·품절이
+# 없고, 수집품은 보여 주기만 하고 줄지 않는다. 이 검사가 그 선을 지킨다 —
+# 나중에 누가 값을 붙이면 여기서 걸린다.
+
+func _shelf_tests() -> void:
+	print("\n[마을 선반]")
+	JourneyState.reset()
+
+	# ① 데이터에 값·재고·기간이 아예 없다
+	var src := FileAccess.open("res://scripts/systems/items.gd",
+		FileAccess.READ).get_as_text()
+	var banned := ["price", "cost", "sell_value", "stock", "expires",
+		"consume_count", "balance"]
+	var found: Array = []
+	for b in banned:
+		if src.contains('"%s"' % b) or src.contains("%s :" % b) \
+				or src.contains("%s =" % b):
+			found.append(b)
+	ok(found.is_empty(), "물건 데이터에 값·재고·기간이 없다%s"
+		% ("" if found.is_empty() else " — " + str(found)))
+
+	# ② 조건을 안 채우면 못 받고, 채우면 받는다
+	var marble: Dictionary = Items.of("윤슬")["keep"][0]
+	ok(not Items.unlocked("윤슬", marble), "자취를 못 찾았으면 아직 선반에 없다")
+	JourneyState.mark_quest("윤슬:본:빛자리1")
+	JourneyState.mark_quest("윤슬:본:빛자리2")
+	JourneyState.mark_quest("윤슬:본:빛자리3")
+	ok(Items.unlocked("윤슬", marble), "자취를 다 찾으면 받을 수 있다")
+	ok(not Items.kept(marble), "아직 안 챙겼다")
+
+	# ③ 실제로 가게에 들어가 챙겨 본다
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 12)
+	var shop: Place = load("res://scenes/journey/interiors/ShopInterior.tscn").instantiate()
+	add_child(shop)
+	await get_tree().process_frame
+	var shelves: Array = []
+	for f in shop._folk:
+		if is_instance_valid(f) and f.is_spot and f.spot_key.begins_with("선반:"):
+			shelves.append(f)
+	ok(shelves.size() == 3, "선반이 셋 있다 (%d)" % shelves.size())
+	var owner_in := false
+	for f2 in shop._folk:
+		if is_instance_valid(f2) and not f2.is_spot and f2.who == "가게 할머니":
+			owner_in = true
+	ok(owner_in, "주인이 가게 안에 서 있다")
+
+	var panel := ShelfPanel.open(shop, "윤슬", ShelfPanel.KIND_KEEP)
+	ok(panel != null, "선반 판이 열린다")
+	await get_tree().process_frame
+	ok(panel.is_in_group("overlay"), "덮는 판이니 'overlay' 그룹에 든다")
+	ok(ShelfPanel.open(shop, "윤슬", ShelfPanel.KIND_KEEP) == null,
+		"두 번 겹쳐 열리지 않는다")
+	panel._tap(marble)
+	await get_tree().process_frame
+	ok(Items.kept(marble), "유리구슬을 챙겼다")
+	ok(JourneyState.count("k-marble") == 1, "배낭에 하나 들어왔다")
+
+	# ④ 또 눌러도 개수가 안 는다 (값이 없으니 사는 게 아니다)
+	var again := ShelfPanel.open(shop, "윤슬", ShelfPanel.KIND_KEEP)
+	again._tap(marble)
+	await get_tree().process_frame
+	ok(JourneyState.count("k-marble") == 1, "다시 눌러도 개수가 안 는다")
+
+	# ⑤ 보여 주기는 **수집품을 안 쓴다**
+	JourneyState.pick("p-seaglass")
+	JourneyState.pick("p-seaglass")
+	var before := JourneyState.count("p-seaglass")
+	var glass: Dictionary = {}
+	for sh in Items.of("윤슬")["show"]:
+		if String(sh["id"]) == "p-seaglass":
+			glass = sh
+	var p3 := ShelfPanel.open(shop, "윤슬", ShelfPanel.KIND_SHOW)
+	p3._tap(glass)
+	await get_tree().process_frame
+	ok(JourneyState.count("p-seaglass") == before,
+		"보여 줘도 바다유리가 안 줄어든다 (%d)" % JourneyState.count("p-seaglass"))
+	ok(Items.shown("윤슬", "p-seaglass"), "보여 준 것으로 남는다")
+
+	# ⑥ 먹거리는 배낭에 안 들어간다
+	var food: Dictionary = Items.of("윤슬")["food"][0]
+	var p4 := ShelfPanel.open(shop, "윤슬", ShelfPanel.KIND_FOOD)
+	p4._tap(food)
+	await get_tree().process_frame
+	ok(JourneyState.count(String(food["id"])) == 0,
+		"먹거리는 배낭에 안 남는다 — 그 자리에서 맛본다")
+	ok(Items.tasted("윤슬", food), "맛본 것으로 기록된다")
+
+	# ⑦ 눌렀을 때 **말이 제대로 나온다**
+	#
+	# `say()` 는 한 겹 배열을 받는다 — 원소가 또 배열이면 [누가, 무슨 말]
+	# 로 읽거나 `String(배열)` 에서 터진다. 한 겹 더 씌운 채 넘긴 적이
+	# 있는데, 화면에만 안 나올 뿐 테스트는 다 통과했다. 그래서 판에서
+	# 나온 말이 실제로 대사창까지 닿는지를 본다.
+	var flat_bad: Array = []
+	for kind: String in [ShelfPanel.KIND_FOOD, ShelfPanel.KIND_KEEP,
+			ShelfPanel.KIND_SHOW]:
+		for it: Dictionary in Items.of("윤슬").get(
+				"food" if kind == ShelfPanel.KIND_FOOD
+				else ("keep" if kind == ShelfPanel.KIND_KEEP else "show"), []):
+			shop.say._said.clear()
+			var pk := ShelfPanel.open(shop, "윤슬", kind)
+			pk._tap(it)
+			await get_tree().process_frame
+			if shop.say._said.is_empty():
+				flat_bad.append("%s/%s(빈 대사)" % [kind, it["id"]])
+				continue
+			for m: Dictionary in shop.say._said:
+				var t := String(m.get("text", ""))
+				if t == "" or t == "<null>" or t.begins_with("["):
+					flat_bad.append("%s/%s(%s)" % [kind, it["id"], t])
+	ok(flat_bad.is_empty(), "선반을 누르면 말이 한 겹으로 나온다%s"
+		% ("" if flat_bad.is_empty() else " — " + str(flat_bad)))
+
+	# 가게 안 소품(선반 표시)도 마찬가지다 — `put_spot()` 이 이미 한 겹
+	# 씌우므로 여기서 또 씌우면 안 된다.
+	var spot_bad: Array = []
+	for f3 in shop._folk:
+		if not is_instance_valid(f3):
+			continue
+		for l in f3.lines_by_heart:
+			if l is Array:
+				for one in l:
+					if one is Array and one.size() < 2:
+						spot_bad.append(String(f3.who))
+	ok(spot_bad.is_empty(), "가게 안 대사가 겹으로 안 싸여 있다%s"
+		% ("" if spot_bad.is_empty() else " — " + str(spot_bad)))
+
+	# ⑧ 누를 자리에는 **볼 것이 있어야 한다**
+	#
+	# 선반 셋을 빈 바닥 위에 찍어 둔 적이 있다. 걸어가 옆에 서야만
+	# 이름표가 뜨니, 방 한가운데 아무것도 없는 자리를 누를 이유가
+	# 없었다. 자리마다 소품이 깔려 있는지, 한 칸에 둘이 겹치지
+	# 않는지를 본다.
+	var prop_at: Dictionary = {}
+	for pr in shop.props():
+		prop_at[Vector2i(int(pr[0]), int(pr[1]))] = String(pr[2])
+	var bare: Array = []
+	var seen_tile: Dictionary = {}
+	var twice: Array = []
+	for f4 in shop._folk:
+		if not is_instance_valid(f4) or not f4.is_spot:
+			continue
+		var t4: Vector2i = f4.at_tile
+		if not prop_at.has(t4):
+			bare.append("%s%s" % [f4.who, t4])
+		if seen_tile.has(t4):
+			twice.append("%s+%s%s" % [seen_tile[t4], f4.who, t4])
+		seen_tile[t4] = String(f4.who)
+	ok(bare.is_empty(), "누를 자리마다 소품이 깔려 있다%s"
+		% ("" if bare.is_empty() else " - " + str(bare)))
+	ok(twice.is_empty(), "한 칸에 누를 자리가 둘 겹치지 않는다%s"
+		% ("" if twice.is_empty() else " - " + str(twice)))
+
+	# ⑨ 저장하고 불러와도 그대로
+	var kept_before := JourneyState.count("k-marble")
+	var d := JourneyState.to_dict()
+	JourneyState.reset()
+	JourneyState.from_dict(d)
+	ok(JourneyState.count("k-marble") == kept_before, "챙긴 물건이 저장된다")
+	ok(Items.shown("윤슬", "p-seaglass"), "보여 준 기록도 저장된다")
+
+
+	# ⑩ 볼 것이 남았으면 **문에 티가 난다**
+	#
+	# 자취를 다 찾아 유리구슬이 선반에 놓여도, 다시 들어가 볼 이유를
+	# 알 길이 없으면 가게는 한 번 보고 마는 방이 된다.
+	JourneyState.reset()
+	ok(Items.something_new("윤슬"), "처음엔 가게에 볼 것이 있다")
+	var yun: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yun)
+	await get_tree().process_frame
+	var shop_door: Dictionary = {}
+	for dr in yun.doors():
+		if String(dr.get("label", "")).begins_with("가게"):
+			shop_door = dr
+	ok(not shop_door.is_empty(), "윤슬에 가게 문이 있다")
+	ok(yun._door_label(shop_door).contains("새 물건"),
+		"볼 것이 남았으면 문에 적힌다 (%s)" % yun._door_label(shop_door))
+	for f5 in Items.of("윤슬")["food"]:
+		JourneyState.mark_quest("윤슬:맛봄:%s" % f5["id"])
+	JourneyState.mark_quest("윤슬:본:빛자리1")
+	JourneyState.mark_quest("윤슬:본:빛자리2")
+	JourneyState.mark_quest("윤슬:본:빛자리3")
+	JourneyState.pick("k-marble")
+	ok(not Items.something_new("윤슬"), "다 보고 나면 조용해진다")
+	ok(not yun._door_label(shop_door).contains("새 물건"),
+		"조용해지면 문에서도 지운다 (%s)" % yun._door_label(shop_door))
+	yun.queue_free()
+	await get_tree().process_frame
+
+	shop.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
