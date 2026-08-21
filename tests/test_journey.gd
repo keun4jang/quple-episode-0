@@ -38,6 +38,8 @@ func _ready() -> void:
 	await _trace_tests()
 	await _shelf_tests()
 	await _wrap_tests()
+	await _guide_tests()
+	await _scene_load_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -3159,3 +3161,180 @@ func _wrap_tests() -> void:
 	ok(bare.autowrap_mode == TextServer.AUTOWRAP_WORD_SMART,
 		"그때는 자동 줄바꿈을 켜 둔다")
 	bare.queue_free()
+
+
+# ── 길안내 ────────────────────────────────────────────────────────────
+#
+# "지금 퀘스트 어려워. 퀘스트는 계속 깰 수 있게 친절한 표시가 필요해.
+#  건물 안에 들어가도 다시 나가라는 둥 다음 퀘스트를 위한 화살표는
+#  필요해." - 폰 화면과 함께 받은 말이다.
+#
+# 재 보니 근거가 있었다. 마을에 들어선 자리에서 남은 할 일이 화면에
+# 드는지 세어 봤더니 굽이나루는 여섯 중 여섯이 화면 밖이었다. 그런데
+# 할 일 화살표는 세계 좌표에 떠 있어서, 화면 밖이면 아무 표시도 없었다.
+#
+# 여기서 지키는 것 셋:
+#   - 화면 밖 목표는 가장자리가 가리킨다
+#   - 실내에서 안에 볼 것이 없으면 나가는 문을 가리킨다
+#   - 목록 줄이 **남은 것**을 적는다
+
+func _guide_tests() -> void:
+	print("\n[길안내]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+
+	# ① 마을마다 남은 할 일이 화면 밖일 수 있다 - 그때 표시가 있나
+	var far := 0
+	var pointed := 0
+	var blind: Array = []
+	for village in GOAL_SCENES:
+		var p: Place = load(GOAL_SCENES[village]).instantiate()
+		add_child(p)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var g: Dictionary = p.current_goal()
+		if not g.is_empty():
+			var at: Vector2 = p.goal_world(g)
+			if at != Vector2.INF:
+				# 4배로 당겨 놓으면 거의 다 화면 밖이 된다
+				if p.cam != null:
+					p.cam.zoom = Vector2.ONE * 4.0
+				await get_tree().process_frame
+				await get_tree().process_frame
+				p._tick_goal_arrow(0.016)
+				var edge: GoalPointer = p._goal_edge
+				var off: bool = edge != null and edge._off_screen()
+				if off:
+					far += 1
+					if edge.visible:
+						pointed += 1
+					else:
+						blind.append(village)
+		p.queue_free()
+		await get_tree().process_frame
+	ok(far > 0, "당겨 보면 화면 밖 할 일이 생긴다 (%d곳)" % far)
+	ok(blind.is_empty(), "화면 밖이면 가장자리가 가리킨다%s"
+		% ("" if blind.is_empty() else " - " + str(blind)))
+
+	# ①-2 화살촉이 **실제로 가리키는 쪽**이 겨눈 쪽과 같은가
+	#
+	# 좌표가 맞아도 모양이 틀리면 소용이 없다. 세모 하나로 그렸을 때
+	# 세 번 연달아 엉뚱한 쪽으로 읽혔다 - 이등변삼각형은 밑변 모서리가
+	# 무게중심에서 제일 멀어서, 기울여 놓으면 그 모서리가 앞으로 보인다.
+	# 눈이 앞을 찾는 방식(무게중심에서 제일 먼 꼭짓점)으로 재서 막는다.
+	var aim := GoalPointer.head_aims()
+	ok(aim.x > 0.9, "화살촉이 코 쪽을 가리킨다 (%.2f, %.2f)" % [aim.x, aim.y])
+	ok(absf(aim.y) < 0.1, "위아래로 안 기운다")
+	var nose: Vector2 = GoalPointer.HEAD[0]
+	var wing: Vector2 = GoalPointer.HEAD[1]
+	ok(nose.length() > wing.length() * 1.3,
+		"코가 날개보다 확실히 길다 (%.1f > %.1f)" % [nose.length(), wing.length()])
+
+	# ② 실내에서는 나가는 문을 가리킨다
+	#
+	# 가게 안과 등대 안은 제 할 일 자리가 아예 없다. 여태 화살표가
+	# 사라져서 "이제 뭐하지" 가 됐다.
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 12)
+	for room in ["ShopInterior", "LighthouseInterior"]:
+		var inn: Place = load("res://scenes/journey/interiors/%s.tscn" % room) \
+			.instantiate()
+		add_child(inn)
+		await get_tree().process_frame
+		ok(inn.is_indoors(), "%s: 실내로 친다" % room)
+		var g2: Dictionary = inn.current_goal()
+		ok(not g2.is_empty(), "%s: 안에서도 갈 곳이 있다" % room)
+		if not g2.is_empty():
+			var at2: Vector2 = inn.goal_world(g2)
+			ok(at2 != Vector2.INF, "%s: 그 자리를 짚을 수 있다" % room)
+			var door_at: Vector2 = inn.world_of(inn.doors()[0]["tile"])
+			ok(at2.distance_to(door_at) < 1.0,
+				"%s: 나가는 문을 가리킨다" % room)
+		inn.queue_free()
+		await get_tree().process_frame
+
+	# ③ 목록 줄이 **남은 것**을 적는다
+	JourneyState.reset()
+	var pier := _side_row("윤슬:샛길:부두")
+	ok(not pier.contains("한 번 더"), "아무것도 안 했으면 군말이 없다 (%s)" % pier)
+	JourneyState.mark_quest("윤슬:부두끝@아침")
+	pier = _side_row("윤슬:샛길:부두")
+	ok(pier.contains("저녁에 한 번 더"),
+		"아침 몫을 마치면 저녁이 남았다고 적는다 (%s)" % pier)
+
+	# 반짝이는 자리는 몇 개 찾았는지 센다
+	JourneyState.mark_quest("윤슬:본:빛자리1")
+	var tr := _side_row("윤슬:샛길:자취")
+	ok(tr.contains("1/3"), "찾은 개수를 적는다 (%s)" % tr)
+
+	# ④ 아침 몫을 마쳤으면 아침 내내 그것만 시키지 않는다
+	#
+	# 5일째 아침 6:34 에 "부두 끝을 아침에도 저녁에도 보기" 가 떠 있는
+	# 화면을 받았다. 이미 아침에 다녀왔는데 저녁까지 할 것이 없었다.
+	JourneyState.minutes = 6 * 60 + 34
+	ok(JourneyState.day_part() == "아침", "6시 34분은 아침이다")
+	ok(Quests.side_waiting("윤슬", "윤슬:샛길:부두"),
+		"아침 몫을 마쳤으면 저녁까지 기다린다")
+	var yun2: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yun2)
+	await get_tree().process_frame
+	var now: Dictionary = yun2.current_goal()
+	ok(not String(now.get("label", "")).contains("부두"),
+		"그때는 다른 할 일을 짚는다 (%s)" % now.get("label", ""))
+	yun2.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 윤슬 목록에서 그 샛길 줄의 글을 꺼낸다.
+func _side_row(key: String) -> String:
+	var want := ""
+	for e in Quests.SIDE["윤슬"]:
+		if String(e["key"]) == key:
+			want = String(e["label"])
+	for row in Quests.quest_list("윤슬"):
+		if String(row.get("label", "")).contains(want):
+			return String(row["label"])
+	return ""
+
+
+# ── 씬이 실제로 열리나 ────────────────────────────────────────────────
+#
+# 등대 안이 사흘 동안 **안 열리는 씬**이었다. `var view := {…}.get(…)`
+# 한 줄 때문이다 - `Dictionary.get()` 은 Variant 를 주는데 이 프로젝트는
+# 경고를 오류로 다루므로 스크립트가 통째로 안 뜬다. 그러면 씬의 뿌리가
+# Place 가 아니라 맨 Node2D 가 되고, 문을 지나도 아무 일이 안 난다.
+#
+# 검사 656개가 다 통과하는 동안 아무도 못 봤다. 아무 검사도 등대 안을
+# 열어 보지 않았기 때문이다. 그래서 **씬을 하나씩 다 열어 본다.**
+
+func _scene_load_tests() -> void:
+	print("\n[씬이 열리나]")
+	var dead: Array = []
+	var checked := 0
+	for dir in ["res://scenes/journey", "res://scenes/journey/interiors"]:
+		var d := DirAccess.open(dir)
+		if d == null:
+			continue
+		for f in d.get_files():
+			if not f.ends_with(".tscn"):
+				continue
+			var path := "%s/%s" % [dir, f]
+			var packed := load(path) as PackedScene
+			if packed == null:
+				dead.append("%s (못 읽음)" % f)
+				continue
+			var node := packed.instantiate()
+			checked += 1
+			# 여행 씬의 뿌리는 다 `Place` 다. 스크립트가 안 뜨면 맨
+			# Node2D 가 되므로, 그것만 봐도 걸린다.
+			if not (node is Place):
+				dead.append("%s (%s)" % [f, node.get_class()])
+			node.queue_free()
+		await get_tree().process_frame
+	ok(checked >= 12, "씬을 다 열어 봤다 (%d개)" % checked)
+	ok(dead.is_empty(), "스크립트가 안 뜨는 씬이 없다%s"
+		% ("" if dead.is_empty() else " - " + str(dead)))

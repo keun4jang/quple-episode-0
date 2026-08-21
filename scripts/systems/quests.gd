@@ -228,6 +228,51 @@ static func side_done(village: String, key: String) -> bool:
 	return JourneyState.quest_done(key)
 
 
+## 지금 **무엇이 남았나** 를 한 마디로. 목록 줄 끝에 괄호로 붙는다.
+##
+## 여태 할 일 이름은 늘 **일 전체**를 적었다. "부두 끝을 아침에도
+## 저녁에도 보기" 는 아침에 다녀온 다음에도 글자가 그대로라, 이미
+## 반을 해 둔 것을 알 길이 없었다. 5일째 아침까지 이 줄이 그대로
+## 떠 있던 화면을 받았다.
+##
+## 그래서 **남은 쪽만** 적는다. 진행이 눈에 보여야 계속 하게 된다.
+static func side_note(village: String, key: String) -> String:
+	match key:
+		"윤슬:샛길:부두":
+			var m := JourneyState.quest_done("윤슬:부두끝@아침")
+			var e := JourneyState.quest_done("윤슬:부두끝@저녁")
+			if m and not e:
+				return "저녁에 한 번 더"
+			if e and not m:
+				return "아침에 한 번 더"
+		"윤슬:샛길:자취":
+			var n := 0
+			for i in 3:
+				if JourneyState.quest_done("윤슬:본:빛자리%d" % (i + 1)):
+					n += 1
+			if n > 0 and n < 3:
+				return "%d/3 찾음" % n
+	return ""
+
+
+## 지금은 손댈 수 없나. 때를 기다려야 하는 것을 "지금 해볼 일" 로
+## 띄우면, 할 수 없는 것을 계속 시키는 셈이다 (`Place.current_goal`).
+##
+## 목록에서 지우지는 않는다 - 때가 오면 그리 가야 하니까.
+static func side_waiting(village: String, key: String) -> bool:
+	if side_done(village, key):
+		return false
+	match key:
+		"윤슬:샛길:부두":
+			# 아침 몫을 이미 했으면 저녁까지는 더 할 것이 없다.
+			var part := JourneyState.day_part()
+			if JourneyState.quest_done("윤슬:부두끝@%s" % part):
+				return true
+			# 낮에는 아침도 저녁도 못 찍는다
+			return part != "아침" and part != "저녁"
+	return false
+
+
 static func sides_done(village: String) -> int:
 	if not SIDE.has(village):
 		return 0
@@ -434,10 +479,14 @@ static func quest_list(village: String) -> Array:
 			"done": knot_done(village),
 		})
 		for e in SIDE[village]:
+			var sk := String(e["key"])
+			var note := side_note(village, sk)
 			out2.append({
-				"label": "샛길 · " + String(e["label"]),
+				"label": "샛길 · %s%s" % [String(e["label"]),
+					"  (%s)" % note if note != "" else ""],
 				"kind": String(e["kind"]), "key": String(e["map"]),
-				"done": side_done(village, String(e["key"])),
+				"waiting": side_waiting(village, sk),
+				"done": side_done(village, sk),
 			})
 		return out2
 	if ORDER.has(village):

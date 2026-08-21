@@ -257,5 +257,31 @@ func _run() -> void:
 	p.say.say("갈매기 소년", ["응."])
 	await _wait(40)
 	await _shot("say-short")
+
+	# ⑮ 화면 밖 할 일 - 가장자리 화살표. 4배로 당겨 놓고 찍는다.
+	#    굽이나루는 마을에 들어선 자리에서 할 일 여섯이 다 화면 밖이다.
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.here = "굽이나루"
+	p = await _open("res://scenes/journey/Gubinaru.tscn")
+	await _wait(20)
+	await _shot("edge-far")
+	if p.cam != null:
+		p.cam.zoom = Vector2.ONE * 4.0
+	await _wait(20)
+	await _shot("edge-zoomed")
+
+	# ⑯ 가게 안에서 나가는 문 짚기. 안에 볼 것을 다 보면 화살표가
+	#    문을 가리켜야 한다 (`Place.open_goals` 의 exit).
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 12)
+	p = await _open("res://scenes/journey/interiors/ShopInterior.tscn")
+	if p.walker != null:
+		p.walker.global_position = p.world_of(Vector2i(12, 6))
+	await _wait(24)
+	await _shot("shop-exit-arrow")
 	if card != null:
 		card.queue_free()

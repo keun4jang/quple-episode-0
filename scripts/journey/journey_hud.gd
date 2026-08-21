@@ -1092,7 +1092,23 @@ func _tick_task_strip() -> void:
 		and not _buttons_hidden
 	_task_strip.visible = show
 	if show:
-		Wrap.put(_task_strip, "지금 해볼 일 · " + goal)
+		# **지금 할 수 없는 것에 "지금 해볼 일" 이라 쓰지 않는다.**
+		#
+		# 남은 것이 죄다 때를 기다리는 것일 때가 있다 - 아침에
+		# 부두를 다녀왔으면 그 줄은 저녁까지 할 것이 없다. 그런데도
+		# "지금 해볼 일" 이라 적으면, 시키는 대로 갔는데 아무 일도
+		# 안 일어난다. 그때는 말투를 바꾼다.
+		Wrap.put(_task_strip,
+			("기다릴 일 · " if _waiting_now() else "지금 해볼 일 · ") + goal)
+
+
+## 지금 짚고 있는 것이 "때를 기다리는" 것인가.
+func _waiting_now() -> bool:
+	var place := _place()
+	if place == null:
+		return false
+	var now: Dictionary = place.current_goal()
+	return not now.is_empty() and bool(now.get("waiting", false))
 
 
 func _watch_done(list: Array) -> void:

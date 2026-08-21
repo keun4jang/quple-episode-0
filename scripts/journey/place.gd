@@ -131,6 +131,15 @@ func quest_village() -> String:
 	return place_name()
 
 
+## 여기가 실내(가게 안·등대 안·샛길·능 안쪽길)인가.
+##
+## 실내 씬만 `quest_village()` 를 들어온 마을로 덮어쓴다. 따로
+## 표시를 두지 않고 그걸로 가른다 - 새 씬을 만들 때 깜빡할 자리를
+## 하나 덜 만든다.
+func is_indoors() -> bool:
+	return quest_village() != place_name()
+
+
 ## 들어오기 직전에 있던 마을. 실내가 `quest_village()` 로 쓴다.
 func village_we_came_from() -> String:
 	return String(VILLAGE_OF_SCENE.get(
@@ -2703,6 +2712,11 @@ func goal_world(item: Dictionary) -> Vector2:
 			var t := depart_tile()
 			if t.x >= 0:
 				return world_of(t)
+		"exit":
+			# 나가는 문. 실내는 문이 하나뿐이다.
+			var ds2 := doors()
+			if not ds2.is_empty():
+				return world_of(ds2[0]["tile"])
 		"trace":
 			# 아직 못 찾은 반짝이는 자리 중 **가장 가까운 것** 하나만
 			# 짚는다 — 셋을 다 찍으면 찾기가 아니라 배달이 된다.
@@ -2760,6 +2774,8 @@ func _goal_shown(item: Dictionary) -> bool:
 # 짚는다. 가까이 가면 치운다 — 다 왔는데도 흔들리면 성가시다.
 var _dusk_hint_said := false
 var _goal_arrow: Node2D
+## 화면 밖 목표를 가장자리에서 가리키는 것 (`GoalPointer`).
+var _goal_edge: GoalPointer
 var _arrow_clock := 0.0
 
 func _tick_goal_arrow(delta: float) -> void:
@@ -2778,8 +2794,16 @@ func _tick_goal_arrow(delta: float) -> void:
 			_goal_arrow.draw_colored_polygon(pts, Color(1.0, 0.83, 0.35)))
 		add_child(_goal_arrow)
 	_arrow_clock += delta
+	if _goal_edge == null:
+		_goal_edge = GoalPointer.new()
+		add_child(_goal_edge)
 	var g := current_goal()
 	var at := goal_world(g) if not g.is_empty() else Vector2.INF
+	# **화면 밖이면 가장자리가 가리킨다.** 세계 화살표는 목표가
+	# 화면에 들어와 있을 때만 보인다 - 두 손가락으로 당겨 보고
+	# 있으면 거의 다 화면 밖이다 (`GoalPointer` 주석).
+	_goal_edge.aim(at,
+		walker.global_position if walker != null else Vector2.ZERO, delta)
 	var near: bool = walker != null and at != Vector2.INF \
 		and walker.global_position.distance_to(at) < 30.0
 	if at == Vector2.INF or near:
@@ -2822,6 +2846,19 @@ func open_goals() -> Array:
 	for z in quest_zones():
 		if not JourneyState.quest_done(String(z[0])):
 			out.append({"label": "", "kind": "visit", "key": String(z[0]),
+				"done": false})
+	if not out.is_empty():
+		return out
+	# **안에서 할 것이 없으면 나가는 문을 짚는다.**
+	#
+	# 가게 안과 등대 안은 제 할 일 자리가 아예 없다. 들어가서 볼 것을
+	# 다 보고 나면 화살표가 사라져서 "이제 뭐하지" 가 됐다 - 문이
+	# 아래 가운데 한 칸뿐인데 방이 35칸이라 눈에 안 띈다.
+	# 다음 할 일은 밖에 있으니, 여기서 갈 곳은 문 하나다.
+	if is_indoors():
+		var ds := doors()
+		if not ds.is_empty():
+			out.append({"label": "나가기", "kind": "exit", "key": "",
 				"done": false})
 	return out
 
