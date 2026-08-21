@@ -3239,7 +3239,8 @@ func _guide_tests() -> void:
 	JourneyState.here = "윤슬"
 	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
 	JourneyState.exit_tile = Vector2i(24, 12)
-	for room in ["ShopInterior", "LighthouseInterior"]:
+	for room in ["ShopInterior", "LighthouseInterior",
+			"SidePathInterior", "TombPathInterior"]:
 		var inn: Place = load("res://scenes/journey/interiors/%s.tscn" % room) \
 			.instantiate()
 		add_child(inn)
@@ -3250,9 +3251,33 @@ func _guide_tests() -> void:
 		if not g2.is_empty():
 			var at2: Vector2 = inn.goal_world(g2)
 			ok(at2 != Vector2.INF, "%s: 그 자리를 짚을 수 있다" % room)
-			var door_at: Vector2 = inn.world_of(inn.doors()[0]["tile"])
-			ok(at2.distance_to(door_at) < 1.0,
-				"%s: 나가는 문을 가리킨다" % room)
+			# 규칙은 하나다 - **안에 갈 자리가 있으면 그것을, 없으면 나가는
+			# 문을.** 샛길과 능 안쪽길은 안쪽에 제 목표가 있어서, 거기서
+			# 문을 가리키면 오히려 틀린 것이다.
+			var inner := false
+			for z in inn.quest_zones():
+				if not JourneyState.quest_done(String(z[0])):
+					inner = true
+			if inner:
+				ok(String(g2.get("kind", "")) == "visit",
+					"%s: 안쪽에 갈 자리가 있으면 그것을 가리킨다" % room)
+			else:
+				var door_at: Vector2 = inn.world_of(inn.doors()[0]["tile"])
+				ok(at2.distance_to(door_at) < 1.0,
+					"%s: 볼 것이 없으면 나가는 문을 가리킨다" % room)
+			# **안쪽을 다 본 다음**이 진짜 문제였다. 볼 것을 보고 나면
+			# 화살표가 사라져서 "이제 뭐하지" 가 됐다. 다 본 뒤에는
+			# 문으로 넘어가야 한다.
+			if inner:
+				for z2 in inn.quest_zones():
+					JourneyState.mark_quest(String(z2[0]))
+				var after: Dictionary = inn.current_goal()
+				var door2: Vector2 = inn.world_of(inn.doors()[0]["tile"])
+				ok(not after.is_empty() \
+					and inn.goal_world(after).distance_to(door2) < 1.0,
+					"%s: 안쪽을 다 보면 문으로 넘어간다" % room)
+				for z3 in inn.quest_zones():
+					JourneyState.quest_flags.erase(String(z3[0]))
 		inn.queue_free()
 		await get_tree().process_frame
 
@@ -3287,6 +3312,52 @@ func _guide_tests() -> void:
 	yun2.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
+
+
+	# ⑤ **어느 때든 손댈 수 있는 일이 있다**
+	#
+	# "퀘스트는 계속 깰 수 있게" 가 이 검사다. 진행 상태를 여섯 가지로
+	# 놓고 아침·낮·저녁을 다 돌려, 지금 당장 갈 수 있는 자리가 하나도
+	# 없는 조합이 있는지 본다. 없으면 게임이 멈춘 것처럼 느껴진다.
+	var stuck: Array = []
+	for st: Array in STUCK_STATES:
+		for part: Array in [["아침", 8], ["낮", 13], ["저녁", 19]]:
+			JourneyState.reset()
+			JourneyState.pick("map")
+			JourneyState.pick("camera")
+			JourneyState.here = "윤슬"
+			JourneyState.minutes = int(part[1]) * 60
+			for f in st[1]:
+				JourneyState.mark_quest(String(f))
+			var yy: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+			add_child(yy)
+			await get_tree().process_frame
+			var can := 0
+			for q in Quests.quest_list("윤슬"):
+				if bool(q.get("done", false)) or bool(q.get("waiting", false)):
+					continue
+				if yy.goal_world(q) != Vector2.INF:
+					can += 1
+			if can == 0:
+				stuck.append("%s/%s" % [st[0], part[0]])
+			yy.queue_free()
+			await get_tree().process_frame
+	ok(stuck.is_empty(), "어느 진행·어느 때든 손댈 일이 있다%s"
+		% ("" if stuck.is_empty() else " - " + str(stuck)))
+	JourneyState.reset()
+
+
+## 진행 상태 여섯. 첫 마을을 걸어가는 동안 실제로 거치는 자리들이다.
+const STUCK_STATES := [
+	["막 도착", []],
+	["인사 둘 끝", ["윤슬:매듭:1"]],
+	["가게 다녀옴", ["윤슬:매듭:1", "윤슬:가게"]],
+	["부두 아침만", ["윤슬:매듭:1", "윤슬:가게", "윤슬:부두끝@아침"]],
+	["등대 안까지", ["윤슬:매듭:1", "윤슬:가게", "윤슬:부두끝@아침",
+		"윤슬:등대안"]],
+	["자취 둘", ["윤슬:매듭:1", "윤슬:가게", "윤슬:부두끝@아침",
+		"윤슬:등대안", "윤슬:본:빛자리1", "윤슬:본:빛자리2"]],
+]
 
 
 ## 윤슬 목록에서 그 샛길 줄의 글을 꺼낸다.
