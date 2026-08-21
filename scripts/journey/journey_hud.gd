@@ -501,11 +501,11 @@ const BAG_LINE_WIDTH := 620.0
 
 func _bag_line(text: String, size: int, col: Color) -> Label:
 	var l := Label.new()
-	l.text = text
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(BAG_LINE_WIDTH, 0)
+	# 폭을 먼저 정해 두고 넣는다 - `Wrap` 이 그 폭으로 접는다.
+	Wrap.put(l, text)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return l
 
@@ -556,7 +556,9 @@ func announce_place(text: String) -> void:
 	# 통째로 늘어놓으면 숙제장이 된다.
 	if _arrive_task != null:
 		var goal := _first_task()
-		_arrive_task.text = ("해볼 일 · " + goal) if goal != "" else ""
+		# 한글은 음절 사이가 다 줄바꿈 자리라 라벨에 맡기면 낱말이
+		# 갈린다 (`Wrap` 주석). 띄어쓰기에서만 끊는다.
+		Wrap.put(_arrive_task, ("해볼 일 · " + goal) if goal != "" else "")
 		_arrive_task.visible = goal != ""
 	_place_title.text = text
 	if _title_tw != null and _title_tw.is_valid():
@@ -717,13 +719,12 @@ func _place() -> Node:
 ## **접어 뒀다**고만 말한다.
 func _quest_row(text: String, col: Color, item: Dictionary, place: Node) -> Button:
 	var b := Button.new()
-	b.text = text
 	b.flat = true
 	b.focus_mode = Control.FOCUS_NONE
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	b.custom_minimum_size = Vector2(BAG_LINE_WIDTH, 0)
 	b.add_theme_font_size_override("font_size", 28)
+	Wrap.put(b, text)
 	for st in ["normal", "hover", "pressed", "focus"]:
 		b.add_theme_color_override("font_%s_color" % st, col)
 	b.add_theme_color_override("font_color", col)
@@ -863,10 +864,9 @@ func _open_guide_recap() -> void:
 		var now := Label.new()
 		# 줄표(—)를 쓰면 안 된다. PoorStory 에 없어서 폰에서 네모 상자가
 		# 뜬다 (`CLAUDE.md` 폰트 규칙). 가운뎃점은 들어 있다.
-		now.text = "지금은 · " + String(Guide.STEPS[step][1])
-		now.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		now.custom_minimum_size = Vector2(500, 0)
 		now.add_theme_font_size_override("font_size", 26)
+		Wrap.put(now, "지금은 · " + String(Guide.STEPS[step][1]))
 		now.add_theme_color_override("font_color", Color("#8C6E3F"))
 		box.add_child(now)
 
@@ -880,10 +880,9 @@ func _open_guide_recap() -> void:
 	scroll.add_child(list)
 	for i in Guide.STEPS.size():
 		var l := Label.new()
-		l.text = String(Guide.STEPS[i][1])
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size = Vector2(500, 0)
 		l.add_theme_font_size_override("font_size", 24)
+		Wrap.put(l, String(Guide.STEPS[i][1]))
 		l.add_theme_color_override("font_color",
 			Color("#A79A8A") if i < step else Color("#4A3A22"))
 		list.add_child(l)
@@ -944,7 +943,7 @@ func _drain_hints() -> void:
 		_hint_busy = false
 		return
 	_hint_busy = true
-	_hint.text = _hint_queue.pop_front()
+	Wrap.put(_hint, String(_hint_queue.pop_front()))
 	_hint.modulate.a = 1.0
 	var tw := create_tween()
 	tw.tween_interval(1.1)
@@ -1093,7 +1092,7 @@ func _tick_task_strip() -> void:
 		and not _buttons_hidden
 	_task_strip.visible = show
 	if show:
-		_task_strip.text = "지금 해볼 일 · " + goal
+		Wrap.put(_task_strip, "지금 해볼 일 · " + goal)
 
 
 func _watch_done(list: Array) -> void:
@@ -1141,7 +1140,7 @@ func _show_cele_now(next: Array) -> void:
 		return
 	_cele_busy = true
 	_cele_big.text = String(next[0])
-	_cele_sub.text = String(next[1])
+	Wrap.put(_cele_sub, String(next[1]))
 	AudioManager.ui_confirm()
 	_cele.modulate.a = 0.0
 	_cele.scale = Vector2(0.7, 0.7)

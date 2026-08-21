@@ -197,7 +197,6 @@ func _add_update_row() -> void:
 
 	_update_hint = Label.new()
 	_update_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_update_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_update_hint.add_theme_font_size_override("font_size", 26)
 	_update_hint.add_theme_color_override("font_color", Color(0.86, 0.83, 0.96))
 	box.add_child(_update_hint)
@@ -263,7 +262,7 @@ func _set_update_state(busy: bool, msg: String, col: Color) -> void:
 		if not busy and _update_btn.text == "확인하는 중…":
 			_update_btn.text = "업데이트 확인"
 	if _update_hint != null:
-		_update_hint.text = msg
+		Wrap.put(_update_hint, msg)
 		_update_hint.add_theme_color_override("font_color", col)
 
 
@@ -282,7 +281,7 @@ func open() -> void:
 	reset_hint.text = ""
 	_refresh_version()
 	if _update_hint != null:
-		_update_hint.text = ""
+		Wrap.put(_update_hint, "")
 	if _update_btn != null and not _update_btn.disabled:
 		_update_btn.text = "업데이트 확인"
 	reset_btn.text = "기록 초기화"

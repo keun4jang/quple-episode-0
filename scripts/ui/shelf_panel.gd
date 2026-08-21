@@ -215,11 +215,10 @@ func _row(it: Dictionary) -> Control:
 
 	if why != "":
 		var w := Label.new()
-		w.text = why
 		w.add_theme_font_size_override("font_size", 17)
 		w.add_theme_color_override("font_color", Color("#7A6A58"))
-		w.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		w.custom_minimum_size = Vector2(360, 0)
+		Wrap.put(w, why)
 		w.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		names.add_child(w)
 	return b

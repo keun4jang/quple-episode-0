@@ -37,6 +37,7 @@ func _ready() -> void:
 	await _order_tests()
 	await _trace_tests()
 	await _shelf_tests()
+	await _wrap_tests()
 	_minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
@@ -1853,9 +1854,23 @@ func _done_toast_tests() -> void:
 	ok(not all_line.contains("열렸") and not all_line.contains("다음"),
 		"다음 마을 이야기는 안 한다")
 
-	# 긴 이름도 화면 안에 들어와야 한다 (줄바꿈이 켜져 있나).
-	ok(hud._cele_sub.autowrap_mode != TextServer.AUTOWRAP_OFF,
-		"긴 이름은 줄을 바꾼다")
+	# 긴 이름도 화면 안에 들어와야 한다.
+	#
+	# 여태 "줄바꿈이 켜져 있나" 로 봤는데, 이제 `Wrap` 이 미리 접어
+	# 넣고 자동 줄바꿈은 꺼 둔다 - 켜 두면 한글이 낱말 한가운데서
+	# 갈리기 때문이다. 그래서 **줄마다 폭 안에 드는지**를 직접 잰다.
+	var sub_f := hud._cele_sub.get_theme_font("font")
+	var sub_s := hud._cele_sub.get_theme_font_size("font_size")
+	var sub_w := Wrap.width_of(hud._cele_sub)
+	var over: Array = []
+	if sub_f != null and sub_w >= 1.0:
+		for one in hud._cele_sub.text.split("\n"):
+			var got: float = sub_f.get_string_size(
+				one, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_s).x
+			if got > sub_w:
+				over.append("%s (%d > %d)" % [one, int(got), int(sub_w)])
+	ok(over.is_empty(), "긴 이름도 화면 폭 안에 든다%s"
+		% ("" if over.is_empty() else " - " + str(over)))
 
 	# **화면 가운데는 한 번에 하나만.** 지도를 받는 순간이 곧 그 할 일을
 	# 마치는 순간이라, 얻은 것 카드와 축하가 같은 자리에 겹쳐 떠서
@@ -3066,3 +3081,81 @@ func _shelf_tests() -> void:
 	shop.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
+
+
+# ── 줄바꿈 ────────────────────────────────────────────────────────────
+#
+# 폰 화면에서 "…등대 사진 남기 / 기 (저녁에)" 로 끊겨 있었다. 한글은
+# 유니코드 줄바꿈 규칙상 **음절 사이가 전부 끊어도 되는 자리**라,
+# 라벨의 `autowrap_mode` 를 무엇으로 두든 낱말이 갈린다 (`Wrap` 주석).
+#
+# 그래서 띄어쓰기에서만 끊는 `Wrap` 을 두었다. 여기서 지키는 것은
+# 하나다 - **줄이 바뀌는 자리는 늘 띄어쓰기였던 자리**여야 한다.
+
+func _wrap_tests() -> void:
+	print("\n[줄바꿈]")
+	var theme := load("res://assets/themes/quple_bold.tres") as Theme
+	var font := theme.get_font("font", "Label")
+	ok(font != null, "테마 폰트를 읽었다")
+
+	# ① 엔진에 맡기면 갈린다는 것부터 확인한다. 이게 언젠가 고쳐지면
+	#    이 검사가 알려 주고, 그때 `Wrap` 을 걷어 내면 된다.
+	var long_one := "지금 해볼 일 · 이야기 2/3 · 저녁에 등대곶에서 불 켜진 등대 사진 남기기 (저녁에)"
+	var tp := TextParagraph.new()
+	tp.width = 720
+	tp.break_flags = TextServer.AUTOWRAP_WORD_SMART
+	tp.add_string(long_one, font, 24)
+	var engine_lines: Array = []
+	for i in tp.get_line_count():
+		var r := tp.get_line_range(i)
+		engine_lines.append(long_one.substr(r.x, r.y - r.x))
+	ok(tp.get_line_count() > 1, "엔진도 이 줄은 접는다 (%d줄)" % tp.get_line_count())
+
+	# ② 우리가 접으면 띄어쓰기에서만 끊긴다.
+	#
+	#    글자 수가 안 변하는 방식(hard = false)이라, 줄바꿈이 놓인 자리는
+	#    원문에서 빈칸이었던 자리다. 그걸 그대로 확인한다.
+	var folded := Wrap.fit(long_one, font, 24, 720, false)
+	ok(folded.length() == long_one.length(),
+		"접어도 글자 수가 그대로다 (%d/%d)" % [folded.length(), long_one.length()])
+	var cut_bad: Array = []
+	for i in folded.length():
+		if folded[i] == "\n" and long_one[i] != " ":
+			cut_bad.append("%d번째 '%s'" % [i, long_one[i]])
+	ok(cut_bad.is_empty(), "줄이 바뀌는 자리가 다 띄어쓰기였다%s"
+		% ("" if cut_bad.is_empty() else " - " + str(cut_bad)))
+	ok(folded.contains("\n"), "실제로 접혔다 (%s)" % folded.replace("\n", " / "))
+
+	# ③ 게임에 실제로 뜨는 할 일 문구를 전부 넣어 본다.
+	#
+	#    마을마다 할 일 이름이 다르고 제일 긴 것이 어느 마을 것인지는
+	#    바뀐다. 하나하나 손으로 고르지 않고 다 돌린다.
+	var seen: Array = []
+	for village in Quests.LOCAL:
+		for row in Quests.quest_list(String(village)):
+			seen.append("지금 해볼 일 · " + String(row.get("label", "")))
+	ok(seen.size() > 10, "돌려 볼 할 일 문구를 모았다 (%d개)" % seen.size())
+	var word_cut: Array = []
+	for one: String in seen:
+		var f2 := Wrap.fit(one, font, 24, 720, false)
+		for i in f2.length():
+			if f2[i] == "\n" and one[i] != " ":
+				word_cut.append(one)
+				break
+	ok(word_cut.is_empty(), "할 일 문구가 낱말 한가운데서 안 끊긴다%s"
+		% ("" if word_cut.is_empty() else " - " + str(word_cut.slice(0, 3))))
+
+	# ④ 띄어쓰기가 아예 없는 긴 낱말은 어쩔 수 없이 자른다. 넘치게
+	#    두면 화면 밖으로 나가는 편이 더 나쁘다.
+	var nospace := "가나다라마바사아자차카타파하가나다라마바사아자차카타파하"
+	var chopped := Wrap.fit(nospace, font, 24, 200)
+	ok(chopped.contains("\n"), "띄어쓰기가 없으면 잘라서라도 넣는다")
+	ok(chopped.replace("\n", "") == nospace, "자르되 글자를 안 잃는다")
+
+	# ⑤ 폭을 모르는 라벨은 건드리지 않는다 (여태처럼 엔진에 맡긴다).
+	var bare := Label.new()
+	Wrap.put(bare, long_one)
+	ok(bare.text == long_one, "폭을 모르면 원문 그대로 둔다")
+	ok(bare.autowrap_mode == TextServer.AUTOWRAP_WORD_SMART,
+		"그때는 자동 줄바꿈을 켜 둔다")
+	bare.queue_free()

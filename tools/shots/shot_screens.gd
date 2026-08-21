@@ -242,5 +242,20 @@ func _run() -> void:
 	var card := HowToPlay.open(get_tree())
 	await _wait(20)
 	await _shot("how-to-play")
+
+	# ⑭ 대사창 - 긴 말과 짧은 말. 한글이 낱말 한가운데서 안 갈리는지,
+	#    접힌 줄만큼 창이 높아지는지 본다 (`Wrap` / `JourneySay._fit`).
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	p = await _open("res://scenes/journey/Yunseul.tscn")
+	await _wait(16)
+	p.say.say("가게 할머니", [
+		"여기 오래 살았는데, 저녁마다 등대 불이 켜지는 걸 보면 아직도 좋아.",
+	])
+	await _wait(90)
+	await _shot("say-long")
+	p.say.say("갈매기 소년", ["응."])
+	await _wait(40)
+	await _shot("say-short")
 	if card != null:
 		card.queue_free()

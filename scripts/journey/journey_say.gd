@@ -25,6 +25,10 @@ var _prev_btn: Button
 var _said: Array = []
 var _at := -1
 var _full := ""
+## 접어 놓은 같은 글. **글자 수는 _full 과 같다** - 빈칸 하나를
+## 줄바꿈으로 바꿔 놓은 것뿐이라, 한 자씩 찍는 자리 세기가 그대로
+## 맞는다 (`Wrap.fit(..., hard = false)`).
+var _wrapped := ""
 var _shown := 0
 var _t := 0.0
 var _busy := false
@@ -148,9 +152,16 @@ func _fit() -> void:
 				f.get_string_size(one, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
 	var room := vp.x - 64.0 - safe.x - safe.z
 	var inner: float = clampf(need_w + 4.0, MIN_WIDTH, minf(MAX_WIDTH, room))
+	# **여기서 접는다.** 한글은 음절 사이가 다 줄바꿈 자리라 라벨에
+	# 맡기면 "사진 남기 / 기" 가 된다 (`Wrap` 주석). 폭이 이 자리에서
+	# 막 정해지므로, 접는 것도 여기서 같이 한다.
+	_wrapped = Wrap.fit(_full, f, fs, inner, false)
+	_line.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_line.text = _wrapped.substr(0, _shown)
 	# 줄 수만큼 높이를 미리 잡아 둔다. 안 그러면 타자가 둘째 줄에 닿는
-	# 순간 창이 커진다.
-	var lines: int = maxi(1, _full.split("\n").size())
+	# 순간 창이 커진다. 접힌 줄까지 세야 맞는다 - 여태 `\n` 만 세서,
+	# 길어서 접힌 말은 창이 모자랐다.
+	var lines: int = maxi(1, _wrapped.split("\n").size())
 	_line.custom_minimum_size = Vector2(inner, float(lines) * (fs + 8))
 	var w: float = _panel.get_combined_minimum_size().x
 	var h: float = _panel.get_combined_minimum_size().y
@@ -233,9 +244,12 @@ func _go(i: int, instant := false) -> void:
 	var m: Dictionary = _said[_at]
 	_who.text = String(m.get("who", ""))
 	_full = String(m.get("text", ""))
+	# 접는 건 폭이 정해지는 `_fit()` 이 한다. 그 전까지는 원문 그대로 -
+	# 아래 두 줄이 `_fit()` 보다 먼저 지나가기 때문이다.
+	_wrapped = _full
 	if instant or back:
 		_shown = _full.length()
-		_line.text = _full
+		_line.text = _wrapped
 	else:
 		_shown = 0
 		_t = 0.0
@@ -256,7 +270,7 @@ func advance() -> void:
 	AudioManager.touch_tap()
 	if _shown < _full.length():
 		_shown = _full.length()
-		_line.text = _full
+		_line.text = _wrapped
 		return
 	if _at >= _said.size() - 1:
 		_finish()
@@ -279,7 +293,7 @@ func _process(delta: float) -> void:
 	while _t >= SPEED and _shown < _full.length():
 		_t -= SPEED
 		_shown += 1
-	_line.text = _full.substr(0, _shown)
+	_line.text = _wrapped.substr(0, _shown)
 
 
 func _unhandled_input(e: InputEvent) -> void:

@@ -78,7 +78,6 @@ func _build() -> void:
 	_text = Label.new()
 	_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.add_theme_font_size_override("font_size", 30)
 	_text.add_theme_color_override("font_color", Color("#FFF2C8"))
 	_text.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
@@ -147,7 +146,8 @@ func _show_slide() -> void:
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_art.add_child(r)
 
-	_text.text = String(slide[0])
+	# 한글은 음절 사이가 다 줄바꿈 자리라 낱말이 갈린다 (`Wrap` 주석).
+	Wrap.put(_text, String(slide[0]))
 	_art.modulate.a = 0.0
 	_text.modulate.a = 0.0
 	if _tw != null and _tw.is_valid():
