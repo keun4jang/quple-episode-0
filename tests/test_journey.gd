@@ -39,8 +39,12 @@ func _ready() -> void:
 	await _shelf_tests()
 	await _wrap_tests()
 	await _guide_tests()
+	await _speaker_name_tests()
+	_row_id_tests()
+	await _zone_note_tests()
+	await _bed_note_tests()
 	await _scene_load_tests()
-	_minimap_kind_test()
+	await _minimap_kind_test()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
@@ -1519,7 +1523,8 @@ func _goal_tests() -> void:
 ## 지킨다: 목록이 내놓는 `kind` 를 미니맵이 다 알고 있어야 한다.
 ## 모르는 종류가 생기면 기본 모양으로 조용히 떨어져서, 잠자리가 동그라미로
 ## 뜨는 식으로 어긋나도 아무도 모른다.
-const MINIMAP_KINDS := ["talk", "prop", "door", "visit", "pickup", "sleep", "depart", "trace"]
+const MINIMAP_KINDS := ["talk", "prop", "door", "visit", "pickup", "sleep",
+	"depart", "trace", "exit"]
 
 func _minimap_kind_test() -> void:
 	print("\n[미니맵이 아는 종류]")
@@ -1534,6 +1539,27 @@ func _minimap_kind_test() -> void:
 			seen[k] = true
 			if not MINIMAP_KINDS.has(k):
 				unknown.append("%s: %s" % [village, k])
+	# **목록에 없는 종류도 있다.** `Place.open_goals()` 는 목록이
+	# 비었을 때 제 나름의 것을 내놓는다 (실내의 "exit" 이 그것이다).
+	# 여태 목록만 훑어서, 새로 만든 "exit" 이 미니맵에 기본 모양으로
+	# 조용히 떨어지는 것을 아무도 못 봤다.
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 12)
+	for room in ["ShopInterior", "LighthouseInterior", "SidePathInterior",
+			"TombPathInterior"]:
+		var rm: Place = load("res://scenes/journey/interiors/%s.tscn" % room) \
+			.instantiate()
+		add_child(rm)
+		await get_tree().process_frame
+		for q2 in rm.open_goals():
+			var k2 := String(q2.get("kind", ""))
+			seen[k2] = true
+			if not MINIMAP_KINDS.has(k2):
+				unknown.append("%s: %s" % [room, k2])
+		rm.queue_free()
+		await get_tree().process_frame
+	JourneyState.reset()
 	ok(unknown.is_empty(), "미니맵이 모르는 할 일 종류가 없다%s"
 		% ("" if unknown.is_empty() else " — " + str(unknown)))
 	# 종류를 붙이는 걸 빠뜨리면 빈 문자열이 되어 조용히 기본 모양이 된다.
@@ -3246,6 +3272,12 @@ func _guide_tests() -> void:
 		add_child(inn)
 		await get_tree().process_frame
 		ok(inn.is_indoors(), "%s: 실내로 친다" % room)
+		# **띠가 안 숨어야 한다.** `_first_task()` 가 빈 글을 돌려주면
+		# 위쪽 안내가 통째로 사라진다 - 실내에 들어선 순간 안내가
+		# 없어지던 것이 그것이었다.
+		var head: Dictionary = inn.current_goal()
+		ok(String(head.get("label", "")) != "",
+			"%s: 갈 곳에 이름이 있다 (%s)" % [room, head.get("label", "")])
 		var g2: Dictionary = inn.current_goal()
 		ok(not g2.is_empty(), "%s: 안에서도 갈 곳이 있다" % room)
 		if not g2.is_empty():
@@ -3359,7 +3391,6 @@ const STUCK_STATES := [
 		"윤슬:등대안", "윤슬:본:빛자리1", "윤슬:본:빛자리2"]],
 ]
 
-
 ## 윤슬 목록에서 그 샛길 줄의 글을 꺼낸다.
 func _side_row(key: String) -> String:
 	var want := ""
@@ -3409,3 +3440,231 @@ func _scene_load_tests() -> void:
 	ok(checked >= 12, "씬을 다 열어 봤다 (%d개)" % checked)
 	ok(dead.is_empty(), "스크립트가 안 뜨는 씬이 없다%s"
 		% ("" if dead.is_empty() else " - " + str(dead)))
+
+
+## 대사 묶음에서 **이름표로 못 쓸 것**을 골라낸다.
+##
+## `say()` 가 [누가, 무슨 말] 로 읽는 두 칸짜리 줄에서, 첫 칸이 이름이
+## 아니라 문장이면 화면에 그 문장이 이름표로 찍힌다.
+func _bad_names(lines: Array, who: String) -> Array:
+	var out: Array = []
+	for l in lines:
+		if not (l is Array) or (l as Array).size() != 2:
+			continue
+		var name := String((l as Array)[0])
+		var sentence: bool = name.length() > 10 \
+			or name.ends_with(".") or name.ends_with("?") \
+			or name.ends_with("!") or name.ends_with("…")
+		if sentence:
+			out.append("%s: %s" % [who, name])
+	return out
+
+
+
+# ── 이름표 자리에 문장이 없나 ─────────────────────────────────────────
+# `say()` 는 두 칸짜리 배열을 [누가, 무슨 말] 로 읽는다. 그래서 두 문장을
+# 한 칸에 묶어 두면 **앞 문장이 이름표로 찍힌다** - "그거 바다유리네요."
+# 라는 이름의 인연이 말하는 꼴이었다. 윤슬 매듭 3과 샛길 고르기, 마을
+# 이야기의 절정 두 곳이 그랬다.
+# 진짜 [누구, 대사] 도 있으므로(프롤로그의 "옆자리 동료" 같은),
+# **이름다운가**로 가른다 - 짧고, 문장부호로 안 끝난다.
+
+func _speaker_name_tests() -> void:
+	print("\n[이름표]")
+	var as_name: Array = []
+	for village in GOAL_SCENES:
+		var pl: Place = load(GOAL_SCENES[village]).instantiate()
+		add_child(pl)
+		await get_tree().process_frame
+		for f6 in pl._folk:
+			if not is_instance_valid(f6):
+				continue
+			for bundle in f6.lines_by_heart:
+				if bundle is Array:
+					as_name += _bad_names(bundle, f6.who)
+		pl.queue_free()
+		await get_tree().process_frame
+	# 매듭 대사는 `_knot_on_talk` 이 그때그때 만든다 - 조건을 맞춰 꺼낸다.
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	var yn: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yn)
+	await get_tree().process_frame
+	JourneyState.pick("p-seaglass")
+	JourneyState.pick("p-shell")
+	JourneyState.mark_quest("윤슬:등대@저녁")
+	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
+	JourneyState.day = JourneyState.quest_day("윤슬:등대@저녁") + 1
+	for f7 in yn._folk:
+		if is_instance_valid(f7) and not f7.is_spot:
+			as_name += _bad_names(yn._knot_on_talk(f7), f7.who)
+	yn.queue_free()
+	await get_tree().process_frame
+	ok(as_name.is_empty(), "이름표 자리에 문장이 들어간 대사가 없다%s"
+		% ("" if as_name.is_empty() else " - " + str(as_name.slice(0, 3))))
+	JourneyState.reset()
+
+
+
+# ── 줄 이름이 겹치지 않나 ─────────────────────────────────────────────
+#
+# 목록 줄을 `"kind:key"` 로 세고 있었다. 그런데 윤슬 매듭 1(가게
+# 할머니와 인사)과 샛길 고르기(할머니에게 보여 주기)가 **둘 다
+# `talk:seal`** 이다. 그러면 -
+#
+#   - 목록에서 하나를 접어 두면 엉뚱한 줄이 잡히고
+#   - 하나가 끝나면 `_watch_done` 이 다른 하나를 "안 끝난 것" 으로 보고
+#     매 프레임 `announced` 를 지웠다 다시 넣어, 잔치 카드가 안 끝난다
+#
+# 조개를 먼저 줍고 할머니에게 보여 준 다음 소년에게 안 가면 그 창에
+# 들어간다. 실제로 그 상태를 만들어 확인했다.
+
+func _row_id_tests() -> void:
+	print("\n[줄 이름]")
+	JourneyState.reset()
+	# 겹침이 드러나는 바로 그 상태 - 고르기는 끝났고 매듭은 1단계다.
+	JourneyState.mark_quest("윤슬:샛길:고르기")
+	var clash: Array = []
+	for village in GOAL_SCENES:
+		var seen := {}
+		for q in Quests.quest_list(village):
+			var id := Quests.row_id(q)
+			if seen.has(id):
+				clash.append("%s: %s <-> %s" % [village, seen[id], q.get("label", "")])
+			seen[id] = String(q.get("label", ""))
+	ok(clash.is_empty(), "한 마을 안에서 줄 이름이 안 겹친다%s"
+		% ("" if clash.is_empty() else " - " + str(clash)))
+
+	# 마친 줄이 **끝난 것으로 가라앉나.**
+	#
+	# 겹치면 `_watch_done` 이 매 프레임 같은 이름을 지웠다
+	# (안 끝난 줄이 같은 이름을 쓰니까) 다시 넣는다. 그러면 잔치
+	# 카드가 끝없이 다시 뜬다. 카드는 큐에 넣자마자 꺼내 띄우므로
+	# 큐 길이로는 못 잰다 - `announced` 가 가라앉는지로 잰다.
+	JourneyState.reset()
+	var hud := JourneyHud.new()
+	add_child(hud)
+	JourneyState.here = "윤슬"
+	JourneyState.announce_ready = false
+	hud._watch_done(Quests.quest_list("윤슬"))      # 기준 잡기
+	# 조개를 주워 할머니에게 보여 준다 - 고르기만 끝나고 매듭은
+	# 1단계에 남는다. 둘이 같은 이름을 쓰던 바로 그 상태다.
+	JourneyState.mark_quest("윤슬:샛길:고르기")
+	var after := Quests.quest_list("윤슬")
+	hud._watch_done(after)
+	var mine := ""
+	for q in after:
+		if String(q.get("id", "")) == "윤슬:샛길:고르기":
+			mine = Quests.row_id(q)
+	ok(mine != "", "고르기 줄을 찾았다")
+	ok(JourneyState.announced.has(mine), "마친 줄이 끝난 것으로 남는다")
+	hud._watch_done(after)
+	hud._watch_done(after)
+	ok(JourneyState.announced.has(mine),
+		"다시 불러도 안 지워진다 (겹치면 매 프레임 잔치가 다시 뜬다)")
+	hud.queue_free()
+	JourneyState.reset()
+
+
+# ── 자리에 닿았을 때 말해 주나 ────────────────────────────────────────
+#
+# 부두 끝까지 걸어 나가도 `윤슬:부두끝@아침` 이 **조용히** 찍히고 끝이었다.
+# 잔치는 줄 전체가 끝나야 뜨므로, 반만 채운 사람은 화면에서 아무 변화를
+# 못 본다. "왔는데 안 됐네" 로 읽고 다시 안 온다. 5일이 흐른 방식이 이것이다.
+
+func _zone_note_tests() -> void:
+	print("\n[자리에서 하는 말]")
+	JourneyState.reset()
+	ok(Quests.zone_note("윤슬:부두끝").contains("아침이나 저녁"),
+		"처음 닿으면 언제 오면 되는지 말한다")
+	JourneyState.mark_quest("윤슬:부두끝@아침")
+	ok(Quests.zone_note("윤슬:부두끝").contains("저녁에 한 번 더"),
+		"아침을 채우면 저녁이 남았다고 말한다")
+	JourneyState.mark_quest("윤슬:부두끝@저녁")
+	ok(Quests.zone_note("윤슬:부두끝") == "", "둘 다 채우면 아무 말도 안 한다")
+
+	# 등대는 저녁에만 불이 들어온다. 매듭 1단계를 안 끝냈어도 말해 준다 -
+	# 여태 그 조건에 묶여 있어서, 먼저 등대에 가 본 사람은 못 들었다.
+	JourneyState.reset()
+	JourneyState.minutes = 13 * 60
+	ok(Quests.zone_note("윤슬:등대").contains("해가 지면"),
+		"낮에 등대에 가면 저녁에 오라고 말한다")
+	JourneyState.minutes = 19 * 60
+	ok(Quests.zone_note("윤슬:등대") == "", "저녁에는 그 말을 안 한다")
+
+	# 실제로 걸어가 닿으면 그 말이 힌트로 나오나.
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.here = "윤슬"
+	JourneyState.minutes = 8 * 60
+	var pl: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(pl)
+	await get_tree().process_frame
+	# `_say_hint` 는 차례줄에 넣자마자 바로 띄운다 - 줄 길이로는
+	# 못 잰다. 실제로 화면에 뜬 글을 본다.
+	for z in pl.quest_zones():
+		if String(z[0]) == "윤슬:부두끝":
+			pl.walker.global_position = pl.world_of(z[1])
+	pl.hud._hint.text = ""
+	pl._tick_quest_zones()
+	var said := String(pl.hud._hint.text)
+	ok(said.contains("저녁에 한 번 더"),
+		"부두 끝에 닿으면 남은 쪽을 말해 준다 (%s)" % said)
+	# 되풀이하지 않는다 - 힌트 줄은 우선순위가 없어서, 매 프레임
+	# 밀어 넣으면 다른 안내가 영영 안 나온다.
+	pl.hud._hint.text = ""
+	pl.hud._hint_queue.clear()
+	for i in 30:
+		pl._tick_quest_zones()
+	ok(String(pl.hud._hint.text) == "" and pl.hud._hint_queue.is_empty(),
+		"같은 자리에 서 있어도 되풀이하지 않는다 (%s)" % pl.hud._hint.text)
+	pl.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 자기 전에 알려 주나 ───────────────────────────────────────────────
+#
+# 자면 아침으로 간다. **저녁에만 되는 것을 남겨 둔 채 자면 그 저녁이
+# 통째로 사라지고**, 다음 저녁까지 하루를 더 기다려야 한다. 5일째까지
+# 첫 마을 샛길이 안 끝난 화면을 받았는데, 이렇게 흐르면 그렇게 된다.
+#
+# 막지는 않는다. 알고 자는 것과 모르고 자는 것만 가른다.
+
+func _bed_note_tests() -> void:
+	print("\n[자기 전에]")
+	JourneyState.reset()
+	JourneyState.minutes = 13 * 60
+	ok(Quests.evening_left("윤슬") == "", "낮에는 아무 말도 안 한다")
+	JourneyState.minutes = 19 * 60
+	ok(Quests.evening_left("윤슬") != "", "저녁에 남은 것이 있으면 알아챈다")
+	# 저녁 몫을 다 채우면 조용해진다
+	JourneyState.mark_quest("윤슬:부두끝@저녁")
+	JourneyState.mark_quest("윤슬:등대@저녁")
+	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
+	ok(Quests.evening_left("윤슬") == "", "저녁 몫을 다 하면 조용해진다")
+
+	# 실제로 잠자리에 서면 그 말이 나오나
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.here = "윤슬"
+	JourneyState.minutes = 19 * 60
+	var pl: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(pl)
+	await get_tree().process_frame
+	pl.hud._hint.text = ""
+	pl.hud._hint_queue.clear()
+	pl._bed_note()
+	ok(String(pl.hud._hint.text).contains("오늘 저녁에만"),
+		"잠자리에 서면 알려 준다 (%s)" % pl.hud._hint.text)
+	# 하루에 한 번만 - 잠자리 앞은 오래 서 있게 되는 자리다
+	pl.hud._hint.text = ""
+	pl.hud._hint_queue.clear()
+	for i in 30:
+		pl._bed_note()
+	ok(String(pl.hud._hint.text) == "", "하루에 한 번만 말한다")
+	pl.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()

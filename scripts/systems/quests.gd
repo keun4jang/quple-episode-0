@@ -273,6 +273,60 @@ static func side_waiting(village: String, key: String) -> bool:
 	return false
 
 
+## 그 자리에 **닿았는데 아직 안 끝났을 때** 건네는 한 마디.
+##
+## 부두 끝까지 걸어 나가도 `@아침` 이 조용히 찍히고 끝이었다. 잔치는
+## 줄 전체가 끝나야 뜨므로(`journey_hud._watch_done`), 반만 채운 사람은
+## 화면에서 아무 변화를 못 본다. "왔는데 안 됐네" 로 읽고 다시 안 온다.
+## 5일째 아침까지 그 줄이 그대로 떠 있던 화면을 받았다.
+##
+## 헛걸음처럼 만들지 않는다 - "틀렸다" 가 아니라 **"언제 오면 된다"** 로
+## 적는다. 벌이 없는 게임이니 못 채운 것이 손해가 되면 안 된다.
+## 지금 자면 **오늘 저녁에만 되는 일**을 건너뛰나. 남으면 그 이름.
+##
+## 자면 아침으로 간다. 저녁에만 되는 것을 남겨 둔 채 자면 그 저녁이
+## 통째로 사라지고, 다음 저녁까지 하루를 더 기다려야 한다. 5일째까지
+## 첫 마을 샛길이 안 끝난 화면을 받았는데, 이렇게 흐르면 그렇게 된다.
+##
+## **막지는 않는다.** 알고 자는 것과 모르고 자는 것만 가른다 -
+## 벌이 없는 게임이니 "자면 안 된다" 가 되면 안 된다.
+static func evening_left(village: String) -> String:
+	if JourneyState.day_part() != "저녁":
+		return ""
+	for row in quest_list(village):
+		if bool(row.get("done", false)):
+			continue
+		var id := String(row.get("id", ""))
+		# 지금(저녁) 할 수 있는데 아직 안 한 것 중, **저녁이라야만**
+		# 되는 것을 고른다. 낮에도 되는 것은 내일 해도 그만이다.
+		if id == "윤슬:샛길:부두":
+			if not JourneyState.quest_done("윤슬:부두끝@저녁"):
+				return String(row.get("label", ""))
+		elif id == "윤슬:매듭:2":
+			return String(row.get("label", ""))
+	return ""
+
+
+static func zone_note(key: String) -> String:
+	match key:
+		"윤슬:부두끝":
+			var m := JourneyState.quest_done("윤슬:부두끝@아침")
+			var e := JourneyState.quest_done("윤슬:부두끝@저녁")
+			if m and e:
+				return ""
+			if m:
+				return "아침 바다는 봤어요. 저녁에 한 번 더 와 봐요."
+			if e:
+				return "저녁 바다는 봤어요. 아침에 한 번 더 와 봐요."
+			return "아침이나 저녁에 오면 바다 빛이 달라요."
+		"윤슬:등대":
+			if knot_step_done("윤슬", 1):
+				return ""
+			if JourneyState.day_part() != "저녁":
+				return "해가 지면 등대에 불이 들어와요. 그때 다시 와 봐요."
+	return ""
+
+
 static func sides_done(village: String) -> int:
 	if not SIDE.has(village):
 		return 0
@@ -424,6 +478,24 @@ const VISIT_LABEL := {
 ##
 ## `kind` 는 일곱: talk(인연) · prop(소품) · door(문) · visit(가 볼 자리) ·
 ## pickup(줍기) · sleep(잠자리) · depart(정류장).
+## 목록 줄 하나를 가리키는 이름.
+##
+## 여태 `"kind:key"` 로 셌다. 그런데 윤슬 매듭 1(가게 할머니와 인사)과
+## 샛길 고르기(할머니에게 보여 주기)가 **둘 다 `talk:seal`** 이다.
+## 그래서 -
+##   - 목록에서 하나를 접어 두면 엉뚱한 줄이 잡히고
+##   - 하나가 끝나면 `_watch_done` 이 다른 하나를 "안 끝난 것" 으로 보고
+##     매 프레임 `announced` 를 지웠다 다시 넣어, 잔치 카드가 안 끝난다
+##
+## 조개를 먼저 줍고 할머니에게 보여 준 다음 소년에게 안 가면 그 창에
+## 들어간다. 그래서 **줄이 스스로 밝힌 이름(`id`)을 먼저 쓴다.**
+static func row_id(item: Dictionary) -> String:
+	var id := String(item.get("id", ""))
+	if id != "":
+		return id
+	return "%s:%s" % [item.get("kind", ""), item.get("key", "")]
+
+
 static func quest_list(village: String) -> Array:
 	# 프롤로그(쿼카컴퍼니가 있는 잿마루)에도 할 일을 둔다.
 	#
@@ -473,7 +545,8 @@ static func quest_list(village: String) -> Array:
 			"label": "이야기 %d/%d · %s%s" % [mini(at + 1, steps.size()),
 				steps.size(), String(cur["label"]),
 				"  (%s에)" % when if waiting else ""],
-			"kind": String(cur["kind"]), "key": String(cur["map"]),
+			"id": String(cur["key"]),
+		"kind": String(cur["kind"]), "key": String(cur["map"]),
 			"photo": bool(cur.get("photo", false)),
 			"waiting": waiting,
 			"done": knot_done(village),
@@ -484,7 +557,8 @@ static func quest_list(village: String) -> Array:
 			out2.append({
 				"label": "샛길 · %s%s" % [String(e["label"]),
 					"  (%s)" % note if note != "" else ""],
-				"kind": String(e["kind"]), "key": String(e["map"]),
+				"id": sk,
+			"kind": String(e["kind"]), "key": String(e["map"]),
 				"waiting": side_waiting(village, sk),
 				"done": side_done(village, sk),
 			})

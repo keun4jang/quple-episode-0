@@ -133,11 +133,13 @@ func quest_village() -> String:
 
 ## 여기가 실내(가게 안·등대 안·샛길·능 안쪽길)인가.
 ##
-## 실내 씬만 `quest_village()` 를 들어온 마을로 덮어쓴다. 따로
-## 표시를 두지 않고 그걸로 가른다 - 새 씬을 만들 때 깜빡할 자리를
-## 하나 덜 만든다.
+## **짐작하지 않고 실내 씬이 스스로 밝힌다.** 처음엔
+## `quest_village() != place_name()` 로 가렸는데, 그러면
+## `JourneyState.exit_scene` 이 비었을 때 `village_we_came_from()` 이
+## 제 이름을 되돌려 줘서 **실내가 실외로 읽힌다.** 문이 하나뿐인
+## 방에서 그건 갇히는 것이다 - 나가는 문을 안 짚으니까.
 func is_indoors() -> bool:
-	return quest_village() != place_name()
+	return false
 
 
 ## 들어오기 직전에 있던 마을. 실내가 `quest_village()` 로 쓴다.
@@ -1085,15 +1087,19 @@ func _tick_quest_zones() -> void:
 		# **언제 왔는지도 남긴다.** 같은 자리를 아침에 본 것과 저녁에
 		# 본 것은 다른 일이다 (`Quests.KNOT` · `SIDE`).
 		JourneyState.mark_quest("%s@%s" % [key, day_part()])
-		# **놓쳐도 막히지 않게 알려 준다.** 저녁에 와야 하는 자리에
-		# 낮에 왔으면, 헛걸음이 아니라 "다시 오면 된다" 로 만든다.
-		# 벌이 없는 게임이니 조건을 놓친 것이 손해가 되면 안 된다.
-		if key == "윤슬:등대" and day_part() != "저녁" \
-				and not _dusk_hint_said and hud != null \
-				and not Quests.knot_step_done("윤슬", 1) \
-				and Quests.knot_step_done("윤슬", 0):
-			_dusk_hint_said = true
-			hud.call("_say_hint", "해가 지면 등대에 불이 들어와요. 그때 다시 와 봐요.")
+		# **닿았는데 반쪽이면 그 자리에서 말해 준다.** 안 그러면
+		# 표시만 조용히 찍히고 화면은 아무 말이 없다 -
+		# "왔는데 안 됐네" 로 읽힌다 (`Quests.zone_note`).
+		#
+		# 한 화면에서 한 자리·한 시간대에 한 번만. 힌트 줄은 우선순위도
+		# 중복 제거도 없는 차례줄이라(`journey_hud._say_hint`), 매 프레임
+		# 넣으면 다른 안내가 영영 안 나온다.
+		var said_key := "%s@%s" % [key, day_part()]
+		if not _zone_said.has(said_key) and hud != null:
+			_zone_said[said_key] = true
+			var note := Quests.zone_note(key)
+			if note != "":
+				hud.call("_say_hint", note)
 		# **사진이 필요한 자리면 들어선 순간 알려 준다.** 여기 닿아도
 		# 사진까지 찍어야 항목이 끝나는데, 아무 말이 없으면 걸어와 놓고
 		# 영문 모르고 돌아간다. 시키는 말이 아니라 권하는 말로.
@@ -1545,10 +1551,17 @@ func _knot_on_talk(f: Folk) -> Array:
 				and JourneyState.count("p-seaglass") > 0 \
 				and JourneyState.day > JourneyState.quest_day("윤슬:등대@저녁"):
 			JourneyState.mark_quest("윤슬:매듭:3")
+			# **한 겹으로 준다.** `say()` 는 두 칸짜리 배열을 보면
+			# [누가, 무슨 말] 로 읽는다 (`journey_say.gd`). 여기서 두
+			# 문장을 한 칸에 묶어 뒀더니 앞 문장이 **이름표**로 찍혔다 -
+			# "그거 바다유리네요." 라는 이름의 인연이 말하는 꼴이었다.
 			return [
-				["그거 바다유리네요.", "어디서 주웠어요?"],
-				["…등대 밑이요?", "거기 저녁에 가 봤구나."],
-				["나는 매일 보는데도 매일 달라요.", "아저씨도 그랬어요?"],
+				"그거 바다유리네요.",
+				"어디서 주웠어요?",
+				"…등대 밑이요?",
+				"거기 저녁에 가 봤구나.",
+				"나는 매일 보는데도 매일 달라요.",
+				"아저씨도 그랬어요?",
 			]
 
 	# 샛길 — 조개와 바다유리 중 **하나를 골라** 할머니에게.
@@ -1566,12 +1579,16 @@ func _knot_on_talk(f: Folk) -> Array:
 			JourneyState.mark_quest("윤슬:골랐다:%s" % pick)
 			if pick == "p-shell":
 				return [
-					["조개를 주웠구나.", "그거 여기 흔한 건데."],
-					["흔한 걸 주워 오는 사람이 있어.", "그런 사람이 또 와."],
+					"조개를 주웠구나.",
+					"그거 여기 흔한 건데.",
+					"흔한 걸 주워 오는 사람이 있어.",
+					"그런 사람이 또 와.",
 				]
 			return [
-				["바다유리네. 그건 귀해.", "오래 굴러야 그렇게 돼."],
-				["급한 사람은 못 찾아.", "자네는 찾았고."],
+				"바다유리네. 그건 귀해.",
+				"오래 굴러야 그렇게 돼.",
+				"급한 사람은 못 찾아.",
+				"자네는 찾았고.",
 			]
 	return []
 
@@ -1759,6 +1776,29 @@ func _can_enter() -> Variant:
 
 ## 자고 다음 날. 하루가 끝나는 유일한 방법이다 —
 ## 밤을 새워도 벌이 없고, 그냥 밤 풍경을 계속 본다.
+## 잘 자리에 섰다. **오늘 저녁에만 되는 일**이 남았으면 한 번만 알린다.
+##
+## 자면 아침으로 간다 - 저녁에만 되는 것을 남겨 둔 채 자면 그 저녁이
+## 통째로 사라진다. 막지는 않는다. 알고 자는 것과 모르고 자는 것만
+## 가른다.
+##
+## 하루에 한 번만. 잠자리 앞은 오래 서 있게 되는 자리라, 매 프레임
+## 밀어 넣으면 다른 안내가 영영 안 나온다.
+func _bed_note() -> void:
+	if hud == null or _bed_note_day == JourneyState.day:
+		return
+	var left := Quests.evening_left(quest_village())
+	if left == "":
+		return
+	_bed_note_day = JourneyState.day
+	# 이름을 붙이지 않는다 - 줄 이름이 길고, 조사가 안 맞는다.
+	# 무엇이 남았는지는 위쪽 띠가 이미 적고 있다.
+	hud.call("_say_hint", "오늘 저녁에만 되는 일이 남았어요. 자면 내일 저녁이에요.")
+
+
+var _bed_note_day := -1
+
+
 func go_to_sleep() -> void:
 	if _sleeping:
 		return
@@ -2208,6 +2248,7 @@ func _refresh_action() -> void:
 		return
 	if _can_sleep():
 		hud.set_action("sleep", "자기")
+		_bed_note()
 		return
 	if _can_depart():
 		hud.set_action("depart", "떠나기")
@@ -2772,7 +2813,9 @@ func _goal_shown(item: Dictionary) -> bool:
 # 사무실 창 여섯이 똑같이 생겼는데 그중 하나만 "창밖" 자리인 게 그랬다.
 # 지금 할 일 자리 위에 금색 화살표 하나가 둥실둥실 떠서 그 하나를
 # 짚는다. 가까이 가면 치운다 — 다 왔는데도 흔들리면 성가시다.
-var _dusk_hint_said := false
+## 이 화면에서 이미 한 말. `자리키@시간대` 로 센다 - 같은 자리에
+## 서 있는 동안 같은 말을 되풀이하지 않는다.
+var _zone_said: Dictionary = {}
 var _goal_arrow: Node2D
 ## 화면 밖 목표를 가장자리에서 가리키는 것 (`GoalPointer`).
 var _goal_edge: GoalPointer
@@ -2845,8 +2888,14 @@ func open_goals() -> Array:
 	# **여기서도 "어디로" 는 알아야 한다** — 제 안에 남은 자리를 짚어 준다.
 	for z in quest_zones():
 		if not JourneyState.quest_done(String(z[0])):
-			out.append({"label": "", "kind": "visit", "key": String(z[0]),
-				"done": false})
+			# **이름을 비워 두면 안 된다.** `_first_task()` 가 빈 글을
+			# 돌려주면 위쪽 띠가 통째로 숨는다 - 실내에 들어선 순간
+			# 안내가 사라지는 것이 그것이었다. 자리 이름이 있으면
+			# 그것을(네 번째 칸), 없으면 두루뭉술하게라도 적는다.
+			var zone_name: String = String(z[3]) if z.size() > 3 \
+				else "여기 둘러보기"
+			out.append({"label": zone_name, "kind": "visit",
+				"key": String(z[0]), "done": false})
 	if not out.is_empty():
 		return out
 	# **안에서 할 것이 없으면 나가는 문을 짚는다.**
@@ -2887,7 +2936,7 @@ func current_goal() -> Dictionary:
 
 ## 항목을 가리키는 이름. `kind` 만으로는 인사 둘을 못 가른다.
 func _goal_id(item: Dictionary) -> String:
-	return "%s:%s" % [item.get("kind", ""), item.get("key", "")]
+	return Quests.row_id(item)
 
 
 ## 목록에서 하나를 골랐다.

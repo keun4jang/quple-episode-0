@@ -302,8 +302,11 @@ func quest_zones() -> Array:
 	if not c.has("goal"):
 		return []
 	var g: Array = c["goal"]
+	# 네 번째 칸은 **띠에 적을 이름**이다. 비워 두면 실내에서
+	# 위쪽 안내가 통째로 사라진다 (`Place.open_goals`).
 	return [[String(c.get("goal_key", "")), Vector2i(int(g[0]), int(g[1])),
-		float(c.get("radius", 48.0))]]
+		float(c.get("radius", 48.0)),
+		String(c.get("goal_name", "안쪽 끝까지 가 보기"))]]
 
 
 ## 들어온 그 문 앞으로 다시 나간다.
@@ -318,6 +321,12 @@ func doors() -> Array:
 
 
 ## 할 일은 **들어온 마을 것**을 이어 본다 (`Place.quest_village`).
+## 여기는 실내다. 나가는 문을 짚어 주는 근거가 된다
+## (`Place.is_indoors`).
+func is_indoors() -> bool:
+	return true
+
+
 func quest_village() -> String:
 	return village_we_came_from()
 

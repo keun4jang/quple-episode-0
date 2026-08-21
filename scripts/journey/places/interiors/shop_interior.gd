@@ -210,6 +210,12 @@ func doors() -> Array:
 
 
 ## 할 일은 **들어온 마을 것**을 이어 본다 (`Place.quest_village`).
+## 여기는 실내다. 나가는 문을 짚어 주는 근거가 된다
+## (`Place.is_indoors`).
+func is_indoors() -> bool:
+	return true
+
+
 func quest_village() -> String:
 	return village_we_came_from()
 

@@ -83,7 +83,8 @@ func pickups() -> Array:
 
 ## "볕든 돌담 사진 남기기" — 동쪽, 볕 드는 자리.
 func quest_zones() -> Array:
-	return [["볕뉘:능안", Vector2i(CX + 8, CY), 48.0]]
+	return [["볕뉘:능안", Vector2i(CX + 8, CY), 48.0,
+		"볕 드는 자리까지 가 보기"]]
 
 
 ## 문. 들어온 자리로 다시 나간다.
@@ -97,6 +98,12 @@ func doors() -> Array:
 
 
 ## 할 일은 **들어온 마을 것**을 이어 본다 (`Place.quest_village`).
+## 여기는 실내다. 나가는 문을 짚어 주는 근거가 된다
+## (`Place.is_indoors`).
+func is_indoors() -> bool:
+	return true
+
+
 func quest_village() -> String:
 	return village_we_came_from()
 

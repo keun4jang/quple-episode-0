@@ -1055,7 +1055,7 @@ func point_at_bag(on: bool) -> void:
 ## 항목을 가리키는 이름. 종류만으로는 인사 둘을 못 가른다
 ## (`Place._goal_id` 와 같은 규칙).
 func _goal_id(item: Dictionary) -> String:
-	return "%s:%s" % [item.get("kind", ""), item.get("key", "")]
+	return Quests.row_id(item)
 
 ## 지금 해볼 일 하나. 마을이 가리키는 것을 그대로 따른다 —
 ## 미니맵이 짚는 것과 같은 항목이어야 헷갈리지 않는다.

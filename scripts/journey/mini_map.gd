@@ -261,6 +261,15 @@ func _goal_shape(p: Vector2, r: float, kind: String, photo: bool, col: Color) ->
 				var d: float = r * 1.7
 				for s in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
 					draw_line(p + s * d, p + s * (d - r * 0.6), col, w * 0.8, true)
+		"exit":
+			# 나가는 문 - 네모 위로 나가는 화살. 들어가는 문(빈 네모)과
+			# 갈라 둔다. 실내에서 볼 것을 다 봤을 때 이것이 뜬다.
+			draw_rect(Rect2(p - Vector2(r, r * 0.2),
+				Vector2(r * 2.0, r * 1.2)), col, false, w)
+			draw_line(p + Vector2(0, r * 0.4), p + Vector2(0, -r * 1.6), col, w, true)
+			for sx: float in [-1.0, 1.0]:
+				draw_line(p + Vector2(0, -r * 1.6),
+					p + Vector2(sx * r * 0.7, -r * 0.9), col, w, true)
 		"sleep":
 			# 잠자리 — 반달
 			draw_arc(p, r, PI * 0.15, PI * 0.85, 14, col, w, true)
