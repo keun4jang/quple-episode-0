@@ -208,6 +208,12 @@ var quest_flags: Dictionary = {}
 ## 판정하려면 **며칠째에 했는지**를 알아야 한다.
 var quest_days: Dictionary = {}
 
+## 채집터마다 **마지막으로 새로 채운 날.** 그 자리에 들어섰을 때 오늘
+## 날짜와 다르면 어제 걷어 간 것을 다시 채운다 (`clear_taken_for`).
+## "다시 와 보면 뭔가 있다" 는 이 게임 곳곳의 규칙과 같다 — 잠긴 편지함이
+## 아니라 매일 다시 채워지는 물가다.
+var gather_day: Dictionary = {}
+
 func mark_quest(key: String) -> void:
 	if not quest_flags.has(key):
 		quest_days[key] = day
@@ -508,6 +514,16 @@ func mark_taken(place: String, t: Vector2i) -> void:
 	taken[_key(place, t)] = true
 
 
+## 그 자리에서 주운 기록을 통째로 지운다. **채집터를 다시 채우는 데만
+## 쓴다** — 마을 본바닥의 줍기(도토리·조약돌 같은)는 한 번 주우면
+## 영영 그대로다. 문자열 접두어로 가르니, 채집터 이름과 본마을 이름이
+## 겹치면 안 된다(둘 다 마을 이름을 그대로 안 쓰는 이유이기도 하다).
+func clear_taken_for(place: String) -> void:
+	for k in taken.keys():
+		if String(k).begins_with(place + ":"):
+			taken.erase(k)
+
+
 func _key(place: String, t: Vector2i) -> String:
 	return "%s:%d,%d" % [place, t.x, t.y]
 
@@ -518,6 +534,7 @@ func to_dict() -> Dictionary:
 	return {
 		"bag": bag.duplicate(),
 		"taken": taken.duplicate(),
+		"gather_day": gather_day.duplicate(),
 		"here": here,
 		"hearts": hearts.duplicate(),
 		"day": day,
@@ -605,6 +622,8 @@ func _rename_old_quo() -> void:
 func from_dict(d: Dictionary) -> void:
 	bag = d.get("bag", {}).duplicate() if d.get("bag") is Dictionary else {}
 	taken = d.get("taken", {}).duplicate() if d.get("taken") is Dictionary else {}
+	gather_day = d.get("gather_day", {}).duplicate() \
+		if d.get("gather_day") is Dictionary else {}
 	here = String(d.get("here", ""))
 	hearts = d.get("hearts", {}).duplicate() if d.get("hearts") is Dictionary else {}
 	day = maxi(1, int(d.get("day", 1)))
@@ -648,6 +667,7 @@ func from_dict(d: Dictionary) -> void:
 func reset() -> void:
 	bag = {}
 	taken = {}
+	gather_day = {}
 	here = ""
 	hearts = {}
 	day = 1

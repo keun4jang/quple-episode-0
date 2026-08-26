@@ -43,6 +43,7 @@ func _ready() -> void:
 	_row_id_tests()
 	await _zone_note_tests()
 	await _bed_note_tests()
+	await _gather_ground_tests()
 	await _scene_load_tests()
 	await _minimap_kind_test()
 	_shop_skin_test()
@@ -1239,8 +1240,9 @@ func _quest_tests() -> void:
 
 	# ⑤ 배낭 "이 마을에서" 탭이 읽는 목록도 같은 판정을 그대로 쓴다.
 	# 지도·카메라를 받기 전엔 딱 둘만 보여준다("숙제장" 처럼 안 보이게).
-	# **다섯 줄만 보인다** — 매듭 한 줄(지금 단계)과 샛길 넷.
-	ok(Quests.quest_list("윤슬").size() == 6, "윤슬 목록은 여섯 줄 (이야기 + 샛길 다섯)")
+	# **일곱 줄이 보인다** — 매듭 한 줄(지금 단계)과 샛길 여섯
+	# (가게·등대안·부두·고르기·자취·채집).
+	ok(Quests.quest_list("윤슬").size() == 7, "윤슬 목록은 일곱 줄 (이야기 + 샛길 여섯)")
 	ok(String(Quests.quest_list("윤슬")[0]["label"]).begins_with("이야기 1/3"),
 		"매듭 줄은 지금 단계와 몇 번째인지를 적는다 (%s)"
 			% Quests.quest_list("윤슬")[0]["label"])
@@ -3666,5 +3668,104 @@ func _bed_note_tests() -> void:
 		pl._bed_note()
 	ok(String(pl.hud._hint.text) == "", "하루에 한 번만 말한다")
 	pl.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 채집터 ────────────────────────────────────────────────────────────
+#
+# "사냥은 아니어도 채집이나 낚시" 요청에서, 낚시는 뺐다 - 이 문서
+# 위쪽 `docs/stardew-lessons.md` (라) 절이 "낚시" 를 명시적으로 안
+# 배울 것으로 못 박아 뒀다("여행자는 땅을 갈지도 싸우지도 않는다").
+# 채집은 다르다 - 이미 마을 본바닥에 도토리·솔방울 같은 줍기가 있고,
+# 살아 있는 것을 잡지 않는다. 그 채집을 **새 서브맵**으로 넓힌 것이
+# `GatherGround` 다.
+#
+# 지키는 선 셋을 여기서 본다:
+# - 체크리스트가 아니다 (`Quests.quest_list()` 에 줄이 없다)
+# - 벌이 없다 (몇 개 채웠는지 세지 않는다, 하나만 들고 오면 된다)
+# - 매일 다시 채워진다 (도감이 아니라 "다시 와 볼 이유")
+
+func _gather_ground_tests() -> void:
+	print("\n[채집터]")
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(20, 9)
+	var g: Place = load("res://scenes/journey/interiors/GatherGround.tscn").instantiate()
+	add_child(g)
+	await get_tree().process_frame
+	ok(g.place_name() == "갯바위", "윤슬에서 들어가면 갯바위다 (%s)" % g.place_name())
+	ok(g.is_indoors(), "실내로 친다")
+	ok(g.quest_village() == "윤슬", "할 일은 윤슬 것을 잇는다")
+
+	# ① 체크리스트가 아니다 - "몇 개 채웠나" 를 세는 줄이 없다.
+	# 샛길 한 줄("갯바위에 내려가 걷어 오기")은 있어도 된다 - 그건
+	# 하나만 있으면 끝나는 초대장이지, 진행률이 아니다.
+	var counting: Array = []
+	for row in Quests.quest_list("윤슬"):
+		var label := String(row.get("label", ""))
+		if label.contains("/") and (label.contains("미역") or label.contains("소라")):
+			counting.append(label)
+	ok(counting.is_empty(), "안쪽에서 몇 개 채웠는지 세는 줄이 없다%s"
+		% ("" if counting.is_empty() else " - " + str(counting)))
+
+	# ② 안에 걸을 게 있으면 그것부터 짚는다 (체크리스트 문구가 아니라
+	#    이미 있는 "줍기" 화살표를 빌린다)
+	var goal: Dictionary = g.open_goals()[0]
+	ok(String(goal.get("kind", "")) == "pickup", "오늘 몫이 남았으면 줍기로 짚는다")
+	ok(g.goal_world(goal) != Vector2.INF, "그 자리를 실제로 짚을 수 있다")
+
+	# ③ 걷으면 배낭에 들어가고, 오늘 몫을 다 걷으면 나가는 문으로 넘어간다
+	for a in g._loose.duplicate():
+		var item: String = a.get_meta("item")
+		JourneyState.pick(item)
+		JourneyState.mark_taken(g.place_name(), a.get_meta("tile"))
+		g._loose.erase(a)
+		a.queue_free()
+	ok(JourneyState.count("p-seaweed") > 0 or JourneyState.count("p-conch") > 0,
+		"걷은 것이 배낭에 들어온다")
+	var after: Dictionary = g.open_goals()[0]
+	ok(String(after.get("kind", "")) == "exit",
+		"오늘 몫을 다 걷으면 나가는 문을 짚는다 (%s)" % after.get("kind", ""))
+
+	# ④ 샛길 완료 조건 - 미역이든 소라든 하나만 있으면 된다
+	ok(Quests.side_done("윤슬", "윤슬:샛길:채집"), "하나만 들고 와도 샛길이 끝난다")
+
+	# ⑤ 같은 날 다시 들어와도 **그대로 비어 있다** — 무제한으로
+	#    리필되면 벌이 없는 대신 끝없는 자리가 되어 버린다.
+	g.queue_free()
+	await get_tree().process_frame
+	var g3: Place = load("res://scenes/journey/interiors/GatherGround.tscn").instantiate()
+	add_child(g3)
+	await get_tree().process_frame
+	ok(g3._loose.is_empty(), "같은 날 다시 들어오면 그대로 비어 있다")
+	g3.queue_free()
+	await get_tree().process_frame
+
+	# ⑥ **매일 다시 채워진다.** 다음 날 다시 들어오면 또 있다 -
+	#    도감이 아니라 "다시 와 볼 이유" 다.
+	JourneyState.day += 1
+	var g2: Place = load("res://scenes/journey/interiors/GatherGround.tscn").instantiate()
+	add_child(g2)
+	await get_tree().process_frame
+	ok(g2._loose.size() == 2, "다음 날 다시 오면 또 채워져 있다 (%d개)" % g2._loose.size())
+	g2.queue_free()
+	await get_tree().process_frame
+
+	# ⑦ 문에서 들어가면 실제로 갯바위 씬으로 이어진다
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	var yun: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yun)
+	await get_tree().process_frame
+	var gd: Dictionary = {}
+	for d in yun.doors():
+		if String(d.get("enter_key", "")) == "갯바위":
+			gd = d
+	ok(not gd.is_empty(), "윤슬에 갯바위로 내려가는 문이 있다")
+	ok(String(gd.get("scene", "")).ends_with("GatherGround.tscn"),
+		"그 문은 GatherGround 로 이어진다")
+	yun.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()

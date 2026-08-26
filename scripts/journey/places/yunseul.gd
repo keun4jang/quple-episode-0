@@ -144,6 +144,9 @@ func props() -> Array:
 		# 시장 뒷마당. 장작과 아이스박스가 붙어 있어야 살림처럼 보인다.
 		[27, 8, "firewood", true],
 		[29, 7, "icebox", false],
+		# 갯바위로 내려가는 어귀. 가게 지붕(x22~26 · y6~10)에 안
+		# 걸리게 그 서쪽 빈 백사장에 둔다.
+		[20, 9, "pebbles", false],
 
 		# ── 마을 ──────────────────────────────────────────────────────
 		# 돌길이 백사장으로 나가는 어귀. 가로등 하나로 표시한다 —
@@ -269,6 +272,12 @@ func doors() -> Array:
 		{"tile": Vector2i(31, 6),
 			"scene": "res://scenes/journey/interiors/LighthouseInterior.tscn",
 			"label": "등대 들어가기", "enter_key": "등대안"},
+		# 백사장, 물이 빠지면 드러나는 바위 어귀. 문이 아니라
+		# "내려가는 자리" 라 `enter_key` 를 따로 준다 (`GatherGround` 가
+		# 완료 표시를 안쪽 자리에서 낸다).
+		{"tile": Vector2i(20, 8),
+			"scene": "res://scenes/journey/interiors/GatherGround.tscn",
+			"label": "갯바위로 내려가기", "enter_key": "갯바위"},
 	]
 
 

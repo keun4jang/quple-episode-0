@@ -170,6 +170,10 @@ const SIDE := {
 		# 못 찾은 자리" 하나만 짚는다 (`Place.goal_world` 의 trace).
 		{"key": "윤슬:샛길:자취", "kind": "trace", "map": "빛자리",
 			"label": "갈매기 소년이 말한 반짝이는 자리 셋 찾기"},
+		# 갯바위는 다른 넷과 결이 다르다 - 안쪽에서 무엇을 하나 세지
+		# 않는다. 미역이든 소라든 아무거나 하나만 들고 오면 된다.
+		{"key": "윤슬:샛길:채집", "kind": "door", "map": "갯바위",
+			"label": "갯바위에 내려가 미역이나 소라 걷어 오기"},
 	],
 }
 
@@ -225,6 +229,11 @@ static func side_done(village: String, key: String) -> bool:
 			return JourneyState.quest_done("윤슬:본:빛자리1") \
 				and JourneyState.quest_done("윤슬:본:빛자리2") \
 				and JourneyState.quest_done("윤슬:본:빛자리3")
+		"윤슬:샛길:채집":
+			# 채집터는 매일 다시 채워지는 자리다 - 하나만 들고 오면
+			# 되고, 나중에 또 가서 다른 걸 걷어 와도 상관없다.
+			return JourneyState.count("p-seaweed") > 0 \
+				or JourneyState.count("p-conch") > 0
 	return JourneyState.quest_done(key)
 
 

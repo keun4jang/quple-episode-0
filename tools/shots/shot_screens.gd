@@ -283,5 +283,22 @@ func _run() -> void:
 		p.walker.global_position = p.world_of(Vector2i(12, 6))
 	await _wait(24)
 	await _shot("shop-exit-arrow")
+
+	# ⑰ 채집터 - 갯바위. 물웅덩이와 미역·소라가 자리에 보이는지.
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(20, 9)
+	p = await _open("res://scenes/journey/interiors/GatherGround.tscn")
+	await _wait(20)
+	await _shot("gather-ground")
+	# 문 앞 - 윤슬 백사장에서 갯바위 어귀가 보이는지.
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	p = await _open("res://scenes/journey/Yunseul.tscn")
+	if p.walker != null:
+		p.walker.global_position = p.world_of(Vector2i(20, 8))
+	await _wait(30)
+	await _shot("yunseul-gather-door")
 	if card != null:
 		card.queue_free()

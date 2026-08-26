@@ -91,3 +91,47 @@ px[(6, 3)] = hx("#D9CBB6")
 px[(9, 4)] = hx("#D9CBB6")
 px[(9, 2)] = hx("#D9CBB6")
 save("i-tea", px)
+
+
+
+
+# ── 미역 — 갯벌에서 걷어 온다. 물결치는 띠 하나가 위아래로 흔들린다.
+px = {}
+DK = hx("#25462F")
+LT = hx("#4E8C4A")
+HI = hx("#7BB86E")
+COLS = [5, 5, 4, 4, 5, 6, 6, 5, 4, 4, 5, 6, 7, 7]  # 줄기가 좌우로 흔들린다
+for y, cx in enumerate(COLS):
+    px[(cx, y + 1)] = LT
+    px[(cx + 1, y + 1)] = HI if y % 3 == 0 else LT
+    px[(cx - 1, y + 1)] = DK
+    px[(cx + 2, y + 1)] = DK
+save("p-seaweed", px)
+
+
+# ── 소라 — 조개(p-shell)와 실루엣이 갈라야 한다. 조개는 부채꼴,
+# 소라는 위로 갈수록 좁아지다 끝이 옆으로 살짝 휘는 뿔 모양이다.
+px = {}
+line = hx("#5A4432")
+body = hx("#D8B896")
+shade = hx("#B8926C")
+hi = hx("#F0DFC4")
+# 아래(넓다)에서 위(좁다)로 - 끝은 오른쪽으로 휜다(말려 올라간 뿔)
+ROWS = [(1, 10, 10), (1, 10, 9), (2, 9, 8), (2, 8, 7), (3, 8, 6),
+        (4, 8, 5), (5, 8, 4), (6, 8, 3), (7, 9, 2)]
+for a, b, y in ROWS:
+    for x in range(a, b + 1):
+        px[(x, y)] = body
+    px[(a - 1, y)] = line
+    px[(b + 1, y)] = line
+px[(8, 1)] = line
+px[(9, 1)] = line
+# 밑동을 가로로 마감
+for x in range(0, 12):
+    px[(x, 11)] = line
+# 나선 줄무늬 - 굵은 대각선 두 가닥이 뿔을 휘감는다
+for x, y in [(3, 9), (4, 8), (5, 7), (6, 6), (7, 5)]:
+    px[(x, y)] = shade
+for x, y in [(2, 10), (3, 8), (5, 6)]:
+    px[(x, y)] = hi
+save("p-conch", px)
