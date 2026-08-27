@@ -455,5 +455,21 @@ func _run() -> void:
 		p.talk_to_near()
 	await _wait(20)
 	await _shot("relay-squirrel")
+
+	# ㉚ 말 전하기 - 갈밭머리 쉼터 할머니가 말을 맡기는 장면.
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("cap_galbat")
+	p = await _open("res://scenes/journey/Galbatmeori.tscn")
+	var gh: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "cap_galbat":
+			gh = f
+	if gh != null and p.walker != null:
+		p.walker.global_position = gh.global_position + Vector2(0, 20)
+		p._near = gh
+		p.talk_to_near()
+	await _wait(20)
+	await _shot("relay-galbat")
 	if card != null:
 		card.queue_free()
