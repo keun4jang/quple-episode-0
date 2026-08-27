@@ -36,6 +36,60 @@ extends Place
 ## 마을 → 그늘 자리의 모든 것.
 ## {name, legend, solid, ambient, spawn, rows, props, sit, lines}
 const SPOTS := {
+	"가풀재": {
+		"name": "뒷개",
+		"legend": {"s": "sand", "w": "water"},
+		"solid": ["water"],
+		"ambient": "water",
+		"spawn": [17, 16],
+		# 큰 항구 뒤편에 물이 파고든 작은 후미 하나. 배는 안 든다 -
+		# 그물이나 널어 말리는 자리다.
+		"rows": [
+			"ssssssssssssssssssssssssssssssssss",
+			"sssswwwsssssssssssssssssssssssssss",
+			"sswwwwwwwsssssssssssssssssssssssss",
+			"sswwwwwwwsssssssssssssssssssssssss",
+			"swwwwwwwwwssssssssssssssssssssssss",
+			"sswwwwwwwsssssssssssssssssssssssss",
+			"sswwwwwwwsssssssssssssssssssssssss",
+			"sssswwwsssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+			"ssssssssssssssssssssssssssssssssss",
+		],
+		"props": [
+			# 그물을 너는 자리 - 벤치 대신 그물걸이(fence)에 걸쳐 말린다.
+			[11, 5, "fence", true],
+			[8, 4, "net", false],
+			[3, 6, "buoy", false],
+			[13, 3, "beach-grass", false],
+			[6, 7, "pebbles", false],
+		],
+		# 앉는 자리 - 그물 손질 거들기.
+		"sit": [11, 5, "그물 손질"],
+		# 시간대별로 다른 말.
+		"lines": {
+			"아침": [
+				"새벽 배가 다녀간 그물이 아직 축축하다.",
+				"성긴 매듭 하나를 마저 묶는다.",
+			],
+			"낮": [
+				"볕에 그물이 잘 마르고 있다.",
+				"풀린 매듭 하나를 찾아 다시 묶는다.",
+			],
+			"저녁": [
+				"하루 다 쓴 그물을 걷어 갠다.",
+				"마지막으로 매듭 하나를 확인한다.",
+			],
+		},
+	},
 	"방울못": {
 		"name": "연밭 그늘",
 		"legend": {"g": "grass", "w": "water"},
@@ -96,6 +150,7 @@ const SPOTS := {
 ## 어느 마을에서 들어왔나.
 const FROM_SCENE := {
 	"Bangulmot": "방울못",
+	"Gapuljae": "가풀재",
 }
 
 

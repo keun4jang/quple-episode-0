@@ -350,5 +350,14 @@ func _run() -> void:
 	p = await _open("res://scenes/journey/interiors/GatherGround.tscn")
 	await _wait(20)
 	await _shot("gather-soleunjae")
+
+	# ㉓ 그늘 자리 - 뒷개. 그물 걸이와 부표가 자리에 보이는지.
+	JourneyState.reset()
+	JourneyState.here = "가풀재"
+	JourneyState.exit_scene = "res://scenes/journey/Gapuljae.tscn"
+	JourneyState.exit_tile = Vector2i(1, 18)
+	p = await _open("res://scenes/journey/interiors/ShadeSpot.tscn")
+	await _wait(20)
+	await _shot("shade-gapuljae")
 	if card != null:
 		card.queue_free()

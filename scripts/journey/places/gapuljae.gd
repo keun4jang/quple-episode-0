@@ -176,6 +176,8 @@ func props() -> Array:
 		[17, 18, "pine", true],
 		[24, 19, "tree", true],
 		[30, 18, "pine", true],
+		# ── 뒷개로 들어가는 자리 (능선 서쪽 끝) ───────────────────
+		[1, 17, "shrub", false],
 	]
 
 
@@ -234,6 +236,11 @@ func doors() -> Array:
 		{"tile": Vector2i(30, 6),
 			"scene": "res://scenes/journey/interiors/LighthouseInterior.tscn",
 			"label": "등대 들어가기", "enter_key": "등대안"},
+		# 능선 서쪽 끝, 큰 항구 뒤로 물이 파고든 후미. 문이 아니라
+		# "들어가는 자리" 라 `enter_key` 를 따로 준다.
+		{"tile": Vector2i(0, 18),
+			"scene": "res://scenes/journey/interiors/ShadeSpot.tscn",
+			"label": "뒷개로 들어가기", "enter_key": "뒷개"},
 	]
 
 

@@ -3931,6 +3931,56 @@ func _gather_ground_tests() -> void:
 	await get_tree().process_frame
 	JourneyState.reset()
 
+	# ── 가풀재 뒷개 ───────────────────────────────────────────────────
+	#
+	# 두 번째 그늘 자리. "따개비·굴 대신 그물 손질 거들기 - 줍는 게
+	# 아니라 매듭 하나 묶어 준다 식의 짧은 도움" 이었다. `ShadeSpot`
+	# 뼈대 그대로 - 시간대에 따라 다른 매듭을 묶는다.
+	JourneyState.reset()
+	JourneyState.here = "가풀재"
+	JourneyState.exit_scene = "res://scenes/journey/Gapuljae.tscn"
+	JourneyState.exit_tile = Vector2i(1, 18)
+
+	var seen2: Dictionary = {}
+	for part2: Array in [["아침", 8], ["낮", 13], ["저녁", 19]]:
+		JourneyState.minutes = int(part2[1]) * 60
+		var gp: Place = load("res://scenes/journey/interiors/ShadeSpot.tscn").instantiate()
+		add_child(gp)
+		await get_tree().process_frame
+		ok(gp.place_name() == "뒷개",
+			"가풀재에서 들어가면 뒷개다 (%s)" % gp.place_name())
+		var f3: Folk = null
+		for ff2 in gp._folk:
+			if is_instance_valid(ff2) and ff2.is_spot:
+				f3 = ff2
+		var line2 := String(f3.lines()[0]) if f3 != null else ""
+		seen2[String(part2[0])] = line2
+		ok(line2 != "", "%s: 그물 손질 말이 있다 (%s)" % [part2[0], line2])
+		gp.queue_free()
+		await get_tree().process_frame
+	ok(seen2["아침"] != seen2["낮"] and seen2["낮"] != seen2["저녁"],
+		"세 시간대가 다 다른 매듭을 묶는다%s" % [seen2])
+
+	JourneyState.reset()
+	var gpv: Place = load(GOAL_SCENES["가풀재"]).instantiate()
+	add_child(gpv)
+	await get_tree().process_frame
+	var gd6: Dictionary = {}
+	for d in gpv.doors():
+		if String(d.get("enter_key", "")) == "뒷개":
+			gd6 = d
+	ok(not gd6.is_empty(), "가풀재에 뒷개로 들어가는 문이 있다")
+	ok(String(gd6.get("scene", "")).ends_with("ShadeSpot.tscn"),
+		"그 문은 ShadeSpot 으로 이어진다")
+	var listed5 := false
+	for row5 in Quests.quest_list("가풀재"):
+		if String(row5.get("label", "")).contains("뒷개"):
+			listed5 = true
+	ok(not listed5, "목록에는 안 올라온다 (마을당 하나만 더하는 규칙)")
+	gpv.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
 
 # ── 그늘 자리 ─────────────────────────────────────────────────────────
 #
