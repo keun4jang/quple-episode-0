@@ -12,7 +12,7 @@ config_version=5
 
 config/name="진짜 행복"
 config/description="혼자 떠나는 쿼카의 힐링 여행"
-config/version="0.1.120"
+config/version="0.1.121"
 run/main_scene="res://scenes/menu/MainMenu3D.tscn"
 config/features=PackedStringArray("4.3")
 config/icon="res://assets/icon/icon-512.png"
