@@ -309,5 +309,19 @@ func _run() -> void:
 	p = await _open("res://scenes/journey/interiors/GatherGround.tscn")
 	await _wait(20)
 	await _shot("gather-galbat")
+
+	# ⑲ 그늘 자리 - 연밭 그늘. 저녁 대사가 실제로 나오는지.
+	JourneyState.reset()
+	JourneyState.here = "방울못"
+	JourneyState.exit_scene = "res://scenes/journey/Bangulmot.tscn"
+	JourneyState.exit_tile = Vector2i(4, 19)
+	JourneyState.minutes = 19 * 60
+	p = await _open("res://scenes/journey/interiors/ShadeSpot.tscn")
+	await _wait(20)
+	await _shot("shade-bangulmot")
+	p.walker.global_position = p.world_of(Vector2i(11, 6))
+	p.talk_to_near()
+	await _wait(20)
+	await _shot("shade-say")
 	if card != null:
 		card.queue_free()

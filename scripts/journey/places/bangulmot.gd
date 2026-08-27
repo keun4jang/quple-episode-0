@@ -68,6 +68,8 @@ func props() -> Array:
 		[28, 15, "flower-pots", false],
 		# ── 데크 곁 안내 ────────────────────────────────────────────
 		[19, 3, "street-lamp", true],
+		# ── 연밭 그늘로 슬쩍 들어가는 자리 ───────────────────────────
+		[5, 20, "shrub", false],
 	]
 
 
@@ -113,6 +115,12 @@ func doors() -> Array:
 		"tile": Vector2i(6, 5),
 		"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 		"label": "가게 들어가기",
+	}, {
+		# 게스트하우스 뒤 풀숲 사이로 슬쩍 들어가는 자리. 문이 아니라
+		# "들어가는 자리" 라 `enter_key` 를 따로 준다.
+		"tile": Vector2i(4, 20),
+		"scene": "res://scenes/journey/interiors/ShadeSpot.tscn",
+		"label": "연밭 그늘로 들어가기", "enter_key": "연밭그늘",
 	}]
 
 

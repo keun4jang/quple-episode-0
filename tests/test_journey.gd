@@ -44,6 +44,7 @@ func _ready() -> void:
 	await _zone_note_tests()
 	await _bed_note_tests()
 	await _gather_ground_tests()
+	await _shade_spot_tests()
 	await _scene_load_tests()
 	await _minimap_kind_test()
 	_shop_skin_test()
@@ -3808,5 +3809,85 @@ func _gather_ground_tests() -> void:
 			listed = true
 	ok(not listed, "목록에는 안 올라온다 (마을당 하나만 더하는 규칙)")
 	gal.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+# ── 그늘 자리 ─────────────────────────────────────────────────────────
+#
+# "줍는 게 아니라 그냥 앉아 있는 자리 - 벌이 없다는 걸 서브맵으로도
+# 보여준다" 는 아이디어였다. `GatherGround` 와 뼈대는 같지만 -
+#   - pickups() 가 없다 (아무것도 안 준다)
+#   - quest_zones() 가 없다 (닿아야 끝나는 자리도 없다)
+#   - 시간대에 따라 다른 말을 한다 (다시 와도 늘 다른 참)
+# 그리고 방울못은 "물소리 듣기" 가 이미 그 마을의 "하나" 를 쓰고
+# 있어서, 갈밭머리 때처럼 목록에는 안 올린다.
+
+func _shade_spot_tests() -> void:
+	print("\n[그늘 자리]")
+	JourneyState.reset()
+	JourneyState.here = "방울못"
+	JourneyState.exit_scene = "res://scenes/journey/Bangulmot.tscn"
+	JourneyState.exit_tile = Vector2i(4, 19)
+
+	# ① 아침·낮·저녁에 각각 들어가서 실제로 다른 말이 나오는지 본다
+	var seen: Dictionary = {}
+	for part: Array in [["아침", 8], ["낮", 13], ["저녁", 19]]:
+		JourneyState.minutes = int(part[1]) * 60
+		var s1: Place = load("res://scenes/journey/interiors/ShadeSpot.tscn").instantiate()
+		add_child(s1)
+		await get_tree().process_frame
+		ok(s1.place_name() == "연밭 그늘",
+			"방울못에서 들어가면 연밭 그늘이다 (%s)" % s1.place_name())
+		var f: Folk = null
+		for ff in s1._folk:
+			if is_instance_valid(ff) and ff.is_spot:
+				f = ff
+		ok(f != null, "%s: 앉을 자리가 있다" % part[0])
+		var line := String(f.lines()[0]) if f != null else ""
+		seen[String(part[0])] = line
+		ok(line != "", "%s: 할 말이 있다 (%s)" % [part[0], line])
+		s1.queue_free()
+		await get_tree().process_frame
+	ok(seen["아침"] != seen["낮"] and seen["낮"] != seen["저녁"] \
+			and seen["아침"] != seen["저녁"],
+		"세 시간대가 다 다른 말을 한다%s" % [seen])
+
+	# ② 아무것도 안 준다 - 줍는 게 없고, 배낭이 안 늘어난다
+	JourneyState.reset()
+	var before := JourneyState.bag.duplicate()
+	var s2: Place = load("res://scenes/journey/interiors/ShadeSpot.tscn").instantiate()
+	add_child(s2)
+	await get_tree().process_frame
+	ok(s2.pickups().is_empty(), "주울 것이 아예 없다")
+	ok(s2.quest_zones().is_empty(), "닿아야 끝나는 자리도 없다")
+	for f2 in s2._folk:
+		if is_instance_valid(f2) and f2.is_spot:
+			s2.talk_to_near.call_deferred()
+	ok(before.hash() == JourneyState.bag.hash(), "배낭이 그대로다")
+
+	# ③ 목록에는 안 올라온다 - 방울못은 "물소리 듣기" 가 이미 그
+	#    마을의 하나를 쓰고 있다 (`Quests.LOCAL`).
+	var listed := false
+	for row in Quests.quest_list("방울못"):
+		if String(row.get("label", "")).contains("연밭 그늘"):
+			listed = true
+	ok(not listed, "목록에는 안 올라온다 (마을당 하나만 더하는 규칙)")
+
+	# ④ 문이 실제로 이어진다
+	var ban: Place = load(GOAL_SCENES["방울못"]).instantiate()
+	add_child(ban)
+	await get_tree().process_frame
+	var gd: Dictionary = {}
+	for d in ban.doors():
+		if String(d.get("enter_key", "")) == "연밭그늘":
+			gd = d
+	ok(not gd.is_empty(), "방울못에 연밭 그늘로 들어가는 문이 있다")
+	ok(String(gd.get("scene", "")).ends_with("ShadeSpot.tscn"),
+		"그 문은 ShadeSpot 으로 이어진다")
+	ban.queue_free()
+	await get_tree().process_frame
+
+	s2.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
