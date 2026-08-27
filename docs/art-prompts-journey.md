@@ -937,3 +937,128 @@ Create 4 sprites floating in a row with magenta gaps:
 `jars` 와 `parasol` 의 밑동·차양이 타원인 것은 **맞는 것이다.** 이 게임의
 카메라가 스타듀처럼 살짝 위에서 내려다보는 각이라, 둥근 것은 타원으로
 보이는 게 정상이다. 45도로 **물러나는** 것만 문제다.
+
+---
+
+# U장 — 건물·자연물 변주 (2026-08-27)
+
+> "건물이랑 나무나 돌 같은 소품들이 너무 똑같다" — 아홉 마을이 가게·
+> 쿼스텔·좌판을 **같은 그림 한 장씩만** 돌려 쓰고, 나무·소나무·바위·
+> 덤불도 마을마다 한 벌뿐이다. 벌을 몇 개 더 받아서 마을마다 다른
+> 그림을 고르게 한다 (`Place._variant_sprite()` 가 마을 순서로 고른다 —
+> 코드는 이미 만들어 뒀고, 그림만 있으면 바로 꽂는다).
+
+**주의**: 코드로 대신 그려 본 적이 있는데(`tools/pixel/make-front-props.py`),
+지금 쓰는 진짜 그림(제미나이 원본)보다 디테일이 떨어져서 되돌렸다.
+그래서 이번엔 처음부터 제미나이로 받는다.
+
+## U-1장 — 건물 변주 6종
+
+가게·쿼스텔·좌판을 **팔레트와 디테일만 다르게** 두 벌씩 더 받는다.
+모양의 뼈대(창문 개수, 문 위치, 차양 구조)는 T-1/T-4 장과 같게
+유지해야 "같은 손이 지은 다른 집"으로 읽힌다.
+
+```
+A cozy top-down game art asset sheet, soft hand-painted style with clean
+readable shapes and RICH SURFACE DETAIL — visible wood grain, individual
+roof tiles, weathering, fabric folds. It will be converted to pixel art,
+so strong shapes and clear color areas matter more than fine lines.
+
+CAMERA RULE — most important:
+Straight-on FRONT view, like buildings in Stardew Valley. Front wall faces
+the viewer squarely. The roof reads as a band on top, tilted slightly
+toward the viewer. NO isometric, NO 45-degree corner view, NO side walls.
+
+STYLE: warm gentle palette, light from upper-left, soft shadow lower-right.
+Every object on plain solid MAGENTA (#FF00FF), pure and untouched.
+Objects must NOT overlap. No text, no watermark, no people.
+
+Create 6 building sprites in a row, magenta gaps between. These are
+PALETTE VARIANTS of buildings that already exist in the game — keep the
+same silhouette and window/door layout family as described, but give each
+a distinct color scheme so they read as different buildings in different
+villages of the same town.
+
+1. A small village shop, variant A: warm slate-blue wooden plank walls,
+   a mustard-yellow and cream striped awning over a display window,
+   crates of goods out front
+2. A small village shop, variant B: deep sage-green wooden plank walls,
+   a dusty-rose and cream striped awning over a display window, crates
+   of goods out front
+3. A cozy two-story guesthouse, variant A: dusty-rose plaster walls with
+   subtle texture, sage-green tiled roof, a small chimney, warm lit
+   windows with mustard-yellow shutters, a wooden sign by the door
+4. A cozy two-story guesthouse, variant B: pale sky-blue plaster walls
+   with subtle texture, warm brick-red tiled roof, a small chimney, warm
+   lit windows with sage-green shutters, a wooden sign by the door
+5. A market stall, variant A: sturdy wooden frame stained a deep plum
+   color, mustard-yellow and cream striped fabric canopy, colorful
+   produce laid out on the front counter
+6. A market stall, variant B: sturdy wooden frame stained a deep forest
+   green, dusty-rose and cream striped fabric canopy, colorful produce
+   laid out on the front counter
+
+Each building roughly 500px tall (shop/stall shorter, about 300-350px).
+```
+
+**파일 이름**: 순서대로 `shop-2` · `shop-3` · `guesthouse-2` · `guesthouse-3`
+· `stall-2` · `stall-3`.
+
+## U-2장 — 자연물 변주 6종
+
+나무·소나무·바위·덤불은 지금 T-6장 방식(선명한 픽셀, 마젠타 배경 컷아웃)
+그대로 받는다 — 스무스 페인팅이 아니라 **처음부터 픽셀 아트**로.
+
+```
+PIXEL ART game sprites, CUT OUT on a chroma-key background.
+
+Every single pixel that is not part of an object is the exact same flat
+MAGENTA (#FF00FF), filling the whole canvas — corners, edges, the spaces
+between objects. NO room, NO floor, NO wall, NO white paper, NO panels.
+The objects float on pure magenta.
+
+Crisp pixel art with a visible pixel grid and a limited palette, like
+Stardew Valley sprites. NOT a photo, NOT a 3D render, NOT a smooth
+painting. Hand-placed detail: bark texture, leaf clumps, rock facets.
+
+Straight-on FRONT view. Trunks stand STRAIGHT UP, vertical. NO leaning,
+NO isometric, NO 45-degree recession.
+
+Warm gentle palette: sage green, sandy beige, warm brown, muted teal.
+Light from upper-left.
+
+NO text, NO numbers, NO labels, NO watermark, NO people.
+
+Create 6 sprites floating in a row with magenta gaps. These are VARIANTS
+of trees/rocks/shrubs that already exist in the game (a round leafy tree,
+a blue-green pine, a grey boulder, a low flowering shrub) — same rough
+scale and simple silhouette family, but different enough to read as a
+different tree/rock at a glance:
+
+1. A round tree in autumn colors: straight vertical trunk, warm orange
+   and red foliage clumps, same rough size and shape as a summer tree
+2. A small flowering tree: straight vertical trunk, pale pink and white
+   blossom clumps instead of leaves, slightly smaller and more delicate
+3. A stout dark-green pine tree: straight vertical trunk, fuller and
+   rounder needle silhouette than a tall wind-swept pine
+4. A mossy boulder: a large grey rock with a patch of green moss on top,
+   roughly the same size as a plain boulder
+5. A flat grey slab rock: a low wide flat-topped stone, wider than it
+   is tall, different silhouette from a round boulder
+6. A low flowering shrub with small white blossoms instead of coral-pink
+   ones, same rough size as an existing shrub
+
+Each object separate on the magenta background, clear gaps, none cropped.
+```
+
+**파일 이름**: 순서대로 `tree-2` · `tree-3`(꽃나무는 이렇게 부른다) ·
+`pine-2` · `boulder-2` · `boulder-3` · `shrub-2`.
+
+## 받은 뒤 내가 할 일
+
+`tools/pixel/import-journey-art.py` 에 U-1·U-2 시트를 등록해 자르고
+16px 격자에 맞춘 뒤 `assets/sprites/` 에 새 이름으로 넣는다. 마을 파일은
+안 고쳐도 된다 — `Place._variant_sprite()` 가 마을 순서로 알아서 고른다.
+나무·소나무·바위·덤불 쪽은 **한 마을 안에서 무작위로 섞어 심는 것**도
+검토한다(건물은 마을 하나에 한 채뿐이라 "마을 순서"로 고르지만, 자연물은
+한 마을에 수십 그루가 있어서 다른 규칙이 필요하다).
