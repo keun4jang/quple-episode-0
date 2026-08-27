@@ -215,3 +215,21 @@ for a, b, y in LEAF:
 for y in range(2, 9):
     px[(6, y)] = hi
 save("p-citrus-leaf", px)
+
+
+# ── 감잎 — 가을에 붉게 드는 넓은 타원 잎. 귤잎(둥글고 초록)과
+# 갈댓잎(가늘고 대각선)과 갈라지게 넓고 붉은 기가 돈다.
+px = {}
+line = hx("#7A3A1E")
+body = hx("#C97A3E")
+hi = hx("#E8A868")
+LEAF = [(6, 6, 0), (5, 7, 1), (4, 8, 2), (3, 9, 3), (3, 9, 4),
+        (3, 9, 5), (4, 8, 6), (4, 8, 7), (5, 7, 8), (5, 7, 9), (6, 6, 10)]
+for a, b, y in LEAF:
+    for x in range(a, b + 1):
+        px[(x, y)] = body
+    px[(a - 1, y)] = line
+    px[(b + 1, y)] = line
+for y in range(1, 10):
+    px[(6, y)] = hi
+save("p-persimmon-leaf", px)

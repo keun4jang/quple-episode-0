@@ -332,5 +332,14 @@ func _run() -> void:
 	p = await _open("res://scenes/journey/interiors/GatherGround.tscn")
 	await _wait(20)
 	await _shot("gather-hanui")
+
+	# ㉑ 채집터 - 감나무 밭. 감나무와 감·감잎이 자리에 보이는지.
+	JourneyState.reset()
+	JourneyState.here = "볕뉘"
+	JourneyState.exit_scene = "res://scenes/journey/Byeotnwi.tscn"
+	JourneyState.exit_tile = Vector2i(18, 17)
+	p = await _open("res://scenes/journey/interiors/GatherGround.tscn")
+	await _wait(20)
+	await _shot("gather-byeotnwi")
 	if card != null:
 		card.queue_free()

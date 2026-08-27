@@ -162,6 +162,8 @@ func props() -> Array:
 		[23, 12, "stall", true],
 		[25, 13, "flower-pots", false],
 		[21, 13, "jars", true],
+		# ── 감나무 밭으로 들어가는 자리 ───────────────────────────
+		[19, 18, "shrub", false],
 	]
 
 
@@ -218,6 +220,10 @@ func doors() -> Array:
 		{"tile": Vector2i(16, 7),
 			"scene": "res://scenes/journey/interiors/TombPathInterior.tscn",
 			"label": "안쪽길 들어가기", "enter_key": "능입구"},
+		# 아랫마당 텃밭 너머, 옛 감나무 밭으로 슬쩍 들어가는 자리.
+		{"tile": Vector2i(18, 18),
+			"scene": "res://scenes/journey/interiors/GatherGround.tscn",
+			"label": "감나무 밭으로 들어가기", "enter_key": "감나무밭"},
 	]
 
 

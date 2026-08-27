@@ -3849,6 +3849,44 @@ func _gather_ground_tests() -> void:
 	await get_tree().process_frame
 	JourneyState.reset()
 
+	# ── 볕뉘 감나무 밭 ────────────────────────────────────────────────
+	#
+	# 네 번째 마을. 볕뉘도 ORDER 마을이고 "하나만 더한다" 규칙을
+	# 이미 "볕 드는 흙마당까지 내려가 보기" 가 쓰고 있다 - 같은
+	# 이유로 목록엔 안 올린다. 감(p-persimmon)은 마을 본바닥에도
+	# 이미 있는 아이템이다 - 새로 안 만들고 그대로 재사용했다.
+	JourneyState.reset()
+	JourneyState.here = "볕뉘"
+	JourneyState.exit_scene = "res://scenes/journey/Byeotnwi.tscn"
+	JourneyState.exit_tile = Vector2i(18, 17)
+	var byeot: Place = load("res://scenes/journey/interiors/GatherGround.tscn").instantiate()
+	add_child(byeot)
+	await get_tree().process_frame
+	ok(byeot.place_name() == "감나무 밭",
+		"볕뉘에서 들어가면 감나무 밭이다 (%s)" % byeot.place_name())
+	ok(byeot._loose.size() == 2, "감·감잎 둘이 오늘 놓여 있다")
+	byeot.queue_free()
+	await get_tree().process_frame
+
+	var byv: Place = load(GOAL_SCENES["볕뉘"]).instantiate()
+	add_child(byv)
+	await get_tree().process_frame
+	var gd4: Dictionary = {}
+	for d in byv.doors():
+		if String(d.get("enter_key", "")) == "감나무밭":
+			gd4 = d
+	ok(not gd4.is_empty(), "볕뉘에 감나무 밭으로 들어가는 문이 있다")
+	ok(String(gd4.get("scene", "")).ends_with("GatherGround.tscn"),
+		"그 문은 GatherGround 로 이어진다")
+	var listed3 := false
+	for row3 in Quests.quest_list("볕뉘"):
+		if String(row3.get("label", "")).contains("감나무"):
+			listed3 = true
+	ok(not listed3, "목록에는 안 올라온다 (마을당 하나만 더하는 규칙)")
+	byv.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
 
 # ── 그늘 자리 ─────────────────────────────────────────────────────────
 #

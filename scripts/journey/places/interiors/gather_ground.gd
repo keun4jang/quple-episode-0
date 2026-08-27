@@ -39,6 +39,61 @@ extends Place
 ## 재미가 확인되면 그때 하나씩 채운다(`docs/CLAUDE.md` 의 1탄 우선순위와
 ## 같은 결 — 한 곳을 제대로 만들고 넓힌다).
 const GROUNDS := {
+	"볕뉘": {
+		"name": "감나무 밭",
+		"legend": {"d": "dirt"},
+		"solid": [],
+		"ambient": "",
+		"spawn": [17, 16],
+		"rows": [
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+			"dddddddddddddddddddddddddddddddddd",
+		],
+		"props": [
+			# 감나무 열 그루. 한두 칸씩 어긋나게.
+			[6, 4, "tree", true],
+			[10, 3, "tree", true],
+			[14, 5, "tree", true],
+			[20, 4, "tree", true],
+			[24, 3, "tree", true],
+			[28, 5, "tree", true],
+			[7, 10, "tree", true],
+			[16, 11, "tree", true],
+			[22, 10, "tree", true],
+			[27, 9, "tree", true],
+			[10, 8, "shrub", false],
+			[23, 7, "shrub", false],
+			# 들여다볼 자리(flavor) 밑에 깔 낮은 울 - 능 두른 울과 같은 것이다.
+			[17, 3, "fence", true],
+		],
+		# 매일 다시 채워지는 자리. [x, y, item_id]
+		"spots": [
+			[9, 7, "p-persimmon"],
+			[25, 8, "p-persimmon-leaf"],
+		],
+		# 들여다볼 것 하나.
+		"flavor": [17, 3, "낮은 울타리", [
+			"능을 두른 것과 같은 나무 울이 여기까지 이어져 있다.",
+			"누가 심었는지는 아무도 모른다.",
+			"그저 오래됐다고만 한다.",
+		]],
+	},
 	"하늬섬": {
 		"name": "귤밭 뒤뜰",
 		"legend": {"g": "grass"},
@@ -214,6 +269,7 @@ const FROM_SCENE := {
 	"Yunseul": "윤슬",
 	"Galbatmeori": "갈밭머리",
 	"Hanuiseom": "하늬섬",
+	"Byeotnwi": "볕뉘",
 }
 
 
