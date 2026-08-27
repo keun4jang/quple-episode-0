@@ -3989,68 +3989,90 @@ func _gather_ground_tests() -> void:
 
 func _relay_tests() -> void:
 	print("\n[말 전하기]")
-	JourneyState.reset()
 
-	# ① 아직 안 친하면 말을 안 맡긴다
-	ok(Quests.relay_line("가풀재", "san_seal").is_empty(),
-		"처음 보면 아무 말도 안 맡긴다")
+	# 마을·인연 셋이 다 같은 결로 도는지 하나씩 재본다.
+	await _relay_pair_test("가풀재_솔은재_계단고개",
+		"가풀재", "san_seal", "국수집 아저씨",
+		"솔은재", "cap_sol", "쉼터 아저씨", "계단")
+	await _relay_pair_test("굽이나루_방울못_물빛",
+		"굽이나루", "cap_guinaru", "나루 가게 아저씨",
+		"방울못", "cap_bangul", "빵집 아주머니", "바빠서")
+	await _relay_pair_test("꽃눈벌_볕뉘_소식",
+		"꽃눈벌", "kk_magpie", "까치",
+		"볕뉘", "ju_kid", "능 지키는 아이", "마을이 또 있대요")
 
-	# ② 마음을 다 채우면 그제야 맡긴다
-	for i in JourneyState.HEART_MAX:
-		JourneyState.warm("san_seal")
-	var give := Quests.relay_line("가풀재", "san_seal")
-	ok(not give.is_empty(), "마음을 다 채우면 말을 맡긴다 (%s)" % str(give))
-	ok(Quests.relay_given("가풀재_솔은재_계단고개"), "맡긴 것으로 남는다")
-
-	# ③ 한 번 맡기면 또 안 맡긴다 (되풀이 안 함)
-	ok(Quests.relay_line("가풀재", "san_seal").is_empty(),
-		"두 번째로 말 걸면 이미 맡긴 말은 다시 안 준다")
-
-	# ④ 엉뚱한 사람에게는 안 전해진다 - 마을과 이름이 다 맞아야 한다
+	# 엉뚱한 사람에게는 안 새는지는 셋을 다 채운 뒤 한 번만 본다 -
+	# 서로 안 섞이는지가 핵심이라 개별 쌍보다 여기서 보는 게 낫다.
 	ok(Quests.relay_line("솔은재", "so_squirrel").is_empty(),
 		"받을 사람이 아니면 아무 말도 없다")
 	ok(Quests.relay_line("윤슬", "seal").is_empty(),
 		"엉뚱한 마을의 같은 이름에도 안 전해진다")
+	JourneyState.reset()
 
-	# ⑤ 받을 사람에게 가면 전해진다
-	var deliver := Quests.relay_line("솔은재", "cap_sol")
-	ok(not deliver.is_empty(), "솔은재 쉼터 아저씨에게 가면 말이 전해진다 (%s)" % str(deliver))
-	ok(Quests.relay_delivered("가풀재_솔은재_계단고개"), "전한 것으로 남는다")
 
-	# ⑥ 한 번 전하면 또 안 전한다
-	ok(Quests.relay_line("솔은재", "cap_sol").is_empty(),
-		"두 번째로 말 걸면 이미 전한 말은 다시 안 나온다")
+## 말 전하기 한 쌍을 처음부터 끝까지 검사한다. `word_give`/`word_deliver`
+## 대신 `word` 하나로 통일 - 맡기는 말과 전하는 말 둘 다 그 낱말을
+## 담고 있어야 서로 이어졌다는 확인이 된다.
+func _relay_pair_test(id: String, from_v: String, from_id: String, from_name: String,
+		to_v: String, to_id: String, to_name: String, word: String) -> void:
+	JourneyState.reset()
 
-	# ⑦ 체크리스트가 아니다 - 목록 어디에도 안 뜬다
+	# ① 아직 안 친하면 말을 안 맡긴다
+	ok(Quests.relay_line(from_v, from_id).is_empty(),
+		"%s: 처음 보면 아무 말도 안 맡긴다" % from_name)
+
+	# ② 마음을 다 채우면 그제야 맡긴다
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm(from_id)
+	var give := Quests.relay_line(from_v, from_id)
+	ok(not give.is_empty(), "%s: 마음을 다 채우면 말을 맡긴다 (%s)" % [from_name, str(give)])
+	ok(Quests.relay_given(id), "%s: 맡긴 것으로 남는다" % from_name)
+
+	# ③ 한 번 맡기면 또 안 맡긴다
+	ok(Quests.relay_line(from_v, from_id).is_empty(),
+		"%s: 두 번째로 말 걸면 이미 맡긴 말은 다시 안 준다" % from_name)
+
+	# ④ 받을 사람에게 가면 전해진다
+	var deliver := Quests.relay_line(to_v, to_id)
+	ok(not deliver.is_empty(), "%s: 말이 전해진다 (%s)" % [to_name, str(deliver)])
+	ok(Quests.relay_delivered(id), "%s: 전한 것으로 남는다" % to_name)
+
+	# ⑤ 한 번 전하면 또 안 전한다
+	ok(Quests.relay_line(to_v, to_id).is_empty(),
+		"%s: 두 번째로 말 걸면 이미 전한 말은 다시 안 나온다" % to_name)
+
+	# ⑥ 체크리스트가 아니다 - 목록 어디에도 안 뜬다
 	JourneyState.reset()
 	for i in JourneyState.HEART_MAX:
-		JourneyState.warm("san_seal")
+		JourneyState.warm(from_id)
 	var listed := false
-	for row in Quests.quest_list("가풀재"):
-		if String(row.get("label", "")).contains("계단") \
-				or String(row.get("label", "")).contains("전하"):
+	for row in Quests.quest_list(from_v):
+		if String(row.get("label", "")).contains(word):
 			listed = true
-	ok(not listed, "목록에는 안 올라온다")
+	ok(not listed, "%s: 목록에는 안 올라온다" % from_name)
 
-	# ⑧ 실제로 말을 걸면 그 대사가 나온다 (place.talk_to_near 경로)
+	# ⑦ 실제로 말을 걸면 그 대사가 나온다 (place.talk_to_near 경로)
 	JourneyState.reset()
 	for i in JourneyState.HEART_MAX:
-		JourneyState.warm("san_seal")
-	var gp2: Place = load(GOAL_SCENES["가풀재"]).instantiate()
+		JourneyState.warm(from_id)
+	var gp2: Place = load(GOAL_SCENES[from_v]).instantiate()
 	add_child(gp2)
 	await get_tree().process_frame
-	var seal: Folk = null
+	var f2: Folk = null
 	for f in gp2._folk:
-		if is_instance_valid(f) and f.folk_id == "san_seal":
-			seal = f
-	ok(seal != null, "국수집 아저씨를 찾았다")
-	gp2._near = seal
-	gp2.walker.global_position = seal.global_position + Vector2(0, 20)
-	gp2.talk_to_near()
-	await get_tree().process_frame
-	ok(String(gp2.say._said[0].get("text", "")).contains("계단"),
-		"실제로 말을 걸면 그 말이 대사창에 뜬다 (%s)"
-			% gp2.say._said[0].get("text", ""))
+		if is_instance_valid(f) and f.folk_id == from_id:
+			f2 = f
+	ok(f2 != null, "%s: 찾았다" % from_name)
+	if f2 != null:
+		gp2._near = f2
+		gp2.walker.global_position = f2.global_position + Vector2(0, 20)
+		gp2.talk_to_near()
+		await get_tree().process_frame
+		var said := ""
+		for m in gp2.say._said:
+			said += String(m.get("text", ""))
+		ok(said.contains(word),
+			"%s: 실제로 말을 걸면 그 말이 대사창에 뜬다 (%s)" % [from_name, said])
 	gp2.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()

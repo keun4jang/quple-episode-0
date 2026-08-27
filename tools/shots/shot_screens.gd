@@ -375,5 +375,37 @@ func _run() -> void:
 		p.talk_to_near()
 	await _wait(20)
 	await _shot("relay-give")
+
+	# ㉕ 말 전하기 - 굽이나루 나루 가게 아저씨가 말을 맡기는 장면.
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("cap_guinaru")
+	p = await _open("res://scenes/journey/Gubinaru.tscn")
+	var cap: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "cap_guinaru":
+			cap = f
+	if cap != null and p.walker != null:
+		p.walker.global_position = cap.global_position + Vector2(0, 20)
+		p._near = cap
+		p.talk_to_near()
+	await _wait(20)
+	await _shot("relay-guinaru")
+
+	# ㉖ 말 전하기 - 꽃눈벌 까치가 말을 맡기는 장면.
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("kk_magpie")
+	p = await _open("res://scenes/journey/Kkonnunbeol.tscn")
+	var mag: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "kk_magpie":
+			mag = f
+	if mag != null and p.walker != null:
+		p.walker.global_position = mag.global_position + Vector2(0, 20)
+		p._near = mag
+		p.talk_to_near()
+	await _wait(20)
+	await _shot("relay-magpie")
 	if card != null:
 		card.queue_free()
