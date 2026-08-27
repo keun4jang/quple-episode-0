@@ -3990,6 +3990,14 @@ func _gather_ground_tests() -> void:
 func _relay_tests() -> void:
 	print("\n[말 전하기]")
 
+	# 배열 항목을 손으로 이어붙이는 자리라 쉼표가 겹치는(`},,`) 실수를
+	# 세 번이나 했다 - 그때마다 파일 전체가 파싱조차 안 돼 검사
+	# 820개가 몽땅 "Could not resolve class" 로 실패했다. 원인은 늘
+	# 바로 찾았지만, 그 흔한 실수를 이름까지 붙여 직접 잡아 둔다.
+	var qs := FileAccess.open("res://scripts/systems/quests.gd",
+		FileAccess.READ).get_as_text()
+	ok(not qs.contains("},,"), "관계 데이터에 쉼표가 겹친 자리가 없다")
+
 	# 마을·인연 셋이 다 같은 결로 도는지 하나씩 재본다.
 	await _relay_pair_test("가풀재_솔은재_계단고개",
 		"가풀재", "san_seal", "국수집 아저씨",
@@ -4006,6 +4014,9 @@ func _relay_tests() -> void:
 	await _relay_pair_test("하늬섬_굽이나루_오래걸린것",
 		"하늬섬", "do_seal", "귤 파는 할머니",
 		"굽이나루", "gu_otter", "돌 위의 수달", "오래")
+	await _relay_pair_test("솔은재_볕뉘_묵혀둔것",
+		"솔은재", "so_squirrel", "솔숲의 다람쥐",
+		"볕뉘", "ju_seal", "빵집 아주머니", "묵혀")
 
 	# 엉뚱한 사람에게는 안 새는지는 셋을 다 채운 뒤 한 번만 본다 -
 	# 서로 안 섞이는지가 핵심이라 개별 쌍보다 여기서 보는 게 낫다.

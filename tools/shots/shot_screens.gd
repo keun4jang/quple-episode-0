@@ -439,5 +439,21 @@ func _run() -> void:
 		p.talk_to_near()
 	await _wait(20)
 	await _shot("relay-doseal")
+
+	# ㉙ 말 전하기 - 솔은재 다람쥐가 말을 맡기는 장면.
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("so_squirrel")
+	p = await _open("res://scenes/journey/Soleunjae.tscn")
+	var sq: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "so_squirrel":
+			sq = f
+	if sq != null and p.walker != null:
+		p.walker.global_position = sq.global_position + Vector2(0, 20)
+		p._near = sq
+		p.talk_to_near()
+	await _wait(20)
+	await _shot("relay-squirrel")
 	if card != null:
 		card.queue_free()
