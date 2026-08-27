@@ -3769,3 +3769,44 @@ func _gather_ground_tests() -> void:
 	yun.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
+
+	# ── 갈밭머리 갈밭 속 ──────────────────────────────────────────────
+	#
+	# 같은 씬을 마을만 갈아 끼워 쓴다. **다른 점 하나** - 갈밭머리는
+	# ORDER 마을이고, `Quests.LOCAL` 의 "마을마다 딱 하나씩" 규칙을
+	# 이미 "빈자리까지 걸어 보기" 가 쓰고 있다. 거기에 또 하나를
+	# 목록 줄로 얹으면 "일곱 개, 여덟 개로 늘리면 체크리스트가 된다"
+	# 는 그 문서의 경고를 넘는다. 그래서 **목록에 안 올린다** - 문은
+	# 걸어서 찾을 수 있게 열어 두되, 화살표로 떠밀지 않는 조용한 자리로
+	# 남긴다.
+	JourneyState.reset()
+	JourneyState.here = "갈밭머리"
+	JourneyState.exit_scene = "res://scenes/journey/Galbatmeori.tscn"
+	JourneyState.exit_tile = Vector2i(11, 9)
+	var gb: Place = load("res://scenes/journey/interiors/GatherGround.tscn").instantiate()
+	add_child(gb)
+	await get_tree().process_frame
+	ok(gb.place_name() == "갈밭 속", "갈밭머리에서 들어가면 갈밭 속이다 (%s)" % gb.place_name())
+	ok(gb._loose.size() == 2, "갈댓잎·갈꽃 둘이 오늘 놓여 있다")
+	gb.queue_free()
+	await get_tree().process_frame
+
+	var gal: Place = load(GOAL_SCENES["갈밭머리"]).instantiate()
+	add_child(gal)
+	await get_tree().process_frame
+	var gd2: Dictionary = {}
+	for d in gal.doors():
+		if String(d.get("enter_key", "")) == "갈밭속":
+			gd2 = d
+	ok(not gd2.is_empty(), "갈밭머리에 갈밭 속으로 들어가는 문이 있다")
+	ok(String(gd2.get("scene", "")).ends_with("GatherGround.tscn"),
+		"그 문은 GatherGround 로 이어진다")
+	# 목록에는 안 올라온다 - "하나만 더한다" 규칙을 지킨다.
+	var listed := false
+	for row in Quests.quest_list("갈밭머리"):
+		if String(row.get("label", "")).contains("갈밭 속"):
+			listed = true
+	ok(not listed, "목록에는 안 올라온다 (마을당 하나만 더하는 규칙)")
+	gal.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()

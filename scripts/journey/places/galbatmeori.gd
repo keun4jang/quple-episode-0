@@ -73,6 +73,8 @@ func props() -> Array:
 		# ── 전망대 쉼터 (갈매기의 자리)
 		[23, 15, "bench", true],
 		[18, 16, "pebbles", false],
+		# ── 갈밭 속으로 들어가는 자리 ─────────────────────────────
+		[11, 9, "beach-grass", false],
 	]
 
 
@@ -117,6 +119,13 @@ func doors() -> Array:
 		"tile": Vector2i(36, 5),
 		"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 		"label": "가게 들어가기",
+	}, {
+		# 갈대가 유난히 빽빽한 안쪽. 문이 아니라 "들어가는 자리" 라
+		# `enter_key` 를 따로 준다 (`GatherGround` 가 완료 표시를
+		# 안쪽 자리에서 낸다).
+		"tile": Vector2i(11, 10),
+		"scene": "res://scenes/journey/interiors/GatherGround.tscn",
+		"label": "갈밭 속으로 들어가기", "enter_key": "갈밭속",
 	}]
 
 

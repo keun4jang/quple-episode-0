@@ -300,5 +300,14 @@ func _run() -> void:
 		p.walker.global_position = p.world_of(Vector2i(20, 8))
 	await _wait(30)
 	await _shot("yunseul-gather-door")
+
+	# ⑱ 채집터 - 갈밭 속. 물길과 갈댓잎·갈꽃이 자리에 보이는지.
+	JourneyState.reset()
+	JourneyState.here = "갈밭머리"
+	JourneyState.exit_scene = "res://scenes/journey/Galbatmeori.tscn"
+	JourneyState.exit_tile = Vector2i(11, 9)
+	p = await _open("res://scenes/journey/interiors/GatherGround.tscn")
+	await _wait(20)
+	await _shot("gather-galbat")
 	if card != null:
 		card.queue_free()

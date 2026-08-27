@@ -135,3 +135,40 @@ for x, y in [(3, 9), (4, 8), (5, 7), (6, 6), (7, 5)]:
 for x, y in [(2, 10), (3, 8), (5, 6)]:
     px[(x, y)] = hi
 save("p-conch", px)
+
+
+# ── 갈댓잎 — 길고 가는 잎 하나가 휘어 있다. 미역(물결)과 달리 곧고
+# 뾰족해야 한다.
+px = {}
+line = hx("#5C6B2E")
+body = hx("#8FAE4A")
+hi = hx("#B8D473")
+LEAF = [(7, 1), (7, 2), (6, 3), (6, 4), (5, 5), (5, 6), (4, 7), (4, 8),
+        (3, 9), (3, 10), (2, 11), (2, 12), (1, 13)]
+for x, y in LEAF:
+    px[(x, y)] = body
+    px[(x + 1, y)] = hi if y % 4 == 1 else body
+for x, y in LEAF:
+    px[(x - 1, y)] = line
+    px[(x + 2, y)] = line
+save("p-reed-leaf", px)
+
+
+# ── 갈꽃 — 이삭 끝이 부풀어 오른 억새꽃. 줄기는 곧고 가늘게,
+# 끝의 깃털만 부풀린다.
+px = {}
+stem = hx("#7A6A3E")
+fluff = hx("#E8DCC0")
+fluff_sh = hx("#C9B98F")
+for y in range(9, 15):
+    px[(7, y)] = stem
+px[(6, 14)] = stem
+# 깃털 - 위로 갈수록 좁아지는 타원 실루엣
+ROWS = [(6, 8, 3), (5, 8, 4), (5, 9, 5), (5, 9, 6), (6, 8, 7), (6, 8, 8)]
+for a, b, y in ROWS:
+    for x in range(a, b + 1):
+        px[(x, y)] = fluff
+    px[(a, y)] = fluff_sh
+    px[(b, y)] = fluff_sh
+px[(7, 2)] = fluff
+save("p-reed-plume", px)

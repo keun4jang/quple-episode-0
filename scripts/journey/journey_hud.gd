@@ -66,6 +66,7 @@ const NAMES := {
 	"p-pinecone": "솔방울", "p-acorn": "도토리", "p-feather": "깃털",
 	"p-shell": "조개", "p-seaglass": "바다유리",
 	"p-seaweed": "미역", "p-conch": "소라",
+	"p-reed-leaf": "갈댓잎", "p-reed-plume": "갈꽃",
 	"map": "지도", "camera": "카메라",
 	# 마을 선반에서 챙긴 기념품 (`Items.SHELF`)
 	"k-marble": "유리구슬",

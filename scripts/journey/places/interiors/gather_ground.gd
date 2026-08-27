@@ -39,6 +39,60 @@ extends Place
 ## 재미가 확인되면 그때 하나씩 채운다(`docs/CLAUDE.md` 의 1탄 우선순위와
 ## 같은 결 — 한 곳을 제대로 만들고 넓힌다).
 const GROUNDS := {
+	"갈밭머리": {
+		"name": "갈밭 속",
+		"legend": {"y": "dry-grass", "w": "water"},
+		"solid": ["water"],
+		"ambient": "",
+		"spawn": [5, 16],
+		# 얕은 물길 하나가 대각선으로 가로지른다 - 갈밭머리 본 지도의
+		# "얕은 물길 둘" 을 여기 축소판으로 이어받는다.
+		"rows": [
+			"yyyywwyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+			"yyyyywwyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+			"yyyyyywwyyyyyyyyyyyyyyyyyyyyyyyyyy",
+			"yyyyyyywwyyyyyyyyyyyyyyyyyyyyyyyyy",
+			"yyyyyyyywwyyyyyyyyyyyyyyyyyyyyyyyy",
+			"yyyyyyyyywwyyyyyyyyyyyyyyyyyyyyyyy",
+			"yyyyyyyyyywwyyyyyyyyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyywwyyyyyyyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyywwyyyyyyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyywwyyyyyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyywwyyyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyywwyyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyyywwyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyyyywwyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyyyyywwyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyyyyyywwyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyyyyyyywwyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyyyyyyyywwyyyyyyyyyy",
+		],
+		"props": [
+			# 갈대 무리. 물길 양쪽에 한두 칸씩 어긋나게.
+			[6, 4, "boulder", true],
+			[16, 9, "boulder", true],
+			[29, 15, "boulder", true],
+			[6, 10, "shrub", false],
+			[30, 10, "shrub", false],
+			[9, 2, "shrub", false],
+			[24, 16, "shrub", false],
+			[13, 14, "beach-grass", false],
+			[22, 5, "beach-grass", false],
+			# 들여다볼 자리(flavor) 밑에 깔 바위.
+			[17, 3, "boulder", true],
+		],
+		# 매일 다시 채워지는 자리. [x, y, item_id]
+		"spots": [
+			[7, 6, "p-reed-leaf"],
+			[26, 12, "p-reed-plume"],
+		],
+		# 들여다볼 것 하나.
+		"flavor": [17, 3, "바람이 지나간 자리", [
+			"갈대가 한쪽으로 눕듯 쓸려 있다.",
+			"방금 바람이 여기를 지나갔다는 뜻이다.",
+			"곧 다시 일어설 것이다.",
+		]],
+	},
 	"윤슬": {
 		"name": "갯바위",
 		"legend": {"s": "sand", "w": "water"},
@@ -101,6 +155,7 @@ const GROUNDS := {
 ## 어느 마을에서 들어왔나. 나갈 문에 적힌 씬 경로에서 되짚는다.
 const FROM_SCENE := {
 	"Yunseul": "윤슬",
+	"Galbatmeori": "갈밭머리",
 }
 
 
