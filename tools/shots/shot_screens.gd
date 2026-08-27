@@ -423,5 +423,21 @@ func _run() -> void:
 		p.talk_to_near()
 	await _wait(20)
 	await _shot("relay-gagull")
+
+	# ㉘ 말 전하기 - 하늬섬 귤 파는 할머니가 말을 맡기는 장면.
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("do_seal")
+	p = await _open("res://scenes/journey/Hanuiseom.tscn")
+	var seal2: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "do_seal":
+			seal2 = f
+	if seal2 != null and p.walker != null:
+		p.walker.global_position = seal2.global_position + Vector2(0, 20)
+		p._near = seal2
+		p.talk_to_near()
+	await _wait(20)
+	await _shot("relay-doseal")
 	if card != null:
 		card.queue_free()
