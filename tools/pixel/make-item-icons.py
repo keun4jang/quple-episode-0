@@ -172,3 +172,46 @@ for a, b, y in ROWS:
     px[(b, y)] = fluff_sh
 px[(7, 2)] = fluff
 save("p-reed-plume", px)
+
+
+# ── 귤 — 낙과만 줍는다(나무에서 안 딴다). 감(p-persimmon)과 실루엣이
+# 갈라야 한다 - 감은 위아래로 길쭉하고, 귤은 동그랗다.
+px = {}
+line = hx("#8A4A1E")
+body = hx("#E8912E")
+shade = hx("#C77420")
+hi = hx("#F7C878")
+leaf = hx("#4E7A3A")
+disc(px, 6, 8, 5, body, line)
+# 아래쪽을 살짝 짙게 - 둥근 부피감
+for y in range(9, 13):
+    for x in range(2, 11):
+        if px.get((x, y)) == body:
+            px[(x, y)] = shade
+px[(4, 5)] = hi
+px[(5, 5)] = hi
+# 꼭지 - 초록 잎 하나
+px[(6, 2)] = leaf
+px[(5, 3)] = leaf
+px[(7, 3)] = leaf
+save("p-tangerine", px)
+
+
+# ── 귤잎 — 끝이 뾰족한 길쭉한 타원. 갈댓잎(p-reed-leaf, 가늘고 대각선)
+# 과 달리 통통하고 짧다.
+px = {}
+line = hx("#3A5A2A")
+body = hx("#6FA050")
+hi = hx("#93C46E")
+LEAF = [(6, 6, 1), (5, 7, 2), (5, 8, 3), (4, 8, 4),
+        (4, 8, 5), (5, 7, 6), (5, 7, 7), (6, 7, 8),
+        (6, 6, 9)]
+for a, b, y in LEAF:
+    for x in range(a, b + 1):
+        px[(x, y)] = body
+    px[(a - 1, y)] = line
+    px[(b + 1, y)] = line
+# 가운데 잎맥
+for y in range(2, 9):
+    px[(6, y)] = hi
+save("p-citrus-leaf", px)

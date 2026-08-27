@@ -169,6 +169,8 @@ func props() -> Array:
 		[2, 13, "boulder", true],
 		[3, 10, "beach-grass", false],
 		[5, 9, "pine", true],
+		# ── 귤밭 뒤뜰로 들어가는 자리 ─────────────────────────────
+		[30, 13, "flower-pots", false],
 	]
 
 
@@ -226,6 +228,10 @@ func doors() -> Array:
 		{"tile": Vector2i(28, 7),
 			"scene": "res://scenes/journey/interiors/LighthouseInterior.tscn",
 			"label": "등대 들어가기", "enter_key": "등대안"},
+		# 시장 뒤편, 귤 파는 할머니 좌판 너머로 이어지는 뒤뜰.
+		{"tile": Vector2i(29, 13),
+			"scene": "res://scenes/journey/interiors/GatherGround.tscn",
+			"label": "귤밭 뒤뜰로 들어가기", "enter_key": "귤밭"},
 	]
 
 

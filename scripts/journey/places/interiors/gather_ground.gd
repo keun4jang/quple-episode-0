@@ -39,6 +39,63 @@ extends Place
 ## 재미가 확인되면 그때 하나씩 채운다(`docs/CLAUDE.md` 의 1탄 우선순위와
 ## 같은 결 — 한 곳을 제대로 만들고 넓힌다).
 const GROUNDS := {
+	"하늬섬": {
+		"name": "귤밭 뒤뜰",
+		"legend": {"g": "grass"},
+		"solid": [],
+		"ambient": "wind",
+		"spawn": [17, 16],
+		"rows": [
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+		],
+		"props": [
+			# 귤나무 열 그루. 한두 칸씩 어긋나게 - 사람이 심은 줄이라도
+			# 세월이 지나면 반듯하지 않다.
+			[6, 4, "tree", true],
+			[9, 3, "tree", true],
+			[13, 5, "tree", true],
+			[20, 4, "tree", true],
+			[24, 3, "tree", true],
+			[28, 5, "tree", true],
+			[8, 10, "tree", true],
+			[15, 11, "tree", true],
+			[22, 10, "tree", true],
+			[27, 9, "tree", true],
+			[11, 7, "shrub", false],
+			[25, 7, "shrub", false],
+			# 들여다볼 자리(flavor) 밑에 깔 돌담 - 하늬섬은 "검은 돌담과
+			# 바람" 이 그 섬의 정체다. 여기도 그 돌담이 이어져 있다.
+			[17, 3, "stone-wall", true],
+		],
+		# 매일 다시 채워지는 자리. [x, y, item_id]
+		"spots": [
+			[10, 7, "p-tangerine"],
+			[24, 8, "p-citrus-leaf"],
+		],
+		# 들여다볼 것 하나.
+		"flavor": [17, 3, "돌담이 이어진 자리", [
+			"바람을 막으려고 두른 돌담이 뒤뜰까지 이어져 있다.",
+			"귤나무는 바람을 싫어한다고 했다.",
+			"그래서 여기 심은 것이다.",
+		]],
+	},
 	"갈밭머리": {
 		"name": "갈밭 속",
 		"legend": {"y": "dry-grass", "w": "water"},
@@ -156,6 +213,7 @@ const GROUNDS := {
 const FROM_SCENE := {
 	"Yunseul": "윤슬",
 	"Galbatmeori": "갈밭머리",
+	"Hanuiseom": "하늬섬",
 }
 
 

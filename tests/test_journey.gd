@@ -3812,6 +3812,43 @@ func _gather_ground_tests() -> void:
 	await get_tree().process_frame
 	JourneyState.reset()
 
+	# ── 하늬섬 귤밭 뒤뜰 ──────────────────────────────────────────────
+	#
+	# 같은 씬, 세 번째 마을. 하늬섬도 ORDER 마을이고 "하나만 더한다"
+	# 규칙을 이미 "북쪽 언덕에 올라 바다 내려다보기" 가 쓰고 있다 -
+	# 갈밭머리와 같은 이유로 목록엔 안 올린다. 귤은 나무에서 안 딴다 -
+	# 낙과만 줍는다 (도토리·솔방울과 같은 결).
+	JourneyState.reset()
+	JourneyState.here = "하늬섬"
+	JourneyState.exit_scene = "res://scenes/journey/Hanuiseom.tscn"
+	JourneyState.exit_tile = Vector2i(29, 12)
+	var han: Place = load("res://scenes/journey/interiors/GatherGround.tscn").instantiate()
+	add_child(han)
+	await get_tree().process_frame
+	ok(han.place_name() == "귤밭 뒤뜰", "하늬섬에서 들어가면 귤밭 뒤뜰이다 (%s)" % han.place_name())
+	ok(han._loose.size() == 2, "귤·귤잎 둘이 오늘 놓여 있다")
+	han.queue_free()
+	await get_tree().process_frame
+
+	var hui: Place = load(GOAL_SCENES["하늬섬"]).instantiate()
+	add_child(hui)
+	await get_tree().process_frame
+	var gd3: Dictionary = {}
+	for d in hui.doors():
+		if String(d.get("enter_key", "")) == "귤밭":
+			gd3 = d
+	ok(not gd3.is_empty(), "하늬섬에 귤밭 뒤뜰로 들어가는 문이 있다")
+	ok(String(gd3.get("scene", "")).ends_with("GatherGround.tscn"),
+		"그 문은 GatherGround 로 이어진다")
+	var listed2 := false
+	for row2 in Quests.quest_list("하늬섬"):
+		if String(row2.get("label", "")).contains("귤밭"):
+			listed2 = true
+	ok(not listed2, "목록에는 안 올라온다 (마을당 하나만 더하는 규칙)")
+	hui.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
 
 # ── 그늘 자리 ─────────────────────────────────────────────────────────
 #

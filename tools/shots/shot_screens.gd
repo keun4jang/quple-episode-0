@@ -323,5 +323,14 @@ func _run() -> void:
 	p.talk_to_near()
 	await _wait(20)
 	await _shot("shade-say")
+
+	# ⑳ 채집터 - 귤밭 뒤뜰. 귤나무와 귤·귤잎이 자리에 보이는지.
+	JourneyState.reset()
+	JourneyState.here = "하늬섬"
+	JourneyState.exit_scene = "res://scenes/journey/Hanuiseom.tscn"
+	JourneyState.exit_tile = Vector2i(29, 12)
+	p = await _open("res://scenes/journey/interiors/GatherGround.tscn")
+	await _wait(20)
+	await _shot("gather-hanui")
 	if card != null:
 		card.queue_free()
