@@ -407,5 +407,21 @@ func _run() -> void:
 		p.talk_to_near()
 	await _wait(20)
 	await _shot("relay-magpie")
+
+	# ㉗ 말 전하기 - 갈밭머리 전망대 갈매기가 말을 맡기는 장면.
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("ga_gull")
+	p = await _open("res://scenes/journey/Galbatmeori.tscn")
+	var gull: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "ga_gull":
+			gull = f
+	if gull != null and p.walker != null:
+		p.walker.global_position = gull.global_position + Vector2(0, 20)
+		p._near = gull
+		p.talk_to_near()
+	await _wait(20)
+	await _shot("relay-gagull")
 	if card != null:
 		card.queue_free()
