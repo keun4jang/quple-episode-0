@@ -39,6 +39,61 @@ extends Place
 ## 재미가 확인되면 그때 하나씩 채운다(`docs/CLAUDE.md` 의 1탄 우선순위와
 ## 같은 결 — 한 곳을 제대로 만들고 넓힌다).
 const GROUNDS := {
+	"솔은재": {
+		"name": "솔밭 그늘",
+		"legend": {"g": "grass", "y": "dry-grass"},
+		"solid": [],
+		"ambient": "",
+		"spawn": [17, 16],
+		"rows": [
+			"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+			"gggggggggggggggggggggggggggggggggg",
+		],
+		"props": [
+			# 소나무 열 그루. 한두 칸씩 어긋나게 - 마을 본바닥과 같은 결.
+			[6, 4, "pine", true],
+			[10, 3, "pine", true],
+			[14, 5, "pine", true],
+			[20, 4, "pine", true],
+			[24, 3, "pine", true],
+			[28, 5, "pine", true],
+			[7, 10, "pine", true],
+			[16, 11, "pine", true],
+			[22, 10, "pine", true],
+			[27, 9, "pine", true],
+			[10, 8, "shrub", false],
+			[23, 7, "shrub", false],
+			# 들여다볼 자리(flavor) 밑에 깔 바위.
+			[17, 3, "boulder", true],
+		],
+		# 매일 다시 채워지는 자리. [x, y, item_id]
+		"spots": [
+			[9, 7, "p-mushroom"],
+			[25, 8, "p-pine-needle"],
+		],
+		# 들여다볼 것 하나.
+		"flavor": [17, 3, "이끼 낀 바위", [
+			"바위 한쪽에 이끼가 두툼하게 앉았다.",
+			"볕이 잘 안 드는 자리라는 뜻이다.",
+			"그래서 여름에도 여기는 서늘하다.",
+		]],
+	},
 	"볕뉘": {
 		"name": "감나무 밭",
 		"legend": {"d": "dirt"},
@@ -270,6 +325,7 @@ const FROM_SCENE := {
 	"Galbatmeori": "갈밭머리",
 	"Hanuiseom": "하늬섬",
 	"Byeotnwi": "볕뉘",
+	"Soleunjae": "솔은재",
 }
 
 

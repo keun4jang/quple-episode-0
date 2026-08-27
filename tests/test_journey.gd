@@ -3887,6 +3887,50 @@ func _gather_ground_tests() -> void:
 	await get_tree().process_frame
 	JourneyState.reset()
 
+	# ── 솔은재 솔밭 그늘 ──────────────────────────────────────────────
+	#
+	# 다섯 번째 마을. 솔은재는 이미 SidePathInterior("솔그늘 샛길")를
+	# 갖고 있다 - 문이 둘이라 `enter_key` 가 겹치면 안 된다. 그리고
+	# 그 샛길이 이미 "하나만 더한다" 규칙의 몫을 쓰고 있으니, 여기도
+	# 목록엔 안 올린다.
+	JourneyState.reset()
+	JourneyState.here = "솔은재"
+	JourneyState.exit_scene = "res://scenes/journey/Soleunjae.tscn"
+	JourneyState.exit_tile = Vector2i(6, 12)
+	var sol: Place = load("res://scenes/journey/interiors/GatherGround.tscn").instantiate()
+	add_child(sol)
+	await get_tree().process_frame
+	ok(sol.place_name() == "솔밭 그늘",
+		"솔은재에서 들어가면 솔밭 그늘이다 (%s)" % sol.place_name())
+	ok(sol._loose.size() == 2, "버섯·솔잎 둘이 오늘 놓여 있다")
+	sol.queue_free()
+	await get_tree().process_frame
+
+	var solv: Place = load(GOAL_SCENES["솔은재"]).instantiate()
+	add_child(solv)
+	await get_tree().process_frame
+	var gd5: Dictionary = {}
+	var gd_side: Dictionary = {}
+	for d in solv.doors():
+		if String(d.get("enter_key", "")) == "솔밭그늘":
+			gd5 = d
+		if String(d.get("enter_key", "")) == "샛길입구":
+			gd_side = d
+	ok(not gd5.is_empty(), "솔은재에 솔밭 그늘로 들어가는 문이 있다")
+	ok(String(gd5.get("scene", "")).ends_with("GatherGround.tscn"),
+		"그 문은 GatherGround 로 이어진다")
+	ok(not gd_side.is_empty() \
+			and String(gd_side.get("scene", "")).ends_with("SidePathInterior.tscn"),
+		"솔그늘 샛길 문은 그대로 남아 있다 (enter_key 가 안 겹쳤다)")
+	var listed4 := false
+	for row4 in Quests.quest_list("솔은재"):
+		if String(row4.get("label", "")).contains("솔밭 그늘"):
+			listed4 = true
+	ok(not listed4, "목록에는 안 올라온다 (마을당 하나만 더하는 규칙)")
+	solv.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
 
 # ── 그늘 자리 ─────────────────────────────────────────────────────────
 #

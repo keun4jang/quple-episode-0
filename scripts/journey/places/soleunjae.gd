@@ -144,6 +144,8 @@ func props() -> Array:
 		# ── 샛길 어귀 쉼터 (다람쥐의 자리)
 		[14, 8, "boulder", true],
 		[14, 12, "bench", true],
+		# ── 솔밭 그늘로 들어가는 자리 (서쪽 비탈) ────────────────────
+		[7, 12, "pebbles", false],
 	]
 
 
@@ -188,6 +190,11 @@ func doors() -> Array:
 		{"tile": Vector2i(20, 8),
 			"scene": "res://scenes/journey/interiors/SidePathInterior.tscn",
 			"label": "솔숲 사이로", "enter_key": "샛길입구"},
+		# 서쪽 비탈, 솔숲이 유난히 그늘진 자리. 샛길과는 다른 문이니
+		# `enter_key` 도 다르게 준다.
+		{"tile": Vector2i(6, 11),
+			"scene": "res://scenes/journey/interiors/GatherGround.tscn",
+			"label": "솔밭 그늘로 들어가기", "enter_key": "솔밭그늘"},
 	]
 
 

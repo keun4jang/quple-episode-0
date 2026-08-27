@@ -233,3 +233,46 @@ for a, b, y in LEAF:
 for y in range(1, 10):
     px[(6, y)] = hi
 save("p-persimmon-leaf", px)
+
+
+# ── 버섯 — 솔밭 그늘에서 돋는 것. 동그란 모자에 짧은 대.
+px = {}
+line = hx("#5C3A2E")
+cap = hx("#B8543E")
+cap_hi = hx("#D97858")
+stem = hx("#EDE0C8")
+CAP = [(3, 8, 4), (2, 9, 5), (1, 10, 6), (1, 10, 7)]
+for a, b, y in CAP:
+    for x in range(a, b + 1):
+        px[(x, y)] = cap
+    px[(a - 1, y)] = line
+    px[(b + 1, y)] = line
+px[(3, 5)] = cap_hi
+px[(7, 6)] = cap_hi
+for y in range(8, 12):
+    for x in range(4, 8):
+        px[(x, y)] = stem
+    px[(3, y)] = line
+    px[(8, y)] = line
+for x in range(3, 9):
+    px[(x, 12)] = line
+save("p-mushroom", px)
+
+
+# ── 솔잎 — 솔방울(p-pinecone, 둥글다)과 갈라지게, 가는 바늘잎 한
+# 뭉치가 한 점에서 갈라져 나온다. 점을 듬성듬성 찍으면 흩어진
+# 점무늬로 보인다 - 한 칸씩 이어 **선**으로 그린다.
+px = {}
+needle = hx("#4E8A5E")
+hi = hx("#7BB86E")
+
+def line_to(x0, y0, x1, y1, col):
+    steps = max(abs(x1 - x0), abs(y1 - y0))
+    for i in range(steps + 1):
+        t = i / float(steps)
+        px[(round(x0 + (x1 - x0) * t), round(y0 + (y1 - y0) * t))] = col
+
+BASE = (7, 13)
+for tip, col in [((7, 1), needle), ((1, 4), hi), ((13, 4), needle)]:
+    line_to(BASE[0], BASE[1], tip[0], tip[1], col)
+save("p-pine-needle", px)
