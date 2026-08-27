@@ -1906,6 +1906,11 @@ func talk_to_near() -> void:
 	# **무엇을 들고 왔는지 본다.** 그냥 또 말 거는 것과, 무언가를
 	# 손에 쥐고 찾아오는 것은 다른 일이다 (`Quests.KNOT`).
 	var extra := _knot_on_talk(f)
+	# 말 전하기. 매듭 대사가 없을 때만 본다 - 윤슬 매듭 대사와
+	# 겹칠 일이 없게 순서를 정해 둔다. 소품(is_spot)은 인연이 아니라
+	# 대상에서 뺀다.
+	if extra.is_empty() and not f.is_spot and f.folk_id != "":
+		extra = Quests.relay_line(place_name(), f.folk_id)
 	if not extra.is_empty():
 		what = extra
 	f.on_talked()

@@ -45,6 +45,7 @@ func _ready() -> void:
 	await _bed_note_tests()
 	await _gather_ground_tests()
 	await _shade_spot_tests()
+	await _relay_tests()
 	await _scene_load_tests()
 	await _minimap_kind_test()
 	_shop_skin_test()
@@ -3978,6 +3979,79 @@ func _gather_ground_tests() -> void:
 			listed5 = true
 	ok(not listed5, "목록에는 안 올라온다 (마을당 하나만 더하는 규칙)")
 	gpv.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+# ── 말 전하기 ─────────────────────────────────────────────────────────
+#
+# 아이템도 서브맵도 없다 - 인연 둘을 여행자가 잇는다. 가풀재 국수집
+# 아저씨가 맡긴 말을 솔은재 쉼터 아저씨에게 전한다.
+
+func _relay_tests() -> void:
+	print("\n[말 전하기]")
+	JourneyState.reset()
+
+	# ① 아직 안 친하면 말을 안 맡긴다
+	ok(Quests.relay_line("가풀재", "san_seal").is_empty(),
+		"처음 보면 아무 말도 안 맡긴다")
+
+	# ② 마음을 다 채우면 그제야 맡긴다
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("san_seal")
+	var give := Quests.relay_line("가풀재", "san_seal")
+	ok(not give.is_empty(), "마음을 다 채우면 말을 맡긴다 (%s)" % str(give))
+	ok(Quests.relay_given("가풀재_솔은재_계단고개"), "맡긴 것으로 남는다")
+
+	# ③ 한 번 맡기면 또 안 맡긴다 (되풀이 안 함)
+	ok(Quests.relay_line("가풀재", "san_seal").is_empty(),
+		"두 번째로 말 걸면 이미 맡긴 말은 다시 안 준다")
+
+	# ④ 엉뚱한 사람에게는 안 전해진다 - 마을과 이름이 다 맞아야 한다
+	ok(Quests.relay_line("솔은재", "so_squirrel").is_empty(),
+		"받을 사람이 아니면 아무 말도 없다")
+	ok(Quests.relay_line("윤슬", "seal").is_empty(),
+		"엉뚱한 마을의 같은 이름에도 안 전해진다")
+
+	# ⑤ 받을 사람에게 가면 전해진다
+	var deliver := Quests.relay_line("솔은재", "cap_sol")
+	ok(not deliver.is_empty(), "솔은재 쉼터 아저씨에게 가면 말이 전해진다 (%s)" % str(deliver))
+	ok(Quests.relay_delivered("가풀재_솔은재_계단고개"), "전한 것으로 남는다")
+
+	# ⑥ 한 번 전하면 또 안 전한다
+	ok(Quests.relay_line("솔은재", "cap_sol").is_empty(),
+		"두 번째로 말 걸면 이미 전한 말은 다시 안 나온다")
+
+	# ⑦ 체크리스트가 아니다 - 목록 어디에도 안 뜬다
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("san_seal")
+	var listed := false
+	for row in Quests.quest_list("가풀재"):
+		if String(row.get("label", "")).contains("계단") \
+				or String(row.get("label", "")).contains("전하"):
+			listed = true
+	ok(not listed, "목록에는 안 올라온다")
+
+	# ⑧ 실제로 말을 걸면 그 대사가 나온다 (place.talk_to_near 경로)
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("san_seal")
+	var gp2: Place = load(GOAL_SCENES["가풀재"]).instantiate()
+	add_child(gp2)
+	await get_tree().process_frame
+	var seal: Folk = null
+	for f in gp2._folk:
+		if is_instance_valid(f) and f.folk_id == "san_seal":
+			seal = f
+	ok(seal != null, "국수집 아저씨를 찾았다")
+	gp2._near = seal
+	gp2.walker.global_position = seal.global_position + Vector2(0, 20)
+	gp2.talk_to_near()
+	await get_tree().process_frame
+	ok(String(gp2.say._said[0].get("text", "")).contains("계단"),
+		"실제로 말을 걸면 그 말이 대사창에 뜬다 (%s)"
+			% gp2.say._said[0].get("text", ""))
+	gp2.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
 

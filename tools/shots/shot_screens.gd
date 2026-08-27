@@ -359,5 +359,21 @@ func _run() -> void:
 	p = await _open("res://scenes/journey/interiors/ShadeSpot.tscn")
 	await _wait(20)
 	await _shot("shade-gapuljae")
+
+	# ㉔ 말 전하기 - 가풀재 국수집 아저씨가 말을 맡기는 장면.
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("san_seal")
+	p = await _open("res://scenes/journey/Gapuljae.tscn")
+	var seal: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "san_seal":
+			seal = f
+	if seal != null and p.walker != null:
+		p.walker.global_position = seal.global_position + Vector2(0, 20)
+		p._near = seal
+		p.talk_to_near()
+	await _wait(20)
+	await _shot("relay-give")
 	if card != null:
 		card.queue_free()

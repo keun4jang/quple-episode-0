@@ -505,6 +505,71 @@ static func row_id(item: Dictionary) -> String:
 	return "%s:%s" % [item.get("kind", ""), item.get("key", "")]
 
 
+## 말 전하기 — 인연 둘을 잇는다. 아이템도 서브맵도 없다.
+##
+## 여태 마을 밖 한 걸음(채집터·그늘 자리)은 죄다 **자리**를 하나 더
+## 두는 방식이었다. 이건 다르다 - 자리가 아니라 **인연 둘 사이**를
+## 여행자가 잇는다. 대부분의 인연은 제 마을을 못 떠난다("나는 여기서
+## 태어났어요", "나는 여기 말고 가 본 데가 없어요") - 그런데
+## 여행자는 다닌다. 그 다니는 것 자체가 이 미니 퀘스트의 전부다.
+##
+## 지키는 선:
+## - **체크리스트가 아니다.** 목록에도 화살표에도 안 올린다 - 다음에
+##   그 인연을 만났을 때 조용히 끼어드는 대사 한 줄일 뿐이다
+## - **아이템이 없다.** 손에 쥐는 것도, 배낭에 남는 것도 없다.
+##   말 그 자체를 들고 다닌다
+## - **다 채워야 하는 게 아니다.** 안 만나면 그 말은 그냥 안 전해질
+##   뿐이다. 벌이 없다
+##
+## 맡기는 쪽은 **마음을 다 채운 다음**에야 말을 맡긴다 - 처음 본
+## 사람에게 남 얘기를 부탁하지 않는다.
+const RELAYS := [
+	{
+		"id": "가풀재_솔은재_계단고개",
+		"from_village": "가풀재", "from_npc": "san_seal",
+		"to_village": "솔은재", "to_npc": "cap_sol",
+		"give": [
+			"요새 계단 오르내리기가 영 힘들어.",
+			"혹시 솔은재 들르거든, 거기 쉼터 아저씨한테",
+			"'계단보다 고개가 낫다고 놀리더라' 라고 좀 전해 줘.",
+		],
+		"deliver": [
+			"허, 계단보다 고개가 낫다고?",
+			"그 양반 여전하네.",
+			"다음에 만나면 나도 한마디 해야겠어.",
+		],
+	},
+]
+
+
+static func relay_given(id: String) -> bool:
+	return JourneyState.quest_done("말:%s:받음" % id)
+
+
+static func relay_delivered(id: String) -> bool:
+	return JourneyState.quest_done("말:%s:전함" % id)
+
+
+## 그 인연에게 말을 걸 때 끼어들 말이 있나. 두 갈래다 - 아직 안
+## 맡긴 말을 맡기거나(from), 맡아 온 말을 전하거나(to). `Place`
+## 어디서든 마을 이름과 지금 말 거는 인연의 이름만 넘기면 된다 -
+## 새 서브맵도, 새 저장 칸도 필요 없다(기존 `quest_flags` 를 쓴다).
+static func relay_line(village: String, npc_id: String) -> Array:
+	if npc_id == "":
+		return []
+	for r in RELAYS:
+		if String(r["from_village"]) == village and String(r["from_npc"]) == npc_id \
+				and not relay_given(String(r["id"])) \
+				and JourneyState.heart(npc_id) >= JourneyState.HEART_MAX:
+			JourneyState.mark_quest("말:%s:받음" % r["id"])
+			return r["give"]
+		if String(r["to_village"]) == village and String(r["to_npc"]) == npc_id \
+				and relay_given(String(r["id"])) and not relay_delivered(String(r["id"])):
+			JourneyState.mark_quest("말:%s:전함" % r["id"])
+			return r["deliver"]
+	return []
+
+
 static func quest_list(village: String) -> Array:
 	# 프롤로그(쿼카컴퍼니가 있는 잿마루)에도 할 일을 둔다.
 	#
