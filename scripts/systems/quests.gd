@@ -455,6 +455,54 @@ static func village_cleared(village: String) -> bool:
 	return true    # 고향 등 목록 밖 장소는 늘 "클리어"로 친다
 
 
+## 이 마을을 여는 데 **앞 마을에서 아직 남은 것.**
+## `{"village": 앞마을, "need": 더 해야 하는 개수, "first": 그중 하나의 이름}`
+## 잠긴 곳이 아니거나 앞 마을을 이미 다 했으면 빈 사전.
+##
+## 여행판이 이걸 문장으로 옮겨 적는다. 여태 여행판이 제 손으로
+## "안 끝난 것의 **첫 하나**" 를 뽑아 썼는데, 그러면 두 가지가 어긋났다 —
+##
+## - **개수가 틀렸다.** 매듭 마을은 100% 가 아니라 이야기 하나와 샛길
+##   둘이면 열린다(`village_cleared`). 안 끝난 것이 다섯 줄 남아 있어도
+##   실제로 더 해야 하는 건 셋일 수 있다
+## - **하나만 보여 줘서** 그것만 하면 열리는 줄 알게 된다. 하고 나면
+##   줄이 다음 것으로 바뀌어, 목표가 계속 미끄러지는 것처럼 보인다
+##
+## 그래서 셈은 여기서 한다 — 조건을 아는 곳이 여기다.
+static func unlock_todo(village: String) -> Dictionary:
+	var idx: int = ORDER.find(village)
+	if idx <= 0:
+		return {}
+	var prev: String = String(ORDER[idx - 1])
+	if village_cleared(prev):
+		return {}
+	var need := 0
+	var first := ""
+	if KNOT.has(prev):
+		# 이야기 한 줄(지금 이어가는 단계) + 모자란 샛길 수.
+		if not knot_done(prev):
+			need += 1
+			var steps: Array = KNOT[prev]["steps"]
+			first = String((steps[mini(knot_at(prev), steps.size() - 1)] as Dictionary)["label"])
+		var short: int = maxi(0, SIDES_NEEDED - sides_done(prev))
+		need += short
+		if short > 0 and first == "":
+			for e in SIDE[prev]:
+				if not side_done(prev, String(e["key"])):
+					first = String(e["label"])
+					break
+	else:
+		for q in quest_list(prev):
+			if bool(q.get("done", false)):
+				continue
+			need += 1
+			if first == "":
+				first = String(q.get("label", ""))
+	if need <= 0:
+		return {}
+	return {"village": prev, "need": need, "first": first}
+
+
 ## 마을마다 물범·갈매기·카피바라를 부르는 이름. 화면에 보여 줄 때만 쓴다.
 const FOLK_NAME := {
 	"ju_seal": "빵집 아주머니", "ju_kid": "능 지키는 아이",

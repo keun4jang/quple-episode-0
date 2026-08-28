@@ -92,8 +92,11 @@ func _ready() -> void:
 	JourneyState.picked.connect(_on_picked)
 	# 편지가 온 걸 알 길이 소리 하나뿐이었다 — 도착 연출과 겹치면
 	# 그마저 묻힌다. 한 줄로 조용히 알린다. 배낭 점도 같이 켜진다.
+	# 편지는 마을에 닿는 순간에 오므로 **덮개가 걷힐 때까지 기다린다**
+	# (`_say_hint` 의 patient) - 안 그러면 도착 카드 밑에 깔린다.
 	JourneyState.letter_came.connect(
-		func(_t: String) -> void: _say_hint("편지가 왔어요. 배낭에 넣어 뒀어요."))
+		func(_t: String) -> void:
+			_say_hint("편지가 왔어요. 배낭에 넣어 뒀어요.", true, 2.2))
 	set_process(true)
 
 
@@ -930,13 +933,26 @@ func _with_josa(word: String) -> String:
 ## **줄을 세운다.** 마지막 것을 주우면 "조약돌 주웠어요" 와 "떨어진 것 다
 ## 줍기, 다 했어요" 가 같은 프레임에 겹쳐, 앞엣것이 뜨자마자 지워졌다.
 ## 하나씩 차례로 보여 준다.
-var _hint_queue: Array[String] = []
+## [{text, patient, hold}]
+var _hint_queue: Array = []
 var _hint_busy := false
 
-func _say_hint(text: String) -> void:
+## 한 줄 띄웠다 지운다.
+##
+## `patient` 은 **화면 가운데가 덮여 있으면 걷힐 때까지 기다린다**는 뜻이다.
+## 마을에 닿자마자 뜨는 안내(재회·편지)가 그렇다 — 그때 화면은 씬 전환
+## 암전이 덜 걷혔고, 마을 이름과 해볼 일을 적은 도착 카드가 3.6초 동안
+## 가운데를 덮고 있다. 그 밑에서 1.6초를 떴다 지는 바람에, **게임의
+## 심장인 재회를 알리는 유일한 표시**가 아무도 못 보고 사라졌다.
+## 얻은 것·축하 카드는 이미 같은 게이트를 쓴다 (`_center_covered`).
+##
+## 기본값이 `false` 인 이유: 배낭을 열어 할 일을 접었을 때의
+## "지도에 살짝 접어 두었어요" 처럼 **덮인 채로 떠야 맞는** 안내가 있다.
+## 그 답을 배낭이 닫힐 때까지 미루면 누른 보람이 사라진다.
+func _say_hint(text: String, patient := false, hold := 1.1) -> void:
 	if _hint == null:
 		return
-	_hint_queue.append(text)
+	_hint_queue.append({"text": text, "patient": patient, "hold": hold})
 	if not _hint_busy:
 		_drain_hints()
 
@@ -947,11 +963,18 @@ func _drain_hints() -> void:
 	if _hint_queue.is_empty():
 		_hint_busy = false
 		return
+	var head: Dictionary = _hint_queue[0]
+	if bool(head.get("patient", false)) and _center_covered():
+		# 아직 덮여 있다. 줄을 그대로 두고 물러난다 — `_process` 가
+		# 덮개가 걷힌 프레임에 다시 부른다.
+		_hint_busy = false
+		return
 	_hint_busy = true
-	Wrap.put(_hint, String(_hint_queue.pop_front()))
+	_hint_queue.pop_front()
+	Wrap.put(_hint, String(head.get("text", "")))
 	_hint.modulate.a = 1.0
 	var tw := create_tween()
-	tw.tween_interval(1.1)
+	tw.tween_interval(float(head.get("hold", 1.1)))
 	tw.tween_property(_hint, "modulate:a", 0.0, 0.5)
 	tw.tween_callback(_drain_hints)
 
@@ -1004,8 +1027,13 @@ func _center_covered() -> bool:
 				return true
 	if bag_open():
 		return true
-	# 도착 카드(마을 이름 + 해볼 일)도 같은 자리를 쓴다
+	# 도착 카드(마을 이름 + 해볼 일)도 같은 자리를 쓴다.
+	# **아직 나타나는 중인 것도 덮은 것으로 친다** — 카드는 0에서
+	# 밝아지므로, 페이드인 첫 순간에는 알파만 봐서는 "안 덮였다" 로
+	# 읽힌다. 그 틈에 안내가 빠져나가 카드 밑에 깔렸다.
 	if _place_title != null and _place_title.modulate.a > 0.05:
+		return true
+	if _title_tw != null and _title_tw.is_valid() and _title_tw.is_running():
 		return true
 	return false
 
@@ -1189,6 +1217,8 @@ func _process(delta: float) -> void:
 	if (not _got_queue.is_empty() or not _cele_queue.is_empty()) \
 			and not _got_busy and not _cele_busy:
 		_drain_center()          # 덮개가 걷혔으면 그때 띄운다
+	if not _hint_queue.is_empty() and not _hint_busy:
+		_drain_hints()           # 기다리던 안내도 같이 (patient)
 	var list := Quests.quest_list(_quest_village())
 	_watch_done(list)
 	_tick_task_strip()

@@ -132,26 +132,33 @@ func open(from_place: String) -> void:
 		var b := Button.new()
 		var been := JourneyState.visited.has(name)
 		var unlocked := Quests.is_unlocked(name)
-		# 다녀온 곳은 조용히 표시한다. 안 가 본 곳을 굳이 부추기지 않는다.
-		var tail := "  ·  " + String(entry[1]) if String(entry[1]) != "" else ""
-		if not unlocked:
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		if unlocked:
+			# 다녀온 곳은 조용히 표시한다. 안 가 본 곳을 굳이 부추기지 않는다.
+			var tail := "  ·  " + String(entry[1]) if String(entry[1]) != "" else ""
+			b.text = name + tail
+			b.custom_minimum_size = Vector2(0, 84)
+			b.add_theme_font_size_override("font_size", 32)
+			# 넘치면 자른다 — 안 그러면 버튼의 최소 폭이 글 길이만큼
+			# 자라 판을 화면 밖으로 밀어낸다.
+			b.clip_text = true
+		else:
 			# **지운 게 아니라 흐리게.** 다음이 있다는 걸 알아야 기대가
 			# 생긴다 — 아예 안 보이면 그냥 이 마을이 끝인 줄 안다.
 			#
-			# 그리고 **무엇이 남았는지 적는다.** "아직 더 볼 게 있는 것
-			# 같다" 한 줄만으로는 뭘 더 해야 하는지 알 길이 없어서, 다 한
-			# 줄 알고 눌렀다가 안 넘어가면 고장으로 읽힌다. 남은 것 하나를
-			# 그대로 보여 준다 — 배낭을 열어 찾아 헤매지 않아도 되게.
-			tail = "  ·  " + _blocking_line(name)
-		b.text = name + tail
-		b.custom_minimum_size = Vector2(0, 84)
-		# 잠긴 줄은 글이 길다. 글자를 줄이고 넘치면 자른다 — 안 그러면
-		# 버튼의 최소 폭이 글 길이만큼 자라 판을 화면 밖으로 밀어낸다.
-		# **줄바꿈(autowrap)은 쓰면 안 된다.** 버튼에 켜니 최소 높이가
-		# 무너져 목록이 통째로 한 덩어리로 뭉갰다.
-		b.add_theme_font_size_override("font_size", 32 if unlocked else 24)
-		b.clip_text = true
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			# **두 줄로 나눈다.** 여태 한 줄에 가운뎃점으로만 이어 붙여서
+			# "볕뉘 · 윤슬 · 이야기 2/3 · 저녁에 등대곶에서 불 켜진 등대 사진
+			# 남기기" 가 됐다 — 열린 줄("윤슬 · 바다와 등대")과 서식이 같아서
+			# 어느 게 갈 곳이고 어느 게 조건인지 읽을 수가 없었다. 그
+			# 아주머니가 저 마을에 산다는 소개글로 읽힌다. 게다가 끝은
+			# `clip_text` 로 잘려 나갔다.
+			#
+			# 이제 위는 마을 이름만, 아래는 **문장**이다. 2탄 해금 조건도
+			# 이 줄로만 전해지니 여기가 안 읽히면 해금 전체가 안 읽힌다.
+			b.text = ""              # 글은 아래 두 줄이 대신 그린다
+			b.custom_minimum_size = Vector2(0, 108)
+			b.modulate.a = 0.55
+			_locked_lines(b, name)
 		_style(b, not been)
 		if unlocked:
 			b.pressed.connect(_pick.bind(String(entry[0])))
@@ -159,7 +166,6 @@ func open(from_place: String) -> void:
 			# **완전히 죽여 두지 않는다.** 눌러도 반응이 없으면 "고장인가?"
 			# 가 된다는 지적을 받았다 — 화나게 하지 않으면서도 눌렀다는
 			# 건 알려준다. 살짝 흔들리고, 이미 적혀 있는 글줄이 그 대답이다.
-			b.modulate.a = 0.55
 			b.pressed.connect(_shake.bind(b))
 		_list.add_child(b)
 	visible = true
@@ -175,23 +181,62 @@ func _fit_panel() -> void:
 	_panel.offset_bottom = h * 0.5
 
 
-## 이 곳을 여는 데 아직 남은 것 한 줄.
+## 잠긴 줄의 글 두 줄을 버튼 안에 그린다. 위는 마을 이름, 아래는
+## 여는 조건을 적은 **문장**.
 ##
-## `Quests.ORDER` 에서 바로 앞 마을이 이 곳의 자물쇠다. 그 마을에서
-## 아직 안 끝난 첫 항목을 적는다.
+## 버튼의 `text` 는 비워 두고 자식으로 얹는다 — 버튼 글은 한 줄뿐이라
+## 두 층을 만들 수가 없다. 자식은 눌림을 안 먹게(`MOUSE_FILTER_IGNORE`)
+## 두어야 버튼이 그대로 눌린다.
+func _locked_lines(b: Button, name: String) -> void:
+	var col := VBoxContainer.new()
+	col.set_anchors_preset(Control.PRESET_FULL_RECT)
+	col.offset_left = 20
+	col.offset_right = -20
+	col.offset_top = 12
+	col.offset_bottom = -12
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_theme_constant_override("separation", 2)
+	b.add_child(col)
+
+	var top := Label.new()
+	top.text = name
+	top.add_theme_font_size_override("font_size", 30)
+	top.add_theme_color_override("font_color", Color("#3A2C2C"))
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(top)
+
+	var sub := Label.new()
+	sub.text = _blocking_line(name)
+	sub.add_theme_font_size_override("font_size", 20)
+	sub.add_theme_color_override("font_color", Color("#6B5B4E"))
+	# 이쪽은 **줄바꿈을 켠다.** 버튼이 아니라 라벨이라 최소 높이가 안
+	# 무너진다. 잘라 내는 것보다 두 줄로 접히는 편이 낫다 — 문장 끝
+	# ("열려요")이 잘리면 조건인 줄도 모르게 된다.
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(sub)
+
+
+## 이 곳을 여는 조건 한 문장.
+##
+## **개수까지 적는다.** 남은 것 하나만 보여 주면 그것만 하면 열리는 줄
+## 알게 되고, 하고 나면 줄이 다음 것으로 바뀌어 목표가 미끄러진다.
+## 몇 개가 남았는지는 `Quests.unlock_todo` 가 센다 — 매듭 마을은 100% 가
+## 아니라 이야기 하나와 샛길 둘이면 열리므로, 안 끝난 줄 수와 다르다.
 func _blocking_line(name: String) -> String:
-	var idx: int = Quests.ORDER.find(name)
-	if idx <= 0:
+	var todo := Quests.unlock_todo(name)
+	if todo.is_empty():
 		return "아직 더 볼 게 있는 것 같다"
-	var prev: String = String(Quests.ORDER[idx - 1])
-	var left: Array = []
-	for q in Quests.quest_list(prev):
-		if not bool(q.get("done", false)):
-			left.append(String(q.get("label", "")))
-	if left.is_empty():
-		return "아직 더 볼 게 있는 것 같다"
-	# 짧게. 버튼 한 줄에 들어가야 한다 — 길면 판이 화면 밖으로 자란다.
-	return "%s · %s" % [prev, left[0]]
+	var where := String(todo["village"])
+	var need := int(todo["need"])
+	var first := String(todo["first"])
+	if first == "":
+		return "%s에서 %d가지를 더 하면 열려요" % [where, need]
+	if need <= 1:
+		# 조사를 안 붙인다 — 받침에 따라 을/를 이 갈리는데 할 일 이름은
+		# 그때그때 다르다 (`CLAUDE.md` 는 글자 하나까지 본다).
+		return "%s에서 %s 하나만 더 하면 열려요" % [where, first]
+	return "%s에서 %s 외 %d가지를 더 하면 열려요" % [where, first, need - 1]
 
 
 ## 잠긴 곳을 눌렀을 때. 화나게 하지 않되, 눌렀다는 건 알려준다.

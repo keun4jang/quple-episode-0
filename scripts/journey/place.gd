@@ -3040,8 +3040,13 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 		# **재회가 온 줄은 알아야 한다.** 여태는 알아서 발견하지 못하면
 		# 조용히 지나갔다 — 게임의 심장이 뛰었는데 아무도 몰랐다.
 		# 가리키지는 않는다. 낯익다는 말 한 줄이면 둘러보게 된다.
+		#
+		# **기다렸다 띄운다**(patient). 여기는 지도를 까는 중이라, 그냥
+		# 띄우면 씬 전환 암전과 도착 카드(3.6초) 밑에서 1.6초를 떴다
+		# 진다 — 알리려고 넣은 줄이 정작 제일 안 보이는 순간에 떴다.
+		# 덮개가 걷힌 뒤에, 조금 더 오래 머문다.
 		if hud != null:
-			hud.call("_say_hint", "낯익은 얼굴이 보여요.")
+			hud.call("_say_hint", "낯익은 얼굴이 보여요.", true, 3.0)
 		JourneyState.reunions += 1
 		JourneyState.since_reunion = 0
 		var nth: int = JourneyState.reunions - 1

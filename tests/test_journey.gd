@@ -27,6 +27,7 @@ func _ready() -> void:
 	await _first_map_guide_tests()
 	await _yunseul_clear_tests()
 	await _locked_reason_tests()
+	await _patient_hint_tests()
 	await _indoor_quest_tests()
 	await _door_tap_tests()
 	await _reunion2_tests()
@@ -1841,6 +1842,16 @@ func _side_path_tests() -> void:
 # **도착하자마자 우르르 뜨면 안 된다.** 마을에 들어서면 이미 해 둔
 # 것들이 다 "방금 끝났다" 로 보일 수 있어서, 기준을 조용히 새로 잡는다.
 
+## 도착 카드를 걷어 낸다. 가운데를 덮고 있으면 축하도 안내도 줄에서
+## 기다리므로(`JourneyHud._center_covered`), 그 **내용**을 보려는
+## 검사는 카드를 치우고 시작해야 한다.
+func _uncover(hud: JourneyHud) -> void:
+	if hud._title_tw != null and hud._title_tw.is_valid():
+		hud._title_tw.kill()
+	hud._place_title.modulate.a = 0.0
+	hud._arrive_task.modulate.a = 0.0
+
+
 func _done_toast_tests() -> void:
 	print("\n[마친 표시]")
 	JourneyState.reset()
@@ -1859,7 +1870,14 @@ func _done_toast_tests() -> void:
 	# 여기서 하나를 새로 마치면 그때 가운데 잔치가 뜬다.
 	JourneyState.mark_quest("솔은재:가게")
 	hud._watch_done(Quests.quest_list("솔은재"))
-	ok(hud._cele_busy, "새로 마치면 축하가 뜬다")
+	# **도착 카드 밑에서는 기다린다.** 방금 마을에 들어섰으므로 마을
+	# 이름 카드가 가운데를 3.6초 동안 덮고 있다 - 그 밑에 띄우면 글자가
+	# 서로 뭉갠다 (`_center_covered`). 줄에 서 있다가 걷힌 뒤에 뜬다.
+	ok(not hud._cele_busy and not hud._cele_queue.is_empty(),
+		"도착 카드가 덮고 있는 동안은 줄에서 기다린다")
+	_uncover(hud)
+	hud._drain_center()
+	ok(hud._cele_busy, "덮개가 걷히면 축하가 뜬다")
 	ok(hud._cele_big.text == "다 했어요!",
 		"마쳤다고 크게 적는다 (%s)" % hud._cele_big.text)
 	ok(hud._cele_sub.text.begins_with("가게 들어가 보기"),
@@ -2150,6 +2168,55 @@ func _yunseul_clear_tests() -> void:
 	JourneyState.reset()
 
 
+## 도착하자마자 뜨는 안내가 **도착 카드 밑에 깔려 사라지지 않는가.**
+##
+## 재회를 알리는 표시는 "낯익은 얼굴이 보여요" 한 줄뿐인데, 그 줄이
+## 마을 지도를 까는 중에 큐에 들어간다. 그때 화면 가운데에는 마을 이름과
+## 해볼 일을 적은 도착 카드가 3.6초 동안 떠 있고, 씬 전환 암전도 덜
+## 걷혔다. 게이트가 없던 시절엔 그 밑에서 1.6초를 떴다 져서, **게임의
+## 심장인 재회가 온 줄을 아무도 모른 채** 마을을 떠날 수 있었다.
+func _patient_hint_tests() -> void:
+	print("\n[도착 안내가 안 묻히는가]")
+	JourneyState.reset()
+	var hud := JourneyHud.new()
+	add_child(hud)
+	await get_tree().process_frame
+
+	# 도착 카드를 띄워 가운데를 덮는다.
+	hud.announce_place("윤슬")
+	await get_tree().process_frame
+	ok(hud._center_covered(), "도착 카드가 가운데를 덮고 있다")
+
+	# 그 밑에서 재회 안내가 들어온다.
+	hud._say_hint("낯익은 얼굴이 보여요.", true, 3.0)
+	await get_tree().process_frame
+	ok(hud._hint_queue.size() == 1, "덮여 있으면 줄에서 기다린다")
+	ok(hud._hint.modulate.a < 0.05, "덮인 채로 뜨지는 않는다")
+
+	# 덮개가 걷히면 그제야 뜬다.
+	hud._place_title.modulate.a = 0.0
+	hud._title_tw = null
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(hud._hint_queue.is_empty(), "덮개가 걷히면 줄에서 나온다")
+	ok(String(hud._hint.text).contains("낯익은"),
+		"그제야 재회 안내가 뜬다 (%s)" % hud._hint.text)
+
+	# **급한 안내는 안 기다린다.** 배낭에서 할 일을 접었을 때의 대답은
+	# 덮인 채로 떠야 맞는다 - 미루면 누른 보람이 사라진다.
+	hud._hint_queue.clear()
+	hud._hint_busy = false
+	hud.announce_place("볕뉘")
+	await get_tree().process_frame
+	hud._say_hint("지도에 살짝 접어 두었어요.")
+	await get_tree().process_frame
+	ok(hud._hint_queue.is_empty(), "덮여 있어도 급한 안내는 바로 뜬다")
+
+	hud.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 ## 잠긴 여행지가 **무엇 때문에 잠겼는지** 적는가.
 ##
 ## "아직 더 볼 게 있는 것 같다" 한 줄만으로는 뭘 더 해야 하는지 알 수
@@ -2165,8 +2232,24 @@ func _locked_reason_tests() -> void:
 	ok(line.contains("윤슬"), "무슨 마을이 걸렸는지 적는다 (%s)" % line)
 	ok(line.contains("지도") or line.contains("인사"),
 		"남은 것을 그대로 적는다 (%s)" % line)
+	# **문장이어야 한다.** 여태 "볕뉘 · 윤슬 · 이야기 2/3 · ..." 처럼
+	# 가운뎃점으로만 이어 붙여서, 어느 게 갈 곳이고 어느 게 조건인지
+	# 읽을 수가 없었다. 매듭 라벨의 "이야기 n/n ·" 접두어까지 새어
+	# 들어와 점이 넷이 됐다.
+	ok(line.ends_with("열려요"), "조건을 문장으로 적는다 (%s)" % line)
+	ok(not line.contains("이야기 "), "매듭 접두어가 안 새어 든다 (%s)" % line)
+	ok(line.count(" · ") == 0, "가운뎃점 나열이 아니다 (%s)" % line)
 
-	# 하나만 남으면 그 하나를 콕 집는다.
+	# **개수를 정직하게 센다.** 매듭 마을은 100% 가 아니라 이야기 하나와
+	# 샛길 둘이면 열린다 - 안 끝난 줄 수(여섯)와 실제 남은 수(셋)가 다르다.
+	var todo := Quests.unlock_todo("볕뉘")
+	ok(int(todo.get("need", 0)) == 3,
+		"이야기 하나 + 샛길 둘 = 셋으로 센다 (%s)" % todo)
+
+	# 매듭만 남기고 샛길 하나를 채워 둔다. 이때 남은 것은 **둘**이다 -
+	# 매듭 셋째 단계와 모자란 샛길 하나. 여태는 첫 줄 하나만 보여 줘서
+	# 그것만 하면 열리는 줄 알게 했고, 하고 나면 줄이 바뀌어 목표가
+	# 미끄러지는 것처럼 보였다.
 	JourneyState.pick("map")
 	JourneyState.pick("camera")
 	JourneyState.mark_quest("윤슬:가게")
@@ -2177,14 +2260,22 @@ func _locked_reason_tests() -> void:
 	JourneyState.mark_quest("윤슬:등대@저녁")
 	for i in Quests.PICKUP_TOTAL["윤슬"]:
 		JourneyState.taken["윤슬:%d,1" % i] = true
+	var two := b._blocking_line("볕뉘")
+	ok(int(Quests.unlock_todo("볕뉘").get("need", 0)) == 2,
+		"매듭 셋째와 샛길 하나, 둘이 남았다고 센다 (%s)" % two)
+	ok(two.contains("바다유리"), "남은 것 하나를 콕 집어 준다 (%s)" % two)
+	ok(two.contains("외 1가지"), "나머지가 더 있다는 것도 적는다 (%s)" % two)
+
+	# 샛길을 채우면 정말로 하나만 남는다. 그때만 "하나만" 이라고 한다.
+	JourneyState.mark_quest("윤슬:등대안")
 	var one := b._blocking_line("볕뉘")
 	ok(one.contains("바다유리"), "하나 남으면 그것만 적는다 (%s)" % one)
-	ok(not one.contains("외 "), "하나뿐이면 '외 n가지' 를 안 붙인다")
+	ok(not one.contains("외 "), "하나뿐이면 '외 n가지' 를 안 붙인다 (%s)" % one)
 
 	# 다 하면 잠금이 풀리니 이 줄은 안 쓰인다.
-	JourneyState.mark_quest("윤슬:등대안")
 	JourneyState.mark_quest("윤슬:매듭:3")
 	ok(Quests.is_unlocked("볕뉘"), "다 하면 볕뉘가 열린다")
+	ok(Quests.unlock_todo("볕뉘").is_empty(), "열린 뒤에는 셀 것이 없다")
 
 	# ORDER 첫 곳은 걸릴 앞 마을이 없다.
 	ok(b._blocking_line("윤슬") == "아직 더 볼 게 있는 것 같다",
@@ -2241,6 +2332,9 @@ func _indoor_quest_tests() -> void:
 			said = String(q[1])
 	ok(said.contains("가게에 들어가"),
 		"들어온 순간 가게 샛길 축하가 뜬다 (%s)" % said)
+	# 여기도 방금 들어선 참이라 도착 카드가 덮고 있다 - 걷어 주면 돈다.
+	_uncover(hud)
+	hud._drain_center()
 	ok(hud._cele_busy, "축하가 실제로 돌고 있다")
 
 	shop.queue_free()
