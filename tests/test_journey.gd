@@ -48,6 +48,7 @@ func _ready() -> void:
 	await _bed_note_tests()
 	_knot_arrow_tests()
 	await _wait_action_tests()
+	_gather_reach_tests()
 	await _gather_ground_tests()
 	await _shade_spot_tests()
 	await _relay_tests()
@@ -4029,6 +4030,63 @@ func _wait_action_tests() -> void:
 # - 체크리스트가 아니다 (`Quests.quest_list()` 에 줄이 없다)
 # - 벌이 없다 (몇 개 채웠는지 세지 않는다, 하나만 들고 오면 된다)
 # - 매일 다시 채워진다 (도감이 아니라 "다시 와 볼 이유")
+
+## 채집터마다 **들어선 자리에서 걸어서 다 닿는가.**
+##
+## 갈밭 속의 물길이 대각선으로 지도를 끝까지 가로질러서, 612칸 중
+## 233칸만 걸을 수 있었다 — 갈꽃 하나와 유일한 들여다볼 자리가 둘 다
+## 건너편에 갇혀 있었다. 두 칸 폭이라 대각으로 비껴 갈 수 있을 것
+## 같지만, 막는 것은 칸 단위 바닥이라 모서리로만 닿은 자리는 못
+## 지나간다 (`CLAUDE.md`). 게다가 못 줍는 갈꽃이 `_loose` 에 남아
+## `open_goals` 가 계속 "여기서 뭐라도 건져 보기" 를 돌려주는 바람에,
+## 금색 화살표가 **영영** 물 건너 갈꽃을 가리켰다 — 나가는 문 안내로도
+## 못 넘어갔다.
+##
+## **눈으로는 못 잡는다.** 바닥만 놓고 물 채우기로 잰다.
+func _gather_reach_tests() -> void:
+	print("\n[채집터에 다 닿는가]")
+	for v in GatherGround.GROUNDS:
+		var c: Dictionary = GatherGround.GROUNDS[v]
+		var rows: Array = c["rows"]
+		var solid: Array = c["solid"]
+		var legend: Dictionary = c["legend"]
+		var h := rows.size()
+		var w := String(rows[0]).length()
+		var sp: Array = c["spawn"]
+		var seen := {}
+		var start := Vector2i(int(sp[0]), int(sp[1]))
+		var q: Array = [start]
+		seen[start] = true
+		while not q.is_empty():
+			var cur: Vector2i = q.pop_back()
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n: Vector2i = cur + d
+				if seen.has(n) or n.x < 0 or n.y < 0 or n.x >= w or n.y >= h:
+					continue
+				var ch := String(rows[n.y]).substr(n.x, 1)
+				if solid.has(String(legend.get(ch, ch))):
+					continue
+				seen[n] = true
+				q.append(n)
+		var bad: Array = []
+		for s in c.get("spots", []):
+			var t := Vector2i(int(s[0]), int(s[1]))
+			if not seen.has(t):
+				bad.append("줍기 %s(%s)" % [t, s[2]])
+		if c.has("flavor"):
+			var fl: Array = c["flavor"]
+			var t2 := Vector2i(int(fl[0]), int(fl[1]))
+			# 들여다볼 자리는 그 칸이나 둘레 어디든 서면 된다.
+			var reach: bool = seen.has(t2)
+			for d2 in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if seen.has(t2 + d2):
+					reach = true
+			if not reach:
+				bad.append("들여다볼 자리 %s" % t2)
+		ok(bad.is_empty(), "%s(%s): 걸어서 다 닿는다 (%d/%d칸)%s"
+			% [v, c["name"], seen.size(), w * h,
+				"" if bad.is_empty() else " — 못 닿음 " + str(bad)])
+
 
 func _gather_ground_tests() -> void:
 	print("\n[채집터]")

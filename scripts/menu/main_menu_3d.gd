@@ -231,8 +231,10 @@ func _capture_shot() -> void:
 
 # ─── 스토리 전환 ───
 func _on_start() -> void:
-	# 프롤로그(쿼카컴퍼니)를 이미 지나온 적이 있으면 건너뛸지 물어본다
-	if SaveManager.has_seen_prologue():
+	# **여태 다닌 기록이 있으면 반드시 물어본다.** 두 갈래 다
+	# `_start_new()` 로 가서 `JourneyState.reset()` 뒤에 곧바로 덮어쓰므로,
+	# 안 물어보고 지나가면 며칠치가 말없이 없어진다.
+	if SaveManager.has_save() or SaveManager.has_seen_prologue():
 		_ask_skip_prologue()
 		return
 	_start_new(false)
@@ -259,44 +261,70 @@ func _ask_skip_prologue() -> void:
 
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 24)
+
+	# **여태 다닌 기록이 지워진다고 먼저 말한다.** 여기 있는 두 갈래는
+	# 다 `JourneyState.reset()` 뒤에 곧바로 저장을 덮어쓴다. 그런데
+	# 여태 이 창은 프롤로그를 건너뛸지만 물었다 — "건너뛰고 여행 시작"
+	# 은 그저 앞 장면을 넘긴다는 뜻으로 읽힌다. 게다가 메인 화면에서
+	# "새 여행 시작" 이 "이어하기" 바로 위라, 이어하려던 손이
+	# 며칠치를 날릴 수 있었다.
+	var save := SaveManager.peek_save()
 	var t := Label.new()
-	t.text = "처음 이야기를 이미 보셨어요"
+	t.text = "여태 다닌 기록이 지워져요" if not save.is_empty() \
+		else "처음 이야기를 이미 보셨어요"
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.add_theme_font_size_override("font_size", 46)
 	t.add_theme_color_override("font_color", Color(1, 0.95, 0.80))
 	v.add_child(t)
+
 	var d := Label.new()
-	d.text = "처음 이야기를 건너뛰고\n바로 떠날까요?"
+	if save.is_empty():
+		d.text = "처음 이야기를 건너뛰고\n바로 떠날까요?"
+	else:
+		# 무엇이 없어지는지 **숫자로** 적는다. "기록이 지워져요" 보다
+		# "닷새째, 세 군데" 가 손을 멈추게 한다. 이어하려던 것이면
+		# 여기서 알아챈다.
+		var days := int(save.get("day", 1))
+		var places := int(save.get("places", 0))
+		var what := "%d일째" % days
+		if places > 0:
+			what += ", 다녀온 곳 %d군데" % places
+		d.text = "%s 까지 온 여행이 있어요.\n새로 시작하면 그건 없어져요.\n이어서 하시려면 아래 '아직 아니에요' 를 누르고\n'이어하기' 를 골라 주세요." % what
 	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	d.add_theme_font_size_override("font_size", 36)
+	d.add_theme_font_size_override("font_size", 32 if not save.is_empty() else 36)
 	d.add_theme_color_override("font_color", Color(0.88, 0.85, 1.0))
 	v.add_child(d)
 
+	# **무를 수 있어야 한다.** 실수로 "새 여행 시작" 을 눌렀을 때
+	# 빠져나갈 길이 없으면 그건 사고다. 기록이 있으면 이 안전한 쪽을
+	# **맨 위, 제일 크게** 둔다 — 지우는 두 버튼보다 먼저 손에 닿게.
+	var back := Button.new()
+	back.text = "아직 아니에요"
+	back.custom_minimum_size = Vector2(0, 104 if not save.is_empty() else 84)
+	back.add_theme_font_size_override("font_size", 44 if not save.is_empty() else 38)
+	back.pressed.connect(func():
+		AudioManager.ui_click()
+		wrap.queue_free())
+	if not save.is_empty():
+		v.add_child(back)
+
 	var skip := Button.new()
-	skip.text = "건너뛰고 여행 시작"
+	skip.text = "지우고 여행 시작" if not save.is_empty() else "건너뛰고 여행 시작"
 	skip.custom_minimum_size = Vector2(0, 104)
 	skip.add_theme_font_size_override("font_size", 44)
 	skip.pressed.connect(func(): AudioManager.ui_confirm(); _start_new(true))
 	v.add_child(skip)
 
 	var play := Button.new()
-	play.text = "처음부터 다시 보기"
+	play.text = "지우고 처음부터 다시 보기" if not save.is_empty() \
+		else "처음부터 다시 보기"
 	play.custom_minimum_size = Vector2(0, 92)
 	play.add_theme_font_size_override("font_size", 44)
 	play.pressed.connect(func(): AudioManager.ui_click(); _start_new(false))
 	v.add_child(play)
 
-	# **무를 수 있어야 한다.** 두 버튼 다 `JourneyState.reset()` 으로 가서
-	# 여태 다닌 기록을 그 자리에서 덮어쓴다. 실수로 "새 여행 시작" 을
-	# 눌렀을 때 빠져나갈 길이 없으면 그건 사고다.
-	var back := Button.new()
-	back.text = "아직 아니에요"
-	back.custom_minimum_size = Vector2(0, 84)
-	back.add_theme_font_size_override("font_size", 38)
-	back.pressed.connect(func():
-		AudioManager.ui_click()
-		wrap.queue_free())
-	v.add_child(back)
+	if save.is_empty():
+		v.add_child(back)
 
 	wrap.add_child(v)
 	ctrl.add_child(wrap)

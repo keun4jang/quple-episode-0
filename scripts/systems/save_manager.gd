@@ -32,6 +32,27 @@ func autosave(current_scene: String) -> void:
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
+
+## 저장본을 **불러오지 않고** 요약만 들여다본다. `{day, places}`.
+##
+## "새 여행 시작" 이 여태 다닌 기록을 덮어쓰기 전에, 무엇이 없어지는지
+## 적어 주려고 쓴다 — "기록이 지워져요" 보다 "닷새째, 세 군데" 가
+## 손을 멈추게 한다. 저장이 없거나 읽을 수 없으면 빈 사전.
+func peek_save() -> Dictionary:
+	if not has_save():
+		return {}
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return {}
+	var d = cfg.get_value("journey", "data", {})
+	if typeof(d) != TYPE_DICTIONARY:
+		return {}
+	var visited = (d as Dictionary).get("visited", {})
+	return {
+		"day": maxi(1, int((d as Dictionary).get("day", 1))),
+		"places": (visited as Dictionary).size() if typeof(visited) == TYPE_DICTIONARY else 0,
+	}
+
 ## 저장. 도중에 앱이 꺼져도 기록이 깨지지 않게 3단계로 쓴다.
 ##   ① 임시 파일에 쓴다  ② 제대로 써졌는지 읽어서 확인  ③ 기존 것을 백업하고 교체
 func save_game(current_scene: String = "") -> void:

@@ -214,6 +214,13 @@ const GROUNDS := {
 		"spawn": [5, 16],
 		# 얕은 물길 하나가 대각선으로 가로지른다 - 갈밭머리 본 지도의
 		# "얕은 물길 둘" 을 여기 축소판으로 이어받는다.
+		#
+		# **가운데 한 줄은 여울이다.** 물길이 끝까지 이어져 있으면 지도가
+		# 통째로 두 쪽 난다 - 물길은 두 칸 폭이라 대각으로 비껴 갈 수
+		# 있을 것 같지만, 막는 것은 칸 단위 바닥이라 모서리로만 닿은
+		# 자리는 못 지나간다 (`CLAUDE.md`). 실제로 그래서 612칸 중
+		# 233칸만 걸을 수 있었고, 갈꽃과 들여다볼 자리가 둘 다 건너편에
+		# 갇혀 있었다. 화살표는 영영 그 갈꽃을 가리켰다.
 		"rows": [
 			"yyyywwyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
 			"yyyyywwyyyyyyyyyyyyyyyyyyyyyyyyyyy",
@@ -224,7 +231,8 @@ const GROUNDS := {
 			"yyyyyyyyyywwyyyyyyyyyyyyyyyyyyyyyy",
 			"yyyyyyyyyyywwyyyyyyyyyyyyyyyyyyyyy",
 			"yyyyyyyyyyyywwyyyyyyyyyyyyyyyyyyyy",
-			"yyyyyyyyyyyyywwyyyyyyyyyyyyyyyyyyy",
+			# 여울 - 여기서 물이 얕아져 건너간다. 조약돌을 깔아 둔다.
+			"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
 			"yyyyyyyyyyyyyyywwyyyyyyyyyyyyyyyyy",
 			"yyyyyyyyyyyyyyyywwyyyyyyyyyyyyyyyy",
 			"yyyyyyyyyyyyyyyyywwyyyyyyyyyyyyyyy",
@@ -245,6 +253,10 @@ const GROUNDS := {
 			[24, 16, "shrub", false],
 			[13, 14, "beach-grass", false],
 			[22, 5, "beach-grass", false],
+			# 여울에 조약돌. 물길이 여기서 끊긴 것이 우연이 아니라
+			# 건너는 자리라는 게 보여야 한다.
+			[14, 9, "pebbles", false],
+			[16, 9, "pebbles", false],
 			# 들여다볼 자리(flavor) 밑에 깔 바위.
 			[17, 3, "boulder", true],
 		],

@@ -70,5 +70,36 @@ func _ready() -> void:
 	ck("파일이 지워진다", not SaveManager.has_save())
 	ck("들고 있던 것도 비워진다", JourneyState.total() == 0)
 
+	# ── [6] 새 여행 시작이 말없이 덮어쓰지 않는가 ──────────────────────
+	#
+	# "새 여행 시작" 의 두 갈래는 다 `JourneyState.reset()` 뒤에 곧바로
+	# 저장을 덮어쓴다. 그런데 물어보는 창은 프롤로그를 건너뛸지만
+	# 물었고, 메인 화면에서 그 버튼이 "이어하기" 바로 위였다 —
+	# 이어하려던 손이 며칠치를 날릴 수 있었다.
+	print("\n[6] 새 여행 시작이 기록을 말없이 안 지운다")
+	SaveManager.clear_save()
+	JourneyState.reset()
+	JourneyState.day = 5
+	JourneyState.visit("윤슬")
+	JourneyState.visit("볕뉘")
+	JourneyState.visit("가풀재")
+	SaveManager.save_game("res://scenes/journey/Gapuljae.tscn")
+
+	# 불러오지 않고도 무엇이 없어지는지 알 수 있어야 경고를 적는다.
+	var peek := SaveManager.peek_save()
+	ck("저장본을 안 불러와도 들여다볼 수 있다", not peek.is_empty())
+	ck("며칠째인지 읽는다 (%s)" % peek.get("day", "?"), int(peek.get("day", 0)) == 5)
+	ck("몇 군데 다녔는지 읽는다 (%s)" % peek.get("places", "?"),
+		int(peek.get("places", 0)) == 3)
+	# 들여다보는 것만으로 지금 상태가 바뀌면 안 된다.
+	JourneyState.reset()
+	SaveManager.peek_save()
+	ck("들여다봐도 저장본은 그대로다", SaveManager.has_save())
+	ck("들여다봐도 지금 상태는 안 건드린다", JourneyState.day == 1)
+
+	# 저장이 없으면 빈 사전 — 그때는 경고할 것도 없다.
+	SaveManager.clear_save()
+	ck("저장이 없으면 빈 사전", SaveManager.peek_save().is_empty())
+
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(1 if fail_n > 0 else 0)
