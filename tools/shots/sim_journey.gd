@@ -97,12 +97,19 @@ func _ready() -> void:
 	ok(JourneyState.wanderer_place == "볕뉘",
 		"세 번째 떠남에서 여행자와 겹친다 (%s)" % JourneyState.wanderer_place)
 	await _go("res://scenes/journey/Byeotnwi.tscn")
-	ok(JourneyState.is_reunion("볕뉘") == false, "도착하면 이미 만난 것으로 친다")
+	# **도착만으로는 아직 안 만난 것이다.** 재회 대사는 저장되지 않는
+	# `Folk.once` 에만 담기므로, 닿는 순간 다 만난 것으로 쳐 버리면
+	# 말을 안 걸고 떠나거나 앱을 껐다 켠 사람은 그 대본을 영영 못 본다
+	# (`JourneyState.tell_reunion`).
+	ok(JourneyState.is_reunion("볕뉘"), "도착해도 말을 걸기 전까진 재회가 남아 있다")
+	var told0 := JourneyState.reunions
 	await _walk_to(place.wanderer_tile(), 22.0)
 	place.talk_to_near()
 	await get_tree().process_frame
 	var first_line := place.say._full
 	ok(first_line.contains("또 봐요"), "재회 인사를 한다: %s" % first_line)
+	ok(JourneyState.reunions == told0 + 1, "말을 걸어야 재회로 센다")
+	ok(JourneyState.is_reunion("볕뉘") == false, "인사를 나눴으면 그것으로 끝이다")
 	await _clear_say()
 
 	# 세 곳을 채워 편지를 받는다

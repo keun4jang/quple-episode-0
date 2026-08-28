@@ -1944,7 +1944,14 @@ func talk_to_near() -> void:
 		var kind := f.spot_key.substr(3)
 		ShelfPanel.open(self, quest_village(), kind)
 		return
+	# 재회 대본이 걸려 있나. **말을 걸어야 한 단계 넘어간다** —
+	# `f.once` 는 저장되지 않으므로, 여기서 소모하지 않으면 못 보고
+	# 떠나거나 앱을 껐다 켠 사람은 그 대본을 영영 못 본다
+	# (`JourneyState.tell_reunion` 주석).
+	var was_reunion := f.wanderer and not f.once.is_empty()
 	var what := f.lines()
+	if was_reunion:
+		JourneyState.tell_reunion(place_name())
 	# **무엇을 들고 왔는지 본다.** 그냥 또 말 거는 것과, 무언가를
 	# 손에 쥐고 찾아오는 것은 다른 일이다 (`Quests.KNOT`).
 	var extra := _knot_on_talk(f)
@@ -3047,9 +3054,11 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 		# 덮개가 걷힌 뒤에, 조금 더 오래 머문다.
 		if hud != null:
 			hud.call("_say_hint", "낯익은 얼굴이 보여요.", true, 3.0)
-		JourneyState.reunions += 1
-		JourneyState.since_reunion = 0
-		var nth: int = JourneyState.reunions - 1
+		# **대본을 여기서 소모하지 않는다.** 지금 읽기만 하고, 실제로
+		# 말을 건 순간에 `JourneyState.tell_reunion()` 이 한 단계
+		# 넘긴다 (`Place.talk_to_near`). 안 그러면 못 보고 떠나거나
+		# 홈 버튼 한 번에 대본이 통째로 증발했다.
+		var nth: int = JourneyState.reunions
 		var script: Array
 		if nth < REUNION.size():
 			script = REUNION[nth]
@@ -3063,7 +3072,13 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 			once.append([who, l])
 		f.once = once
 		# 다시 만난 것 자체가 사건이다. 말을 안 걸어도 한 칸 는다.
-		JourneyState.warm(folk_id)
+		# **마을마다 한 번만.** 지도를 다시 깔 때(가게에 들락거릴 때)마다
+		# 오르면 안 된다 — 여태는 `last_met` 이 그걸 겸했는데, 그 줄이
+		# 말을 걸어야 적히는 것으로 바뀌었다.
+		if JourneyState.reunion_noticed != place_name():
+			JourneyState.reunion_noticed = place_name()
+			JourneyState.since_reunion = 0
+			JourneyState.warm(folk_id)
 	JourneyState.meet_wanderer(place_name())
 	return f
 

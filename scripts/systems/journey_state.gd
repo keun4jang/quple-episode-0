@@ -88,21 +88,63 @@ func wanderer_here(place: String) -> bool:
 	return wanderer_place == place
 
 
-## 마지막으로 만난 곳. 같은 곳에서 저장을 다시 불러도 재회가 두 번
-## 일어나지 않게 한다.
+## 마지막으로 **재회 인사를 나눈** 곳. 같은 곳에서 저장을 다시 불러도
+## 재회가 두 번 일어나지 않게 한다.
+##
+## **말을 건 순간에만 적는다.** 여태는 마을에 닿아 지도를 까는 순간
+## 적었는데, 그러면 재회 대본이 통째로 증발할 수 있었다 — 대본은
+## 저장되지 않는 `Folk.once` 에만 담기는데 이 줄은 저장되기 때문이다.
+## 셋만 어긋나면 됐다:
+##
+## - 너구리를 못 보고 마을을 떠나면 그 단계 대본이 그냥 사라졌다
+## - 말 걸기 전에 홈 버튼을 누르면(그 즉시 저장된다) 다시 켰을 때
+##   `is_reunion` 이 거짓이라 평소 대사만 나왔다
+## - 가게에 들어갔다 나오기만 해도 지도가 다시 깔리면서 같은 일이 났다
+##
+## 게임 전체에서 두 번뿐인 제목 대사가 든 셋째 재회 대본까지 그렇게
+## 조용히 없어질 수 있었다. 이제 **말을 걸어야 소모된다** — 안 만나고
+## 떠나면 다음 재회에서 같은 단계가 다시 나온다.
 var last_met := ""
 
 
 ## 전에 만난 적이 있는 이를 또 만났나. 어디서든 재회는 재회다 —
-## 단, 만난 그 자리에서 그대로면 재회가 아니라 그냥 같이 있는 것이다.
+## 단, 이미 여기서 재회 인사를 나눴으면 그냥 같이 있는 것이다.
+##
+## **다른 데서 만난 적이 있어야 재회다.** 여태는 이 판정을 `last_met`
+## 이 겸했다 — 마을에 닿는 순간 그 줄이 적히니 첫 만남도 저절로
+## 걸러졌다. 그 줄이 "말을 걸어야 적히는 것" 으로 바뀌었으므로,
+## 첫 만남인지는 여기서 직접 가린다.
 func is_reunion(place: String) -> bool:
-	return not wanderer_seen.is_empty() and wanderer_here(place) \
-		and place != last_met
+	if not wanderer_here(place) or place == last_met:
+		return false
+	for seen in wanderer_seen:
+		if String(seen) != place:
+			return true
+	return false
 
 
+## 그 자리에 여행자가 있었다는 것만 적는다. 말은 아직 안 걸었다.
+## 첫 만남 판정(`is_reunion` 의 `wanderer_seen`)이 이걸로 선다.
 func meet_wanderer(place: String) -> void:
 	wanderer_seen[place] = true
+
+
+## 재회 인사를 실제로 나눴다. 여기서 대본 한 단계가 소모된다.
+func tell_reunion(place: String) -> void:
+	if place == "" or place == last_met:
+		return
 	last_met = place
+	reunions += 1
+
+
+## 이 마을에서 **재회를 알아챈 것까지** 해 둔 곳. 말은 아직 안 걸었다.
+##
+## 마음 한 칸은 "다시 만난 것 자체가 사건이라" 말을 안 걸어도 오른다.
+## 그런데 그 판정을 `last_met` 이 겸하고 있던 것을 떼어 냈으므로
+## (`last_met` 은 이제 말을 걸어야 적힌다), 지도를 다시 깔 때마다
+## 마음이 오르지 않게 막을 표시가 따로 있어야 한다 — 가게에 들락거리면
+## 칸이 계속 차는 셈이 된다.
+var reunion_noticed := ""
 
 
 ## 몇 번 떠났나. 여행자를 옮기는 박자를 여기서 센다.
@@ -564,6 +606,7 @@ func to_dict() -> Dictionary:
 		"reunions": reunions,
 		"since_reunion": since_reunion,
 		"last_met": last_met,
+		"reunion_noticed": reunion_noticed,
 		"photos": photos.duplicate(true),
 		"exit_scene": exit_scene,
 		"exit_tile": [exit_tile.x, exit_tile.y],
@@ -655,6 +698,7 @@ func from_dict(d: Dictionary) -> void:
 	reunions = maxi(0, int(d.get("reunions", 0)))
 	since_reunion = maxi(0, int(d.get("since_reunion", 0)))
 	last_met = String(d.get("last_met", ""))
+	reunion_noticed = String(d.get("reunion_noticed", ""))
 	photos = d.get("photos", []).duplicate(true) if d.get("photos") is Array else []
 	_rename_old_quo()
 	exit_scene = String(d.get("exit_scene", ""))
@@ -698,6 +742,7 @@ func reset() -> void:
 	reunions = 0
 	since_reunion = 0
 	last_met = ""
+	reunion_noticed = ""
 	exit_scene = ""
 	exit_tile = Vector2i(-1, -1)
 	pending_spawn = Vector2i(-1, -1)

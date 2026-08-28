@@ -31,6 +31,7 @@ func _ready() -> void:
 	await _indoor_quest_tests()
 	await _door_tap_tests()
 	await _reunion2_tests()
+	await _reunion_keep_tests()
 	await _placement_lint_tests()
 	await _old_save_tests()
 	await _how_to_play_tests()
@@ -2400,8 +2401,95 @@ func _reunion2_tests() -> void:
 		if is_instance_valid(f) and f.folk_id == "raccoon":
 			rac = f
 	ok(rac != null, "너구리가 굽이나루에 서 있다")
-	ok(JourneyState.reunions >= 1, "재회로 센다 (%d)" % JourneyState.reunions)
+	ok(rac != null and not rac.once.is_empty(), "재회 대본이 걸려 있다")
+	ok(JourneyState.reunions == 0,
+		"닿기만 해서는 아직 안 센다 (%d)" % JourneyState.reunions)
+	p._near = rac
+	p.talk_to_near()
+	await get_tree().process_frame
+	ok(JourneyState.reunions >= 1, "말을 걸면 재회로 센다 (%d)" % JourneyState.reunions)
 	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 재회 대본이 **말을 걸기 전에 증발하지 않는가.**
+##
+## 대본은 저장되지 않는 `Folk.once` 에만 담기는데, 여태는 마을에 닿아
+## 지도를 까는 순간 `reunions` 와 `last_met` 을 적어 버렸다. 그래서 셋만
+## 어긋나면 그 단계가 통째로 사라졌다 — 못 보고 떠나거나, 홈 버튼을
+## 누르거나(그 즉시 저장된다), 가게에 들어갔다 나오기만 해도.
+## 게임 전체에서 두 번뿐인 제목 대사가 든 셋째 대본까지 그럴 수 있었다.
+func _reunion_keep_tests() -> void:
+	print("\n[재회 대본이 안 사라지나]")
+
+	# ── ① 가게에 들어갔다 나와도 (지도를 다시 깔아도) 남아 있다 ──
+	JourneyState.reset()
+	JourneyState.wanderer_seen["윤슬"] = true
+	JourneyState.wanderer_place = "굽이나루"
+	var heart0 := JourneyState.heart("raccoon")
+	var a: Place = load(GOAL_SCENES["굽이나루"]).instantiate()
+	add_child(a)
+	await get_tree().process_frame
+	ok(JourneyState.reunions == 0, "닿기만 해서는 안 센다")
+	ok(JourneyState.heart("raccoon") == heart0 + 1, "다시 만난 것만으로 한 칸 는다")
+	a.queue_free()
+	await get_tree().process_frame
+
+	var b: Place = load(GOAL_SCENES["굽이나루"]).instantiate()
+	add_child(b)
+	await get_tree().process_frame
+	var rac_b: Folk = null
+	for f in b._folk:
+		if is_instance_valid(f) and f.folk_id == "raccoon":
+			rac_b = f
+	ok(rac_b != null and not rac_b.once.is_empty(),
+		"지도를 다시 깔아도 대본이 그대로 있다")
+	ok(JourneyState.heart("raccoon") == heart0 + 1,
+		"그렇다고 마음이 또 오르지는 않는다 (%d)" % JourneyState.heart("raccoon"))
+	b.queue_free()
+	await get_tree().process_frame
+
+	# ── ② 저장했다 불러와도 남아 있다 (홈 버튼) ──
+	var saved := JourneyState.to_dict()
+	JourneyState.reset()
+	JourneyState.from_dict(saved)
+	ok(JourneyState.is_reunion("굽이나루"),
+		"껐다 켜도 재회가 그대로 기다린다")
+	var c: Place = load(GOAL_SCENES["굽이나루"]).instantiate()
+	add_child(c)
+	await get_tree().process_frame
+	var rac_c: Folk = null
+	for f in c._folk:
+		if is_instance_valid(f) and f.folk_id == "raccoon":
+			rac_c = f
+	ok(rac_c != null and not rac_c.once.is_empty(), "대본도 다시 걸린다")
+	c.queue_free()
+	await get_tree().process_frame
+
+	# ── ③ 안 만나고 떠나면 **같은 단계**가 다음 재회에서 다시 나온다 ──
+	JourneyState.wanderer_place = "방울못"
+	var d: Place = load(GOAL_SCENES["방울못"]).instantiate()
+	add_child(d)
+	await get_tree().process_frame
+	var rac_d: Folk = null
+	for f in d._folk:
+		if is_instance_valid(f) and f.folk_id == "raccoon":
+			rac_d = f
+	ok(rac_d != null and not rac_d.once.is_empty(), "다음 마을에서 다시 걸린다")
+	var said := ""
+	for l in (rac_d.once if rac_d != null else []):
+		said += String((l as Array)[1])
+	ok(said.contains("또 봐요"),
+		"건너뛴 그 첫 단계가 그대로 나온다 (%s)" % said)
+
+	# 여기서 말을 걸면 그때 한 단계 넘어간다.
+	d._near = rac_d
+	d.talk_to_near()
+	await get_tree().process_frame
+	ok(JourneyState.reunions == 1, "이제야 한 단계 넘어간다 (%d)" % JourneyState.reunions)
+	ok(not JourneyState.is_reunion("방울못"), "같은 자리에서 두 번 인사하지 않는다")
+	d.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
 
