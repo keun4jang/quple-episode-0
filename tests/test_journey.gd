@@ -43,6 +43,8 @@ func _ready() -> void:
 	_row_id_tests()
 	await _zone_note_tests()
 	await _bed_note_tests()
+	_knot_arrow_tests()
+	await _wait_action_tests()
 	await _gather_ground_tests()
 	await _shade_spot_tests()
 	await _relay_tests()
@@ -3669,6 +3671,70 @@ func _bed_note_tests() -> void:
 	for i in 30:
 		pl._bed_note()
 	ok(String(pl.hud._hint.text) == "", "하루에 한 번만 말한다")
+	pl.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 매듭 1은 "가게 할머니와 갈매기 소년에게 인사하기" — **둘**이다.
+## 화살표가 늘 할머니(seal)만 가리켜서, 할머니와 인사한 뒤에도 다음은
+## 소년인지 표시가 없었다. 지도(할머니 것)만 받은 상태면 화살표가
+## 소년으로 넘어가야 한다 (`Quests._knot_target_key`).
+func _knot_arrow_tests() -> void:
+	print("\n[매듭 화살표]")
+	JourneyState.reset()
+	ok(Quests.quest_list("윤슬")[0]["key"] == "seal",
+		"아직 아무도 안 만났으면 할머니를 가리킨다 (%s)"
+			% Quests.quest_list("윤슬")[0]["key"])
+	JourneyState.pick("map")
+	ok(Quests.quest_list("윤슬")[0]["key"] == "seagull",
+		"할머니와 인사했으면(지도를 받았으면) 소년을 가리킨다 (%s)"
+			% Quests.quest_list("윤슬")[0]["key"])
+	JourneyState.pick("camera")
+	ok(Quests.quest_list("윤슬")[0]["key"] != "seagull",
+		"둘 다 인사했으면 매듭이 다음 단계로 넘어간다 (%s)"
+			% Quests.quest_list("윤슬")[0]["key"])
+	JourneyState.reset()
+
+
+## 등대곶 "저녁에 다시 오세요" 를 실시간으로 서서 기다리게 했더니
+## 무리라는 말을 들었다. 그 자리에 서 있으면 **곧장 저녁으로 건너뛸
+## 수 있게** 했다 (`Place._can_wait` / `_do_wait` / `JourneyState.skip_to_day_part`).
+func _wait_action_tests() -> void:
+	print("\n[기다리기]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.here = "윤슬"
+	JourneyState.minutes = 9 * 60  # 아침 - 아직 등대곶에 불이 안 켜졌다
+	var pl: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(pl)
+	await get_tree().process_frame
+
+	# 매듭 2단계 "저녁에 등대곶에서 사진 남기기" 가 지금 때가 아니라
+	# 목록에는 있지만 `current_goal()`(화살표)은 다른 걸 짚는다 — 못 할
+	# 일을 안 가리키는 게 그 규칙이다. `_can_wait()` 은 그 규칙과 반대로
+	# **바로 그 기다리는 항목**을 찾아야 한다 (`Place._current_wait`).
+	var listed := false
+	for q in pl.open_goals():
+		if String(q.get("key", "")) == "윤슬:등대" and bool(q.get("waiting", false)):
+			listed = true
+	ok(listed, "등대곶 사진이 '아직 때가 아님'으로 목록에 남아 있다")
+
+	# 등대곶에서 멀리 있으면 기다릴 수 없다.
+	pl.walker.global_position = pl.world_of(Vector2i(2, 2))
+	ok(not pl._can_wait(), "등대곶에서 멀면 기다리기가 안 뜬다")
+
+	# 등대곶 자리(31,5)에 서면 기다릴 수 있고, 눌렀을 때 저녁이 된다.
+	pl.walker.global_position = pl.world_of(Vector2i(31, 5))
+	ok(pl._can_wait(), "등대곶에 서면 기다리기가 뜬다")
+	pl._do_wait()
+	ok(JourneyState.day_part() == "저녁", "기다리면 곧장 저녁이 된다")
+
+	# 아침으로 되돌리진 않는다 - 이미 지난 시간대는 그대로 둔다.
+	JourneyState.minutes = 22 * 60
+	ok(not pl._can_wait(), "저녁을 이미 지났으면 더 기다릴 게 없다")
+
 	pl.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()

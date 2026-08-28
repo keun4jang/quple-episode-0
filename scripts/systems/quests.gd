@@ -198,6 +198,18 @@ static func knot_step_done(village: String, i: int) -> bool:
 	return JourneyState.quest_done(String(st["key"]))
 
 
+## 매듭 단계가 짚어야 할 인연. 보통은 `map` 하나뿐이지만, 윤슬 매듭 1은
+## "가게 할머니와 갈매기 소년에게 인사하기" — **둘**이다. `map` 이 늘
+## "seal" 이라 할머니와 인사한 뒤에도 화살표가 그대로 할머니를 가리켜서,
+## 다음은 누구에게 가야 하는지 표시가 없었다. 할머니를 이미 만났으면
+## (지도를 받았으면) 남은 하나인 소년을 짚는다.
+static func _knot_target_key(step: Dictionary) -> String:
+	if String(step.get("key", "")) == "윤슬:매듭:1" \
+			and has_map() and not has_camera():
+		return "seagull"
+	return String(step.get("map", ""))
+
+
 ## 지금 이어가고 있는 단계 번호. 다 마쳤으면 단계 수를 돌려준다.
 static func knot_at(village: String) -> int:
 	if not KNOT.has(village):
@@ -726,9 +738,10 @@ static func quest_list(village: String) -> Array:
 				steps.size(), String(cur["label"]),
 				"  (%s에)" % when if waiting else ""],
 			"id": String(cur["key"]),
-		"kind": String(cur["kind"]), "key": String(cur["map"]),
+		"kind": String(cur["kind"]), "key": _knot_target_key(cur),
 			"photo": bool(cur.get("photo", false)),
 			"waiting": waiting,
+			"when": when,
 			"done": knot_done(village),
 		})
 		for e in SIDE[village]:

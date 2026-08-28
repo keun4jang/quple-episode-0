@@ -1763,6 +1763,48 @@ func _can_depart() -> bool:
 		< TALK_RANGE * TALK_RANGE
 
 
+## "저녁에 다시 오세요" 같은 매듭 단계가 지금 자리에서 기다리는 것인가.
+## 등대곶에서 저녁까지 실시간으로 서서 기다리게 했더니 무리라는 말을
+## 들었다 — 그 자리에 서 있으면 **곧장 그 시간대로 건너뛸 수 있게** 한다.
+## `Quests.quest_list()` 가 이미 계산해 둔 "waiting"·"when" 을 그대로 쓴다.
+func _current_wait() -> Dictionary:
+	# **`current_goal()` 을 안 쓴다.** 거기는 일부러 "지금 할 수 없는 것"
+	# (waiting == true) 을 걸러낸다 — 화살표가 못 할 일을 안 가리키게
+	# 하려는 규칙이다. 여기서는 정반대로 **바로 그 기다리는 항목**을
+	# 찾아야 한다.
+	for g in open_goals():
+		if not bool(g.get("waiting", false)):
+			continue
+		if String(g.get("kind", "")) != "visit":
+			continue
+		var when := String(g.get("when", ""))
+		if when == "":
+			continue
+		var key := String(g.get("key", ""))
+		for z in quest_zones():
+			if String(z[0]) != key:
+				continue
+			var at := world_of(z[1])
+			var r: float = float(z[2])
+			if walker != null and walker.global_position.distance_squared_to(at) < r * r:
+				return {"when": when}
+	return {}
+
+
+func _can_wait() -> bool:
+	return not _current_wait().is_empty()
+
+
+func _do_wait() -> void:
+	var w := _current_wait()
+	if w.is_empty() or say == null:
+		return
+	var when := String(w["when"])
+	JourneyState.skip_to_day_part(when)
+	say.say("", ["한참을 서서 기다린다.", "어느새 %s이 됐다." % when])
+	_refresh_action()
+
+
 ## 가까운 문. 없으면 null.
 func _can_enter() -> Variant:
 	if walker == null:
@@ -2258,6 +2300,9 @@ func _refresh_action() -> void:
 	if _can_depart():
 		hud.set_action("depart", "떠나기")
 		return
+	if _can_wait():
+		hud.set_action("wait", "기다리기")
+		return
 	hud.set_action("", "")
 
 
@@ -2291,6 +2336,8 @@ func _on_action() -> void:
 			walker.stop()
 			stop_walk_to()
 			_open_board()
+		"wait":
+			_do_wait()
 
 
 ## 여행판을 연다. 두 군데(정류장 자리를 누르기·선택 버튼)에서 같은 일을

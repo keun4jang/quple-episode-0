@@ -475,6 +475,19 @@ func advance_time(mins: float) -> void:
 	minutes = minf(minutes + mins, DAY_END)
 
 
+## 시간대 문턱으로 곧장 건너뛴다. "기다리기" 상호작용이 쓴다 —
+## 등대곶에서 "저녁에 다시 오세요" 를 실시간 3분(9시간어치)을 서서
+## 기다리게 했더니 무리라는 말을 들었다. 이미 그 시간대거나 지났으면
+## 아무 일도 안 한다 - **되돌리지는 않는다.**
+const DAY_PART_START := {"아침": 0.0, "낮": 11.0 * 60.0, "저녁": 17.0 * 60.0}
+
+func skip_to_day_part(part: String) -> void:
+	var target: float = DAY_PART_START.get(part, -1.0)
+	if target < 0.0:
+		return
+	minutes = minf(maxf(minutes, target), DAY_END)
+
+
 func day_is_over() -> bool:
 	return minutes >= DAY_END
 

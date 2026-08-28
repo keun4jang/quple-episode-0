@@ -473,3 +473,31 @@ func _run() -> void:
 	await _shot("relay-galbat")
 	if card != null:
 		card.queue_free()
+
+	# ㉛ 매듭 화살표 - 할머니와 인사했으면(지도를 받았으면) 소년을
+	# 가리켜야 한다. 여태 늘 할머니만 가리켜서 다음이 안 보였다.
+	JourneyState.reset()
+	JourneyState.pick("map")
+	p = await _open("res://scenes/journey/Yunseul.tscn")
+	if p.walker != null:
+		p.walker.global_position = p.world_of(Vector2i(17, 12))
+	await _wait(20)
+	await _shot("knot-arrow-seagull")
+
+	# ㉜ 기다리기 - 등대곶에서 저녁까지 서서 기다리게 했더니 무리라는
+	# 말을 들었다. 그 자리에 서면 곧장 저녁으로 건너뛸 수 있다.
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.minutes = 9 * 60
+	p = await _open("res://scenes/journey/Yunseul.tscn")
+	if p.walker != null:
+		# 등대곶 자리 안쪽이되, 등대 문(31,6)이나 숨은 자취(반짝이는
+		# 자리)와는 떨어뜨린다 - 가까우면 "등대 들어가기"·"보기" 가
+		# 먼저 뜬다.
+		p.walker.global_position = p.world_of(Vector2i(32, 3))
+	await _wait(20)
+	await _shot("wait-button")
+	p._do_wait()
+	await _wait(20)
+	await _shot("wait-evening")
