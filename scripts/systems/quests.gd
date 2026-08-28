@@ -716,6 +716,17 @@ static func relay_delivered(id: String) -> bool:
 	return JourneyState.quest_done("말:%s:전함" % id)
 
 
+## 여태 몇 마디나 전해 줬나. 말을 건 앞뒤로 이 수를 견주면 "방금
+## 전해 줬다" 를 알 수 있다 (`Place.talk_to_near`) — 전한 그 순간에
+## 받은 쪽 마음이 한 칸 는다.
+static func relay_delivered_count() -> int:
+	var n := 0
+	for r in RELAYS:
+		if relay_delivered(String(r["id"])):
+			n += 1
+	return n
+
+
 ## 그 인연에게 말을 걸 때 끼어들 말이 있나. 두 갈래다 - 아직 안
 ## 맡긴 말을 맡기거나(from), 맡아 온 말을 전하거나(to). `Place`
 ## 어디서든 마을 이름과 지금 말 거는 인연의 이름만 넘기면 된다 -
@@ -726,7 +737,7 @@ static func relay_line(village: String, npc_id: String) -> Array:
 	for r in RELAYS:
 		if String(r["from_village"]) == village and String(r["from_npc"]) == npc_id \
 				and not relay_given(String(r["id"])) \
-				and JourneyState.heart(npc_id) >= JourneyState.HEART_MAX:
+				and JourneyState.heart(npc_id) >= JourneyState.HEART_CLOSE:
 			JourneyState.mark_quest("말:%s:받음" % r["id"])
 			return r["give"]
 		if String(r["to_village"]) == village and String(r["to_npc"]) == npc_id \

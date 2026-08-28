@@ -32,6 +32,7 @@ func _ready() -> void:
 	await _door_tap_tests()
 	await _reunion2_tests()
 	await _reunion_keep_tests()
+	await _heart_pace_tests()
 	await _placement_lint_tests()
 	await _old_save_tests()
 	await _how_to_play_tests()
@@ -2409,6 +2410,99 @@ func _reunion2_tests() -> void:
 	await get_tree().process_frame
 	ok(JourneyState.reunions >= 1, "말을 걸면 재회로 센다 (%d)" % JourneyState.reunions)
 	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 마음이 **평범하게 놀아도 차는가.**
+##
+## 여태 엽서와 말 전하기가 둘 다 다섯 칸을 요구했는데, 마음이 느는
+## 길이 "하루 한 번 말 걸기" 하나뿐이었다 — 사실상 한 사람에게 닷새
+## 출석하기다. 마을 할 일은 하루 이틀이면 끝나니 아무도 그 선에 못
+## 닿았고, 처음부터 끝까지 걸어 본 시뮬레이션에서도 말 전하기가 한
+## 번도 안 나왔다. 일곱 쌍 마흔 줄이 아무도 못 보는 자리에 있었다.
+##
+## 이제 선은 셋이고, 마음은 **같이 한 일**로도 오른다 — 마을을 다
+## 돌아보면, 전언을 전해 주면. 하루 말 걸고, 마을을 다 보고, 이튿날
+## 한 번 더 말 걸면 셋이다.
+func _heart_pace_tests() -> void:
+	print("\n[마음이 차는 속도]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	var p: Place = load(GOAL_SCENES["가풀재"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var folks: Array = []
+	for f in p._folk:
+		if is_instance_valid(f) and not f.is_spot and not f.wanderer \
+				and f.folk_id != "":
+			folks.append(f)
+	ok(not folks.is_empty(), "가풀재에 붙박이가 있다 (%d)" % folks.size())
+
+	# ① 첫날, 한 번씩 말을 건다
+	for f in folks:
+		p._near = f
+		p.talk_to_near()
+		p.say._busy = false
+		await get_tree().process_frame
+	ok(JourneyState.heart("san_seal") == 1, "말을 걸면 한 칸 (%d)"
+		% JourneyState.heart("san_seal"))
+
+	# ② 마을을 다 돌아본다 — 그것만으로 한 칸 더
+	for k in ["가풀재:가게", Quests.VISIT_KEY["가풀재"], "가풀재:등대안",
+			Quests._local_flag("가풀재")]:
+		JourneyState.mark_quest(String(k))
+	JourneyState.photos.append({"place": "가풀재", "subject": "능선"})
+	for i in Quests.PICKUP_TOTAL["가풀재"]:
+		JourneyState.taken["가풀재:%d,1" % i] = true
+	ok(Quests.village_cleared("가풀재"), "가풀재를 다 돌아봤다")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(JourneyState.heart("san_seal") == 2,
+		"다 돌아보면 한 칸 더 (%d)" % JourneyState.heart("san_seal"))
+	# 마을마다 한 번만. 화면을 다시 열어도 또 오르지 않는다.
+	p._village_warmed = false
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(JourneyState.heart("san_seal") == 2,
+		"다 돌아본 몫은 한 번뿐이다 (%d)" % JourneyState.heart("san_seal"))
+
+	# ③ 이튿날 한 번 더 말을 걸면 셋 - 여기서 말이 맡겨진다
+	JourneyState.day += 1
+	for f in folks:
+		f.reset_day()
+	for f in folks:
+		p._near = f
+		p.talk_to_near()
+		p.say._busy = false
+		await get_tree().process_frame
+	ok(JourneyState.heart("san_seal") >= JourneyState.HEART_CLOSE,
+		"이틀이면 가까워진 것으로 친다 (%d칸, 선은 %d)"
+			% [JourneyState.heart("san_seal"), JourneyState.HEART_CLOSE])
+	ok(JourneyState.postcards.has("san_seal"), "엽서를 준다")
+	ok(not Quests.relay_line("가풀재", "san_seal").is_empty(),
+		"말도 맡긴다 - 이제 벽 뒤에 안 갇혀 있다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+	# ④ 전해 주면 받은 쪽도 한 칸 가까워진다.
+	JourneyState.mark_quest("말:가풀재_솔은재_계단고개:받음")
+	var before := JourneyState.heart("cap_sol")
+	var s: Place = load(GOAL_SCENES["솔은재"]).instantiate()
+	add_child(s)
+	await get_tree().process_frame
+	for f in s._folk:
+		if is_instance_valid(f) and f.folk_id == "cap_sol":
+			s._near = f
+	s.talk_to_near()
+	await get_tree().process_frame
+	ok(Quests.relay_delivered("가풀재_솔은재_계단고개"), "말이 전해졌다")
+	# 말 걸기(+1)와 전해 준 것(+1), 둘 다.
+	ok(JourneyState.heart("cap_sol") == before + 2,
+		"전해 주면 그만큼 더 가까워진다 (%d)" % JourneyState.heart("cap_sol"))
+	s.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
 

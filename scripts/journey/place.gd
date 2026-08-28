@@ -1959,7 +1959,14 @@ func talk_to_near() -> void:
 	# 겹칠 일이 없게 순서를 정해 둔다. 소품(is_spot)은 인연이 아니라
 	# 대상에서 뺀다.
 	if extra.is_empty() and not f.is_spot and f.folk_id != "":
+		var before := Quests.relay_delivered_count()
 		extra = Quests.relay_line(place_name(), f.folk_id)
+		# **전해 주면 그만큼 가까워진다.** 남의 말을 안고 먼 길을 온
+		# 사람에게 마음이 안 열릴 리 없다. 마음이 느는 길이 "하루 한 번
+		# 말 걸기" 하나뿐이라 말 전하기가 벽 뒤에 갇혀 있었다
+		# (`JourneyState.HEART_CLOSE` 주석).
+		if Quests.relay_delivered_count() > before:
+			JourneyState.warm(f.folk_id)
 	if not extra.is_empty():
 		what = extra
 	f.on_talked()
@@ -1969,8 +1976,9 @@ func talk_to_near() -> void:
 	if f.is_spot and f.who != "":
 		var spot_name: String = f.spot_key if f.spot_key != "" else f.who
 		JourneyState.mark_quest("%s:본:%s" % [place_name(), spot_name])
-	# 마음을 다 채우면 엽서를 준다. 떠난 뒤에도 편지가 온다는 뜻이다.
-	if f.heart() >= JourneyState.HEART_MAX:
+	# 가까워지면 엽서를 준다. 떠난 뒤에도 편지가 온다는 뜻이다.
+	# 다섯 칸을 다 채워야 했을 땐 아무도 못 받았다 (`HEART_CLOSE` 주석).
+	if f.heart() >= JourneyState.HEART_CLOSE:
 		JourneyState.give_postcard(f.folk_id, f.who)
 	say.say(f.who, what)
 	_did("talk")
@@ -2247,13 +2255,20 @@ func _on_screen(w: Vector2) -> bool:
 # 마음이 한 칸 는다. 버튼도 알림도 없다. 둘이 같은 쪽을 보고 서 있는
 # 것으로만 안다. 아무것도 안 하는 시간이 이 게임에서는 하는 일이다.
 var _dusk_t := 0.0
+## 이 마을을 다 돌아본 것으로 이미 마음을 올렸나 (이 화면에서만).
+var _village_warmed := false
 
 func _tick_dusk(delta: float) -> void:
 	if _near == null or _near.is_spot or _near._dusk_warmed:
 		_dusk_t = 0.0
 		return
+	# **저녁 내내로 넓혔다.** 17~19시로 잡아 뒀는데, 게임 시계는 실시간
+	# 1초에 3분씩 가므로 그 두 시간이 실제로는 **40초**다. 30초를 내리
+	# 서 있어야 하니 시작할 수 있는 창이 앞 10초뿐이었다 — 있는 줄
+	# 알고 앉아도 거의 안 됐다. 저녁 일곱 시간(17시~자정)이면 실시간
+	# 140초라 마음먹고 앉으면 된다.
 	var h := JourneyState.minutes / 60.0
-	if h < 17.0 or h > 19.0:
+	if h < 17.0:
 		_dusk_t = 0.0
 		return
 	if (walker != null and walker.is_moving()) \
@@ -2270,6 +2285,38 @@ func _tick_dusk(delta: float) -> void:
 		_near.face(Vector2.LEFT)
 		if walker != null:
 			walker.face(Vector2.LEFT)
+
+
+## **이 마을을 다 돌아보면 여기 사는 이들의 마음이 한 칸 는다.**
+##
+## 마음이 느는 길이 "하루 한 번 말 걸기" 하나뿐이라, 다섯 칸은 사실상
+## 한 사람에게 닷새 출석하기였다 (`JourneyState.HEART_CLOSE` 주석).
+## 마을 할 일은 하루 이틀이면 끝나니 아무리 열심히 놀아도 두 칸에서
+## 떠나게 되고, 그래서 엽서도 말 전하기도 아무도 못 봤다.
+##
+## 출석 대신 **같이 한 일**로 채운다. 그 마을을 제대로 돌아본 사람은
+## 거기 사는 이들과 그만큼 가까워진 것이다 — 며칠을 서서 같은 인사를
+## 되풀이한 사람이 아니라.
+##
+## 마을마다 한 번만. 표시로 남기므로 껐다 켜도 두 번 오르지 않는다.
+func _tick_village_done() -> void:
+	if _village_warmed:
+		return
+	var v := quest_village()
+	if v == "" or not Quests.ORDER.has(v):
+		return
+	if not Quests.village_cleared(v):
+		return
+	_village_warmed = true
+	var key := "%s:마음:다봄" % v
+	if JourneyState.quest_done(key):
+		return
+	JourneyState.mark_quest(key)
+	# 여기 **사는** 이들만. 여행자는 제 몫(재회)으로 따로 오른다.
+	for f in _folk:
+		if is_instance_valid(f) and not f.is_spot and not f.wanderer \
+				and f.folk_id != "":
+			JourneyState.warm(f.folk_id)
 
 
 ## 안내가 기다리던 일을 해냈다고 알린다.
@@ -2753,6 +2800,7 @@ func _process(delta: float) -> void:
 	_tick_outline()
 	_tick_tap_mark(delta)
 	_tick_dusk(delta)
+	_tick_village_done()
 	_tick_schedule(delta)
 	_refresh_action()
 	_tick_clock(delta)
