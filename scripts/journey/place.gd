@@ -28,6 +28,9 @@ const PICK_RANGE := 12.0
 ## 차이로 말을 못 걸었다.** 폰에서 손가락으로 하는 게임에 그런 여유는
 ## 없다. 두 칸으로 넉넉히 잡는다.
 const TALK_RANGE := 32.0
+
+## 늘 고향에 있는 사람들. 엽서(`give_postcard`)를 안 준다.
+const FAMILY_IDS := ["mom", "dad", "sibling"]
 ## 실제 1초에 게임 시간이 얼마나 흐르나. 하루(18시간)가 약 9분.
 ## 하루(아침 6시~자정)가 실시간 몇 분인가를 정한다.
 ## 2.0(=하루 9분)일 때는 마을 할 일이 2~3분에 끝나서, **노을(17시)은
@@ -1990,9 +1993,12 @@ func talk_to_near() -> void:
 	if f.is_spot and f.who != "":
 		var spot_name: String = f.spot_key if f.spot_key != "" else f.who
 		JourneyState.mark_quest("%s:본:%s" % [place_name(), spot_name])
-	# 가까워지면 엽서를 준다. 떠난 뒤에도 편지가 온다는 뜻이다.
+	# 가까워지면 엽서를 준다. **떠난 뒤에도 편지가 온다는 뜻**이다 -
+	# 그래서 가족(엄마·아빠·동생)은 뺀다. 늘 고향에 있는 사람에게
+	# "떠나온 곳에서 온 소식" 을 줄 수는 없다 - 마당에서 열 걸음
+	# 옆에 서 있는 엄마의 엽서를 그 자리에서 받는 건 결이 깨진다.
 	# 다섯 칸을 다 채워야 했을 땐 아무도 못 받았다 (`HEART_CLOSE` 주석).
-	if f.heart() >= JourneyState.HEART_CLOSE:
+	if f.heart() >= JourneyState.HEART_CLOSE and not FAMILY_IDS.has(f.folk_id):
 		JourneyState.give_postcard(f.folk_id, f.who)
 	say.say(f.who, what)
 	_did("talk")

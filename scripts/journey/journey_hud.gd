@@ -97,6 +97,15 @@ func _ready() -> void:
 	JourneyState.letter_came.connect(
 		func(_t: String) -> void:
 			_say_hint("편지가 왔어요. 배낭에 넣어 뒀어요.", true, 2.2))
+	# 엽서도 마찬가지였다 - `postcard_came` 를 듣는 화면이 코드 전체에
+	# 하나도 없었다. 효과음 하나뿐인데 그 순간은 대화창이 막 열려
+	# 소리도 묻히기 쉽다. 대화 중에 오므로(도착 연출과 안 겹친다)
+	# 편지처럼 기다릴 필요는 없다.
+	JourneyState.postcard_came.connect(
+		func(folk_id: String) -> void:
+			var who := String(JourneyState.postcards.get(folk_id, {}).get("who", ""))
+			_say_hint("%s에게서 엽서가 왔어요. 행복첩에 넣어 뒀어요."
+				% (who if who != "" else "여행에서 만난 이")))
 	set_process(true)
 
 

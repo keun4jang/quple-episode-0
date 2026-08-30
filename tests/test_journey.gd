@@ -52,6 +52,7 @@ func _ready() -> void:
 	await _speaker_name_tests()
 	_row_id_tests()
 	await _zone_note_tests()
+	await _postcard_notice_tests()
 	await _bed_note_tests()
 	_knot_arrow_tests()
 	await _unlock_notice_tests()
@@ -4220,6 +4221,54 @@ func _zone_note_tests() -> void:
 # 첫 마을 샛길이 안 끝난 화면을 받았는데, 이렇게 흐르면 그렇게 된다.
 #
 # 막지는 않는다. 알고 자는 것과 모르고 자는 것만 가른다.
+
+## 엽서가 왔을 때 화면에 알림이 뜨는가. 그리고 가족은 엽서를 안
+## 보내는가.
+##
+## `postcard_came` 를 듣는 화면이 코드 전체에 하나도 없었다 - 효과음
+## 하나뿐인데 그 순간은 대화창이 막 열려 있어 소리도 묻히기 쉬웠다.
+## 또한 folk_id 있는 모두에게 걸려 있어서 엄마·아빠·동생도 "떠나온
+## 곳에서 온 소식" 이라는 엽서를 - 마당에서 열 걸음 옆에 서 있는데도 -
+## 받았다.
+func _postcard_notice_tests() -> void:
+	print("\n[엽서 알림]")
+	JourneyState.reset()
+	var hud := JourneyHud.new()
+	add_child(hud)
+	await get_tree().process_frame
+	hud._hint.text = ""
+	hud._hint_queue.clear()
+	hud._hint_busy = false
+	JourneyState.give_postcard("cap_sol", "쉼터 아저씨")
+	await get_tree().process_frame
+	var got := String(hud._hint.text) if hud._hint_busy else \
+		(String(hud._hint_queue[0]["text"]) if not hud._hint_queue.is_empty() else "")
+	ok(got.contains("쉼터 아저씨") and got.contains("엽서"),
+		"엽서가 오면 알림이 뜬다 (%s)" % got)
+	hud.queue_free()
+	await get_tree().process_frame
+
+	# 가족은 엽서 지급 경로(talk_to_near)를 타도 안 받는다.
+	JourneyState.reset()
+	for i in JourneyState.HEART_MAX:
+		JourneyState.warm("mom")
+	var home: Place = load("res://scenes/journey/Home.tscn").instantiate()
+	add_child(home)
+	await get_tree().process_frame
+	var mom: Folk = null
+	for f in home._folk:
+		if is_instance_valid(f) and f.folk_id == "mom":
+			mom = f
+	ok(mom != null, "엄마가 있다")
+	if mom != null:
+		home._near = mom
+		home.talk_to_near()
+		await get_tree().process_frame
+	ok(not JourneyState.postcards.has("mom"), "엄마는 엽서를 안 보낸다")
+	home.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
 
 func _bed_note_tests() -> void:
 	print("\n[자기 전에]")
