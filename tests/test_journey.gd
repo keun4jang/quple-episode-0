@@ -27,6 +27,8 @@ func _ready() -> void:
 	await _first_map_guide_tests()
 	await _yunseul_clear_tests()
 	_home_row_tests()
+	_visit_label_honesty_tests()
+	await _action_button_overflow_tests()
 	await _travel_board_outside_tap_tests()
 	await _locked_reason_tests()
 	_josa_tests()
@@ -2407,6 +2409,45 @@ func _travel_board_outside_tap_tests() -> void:
 	ok(not b.visible, "바깥을 누르면 닫힌다")
 	b.queue_free()
 	await get_tree().process_frame
+
+
+## 조용한 문의 긴 라벨("갯바위로 내려가기" 등)이 선택 버튼을 화면
+## 밖으로 밀어내지 않는가.
+##
+## `_act_btn` 은 오른쪽 아래 148x72 로 고정 앵커돼 있는데, 글자를
+## 안 자르면 계산된 최소 폭이 148px 을 넘어 앵커를 무시하고 오른쪽
+## 화면 밖으로 자라 마지막 글자가 깨진 채 미니맵을 덮었다.
+## "한 바퀴" 라고 적어 놓고 몇 걸음 만에 끝나는 라벨이 없는가.
+##
+## 하늬섬 "섬 한 바퀴 돌기" 의 완료 존은 스폰에서 대여섯 걸음이면
+## 닿았고, 볕뉘 "능 한 바퀴 걷기" 도 마찬가지였다 - 약속한 행동과
+## 완료가 어긋나 라벨을 못 믿게 됐다.
+func _visit_label_honesty_tests() -> void:
+	print("\n[한 바퀴라는 말이 정직한가]")
+	for v in Quests.VISIT_LABEL:
+		var label := String(Quests.VISIT_LABEL[v])
+		ok(not label.contains("한 바퀴"),
+			"%s: '한 바퀴' 라고 안 한다 (%s)" % [v, label])
+
+
+func _action_button_overflow_tests() -> void:
+	print("\n[선택 버튼이 안 넘치는가]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	p.walker.global_position = p.world_of(Vector2i(20, 8))
+	await get_tree().process_frame
+	p._refresh_action()
+	await get_tree().process_frame
+	ok(p.hud._act_btn.text.contains("갯바위") or p.hud._act_btn.text.contains("내려"),
+		"갯바위 문 버튼이 떴다 (%s)" % p.hud._act_btn.text)
+	ok(p.hud._act_btn.clip_text, "글자가 넘치면 잘린다")
+	ok(p.hud._act_btn.size.x <= 148.5,
+		"버튼 폭이 앵커를 넘어 안 자란다 (%.1f)" % p.hud._act_btn.size.x)
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
 
 
 func _locked_reason_tests() -> void:

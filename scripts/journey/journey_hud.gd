@@ -219,6 +219,11 @@ func _build() -> void:
 	# 맞다. 148x72 캔버스 = 1.5배 폰에서 222x108, 48dp 를 넘는다.
 	_act_btn.custom_minimum_size = Vector2(148, 72)
 	_act_btn.add_theme_font_size_override("font_size", 26)
+	# **넘치면 자른다.** 조용한 문의 라벨은 "갯바위로 내려가기" 처럼
+	# 7~11자라, 자르지 않으면 버튼의 계산된 최소 폭이 148px 을 넘어
+	# 앵커 오프셋을 무시하고 오른쪽 화면 밖으로 자라 마지막 글자가
+	# 깨진 채 미니맵을 덮었다 (여행판의 잠긴 줄과 같은 원인).
+	_act_btn.clip_text = true
 	var asb := StyleBoxFlat.new()
 	asb.bg_color = Color("#FFE39A")
 	asb.set_corner_radius_all(30)
