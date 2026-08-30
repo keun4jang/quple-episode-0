@@ -129,7 +129,7 @@ static func _w(font: Font, s: String, size: int) -> float:
 ## `journey_hud.gd` 의 `_with_josa` 는 을/를 만 골랐지 인사 라벨(`%s와
 ## 인사하기`)의 와/과는 안 봤다. 이름이 정해진 몇 안 되는 인연 이름뿐이라
 ## 표를 만들 것도 없다. 한글이 아니면 아쉬운 대로 받침 있는 쪽으로 붙인다.
-enum Josa { WITH, AND }
+enum Josa { WITH, AND, TO }
 
 static func with_josa(word: String, kind: Josa = Josa.WITH) -> String:
 	if word.is_empty():
@@ -143,5 +143,7 @@ static func with_josa(word: String, kind: Josa = Josa.WITH) -> String:
 	match kind:
 		Josa.AND:
 			return word + ("과" if has_batchim else "와")
+		Josa.TO:
+			return word + ("으로" if has_batchim else "로")
 		_:
 			return word + ("을" if has_batchim else "를")

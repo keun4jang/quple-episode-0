@@ -1137,6 +1137,26 @@ func _waiting_now() -> bool:
 	return not now.is_empty() and bool(now.get("waiting", false))
 
 
+## "샛길은 둘만 해도 다음 마을이 열려요" — 한 번은 알려 준다.
+##
+## `Quests.SIDES_NEEDED` 는 코드 주석에만 있었다. 목록은 이야기 한 줄과
+## 샛길 줄을 똑같은 모양으로 늘어놓아 전부 필수 체크리스트로 읽혔고,
+## "샛길" 이라는 낱말 자체도 설명이 없어 상단 목표줄에선 장소 이름처럼
+## 읽혔다. 마을마다 한 번, 처음 샛길 줄이 보이는 순간에만 말해 준다.
+func _maybe_explain_sides(list: Array) -> void:
+	var v := _quest_village()
+	if not Quests.KNOT.has(v):
+		return
+	var flag := "%s:샛길설명" % v
+	if JourneyState.quest_done(flag):
+		return
+	for q in list:
+		if String(q.get("id", "")).contains(":샛길:"):
+			JourneyState.mark_quest(flag)
+			_say_hint("샛길은 이름 그대로 - 둘만 골라 해도 다음 마을이 열려요.")
+			return
+
+
 func _watch_done(list: Array) -> void:
 	# 앱을 켜자마자 이미 해 둔 것이 우르르 뜨지 않게, 첫 한 번은 조용히
 	# 기준만 잡는다.
@@ -1164,10 +1184,24 @@ func _watch_done(list: Array) -> void:
 	# 손을 안 멈추게 하는 건 그대로다 (눌리지 않는 그림일 뿐이다).
 	for label in just:
 		_celebrate("다 했어요!", String(label))
-	# 마지막 하나였으면 한 번 더 크게. 다음 마을이 열렸다는 말은 안
-	# 한다 — 여행판에서 알아채면 된다 (`docs/quest-journey.md` 6절).
+	# 마지막 하나였으면 한 번 더 크게.
 	if left == 0:
 		_celebrate("이 마을을 다 돌았어요!", "해볼 일을 모두 마쳤어요")
+	# **다음 마을이 열린 순간은 따로 알린다.** 매듭 마을(윤슬)은
+	# "샛길은 둘만 해도 된다" 는 완화가 있어서, 목록이 아직 다
+	# 안 끝났는데도(`left > 0`) 이미 열려 있을 수 있다 - 그 규칙 자체가
+	# 화면 어디에도 안 적혀 있고, 열려도 신호가 하나도 없어서 여행판을
+	# 우연히 열어야만 알았다. `village_cleared()` 로 직접 재서, 목록이
+	# 다 안 끝나도 열린 그 순간을 잡는다.
+	var v := _quest_village()
+	if Quests.ORDER.has(v) and Quests.village_cleared(v):
+		var flag := "%s:해금알림" % v
+		if not JourneyState.quest_done(flag):
+			JourneyState.mark_quest(flag)
+			var idx := Quests.ORDER.find(v)
+			var nxt := String(Quests.ORDER[idx + 1]) if idx + 1 < Quests.ORDER.size() else ""
+			_celebrate("다음 마을로 가는 길이 열렸어요!",
+				"%s 갈 수 있어요" % Wrap.with_josa(nxt, Wrap.Josa.TO) if nxt != "" else "")
 
 
 func _celebrate(big: String, sub: String) -> void:
@@ -1213,6 +1247,7 @@ func _process(delta: float) -> void:
 	if not _hint_queue.is_empty() and not _hint_busy:
 		_drain_hints()           # 기다리던 안내도 같이 (patient)
 	var list := Quests.quest_list(_quest_village())
+	_maybe_explain_sides(list)
 	_watch_done(list)
 	_tick_task_strip()
 	if _dot != null:

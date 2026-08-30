@@ -244,8 +244,13 @@ func on_built() -> void:
 	if not Items.has(v):
 		return
 	var d: Dictionary = Items.of(v)
+	# **밖의 그 사람과 같은 folk_id 를 준다.** 여태 빈 문자열이라
+	# warm("") 이 조용히 무시됐다 - 매듭1 "가게 할머니와 인사하기" 를
+	# 안에서 하면 인정이 안 됐고(밖으로 다시 나가 찾아야 했다),
+	# 마음 칸도 안팎이 따로 놀았다. 같은 얼굴·같은 이름인데 다른
+	# 사람 취급을 한 것이다.
 	put_folk(Vector2i(mid, 5), _owner_sheet(v), String(d.get("owner", "가게")),
-		"", d.get("hello", [["천천히 둘러봐."]]), Vector2.DOWN)
+		_owner_folk_id(v), d.get("hello", [["천천히 둘러봐."]]), Vector2.DOWN)
 	_shelf(Vector2i(mid - 5, 6), "선반:food", "오늘의 먹거리")
 	_shelf(Vector2i(mid + 5, 6), "선반:keep", "이 마을 물건")
 	_shelf(Vector2i(mid - 2, 3), "선반:show", "기억 선반")
@@ -257,6 +262,17 @@ func _owner_sheet(v: String) -> String:
 		"윤슬", "볕뉘", "가풀재", "하늬섬":
 			return "seal"
 	return "capybara-a"
+
+
+## 밖에 선 그 사람의 folk_id. 안팎이 같은 사람이니 마음 칸도 하나여야
+## 한다 (`Quests.TALK_FOLK` 의 첫째 자리와 같다).
+func _owner_folk_id(v: String) -> String:
+	match v:
+		"윤슬": return "seal"
+		"볕뉘": return "ju_seal"
+		"가풀재": return "san_seal"
+		"하늬섬": return "do_seal"
+	return ""
 
 
 ## 누를 수 있는 선반 하나. 자리 표시를 그대로 쓴다 —

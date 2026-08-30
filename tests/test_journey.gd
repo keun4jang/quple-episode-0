@@ -26,6 +26,7 @@ func _ready() -> void:
 	await _done_toast_tests()
 	await _first_map_guide_tests()
 	await _yunseul_clear_tests()
+	_home_row_tests()
 	await _locked_reason_tests()
 	_josa_tests()
 	await _seaglass_hint_tests()
@@ -49,6 +50,7 @@ func _ready() -> void:
 	await _zone_note_tests()
 	await _bed_note_tests()
 	_knot_arrow_tests()
+	await _unlock_notice_tests()
 	await _wait_action_tests()
 	_gather_reach_tests()
 	await _gather_ground_tests()
@@ -56,6 +58,7 @@ func _ready() -> void:
 	await _relay_tests()
 	await _scene_load_tests()
 	await _minimap_kind_test()
+	await _shop_owner_identity_tests()
 	_shop_skin_test()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
@@ -1585,6 +1588,39 @@ func _minimap_kind_test() -> void:
 ## 씬 하나를 아홉 마을이 같이 쓴다. 골격은 같아도 바닥과 곁 물건은
 ## 달라야 "또 이 방" 이 안 된다. 표에 오타가 나면 조용히 기본 방으로
 ## 떨어지므로(마을 이름이 안 맞으면 `_skin()` 이 빈 값을 준다) 여기서 본다.
+## 가게 안의 주인이 밖의 그 사람과 **같은 사람**으로 쳐지는가.
+##
+## 안쪽 주인이 folk_id 가 빈 문자열이라 `warm("")` 이 조용히 무시됐다.
+## 매듭1 "가게 할머니와 인사하기" 를 안에서 먼저 해도 인정이 안 됐고,
+## 마음 칸도 안팎이 따로 놀았다 - 같은 얼굴·같은 이름인데 다른 사람
+## 취급을 한 것이다.
+func _shop_owner_identity_tests() -> void:
+	print("\n[가게 안 주인이 밖과 같은 사람인가]")
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 11)
+	var shop: Place = load("res://scenes/journey/interiors/ShopInterior.tscn").instantiate()
+	add_child(shop)
+	await get_tree().process_frame
+	var owner: Folk = null
+	for f in shop._folk:
+		if is_instance_valid(f) and not f.is_spot and f.who == "가게 할머니":
+			owner = f
+	ok(owner != null, "안쪽 주인이 있다")
+	ok(owner != null and owner.folk_id == "seal",
+		"밖의 할머니와 같은 folk_id 다 (%s)" % (owner.folk_id if owner != null else "?"))
+	if owner != null:
+		shop._near = owner
+		shop.talk_to_near()
+		await get_tree().process_frame
+		ok(JourneyState.heart("seal") >= 1,
+			"안에서 인사해도 마음이 오른다 (%d)" % JourneyState.heart("seal"))
+	shop.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _shop_skin_test() -> void:
 	print("\n[가게 안 변주]")
 	var villages: Array = []
@@ -2309,6 +2345,21 @@ func _josa_tests() -> void:
 ## "아직 더 볼 게 있는 것 같다" 한 줄만으로는 뭘 더 해야 하는지 알 수
 ## 없다. 다 한 줄 알고 눌렀다가 안 넘어가면 고장으로 읽힌다 —
 ## "윤슬 다음으로 안 넘어간다" 는 말이 실제로 그래서 나왔다.
+## 고향으로 가는 유일한 길이 판 맨 위에 있는가.
+##
+## 선언 순서 그대로 두면 고향이 목록 맨 마지막(2탄 잠긴 마을 다섯
+## 아래)이라, 판이 네댓 줄만 보여 주는 화면에서는 스크롤 없이 존재
+## 자체를 몰랐다 - "고향은 언제든 돌아갈 수 있어야 한다" 는 이 파일의
+## 원칙과 정반대였다.
+func _home_row_tests() -> void:
+	print("\n[고향 줄이 맨 위인가]")
+	var b := TravelBoard.new()
+	ok(b._row_order()[0] == "고향", "고향이 목록 맨 위다")
+	ok(String(TravelBoard.PLACES["고향"][1]) != "",
+		"고향에도 설명이 있다 (%s)" % TravelBoard.PLACES["고향"][1])
+	b.free()
+
+
 func _locked_reason_tests() -> void:
 	print("\n[왜 잠겼는지]")
 	JourneyState.reset()
@@ -4023,6 +4074,9 @@ func _bed_note_tests() -> void:
 	await get_tree().process_frame
 	pl.hud._hint.text = ""
 	pl.hud._hint_queue.clear()
+	# 다른 안내(샛길 설명 등)가 마침 이 프레임에 떠 있을 수 있다 -
+	# 바쁜 상태까지 같이 지워야 바로 이어서 뜬다.
+	pl.hud._hint_busy = false
 	pl._bed_note()
 	ok(String(pl.hud._hint.text).contains("오늘 저녁에만"),
 		"잠자리에 서면 알려 준다 (%s)" % pl.hud._hint.text)
@@ -4061,6 +4115,66 @@ func _knot_arrow_tests() -> void:
 ## 등대곶 "저녁에 다시 오세요" 를 실시간으로 서서 기다리게 했더니
 ## 무리라는 말을 들었다. 그 자리에 서 있으면 **곧장 저녁으로 건너뛸
 ## 수 있게** 했다 (`Place._can_wait` / `_do_wait` / `JourneyState.skip_to_day_part`).
+## "샛길은 둘만 해도 열려요" 를 한 번은 알려 주고, 다음 마을이 실제로
+## 열리는 순간엔 알림이 뜨는가.
+##
+## `Quests.SIDES_NEEDED` 는 여태 코드 주석에만 있었다. 매듭 마을은
+## 목록(이야기+샛길 넷)이 다 안 끝나도 이미 열려 있을 수 있는데, 열려도
+## 신호가 하나도 없어서 여행판을 우연히 열어야만 알았다.
+func _unlock_notice_tests() -> void:
+	print("\n[샛길 설명과 해금 알림]")
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	var hud: JourneyHud = p.hud
+	hud._hint.text = ""
+	hud._hint_queue.clear()
+	hud._hint_busy = false
+	await get_tree().process_frame
+	hud._maybe_explain_sides(Quests.quest_list("윤슬"))
+	ok(String(hud._hint.text).contains("둘만"),
+		"샛길 줄이 보이면 둘만 해도 된다고 알려 준다 (%s)" % hud._hint.text)
+	hud._hint.text = ""
+	hud._hint_queue.clear()
+	hud._hint_busy = false
+	hud._maybe_explain_sides(Quests.quest_list("윤슬"))
+	ok(String(hud._hint.text) == "", "한 번 알려 주면 다시는 안 한다")
+
+	# 매듭을 마치고 샛길 둘을 채우면 - 목록엔 아직 둘이 남았어도 - 이미
+	# 열려 있다. 그 순간을 잡아 알려야 한다.
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.day = 2
+	JourneyState.mark_quest("윤슬:등대@저녁")
+	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
+	JourneyState.mark_quest("윤슬:매듭:3")
+	JourneyState.mark_quest("윤슬:가게")
+	JourneyState.mark_quest("윤슬:등대안")
+	ok(Quests.village_cleared("윤슬"), "매듭+샛길 둘로 이미 열렸다")
+	var left := 0
+	for q in Quests.quest_list("윤슬"):
+		if not bool(q.get("done", false)):
+			left += 1
+	ok(left > 0, "그런데 목록엔 아직 안 끝난 줄이 남아 있다 (%d)" % left)
+	hud._cele_queue.clear()
+	hud._cele_busy = false
+	hud._watch_done(Quests.quest_list("윤슬"))
+	var told := false
+	for c in hud._cele_queue:
+		if String(c[0]).contains("열렸"):
+			told = true
+	ok(told, "목록이 안 끝났어도 해금 알림이 뜬다 (%s)" % str(hud._cele_queue))
+	hud._cele_queue.clear()
+	hud._cele_busy = false
+	hud._watch_done(Quests.quest_list("윤슬"))
+	ok(hud._cele_queue.is_empty(), "이미 알렸으면 또 안 뜬다")
+
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _wait_action_tests() -> void:
 	print("\n[기다리기]")
 	JourneyState.reset()
@@ -4500,6 +4614,18 @@ func _relay_tests() -> void:
 	var qs := FileAccess.open("res://scripts/systems/quests.gd",
 		FileAccess.READ).get_as_text()
 	ok(not qs.contains("},,"), "관계 데이터에 쉼표가 겹친 자리가 없다")
+
+	# **맡기는 말에 목적지 마을 이름이 있어야 한다.** 까치의 부탁만
+	# "능 지키는 아이한테 전해 줄래요?" 뿐이라 어느 마을인지 안
+	# 나왔다 - 받는 아이는 두 번째 마을이라 한참 전에 지나온 곳인데,
+	# 기록도 안 남아 사실상 전달 불가였다.
+	var no_village: Array = []
+	for r in Quests.RELAYS:
+		var give: String = " ".join((r["give"] as Array).map(func(l): return String(l)))
+		if not give.contains(String(r["to_village"])):
+			no_village.append(String(r["id"]))
+	ok(no_village.is_empty(), "맡기는 말마다 갈 마을 이름이 있다%s"
+		% ("" if no_village.is_empty() else " — " + str(no_village)))
 
 	# 마을·인연 셋이 다 같은 결로 도는지 하나씩 재본다.
 	await _relay_pair_test("가풀재_솔은재_계단고개",

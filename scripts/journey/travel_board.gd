@@ -26,7 +26,9 @@ const PLACES := {
 	"솔은재": ["res://scenes/journey/Soleunjae.tscn", "소나무 고개"],
 	# 솔은재 다음, 처음으로 밭이 마을 골격인 곳.
 	"꽃눈벌": ["res://scenes/journey/Kkonnunbeol.tscn", "꽃눈 피는 밭머리"],
-	"고향": ["res://scenes/journey/Home.tscn", ""],
+	# 설명을 비워 두지 않는다 - "언제든 돌아갈 수 있는 곳" 이라는 것
+	# 자체가 고향의 뜻이다. 목록 맨 위에 둔다 (`_row_order`).
+	"고향": ["res://scenes/journey/Home.tscn", "언제든 돌아갈 수 있는 곳"],
 }
 
 var _panel: PanelContainer
@@ -121,11 +123,26 @@ func _style(b: Button, strong: bool) -> void:
 	b.add_theme_color_override("font_color", Color("#3A2C2C"))
 
 
+## 판에 늘어놓을 순서. **고향을 맨 위로 뺀다.**
+##
+## `PLACES` 선언 순서 그대로 두면 고향이 맨 마지막 줄이라, 잠긴 2탄
+## 마을 다섯 아래 묻힌다. 판은 네댓 줄만 보여 스크롤을 안 하면 화면
+## 밖이었다 - "고향은 언제든 돌아갈 수 있어야 한다" 는 이 파일 위쪽
+## 주석과 정반대였다. 엄마 편지가 계속 "먹고 싶을 때 와" 라고 부르는데
+## 정작 정류장엔 그 길이 안 보였다.
+func _row_order() -> Array:
+	var out: Array = ["고향"]
+	for name in PLACES:
+		if name != "고향":
+			out.append(name)
+	return out
+
+
 func open(from_place: String) -> void:
 	_from = from_place
 	for c in _list.get_children():
 		c.queue_free()
-	for name in PLACES:
+	for name in _row_order():
 		if name == _from:
 			continue                      # 여기 있는데 여기로 갈 순 없다
 		var entry: Array = PLACES[name]
