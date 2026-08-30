@@ -20,6 +20,7 @@ func _ready() -> void:
 	await _camera_tests()
 	_touch_tests()
 	_quest_tests()
+	await _bag_row_distinction_tests()
 	await _first_greeting_order_tests()
 	await _goal_tests()
 	await _reach_tests()
@@ -1212,6 +1213,36 @@ func _touch_tests() -> void:
 ## 조개는 밟으면 자동으로 주워지는데, `_knot_on_talk` 의 "고르기"
 ## 분기가 소지품만 보고 먼저 반응해서, 첫 만남 환영 인사("이 지도도
 ## 가지고 다녀")를 통째로 가렸다 - 지도가 맥락 없이 카드로만 떨어졌다.
+## 배낭 '이 마을' 탭에서 누를 수 있는 줄이 그냥 글자인 줄과 다르게
+## 보이는가.
+##
+## 자리가 있는 줄만 Button, 없는 줄은 Label 인데 폰트 크기·색·여백이
+## 같아서 눌러 보기 전엔 구별이 안 됐다. 이제 누를 수 있는 줄만
+## 선택 버튼과 같은 금색을 쓴다.
+func _bag_row_distinction_tests() -> void:
+	print("\n[배낭 줄 구별]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	var hud: JourneyHud = p.hud
+	await get_tree().process_frame
+	hud._fill_quests()
+	var buttons := 0
+	var labels := 0
+	var gold := Color("#FFE39A")
+	for c in hud._bag_grid.get_children():
+		if c is Button and String(c.text) not in ["길잡이 다시 보기", "화면 보는 법"]:
+			buttons += 1
+			ok(c.get_theme_color("font_color") == gold,
+				"누를 수 있는 줄은 금색이다 (%s)" % c.text)
+		elif c is Label:
+			labels += 1
+	ok(buttons > 0, "윤슬엔 누를 수 있는 줄이 있다 (%d)" % buttons)
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _first_greeting_order_tests() -> void:
 	print("\n[첫인사가 고르기에 안 가려지는가]")
 	JourneyState.reset()

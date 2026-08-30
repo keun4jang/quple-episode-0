@@ -784,11 +784,18 @@ func _fill_quests() -> void:
 		var done: bool = q.get("done", false)
 		var label := String(q.get("label", ""))
 		var text := label + ("  (다 했어요)" if done else "")
-		var col := Color("#A79A8A") if done else Color("#FFF2C8")
 		# **아직 안 한 것은 눌러서 지도에 접어 둘 수 있다.** 목록과 지도가
 		# 서로 남이면 "무엇을" 은 알아도 "어디로" 를 모른다. 다 한 것은
 		# 그냥 글자로 둔다 — 눌러 봐야 갈 데가 없다.
-		if not done and place != null and place.goal_world(q) != Vector2.INF:
+		var can_tap: bool = not done and place != null and place.goal_world(q) != Vector2.INF
+		# **누를 수 있는 줄만 다른 색을 준다.** 여태는 눌리는 줄(Button)과
+		# 그냥 글자인 줄(Label)이 폰트 크기·색·여백까지 같아서 눌러
+		# 보기 전엔 구별이 안 됐다 - 이 씬에 자리가 없는 남의 마을 줄을
+		# 눌러도 아무 일이 없어 고장으로 읽혔다. 여기만 선택 버튼과
+		# 같은 금색을 쓴다.
+		var col := Color("#A79A8A") if done else \
+			(Color("#FFE39A") if can_tap else Color("#FFF2C8"))
+		if can_tap:
 			tappable = true
 			_bag_grid.add_child(_quest_row(text, col, q, place))
 		else:
