@@ -14,6 +14,10 @@ signal acted
 
 var _clock: Label
 var _place_title: Label
+## 도착 카드(마을 이름 + 해볼 일)가 지금 화면에 떠 있나. 카드가 완전히
+## 사라진 뒤(꺼지는 트윈까지 끝난 뒤)에만 거짓이 된다 - 알파값을 매
+## 프레임 재는 것보다 또렷하다.
+var _arrival_card_up := false
 ## 도착하자마자 가운데 크게 뜨는 "지금 해볼 일" 한 줄.
 var _arrive_task: Label
 ## 첫 마을 동안 화면 위에 늘 떠 있는 안내줄.
@@ -583,12 +587,14 @@ func announce_place(text: String) -> void:
 	_place_title.modulate.a = 0.0
 	# 할 일을 읽을 시간이 있어야 하니 이름만 띄울 때보다 조금 더 머문다.
 	_arrive_task.modulate.a = 0.0
+	_arrival_card_up = true
 	_title_tw = create_tween().set_parallel(true)
 	_title_tw.tween_property(_place_title, "modulate:a", 1.0, 0.5)
 	_title_tw.tween_property(_arrive_task, "modulate:a", 1.0, 0.5)
 	_title_tw.chain().tween_interval(2.4)
 	_title_tw.chain().tween_property(_place_title, "modulate:a", 0.0, 0.7)
 	_title_tw.tween_property(_arrive_task, "modulate:a", 0.0, 0.7)
+	_title_tw.chain().tween_callback(func(): _arrival_card_up = false)
 
 
 ## 사진을 찍었다. 화면이 한 번 하얘진다.
@@ -1123,8 +1129,12 @@ func _tick_task_strip() -> void:
 	var early: bool = JourneyState.departures < STRIP_UNTIL_DEPARTURES \
 		or (Quests.KNOT.has(v2) and not Quests.knot_done(v2))
 	var goal := _first_task() if early else ""
+	# **도착 카드가 떠 있는 동안은 위쪽 줄을 겹쳐 안 띄운다.** 마을에
+	# 들어서면 가운데에 마을 이름 + "해볼 일 · ..." 이 이미 크게 뜨는데,
+	# 위쪽에도 똑같은 문구가 떠서 같은 정보가 두 번 보이고 화면 절반이
+	# 글자였다 (`announce_place`).
 	var show: bool = early and goal != "" and not bag_open() \
-		and not _buttons_hidden
+		and not _buttons_hidden and not _arrival_card_up
 	_task_strip.visible = show
 	if show:
 		# **지금 할 수 없는 것에 "지금 해볼 일" 이라 쓰지 않는다.**

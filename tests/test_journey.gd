@@ -2026,8 +2026,17 @@ func _first_map_guide_tests() -> void:
 		"도착 카드가 그 항목을 적는다 (%s)" % hud._arrive_task.text)
 	ok(hud._place_title.text == p.place_name(), "마을 이름도 같이 뜬다")
 
-	# 첫 여행지를 떠나기 전까지는 위쪽 줄이 늘 떠 있다.
+	# **도착 카드가 떠 있는 동안은 위쪽 줄을 안 띄운다.** 여태는 마을
+	# 이름 + "해볼 일 · ..." 이 가운데에 크게 뜬 그 순간에도 위쪽에
+	# 똑같은 문구가 겹쳐 떠서, 같은 정보가 두 번 보이고 화면 절반이
+	# 글자였다.
 	JourneyState.departures = 0
+	hud._tick_task_strip()
+	ok(not hud._task_strip.visible,
+		"도착 카드가 떠 있는 동안은 위쪽 줄을 겹쳐 안 띄운다")
+
+	# 카드가 걷히면 그제야 위쪽 줄이 뜬다.
+	hud._arrival_card_up = false
 	hud._tick_task_strip()
 	ok(hud._task_strip.visible, "첫 마을에서는 안내줄이 떠 있다")
 	ok(hud._task_strip.text.contains(goal),
