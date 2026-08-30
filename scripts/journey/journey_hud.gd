@@ -1036,13 +1036,14 @@ func _center_covered() -> bool:
 	if bag_open():
 		return true
 	# 도착 카드(마을 이름 + 해볼 일)도 같은 자리를 쓴다.
-	# **아직 나타나는 중인 것도 덮은 것으로 친다** — 카드는 0에서
-	# 밝아지므로, 페이드인 첫 순간에는 알파만 봐서는 "안 덮였다" 로
-	# 읽힌다. 그 틈에 안내가 빠져나가 카드 밑에 깔렸다.
-	if _place_title != null and _place_title.modulate.a > 0.05:
+	if _arrival_card_up:
 		return true
-	if _title_tw != null and _title_tw.is_valid() and _title_tw.is_running():
-		return true
+	# **펼친 큰 지도도 덮개로 친다.** 여태는 안 쳐서, 지도를 펼치면
+	# 그 위로 도착 카드의 큰 글자와 안내 한 줄이 그대로 겹쳐 그려져
+	# 지도도 글자도 안 읽혔다.
+	for n in get_tree().get_nodes_in_group("mini_map"):
+		if n.has_method("is_big") and n.is_big():
+			return true
 	return false
 
 

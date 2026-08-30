@@ -2983,6 +2983,13 @@ func _tick_goal_arrow(delta: float) -> void:
 	if _goal_edge == null:
 		_goal_edge = GoalPointer.new()
 		add_child(_goal_edge)
+	# **큰 지도가 펼쳐 있으면 둘 다 끈다.** 지도 자체가 이미 같은
+	# 목표를 초록 고리로 찍고 있는데, 그 위로 가장자리 화살표와
+	# "18걸음" 글자가 겹쳐 그려져 지도도 글자도 안 읽혔다.
+	if minimap != null and minimap.is_big():
+		_goal_arrow.visible = false
+		_goal_edge.aim(Vector2.INF, Vector2.ZERO, delta)
+		return
 	var g := current_goal()
 	var at := goal_world(g) if not g.is_empty() else Vector2.INF
 	var near: bool = walker != null and at != Vector2.INF \

@@ -45,6 +45,7 @@ func _ready() -> void:
 	await _trace_tests()
 	await _shelf_tests()
 	await _wrap_tests()
+	await _big_map_cover_tests()
 	await _edge_arrow_visibility_tests()
 	await _guide_tests()
 	await _talk_cooldown_tests()
@@ -1900,6 +1901,7 @@ func _uncover(hud: JourneyHud) -> void:
 		hud._title_tw.kill()
 	hud._place_title.modulate.a = 0.0
 	hud._arrive_task.modulate.a = 0.0
+	hud._arrival_card_up = false
 
 
 func _done_toast_tests() -> void:
@@ -2279,6 +2281,7 @@ func _patient_hint_tests() -> void:
 	# 덮개가 걷히면 그제야 뜬다.
 	hud._place_title.modulate.a = 0.0
 	hud._title_tw = null
+	hud._arrival_card_up = false
 	await get_tree().process_frame
 	await get_tree().process_frame
 	ok(hud._hint_queue.is_empty(), "덮개가 걷히면 줄에서 나온다")
@@ -3675,6 +3678,38 @@ func _wrap_tests() -> void:
 ## 안의(화면에는 보이는) 목표에도 화살표가 섰다. 세계 화살표의 30px
 ## 근접 숨김 규칙도 가장자리 화살표에는 안 걸려 있어서, 문 바로 위에
 ## 서서 "나가기" 버튼이 다 보이는데도 머리 위에 화살표가 출렁였다.
+## 큰 지도를 펼치면 그 위로 화살표·안내가 안 겹쳐 그려지는가.
+##
+## `_center_covered()` 가 펼친 큰 지도를 덮개로 안 쳐서, 지도를
+## 펼쳐도 그 위로 도착 카드의 큰 글자와 안내 한 줄이 그대로 겹쳐
+## 그려졌다. 화살표(세계·가장자리)도 지도가 이미 초록 고리로 찍은
+## 같은 목표를 두 언어로 겹쳐 말했다.
+func _big_map_cover_tests() -> void:
+	print("\n[큰 지도가 덮개인가]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	_uncover(p.hud)   # 도착 카드부터 걷는다 - 여기서 보려는 건 지도 쪽이다
+	ok(not p.hud._center_covered(), "평소엔 안 덮여 있다")
+	p.minimap.toggle()
+	await get_tree().process_frame
+	ok(p.minimap.is_big(), "지도가 펼쳐졌다")
+	ok(p.hud._center_covered(), "펼친 큰 지도는 덮개로 친다")
+
+	p._tick_goal_arrow(0.016)
+	ok(not p._goal_arrow.visible, "세계 화살표가 안 뜬다")
+	ok(not p._goal_edge.visible, "가장자리 화살표도 안 뜬다")
+
+	p.minimap.toggle()
+	await get_tree().process_frame
+	ok(not p.hud._center_covered(), "접으면 다시 덮개가 아니다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _edge_arrow_visibility_tests() -> void:
 	print("\n[가장자리 화살표가 안 필요할 때]")
 	var g := GoalPointer.new()
