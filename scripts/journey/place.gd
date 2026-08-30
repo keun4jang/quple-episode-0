@@ -1582,7 +1582,13 @@ func _knot_on_talk(f: Folk) -> Array:
 		]
 
 	# 샛길 — 조개와 바다유리 중 **하나를 골라** 할머니에게.
-	if f.folk_id == "seal" and not JourneyState.quest_done("윤슬:샛길:고르기"):
+	#
+	# **첫인사가 먼저다.** 조개는 밟으면 자동으로 주워지니, 첫 만남
+	# 전에 하나라도 주웠으면 이 대사가 첫 만남 환영 인사("이 지도도
+	# 가지고 다녀")를 덮어써 버렸다 - 지도가 맥락 없이 카드로만
+	# 떨어지고, 첫 마을 첫 대화의 인상이 망가졌다.
+	if f.folk_id == "seal" and Quests.has_map() \
+			and not JourneyState.quest_done("윤슬:샛길:고르기"):
 		var has_shell: bool = JourneyState.count("p-shell") > 0
 		var has_glass: bool = JourneyState.count("p-seaglass") > 0
 		if has_shell or has_glass:

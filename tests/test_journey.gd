@@ -20,6 +20,7 @@ func _ready() -> void:
 	await _camera_tests()
 	_touch_tests()
 	_quest_tests()
+	await _first_greeting_order_tests()
 	await _goal_tests()
 	await _reach_tests()
 	await _side_path_tests()
@@ -1204,6 +1205,39 @@ func _touch_tests() -> void:
 
 
 # ── 퀘스트 ────────────────────────────────────────────────────────────
+
+## 첫 만남 전에 조개를 먼저 주웠어도, 첫인사(지도 받기)가 "고르기"
+## 대사에 덮이지 않는가.
+##
+## 조개는 밟으면 자동으로 주워지는데, `_knot_on_talk` 의 "고르기"
+## 분기가 소지품만 보고 먼저 반응해서, 첫 만남 환영 인사("이 지도도
+## 가지고 다녀")를 통째로 가렸다 - 지도가 맥락 없이 카드로만 떨어졌다.
+func _first_greeting_order_tests() -> void:
+	print("\n[첫인사가 고르기에 안 가려지는가]")
+	JourneyState.reset()
+	JourneyState.pick("p-shell")   # 첫 만남 전에 조개부터 주운 셈
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var granny: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "seal":
+			granny = f
+	ok(granny != null, "할머니가 있다")
+	if granny != null:
+		var extra: Array = p._knot_on_talk(granny)
+		ok(extra.is_empty(),
+			"첫 만남 전엔 '고르기' 대사가 안 끼어든다 (%s)" % str(extra))
+		p._near = granny
+		p.talk_to_near()
+		await get_tree().process_frame
+		ok(Quests.has_map(), "그래서 첫인사로 지도를 받는다")
+		ok(not JourneyState.quest_done("윤슬:샛길:고르기"),
+			"'고르기' 는 아직 안 끝났다 - 다음에 말 걸 때 한다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
 
 func _quest_tests() -> void:
 	print("\n[퀘스트]")
