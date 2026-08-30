@@ -2966,13 +2966,17 @@ func _tick_goal_arrow(delta: float) -> void:
 		add_child(_goal_edge)
 	var g := current_goal()
 	var at := goal_world(g) if not g.is_empty() else Vector2.INF
+	var near: bool = walker != null and at != Vector2.INF \
+		and walker.global_position.distance_to(at) < 30.0
 	# **화면 밖이면 가장자리가 가리킨다.** 세계 화살표는 목표가
 	# 화면에 들어와 있을 때만 보인다 - 두 손가락으로 당겨 보고
 	# 있으면 거의 다 화면 밖이다 (`GoalPointer` 주석).
-	_goal_edge.aim(at,
+	#
+	# **가까이 왔으면 가장자리도 같이 끈다.** 세계 화살표만 끄고
+	# 가장자리는 그대로 뒀더니, 문 바로 위에 서서 "나가기" 버튼이 다
+	# 보이는데도 머리 위에 "1걸음" 화살표가 계속 출렁였다.
+	_goal_edge.aim(Vector2.INF if near else at,
 		walker.global_position if walker != null else Vector2.ZERO, delta)
-	var near: bool = walker != null and at != Vector2.INF \
-		and walker.global_position.distance_to(at) < 30.0
 	if at == Vector2.INF or near:
 		_goal_arrow.visible = false
 		return

@@ -27,6 +27,7 @@ func _ready() -> void:
 	await _first_map_guide_tests()
 	await _yunseul_clear_tests()
 	_home_row_tests()
+	await _travel_board_outside_tap_tests()
 	await _locked_reason_tests()
 	_josa_tests()
 	await _seaglass_hint_tests()
@@ -44,6 +45,7 @@ func _ready() -> void:
 	await _trace_tests()
 	await _shelf_tests()
 	await _wrap_tests()
+	await _edge_arrow_visibility_tests()
 	await _guide_tests()
 	await _speaker_name_tests()
 	_row_id_tests()
@@ -2360,6 +2362,34 @@ func _home_row_tests() -> void:
 	b.free()
 
 
+## 여행판이 바깥을 눌러도 닫히는가.
+##
+## 배낭·펼친 미니맵·설정·가게 선반은 다 바깥 탭으로 닫히는데
+## (`ShelfPanel` 의 `dim.gui_input` 수법) 여행판만 dim 이
+## `MOUSE_FILTER_IGNORE` 라 눌림이 그냥 흘러가 무반응이었다.
+func _travel_board_outside_tap_tests() -> void:
+	print("\n[여행판 바깥 탭]")
+	var b := TravelBoard.new()
+	add_child(b)
+	await get_tree().process_frame
+	b.open("윤슬")
+	ok(b.visible, "여행판이 열렸다")
+	var dim: ColorRect = null
+	for c in b.get_children()[0].get_children():
+		if c is ColorRect:
+			dim = c
+	ok(dim != null, "덮개(dim)가 있다")
+	ok(dim != null and dim.mouse_filter != Control.MOUSE_FILTER_IGNORE,
+		"덮개가 눌림을 그냥 흘리지 않는다")
+	if dim != null:
+		var e := InputEventScreenTouch.new()
+		e.pressed = true
+		dim.emit_signal("gui_input", e)
+	ok(not b.visible, "바깥을 누르면 닫힌다")
+	b.queue_free()
+	await get_tree().process_frame
+
+
 func _locked_reason_tests() -> void:
 	print("\n[왜 잠겼는지]")
 	JourneyState.reset()
@@ -3622,6 +3652,53 @@ func _wrap_tests() -> void:
 #   - 실내에서 안에 볼 것이 없으면 나가는 문을 가리킨다
 #   - 목록 줄이 **남은 것**을 적는다
 
+## 화면 안에 멀쩡히 보이는 목표에는 가장자리 화살표가 안 뜨는가.
+##
+## `GoalPointer._off_screen()` 이 실제 화면이 아니라 모서리 버튼을
+## 피해 118px 물러난 "안전 사각형" 으로 판정해서, 가장자리 1/6 띠
+## 안의(화면에는 보이는) 목표에도 화살표가 섰다. 세계 화살표의 30px
+## 근접 숨김 규칙도 가장자리 화살표에는 안 걸려 있어서, 문 바로 위에
+## 서서 "나가기" 버튼이 다 보이는데도 머리 위에 화살표가 출렁였다.
+func _edge_arrow_visibility_tests() -> void:
+	print("\n[가장자리 화살표가 안 필요할 때]")
+	var g := GoalPointer.new()
+	add_child(g)
+	await get_tree().process_frame
+	var vp := g.get_viewport()
+	var size := vp.get_visible_rect().size
+
+	# 안전 사각형(모서리에서 118px) 안쪽이지만 진짜 화면 가장자리에
+	# 가까운 자리 - 눈에는 보인다.
+	var near_edge_but_visible := Vector2(size.x - 40.0, size.y * 0.5)
+	g.aim(near_edge_but_visible, Vector2.ZERO, 0.016)
+	ok(not g._off_screen(), "화면 안이면 안전 사각형 밖이어도 화면 밖이 아니다")
+	ok(not g.visible, "그래서 화살표가 안 선다")
+
+	# 진짜 화면 밖은 여전히 잡아야 한다.
+	g.aim(Vector2(size.x + 200.0, size.y * 0.5), Vector2.ZERO, 0.016)
+	ok(g._off_screen(), "진짜 화면 밖은 그대로 잡는다")
+	ok(g.visible, "그때는 화살표가 선다")
+	g.queue_free()
+	await get_tree().process_frame
+
+	# 발밑까지 걸어간 목표에는 세계 화살표처럼 가장자리도 꺼져야 한다.
+	JourneyState.reset()
+	JourneyState.pick("map")
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var goal := p.current_goal()
+	var at := p.goal_world(goal)
+	if at != Vector2.INF and p.walker != null:
+		p.walker.global_position = at
+		p._tick_goal_arrow(0.016)
+		ok(not p._goal_edge.visible,
+			"목표 바로 위에 서면 가장자리 화살표도 꺼진다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _guide_tests() -> void:
 	print("\n[길안내]")
 	JourneyState.reset()
@@ -4053,8 +4130,15 @@ func _zone_note_tests() -> void:
 func _bed_note_tests() -> void:
 	print("\n[자기 전에]")
 	JourneyState.reset()
+	# **시간대를 안 가린다.** 여태는 지금이 저녁일 때만 봐서, 아침·낮에
+	# 잠자리에 서는 하루의 2/3 시간대에서는 경고가 아예 안 떴다 - 알고
+	# 자는 것과 모르고 자는 것만 가른다는 뜻이 대부분 안 작동했다.
+	JourneyState.minutes = 9 * 60
+	ok(Quests.evening_left("윤슬") != "",
+		"아침에도 저녁 몫이 남았으면 알아챈다")
 	JourneyState.minutes = 13 * 60
-	ok(Quests.evening_left("윤슬") == "", "낮에는 아무 말도 안 한다")
+	ok(Quests.evening_left("윤슬") != "",
+		"낮에도 마찬가지다")
 	JourneyState.minutes = 19 * 60
 	ok(Quests.evening_left("윤슬") != "", "저녁에 남은 것이 있으면 알아챈다")
 	# 저녁 몫을 다 채우면 조용해진다

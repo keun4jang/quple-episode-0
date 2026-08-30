@@ -315,8 +315,11 @@ static func side_waiting(village: String, key: String) -> bool:
 ## **막지는 않는다.** 알고 자는 것과 모르고 자는 것만 가른다 -
 ## 벌이 없는 게임이니 "자면 안 된다" 가 되면 안 된다.
 static func evening_left(village: String) -> String:
-	if JourneyState.day_part() != "저녁":
-		return ""
+	# **시간대로 안 가린다.** 여태는 지금이 저녁일 때만 봤는데, 그러면
+	# 아침·낮에 잠자리에 서는 하루의 2/3 시간대에서는 경고가 아예 안
+	# 떴다 - "알고 자는 것과 모르고 자는 것만 가른다" 는 뜻이 정작
+	# 대부분의 시간에는 작동하지 않았다. 아래 문구도 "오늘 저녁에만"
+	# 이라 언제 봐도 뜻이 통한다 (`Place._bed_note`).
 	for row in quest_list(village):
 		if bool(row.get("done", false)):
 			continue

@@ -106,14 +106,21 @@ func aim(at: Vector2, from: Vector2, delta: float) -> void:
 
 
 ## 목표가 화면 밖인가. 여기 하나에서만 판단한다 - 검사도 이걸 부른다.
+##
+## **진짜 화면 전체로 잰다.** `_safe_rect()` 는 모서리 버튼을 피해
+## 118px 안으로 물러난 "화살표가 설 수 있는 자리" 지, "보이는 자리"
+## 가 아니다. 이걸로 화면 밖 여부까지 판단했더니, 화면 안에 멀쩡히
+## 보이는 목표 - 심지어 발밑 목표에도 - 가장자리 화살표가 떴다.
 func _off_screen() -> bool:
 	if _at == Vector2.INF:
 		return false
 	var s := screen_of(_at)
 	if s == Vector2.INF:
 		return false
-	var r := _safe_rect()
-	return not r.has_point(s)
+	var vp := get_viewport()
+	if vp == null:
+		return false
+	return not vp.get_visible_rect().has_point(s)
 
 
 ## 세계 좌표를 화면 좌표로. 카메라의 확대·이동이 다 들어 있다.

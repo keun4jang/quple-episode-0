@@ -53,7 +53,15 @@ func _build() -> void:
 	var dim := ColorRect.new()
 	dim.color = Color(0.10, 0.09, 0.12, 0.66)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# **바깥을 눌러도 닫혀야 한다.** 배낭·펼친 미니맵·설정·가게 선반은
+	# 다 이 길로 닫히는데(`ShelfPanel._build` 와 같은 수법) 여행판만
+	# `MOUSE_FILTER_IGNORE` 로 눌림을 그냥 흘려보내서, 닫으려면 맨
+	# 아래 "아직 더 있을래" 를 찾아야 했다.
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.gui_input.connect(func(e: InputEvent) -> void:
+		if (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed) \
+				or (e is InputEventMouseButton and (e as InputEventMouseButton).pressed):
+			close())
 	root.add_child(dim)
 
 	_panel = PanelContainer.new()
