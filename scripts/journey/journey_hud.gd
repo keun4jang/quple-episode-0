@@ -915,17 +915,10 @@ func _open_guide_recap() -> void:
 	box.add_child(close)
 
 
-## 받침을 보고 을/를 을 골라 붙인다.
-##
-## 화면에 "조개 을(를) 주웠어요" 라고 그대로 찍히고 있었다. 이름이 여덟
-## 개뿐이라 표를 만들 것도 없다 — 한글 마지막 글자에서 받침만 보면 된다.
+## 받침을 보고 을/를 을 골라 붙인다. `Wrap.with_josa` 로 옮겼다 -
+## 여기 하나뿐이던 걸 `Quests` 의 "%s와 인사하기" 도 써야 했다.
 func _with_josa(word: String) -> String:
-	if word.is_empty():
-		return word
-	var c := word.unicode_at(word.length() - 1)
-	if c < 0xAC00 or c > 0xD7A3:
-		return word + "를"            # 한글이 아니면 아쉬운 대로
-	return word + ("을" if (c - 0xAC00) % 28 != 0 else "를")
+	return Wrap.with_josa(word)
 
 
 ## 가운데 위에 한 줄 띄웠다 지운다. 주운 것·마친 일이 같은 자리를 쓴다.

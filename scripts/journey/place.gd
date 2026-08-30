@@ -1546,23 +1546,37 @@ func _knot_on_talk(f: Folk) -> Array:
 		return []
 
 	# 매듭 3 — 바다유리를 들고, 등대를 본 **다음 날** 소년에게.
-	if f.folk_id == "seagull" and not JourneyState.quest_done("윤슬:매듭:3"):
-		if Quests.knot_step_done("윤슬", 1) \
-				and JourneyState.count("p-seaglass") > 0 \
-				and JourneyState.day > JourneyState.quest_day("윤슬:등대@저녁"):
-			JourneyState.mark_quest("윤슬:매듭:3")
-			# **한 겹으로 준다.** `say()` 는 두 칸짜리 배열을 보면
-			# [누가, 무슨 말] 로 읽는다 (`journey_say.gd`). 여기서 두
-			# 문장을 한 칸에 묶어 뒀더니 앞 문장이 **이름표**로 찍혔다 -
-			# "그거 바다유리네요." 라는 이름의 인연이 말하는 꼴이었다.
+	if f.folk_id == "seagull" and not JourneyState.quest_done("윤슬:매듭:3") \
+			and Quests.knot_step_done("윤슬", 1):
+		if JourneyState.count("p-seaglass") <= 0:
+			# **바다유리는 백사장에 딱 하나(6,7)뿐인데 아무것도 안
+			# 가리킨다.** 못 주운 채 소년에게 말을 걸면 평소 대사만
+			# 나오고 왜 매듭이 안 끝나는지 알 길이 없었다 - 사실상
+			# 소프트락이다. 어디서 구하는지 소년이 직접 알려 준다.
 			return [
-				"그거 바다유리네요.",
-				"어디서 주웠어요?",
-				"…등대 밑이요?",
-				"거기 저녁에 가 봤구나.",
-				"나는 매일 보는데도 매일 달라요.",
-				"아저씨도 그랬어요?",
+				"저녁에 등대 밑에 가 보면",
+				"바다유리가 반짝일 거예요.",
 			]
+		if JourneyState.day <= JourneyState.quest_day("윤슬:등대@저녁"):
+			# **오늘은 아직 안 된다.** "다음 날" 조건인데 말을 걸어도
+			# 조용히 실패해 고장으로 읽혔다 - 왜 안 되는지 말해 준다.
+			return [
+				"오늘 등대 밑에서 주운 거죠?",
+				"그거 내일 다시 보여 줘요.",
+			]
+		JourneyState.mark_quest("윤슬:매듭:3")
+		# **한 겹으로 준다.** `say()` 는 두 칸짜리 배열을 보면
+		# [누가, 무슨 말] 로 읽는다 (`journey_say.gd`). 여기서 두
+		# 문장을 한 칸에 묶어 뒀더니 앞 문장이 **이름표**로 찍혔다 -
+		# "그거 바다유리네요." 라는 이름의 인연이 말하는 꼴이었다.
+		return [
+			"그거 바다유리네요.",
+			"어디서 주웠어요?",
+			"…등대 밑이요?",
+			"거기 저녁에 가 봤구나.",
+			"나는 매일 보는데도 매일 달라요.",
+			"아저씨도 그랬어요?",
+		]
 
 	# 샛길 — 조개와 바다유리 중 **하나를 골라** 할머니에게.
 	if f.folk_id == "seal" and not JourneyState.quest_done("윤슬:샛길:고르기"):
@@ -2354,8 +2368,11 @@ func _refresh_action() -> void:
 	if _can_depart():
 		hud.set_action("depart", "떠나기")
 		return
-	if _can_wait():
-		hud.set_action("wait", "기다리기")
+	var w := _current_wait()
+	if not w.is_empty():
+		# **언제까지인지 적는다.** "기다리기" 만으로는 잠깐인지 저녁까지인지
+		# 누르기 전엔 모른다 - `_current_wait` 가 이미 `when` 을 알고 있다.
+		hud.set_action("wait", "%s까지 기다리기" % String(w["when"]))
 		return
 	hud.set_action("", "")
 

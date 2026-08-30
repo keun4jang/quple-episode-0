@@ -151,7 +151,10 @@ const KNOT := {
 				"photo": true, "when": "저녁",
 				"label": "저녁에 등대곶에서 불 켜진 등대 사진 남기기"},
 			{"key": "윤슬:매듭:3", "kind": "talk", "map": "seagull",
-				"label": "다음 날 바다유리를 소년에게 보여 주기"},
+				"label": "다음 날 바다유리를 소년에게 보여 주기",
+				# 날짜 조건 - 이 열쇠의 날짜를 지난 뒤라야 된다. `when`
+				# (시간대)과는 다른 축이라 따로 둔다.
+				"after_day_of": "윤슬:등대@저녁"},
 		],
 	},
 }
@@ -344,7 +347,11 @@ static func zone_note(key: String) -> String:
 			if knot_step_done("윤슬", 1):
 				return ""
 			if JourneyState.day_part() != "저녁":
-				return "해가 지면 등대에 불이 들어와요. 그때 다시 와 봐요."
+				# **"다시 와 봐요" 라고 하면 안 된다.** 바로 이 자리에
+				# "기다리기" 버튼이 있다(`Place._can_wait`) - 떠나라는
+				# 말과 여기서 기다리라는 버튼이 같은 화면에서 반대말을
+				# 하고 있었다. 안내만 읽고 떠난 사람은 버튼을 영영 못 본다.
+				return "해가 지면 등대에 불이 들어와요. 여기서 기다려도 돼요."
 	return ""
 
 
@@ -787,15 +794,24 @@ static func quest_list(village: String) -> Array:
 		# 시키는 셈이다. 목록에는 남기되 지금 할 것으로는 안 고른다
 		# (`Place.current_goal`).
 		var when := String(cur.get("when", ""))
-		var waiting: bool = when != "" and JourneyState.day_part() != when \
-			and not knot_done(village)
+		var after_key := String(cur.get("after_day_of", ""))
+		# **두 축이 있다.** 시간대(`when`, 예: "저녁")와 날짜(`after_day_of`,
+		# "그 일을 한 날을 지나야") - 매듭3은 날짜만 걸린다. 여태는
+		# 날짜 축을 아예 안 봐서, "다음 날 ..." 이라는 라벨을 **당일부터**
+		# "지금 해볼 일" 로 띄우는 자기모순이 났다. 말을 걸어도 조용히
+		# 실패해 고장으로 읽혔다.
+		var day_wait: bool = after_key != "" and JourneyState.day <= JourneyState.quest_day(after_key)
+		var waiting: bool = not knot_done(village) \
+			and ((when != "" and JourneyState.day_part() != when) or day_wait)
+		var suffix := ""
+		if waiting:
+			suffix = "  (내일)" if day_wait else "  (%s에)" % when
 		out2.append({
 			# **층을 글자로 나눈다.** 매듭 줄과 샛길 줄이 똑같이 생기면
 			# 다시 체크리스트로 읽힌다. 폰트에 없는 그림글자는 못 쓰니
 			# 앞머리 낱말로 가른다 (`CLAUDE.md` 폰트 규칙).
 			"label": "이야기 %d/%d · %s%s" % [mini(at + 1, steps.size()),
-				steps.size(), String(cur["label"]),
-				"  (%s에)" % when if waiting else ""],
+				steps.size(), String(cur["label"]), suffix],
 			"id": String(cur["key"]),
 		"kind": String(cur["kind"]), "key": _knot_target_key(cur),
 			"photo": bool(cur.get("photo", false)),
@@ -830,7 +846,10 @@ static func quest_list(village: String) -> Array:
 		var ids: Array = TALK_FOLK.get(village, [])
 		var out: Array = []
 		for id in ids:
-			out.append({"label": "%s와 인사하기" % FOLK_NAME.get(id, ""),
+			# "부두 청년와 인사하기" 처럼 조사가 안 맞은 채로 찍히고
+			# 있었다 - 받침을 본다 (`Wrap.with_josa`).
+			out.append({"label": "%s 인사하기" % Wrap.with_josa(
+					String(FOLK_NAME.get(id, "")), Wrap.Josa.AND),
 				"kind": "talk", "key": String(id),
 				"done": JourneyState.heart(String(id)) >= 1})
 		out.append({"label": "가게 들어가 보기", "kind": "door", "key": "가게",

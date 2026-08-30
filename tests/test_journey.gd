@@ -27,6 +27,8 @@ func _ready() -> void:
 	await _first_map_guide_tests()
 	await _yunseul_clear_tests()
 	await _locked_reason_tests()
+	_josa_tests()
+	await _seaglass_hint_tests()
 	await _patient_hint_tests()
 	await _indoor_quest_tests()
 	await _door_tap_tests()
@@ -2128,6 +2130,30 @@ func _yunseul_clear_tests() -> void:
 	# ⑥-2 **다음 날**, 바다유리를 들고 소년을 다시 찾아간다.
 	# 이것이 이 마을 이야기의 마지막 단계다 — 하루를 넘겨야 한다.
 	ok(not Quests.knot_done("윤슬"), "아직 매듭이 안 끝났다 (하루를 안 넘겼다)")
+
+	# **당일에는 조용히 막히면 안 된다.** "다음 날 ..." 이라는 라벨을
+	# 당일 저녁부터 "지금 해볼 일" 로 띄우면서 말을 걸어도 아무 반응이
+	# 없었다 - 자기모순이자 고장으로 읽혔다. 목록엔 "기다릴 일"로
+	# 남고, 말을 걸면 이유를 알려 줘야 한다.
+	var today_item := {}
+	for q in Quests.quest_list("윤슬"):
+		if String(q.get("id", "")) == "윤슬:매듭:3":
+			today_item = q
+	ok(bool(today_item.get("waiting", false)),
+		"당일엔 '다음 날' 단계가 기다릴 일로 남는다 (%s)" % today_item)
+	ok(String(today_item.get("label", "")).contains("(내일)"),
+		"라벨에 내일이라고 적는다 (%s)" % today_item.get("label", ""))
+	var boy_today: Folk = null
+	for ftoday in p._folk:
+		if is_instance_valid(ftoday) and ftoday.folk_id == "seagull":
+			boy_today = ftoday
+	if boy_today != null:
+		var said_today: Array = p._knot_on_talk(boy_today)
+		ok(not said_today.is_empty(),
+			"당일에 말을 걸어도 조용히 실패하지 않는다 (%s)" % said_today)
+		ok(not JourneyState.quest_done("윤슬:매듭:3"),
+			"그렇다고 매듭이 끝나 버리진 않는다")
+
 	JourneyState.day += 1
 	var boy: Folk = null
 	for f4 in p._folk:
@@ -2218,6 +2244,64 @@ func _patient_hint_tests() -> void:
 	hud.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
+
+
+## 바다유리 없이 매듭3을 시도하면 힌트를 주는가.
+##
+## 바다유리는 백사장에 (6,7) 딱 하나뿐인데, 못 주운 채 소년에게 말을
+## 걸면 평소 대사만 나오고 왜 매듭이 안 끝나는지 알 길이 없었다 -
+## 매듭이 안 끝나면 볕뉘가 영영 안 열리는 사실상 소프트락이었다.
+func _seaglass_hint_tests() -> void:
+	print("\n[바다유리 없이 소년에게 가면]")
+	JourneyState.reset()
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.day = 2
+	JourneyState.mark_quest("윤슬:등대@저녁")
+	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var boy: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "seagull":
+			boy = f
+	ok(boy != null, "갈매기 소년이 있다")
+	ok(JourneyState.count("p-seaglass") == 0, "바다유리가 아직 없다")
+	if boy != null:
+		var said: Array = p._knot_on_talk(boy)
+		ok(not said.is_empty(), "없어도 뭐라도 말해 준다 (%s)" % said)
+		var joined := " ".join(said)
+		ok(joined.contains("바다유리"), "바다유리 얘기를 한다 (%s)" % joined)
+		ok(joined.contains("등대"), "등대 밑이라고 어디서 구하는지 알려 준다 (%s)" % joined)
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 인사 라벨의 조사가 받침을 맞게 고르는가.
+##
+## "부두 청년와 인사하기" 처럼 받침 있는 이름 뒤에 '와' 가 그대로 붙어
+## 있었다. 도착 카드·상단 목표줄·배낭·여행판 네 군데에 다 새는 말이라
+## 이름을 하나씩 다 재 본다 (`Wrap.with_josa`).
+func _josa_tests() -> void:
+	print("\n[조사가 맞는가]")
+	ok(Wrap.with_josa("부두 청년", Wrap.Josa.AND) == "부두 청년과",
+		"받침 있으면 '과' (%s)" % Wrap.with_josa("부두 청년", Wrap.Josa.AND))
+	ok(Wrap.with_josa("가게 할머니", Wrap.Josa.AND) == "가게 할머니와",
+		"받침 없으면 '와' (%s)" % Wrap.with_josa("가게 할머니", Wrap.Josa.AND))
+	var bad: Array = []
+	for v in Quests.ORDER:
+		for id in Quests.TALK_FOLK.get(v, []):
+			var label := ""
+			for q in Quests.quest_list(v):
+				if String(q.get("key", "")) == String(id) and String(q.get("kind","")) == "talk":
+					label = String(q.get("label", ""))
+			if label.contains("와 ") or label.contains("과 "):
+				continue
+			bad.append("%s: %s" % [v, label])
+	ok(bad.is_empty(), "아홉 마을 인사 라벨이 다 조사가 맞다%s"
+		% ("" if bad.is_empty() else " — " + str(bad)))
 
 
 ## 잠긴 여행지가 **무엇 때문에 잠겼는지** 적는가.
@@ -4002,11 +4086,30 @@ func _wait_action_tests() -> void:
 	pl.walker.global_position = pl.world_of(Vector2i(2, 2))
 	ok(not pl._can_wait(), "등대곶에서 멀면 기다리기가 안 뜬다")
 
-	# 등대곶 자리(31,5)에 서면 기다릴 수 있고, 눌렀을 때 저녁이 된다.
-	pl.walker.global_position = pl.world_of(Vector2i(31, 5))
+	# 등대곶 안, 문(31,6)과는 떨어진 자리에 서면 기다릴 수 있고, 눌렀을
+	# 때 저녁이 된다. 문 바로 앞이면 "등대 들어가기" 가 먼저 뜬다.
+	pl.walker.global_position = pl.world_of(Vector2i(32, 3))
 	ok(pl._can_wait(), "등대곶에 서면 기다리기가 뜬다")
+
+	# **버튼과 안내가 같은 말을 해야 한다.** 여태는 안내가 "그때 다시
+	# 와 봐요" 라며 떠나라고 하는데, 같은 화면에 여기서 기다리는
+	# 버튼이 있었다 - 안내만 읽고 떠난 사람은 버튼을 영영 못 봤다.
+	var note := Quests.zone_note("윤슬:등대")
+	ok(not note.contains("다시 와"), "안내가 떠나라고 하지 않는다 (%s)" % note)
+	ok(note.contains("기다려도"), "여기서 기다려도 된다고 말한다 (%s)" % note)
+	pl._refresh_action()
+	ok(pl.hud.action_kind() == "wait", "버튼도 기다리기로 뜬다")
+	ok(String(pl.hud._act_btn.text).contains("저녁"),
+		"버튼이 언제까지인지도 적는다 (%s)" % pl.hud._act_btn.text)
+
 	pl._do_wait()
 	ok(JourneyState.day_part() == "저녁", "기다리면 곧장 저녁이 된다")
+	# **불이 실제로 켜져 있어야 한다.** 정확히 17시로 건너뛰면 등대
+	# 불빛(`_tick_lamps` 의 `night_amount` 문턱)이 아직 하나도 안 켜져서,
+	# "불 켜진 등대 사진" 이라는 약속의 장면을 못 본 채 끝났다.
+	ok(JourneyState.night_amount() > 0.125,
+		"등대에 불이 들어올 만큼 저물었다 (night_amount=%.2f)"
+			% JourneyState.night_amount())
 
 	# 아침으로 되돌리진 않는다 - 이미 지난 시간대는 그대로 둔다.
 	JourneyState.minutes = 22 * 60

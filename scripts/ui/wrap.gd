@@ -120,3 +120,28 @@ static func _chop(word: String, font: Font, size: int,
 
 static func _w(font: Font, s: String, size: int) -> float:
 	return font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+
+
+## 받침을 보고 조사를 골라 붙인다. `with`(을/를) 은 기본이고, `and`(와/과) 도
+## 있다.
+##
+## "부두 청년와 인사하기" 처럼 화면에 그대로 찍히고 있었다 —
+## `journey_hud.gd` 의 `_with_josa` 는 을/를 만 골랐지 인사 라벨(`%s와
+## 인사하기`)의 와/과는 안 봤다. 이름이 정해진 몇 안 되는 인연 이름뿐이라
+## 표를 만들 것도 없다. 한글이 아니면 아쉬운 대로 받침 있는 쪽으로 붙인다.
+enum Josa { WITH, AND }
+
+static func with_josa(word: String, kind: Josa = Josa.WITH) -> String:
+	if word.is_empty():
+		return word
+	var c := word.unicode_at(word.length() - 1)
+	var has_batchim: bool
+	if c < 0xAC00 or c > 0xD7A3:
+		has_batchim = true            # 한글이 아니면 아쉬운 대로
+	else:
+		has_batchim = (c - 0xAC00) % 28 != 0
+	match kind:
+		Josa.AND:
+			return word + ("과" if has_batchim else "와")
+		_:
+			return word + ("을" if has_batchim else "를")
