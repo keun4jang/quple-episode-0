@@ -47,6 +47,8 @@ func _ready() -> void:
 	await _wrap_tests()
 	await _edge_arrow_visibility_tests()
 	await _guide_tests()
+	await _talk_cooldown_tests()
+	await _pinch_during_talk_tests()
 	await _speaker_name_tests()
 	_row_id_tests()
 	await _zone_note_tests()
@@ -993,6 +995,10 @@ func _camera_tests() -> void:
 		tp.say.advance()
 		await get_tree().process_frame
 	ok(not tp.say.is_busy(), "끝까지 넘기면 닫힌다")
+	# 방금 닫힌 대화의 쿨다운(연타로 다시 안 열리게 하는 것, 아래
+	# `_talk_cooldown_tests` 가 따로 잰다)이 여기 남아 있으면 안 된다 -
+	# 이 자리는 선택 버튼이 새로 여는지를 본다.
+	tp._talk_cooldown = 0.0
 
 	# ⑤ 선택 버튼 — 하나가 여러 일을 한다
 	tp.walker.global_position = someone.global_position + Vector2(18, 0)
@@ -3963,6 +3969,94 @@ func _bad_names(lines: Array, who: String) -> Array:
 # 이야기의 절정 두 곳이 그랬다.
 # 진짜 [누구, 대사] 도 있으므로(프롤로그의 "옆자리 동료" 같은),
 # **이름다운가**로 가른다 - 짧고, 문장부호로 안 끝난다.
+
+## 대화가 닫힌 바로 그 프레임의 연타가 같은 상대에게 다시 말을 걸지
+## 않는가.
+##
+## 대사는 타자 효과라 자연히 연타하게 되는데, 마지막 줄에서 대화가
+## 닫히는 즉시 같은 자리 선택 버튼이 "다음" → "말 걸기" 로 바뀌어
+## (쿨다운 없이) 연타의 마지막 탭이 방금 끝낸 대화를 처음부터 다시
+## 열었다.
+func _talk_cooldown_tests() -> void:
+	print("\n[대화 쿨다운]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var f: Folk = null
+	for c in p._folk:
+		if is_instance_valid(c) and c.folk_id == "seal":
+			f = c
+	ok(f != null, "할머니가 있다")
+	if f == null:
+		p.queue_free()
+		return
+	p._near = f
+	p.talk_to_near()
+	ok(p.say.is_busy(), "말을 걸면 대화가 열린다")
+	# 열려 있는 동안 한 프레임은 지나야 `_process` 가 "열려 있었다" 를
+	# 기억한다 - 그래야 닫히는 순간을 전이로 잡는다.
+	await get_tree().process_frame
+	# 마지막 줄까지 넘긴다.
+	for i in 10:
+		if not p.say.is_busy():
+			break
+		p.say.advance()
+	ok(not p.say.is_busy(), "끝까지 넘기면 닫힌다")
+	await get_tree().process_frame  # `_process` 가 닫힌 순간을 잡는다
+
+	# **바로 그다음 프레임에 연타해도** 다시 안 열려야 한다.
+	p._near = f
+	p.talk_to_near()
+	ok(not p.say.is_busy(), "닫히자마자 연타해도 다시 안 열린다")
+
+	# 쿨다운이 지나면 정상적으로 다시 걸린다.
+	for i in 30:
+		p._process(0.02)
+	p._near = f
+	p.talk_to_near()
+	ok(p.say.is_busy(), "쿨다운이 지나면 다시 말을 걸 수 있다 (%.2f, near=%s)"
+		% [p._talk_cooldown, p._near])
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 대화 중에 두 손가락(확대하려는 손)을 대면 대사가 스킵되지 않는가.
+##
+## 월드 탭에는 이미 `is_multi()` 가드가 있는데 대화창엔 없어서, 핀치
+## 하면 손가락 하나 닿을 때마다 `advance()` 가 불려 최대 두 줄이
+## 넘어가고 확대도 안 됐다.
+func _pinch_during_talk_tests() -> void:
+	print("\n[대화 중 두 손가락]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var f: Folk = null
+	for c in p._folk:
+		if is_instance_valid(c) and c.folk_id == "seal":
+			f = c
+	p._near = f
+	p.talk_to_near()
+	ok(p.say.is_busy(), "말을 걸면 대화가 열린다")
+	var at0 := p.say._at
+	# 확대하려고 둘째 손가락을 댄 상태를 흉내낸다.
+	p.touch._pinch_lock = true
+	var e := InputEventScreenTouch.new()
+	e.pressed = true
+	p.say._unhandled_input(e)
+	ok(p.say._at == at0, "두 손가락이면 줄이 안 넘어간다 (%d -> %d)" % [at0, p.say._at])
+	# 손가락을 떼면 다시 정상대로 넘어간다.
+	p.touch._pinch_lock = false
+	p.say._shown = p.say._full.length()   # 이미 다 찍힌 것으로
+	p.say._unhandled_input(e)
+	ok(p.say._at == at0 + 1 or not p.say.is_busy(),
+		"손을 떼면 다시 넘어간다 (%d)" % p.say._at)
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
 
 func _speaker_name_tests() -> void:
 	print("\n[이름표]")

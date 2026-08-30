@@ -108,8 +108,12 @@ func _small_btn(text: String, fn: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(64, 30)
-	b.add_theme_font_size_override("font_size", 15)
+	# **선택 버튼(148x72)급으로 키운다.** 64x30 이던 것이 프로젝트
+	# 스스로의 48dp 손끝 기준에도 못 미쳤다 - 지나친 대사를 다시 보는
+	# 유일한 길인데, 빗나가면(대화창은 "아무 데나 누르면 다음") 한
+	# 줄이 더 넘어가 버려서 되돌리기를 시도할수록 잃는 구조였다.
+	b.custom_minimum_size = Vector2(96, 64)
+	b.add_theme_font_size_override("font_size", 22)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color("#F1E9DA")
 	sb.set_corner_radius_all(10)
@@ -302,6 +306,12 @@ func _unhandled_input(e: InputEvent) -> void:
 	# 한 번 누른 것이 터치와 흉내낸 마우스로 두 번 온다. 그대로 두면
 	# **한 번 눌러 두 줄씩** 넘어간다.
 	if JourneyHud.is_echo(e):
+		return
+	# **두 손가락(확대)이면 넘기지 않는다.** 월드 탭에는 이미 이 가드가
+	# 있었는데 대화창엔 없어서, 대화 중 핀치를 하면 손가락 하나 닿을
+	# 때마다 `advance()` 가 불려 최대 두 줄이 넘어가고 확대도 안 됐다.
+	var touch := get_tree().get_first_node_in_group("journey_touch")
+	if touch != null and touch.has_method("is_multi") and touch.is_multi():
 		return
 	# 버튼 위를 눌렀으면 버튼이 먼저 받는다. 여기까지 온 것은 빈 곳이다.
 	#

@@ -1942,7 +1942,7 @@ func _tick_pending_talk() -> void:
 
 
 func talk_to_near() -> void:
-	if _near == null or say == null or say.is_busy():
+	if _near == null or say == null or say.is_busy() or _talk_cooldown > 0.0:
 		return
 	var f := _near
 	# 서로 마주 본다. 등을 보고 말하면 이상하다.
@@ -2271,6 +2271,10 @@ func _on_screen(w: Vector2) -> bool:
 var _dusk_t := 0.0
 ## 이 마을을 다 돌아본 것으로 이미 마음을 올렸나 (이 화면에서만).
 var _village_warmed := false
+## 대화창이 지난 프레임에 열려 있었나 - 닫히는 순간을 잡는다.
+var _say_was_busy := false
+## 대화가 막 닫힌 뒤 남은 쿨다운(초). 이 동안은 다시 말을 안 건다.
+var _talk_cooldown := 0.0
 
 func _tick_dusk(delta: float) -> void:
 	if _near == null or _near.is_spot or _near._dusk_warmed:
@@ -2775,6 +2779,15 @@ func _tick_goto(delta: float) -> Vector2:
 
 
 func _process(delta: float) -> void:
+	# **대화가 막 닫혔으면 잠깐은 다시 안 연다.** 대사는 타자 효과라
+	# 자연히 연타하게 되는데, 마지막 줄에서 대화가 닫히는 즉시 같은
+	# 자리 버튼이 "다음"→"말 걸기" 로 바뀌어(쿨다운 없이) 연타의
+	# 마지막 탭이 방금 끝낸 대화를 처음부터 다시 열었다.
+	var say_busy_now := say != null and say.is_busy()
+	if _say_was_busy and not say_busy_now:
+		_talk_cooldown = 0.35
+	_say_was_busy = say_busy_now
+	_talk_cooldown = maxf(0.0, _talk_cooldown - delta)
 	# 지도를 받기 전엔 미니맵이 없다. 접혀 있을 때만 매겨도 된다 —
 	# 펼친 채로 지도를 잃는 경로는 없다(펼치려면 먼저 있어야 하니까).
 	if minimap != null and not minimap.is_big():
