@@ -1880,6 +1880,10 @@ func go_to_sleep() -> void:
 	walker.stop()
 	stop_walk_to()
 	_did("sleep")
+	# 길잡이의 "act" 단계(오른쪽 버튼)는 그 버튼을 눌러야만 넘어갔다.
+	# 잠자리를 직접 탭해서 자는 사람은 버튼을 한 번도 안 눌러도
+	# 같은 일을 해낸 것이니 여기서도 같이 알린다.
+	_did("act")
 	JourneyState.mark_quest("%s:잠" % place_name())
 	AudioManager.sit_rustle()
 	var tw := create_tween()
@@ -2023,6 +2027,10 @@ func talk_to_near() -> void:
 		JourneyState.give_postcard(f.folk_id, f.who)
 	say.say(f.who, what)
 	_did("talk")
+	# 인연을 직접 탭해서 말을 건 것도 "오른쪽 버튼" 이 가르치려던 것과
+	# 같은 일이다. 버튼을 한 번도 안 눌러도 길잡이의 "act" 단계가
+	# 거기서 영영 멈추지 않게 같이 알린다.
+	_did("act")
 	talked.emit(f.folk_id)
 
 
@@ -2365,6 +2373,23 @@ func _tick_village_done() -> void:
 
 
 ## 안내가 기다리던 일을 해냈다고 알린다.
+## 길잡이의 "quests" 단계(배낭 열기)는 여태 배낭을 실제로 열어야만
+## 넘어갔다. 그런데 그 답은 위쪽 안내줄에 이미 떠 있어서, 그걸 본
+## 사람은 배낭을 열 이유가 없었다 - 열 이유가 없는 걸 열라고 기다리며
+## 말풍선이 프롤로그 내내 남았다. 안내줄이 뜬 채로 2초쯤 지나면
+## "봤다" 로 친다 - 안내를 읽을 시간은 주되, 배낭을 진짜 열어야만
+## 넘어가는 부담은 없앤다.
+var _quests_seen_t := 0.0
+
+func _tick_guide_quests_step(delta: float) -> void:
+	if hud == null or hud._task_strip == null or not hud._task_strip.visible:
+		_quests_seen_t = 0.0
+		return
+	_quests_seen_t += delta
+	if _quests_seen_t >= 2.0:
+		_did("quests")
+
+
 func _did(what: String) -> void:
 	if guide != null and is_instance_valid(guide):
 		guide.done(what)
@@ -2451,6 +2476,9 @@ func _open_board() -> void:
 	# 목록에 "(다 했어요)" 가 붙었다. 진짜로 고른 순간에 남긴다
 	# (`_on_chose`, `TravelBoard._pick`).
 	_did("go")
+	# 표지판을 직접 탭해서 연 것도 "오른쪽 버튼" 이 가르치려던 것과
+	# 같은 일이다 - 안 그러면 길잡이의 "act" 단계가 거기서 멈춘다.
+	_did("act")
 
 
 ## 여행지를 실제로 골랐다. 그때 정류장 표시를 남긴다 — 떠나기 직전이라
@@ -2489,6 +2517,9 @@ func _do_enter(d) -> void:
 		var key: String = String(d.get("enter_key", "가게"))
 		JourneyState.mark_quest("%s:%s" % [place_name(), key])
 	_did("enter")
+	# 문을 직접 탭해서 들어간 것도 "오른쪽 버튼" 이 가르치려던 것과
+	# 같은 일이다 - 안 그러면 길잡이의 "act" 단계가 거기서 멈춘다.
+	_did("act")
 	# `SceneTransition.go_to()` 가 문 여는 소리를 낸다 — 여기서 또 내지 않는다.
 	var st := get_node_or_null("/root/SceneTransition")
 	if st != null and st.has_method("go_to"):
@@ -2858,6 +2889,7 @@ func _process(delta: float) -> void:
 	_tick_tap_mark(delta)
 	_tick_dusk(delta)
 	_tick_village_done()
+	_tick_guide_quests_step(delta)
 	_tick_schedule(delta)
 	_refresh_action()
 	_tick_clock(delta)

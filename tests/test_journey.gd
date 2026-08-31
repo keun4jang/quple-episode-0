@@ -20,6 +20,7 @@ func _ready() -> void:
 	await _camera_tests()
 	_touch_tests()
 	_quest_tests()
+	await _guide_generous_tests()
 	await _prologue_clock_freeze_tests()
 	await _shop_view_first_tests()
 	await _lighthouse_view_first_tests()
@@ -1240,6 +1241,61 @@ func _touch_tests() -> void:
 ## 도착 카드·화면 보는 법·길잡이를 읽는 것만으로 다 썼고, 자정이
 ## 되면 남은 할 일 여섯 줄이 "다음 길로" 하나로 바뀌어 쳐서 천천히
 ## 읽는 사람일수록 사무실 이야기를 통째로 건너뛰었다.
+## 길잡이가 배낭을 안 열어도, 오른쪽 버튼을 안 눌러도 막히지 않는가.
+##
+## "quests"(배낭 열기) 단계는 여태 배낭을 실제로 열어야만 넘어갔는데,
+## 그 답은 위쪽 안내줄에 이미 떠 있어서 열 이유가 없었다. "act"(오른쪽
+## 버튼) 단계도 그 버튼을 실제로 눌러야만 넘어갔는데, 직전 단계에서
+## 배운 대로 인연·문을 직접 탭하는 사람은 거기서 멈췄다.
+func _guide_generous_tests() -> void:
+	print("\n[길잡이가 안 막히는가]")
+	JourneyState.reset()
+	SaveManager.set_flag(Guide.FLAG, false)
+	SaveManager.set_flag(Guide.STEP_FLAG, 0)
+	SaveManager.set_flag(HowToPlay.FLAG, true)   # 화면 보는 법은 따로 안 본다
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	await get_tree().create_timer(1.3).timeout   # 길잡이가 첫 줄을 띄우는 시간
+	var guide: Guide = p.guide
+	ok(guide != null, "길잡이가 있다")
+	ok(guide.waiting_for() == "quests", "첫 줄은 배낭 열기다 (%s)" % guide.waiting_for())
+
+	# 배낭을 안 열어도, 안내줄이 뜬 채로 2초쯤 지나면 저절로 넘어간다.
+	# **실제 프레임으로 기다린다** - 안내줄을 채우는 `JourneyHud._process()`
+	# 는 딴 노드라, `Place._process()` 만 손으로 불러선 안 돈다.
+	# 도착 카드가 걷히는 데만 3.6초가 걸리고(그동안은 안내줄이 눌린다),
+	# 그 뒤로 2초를 더 봐야 하니 넉넉히 기다린다.
+	await get_tree().create_timer(6.0).timeout
+	ok(guide.waiting_for() != "quests",
+		"배낭을 안 열어도 안내줄을 보면 넘어간다 (%s)" % guide.waiting_for())
+
+	# "walk"·"talk" 를 지나 "act" 까지 민다.
+	while guide.waiting_for() == "walk":
+		guide.done("walk")
+	ok(guide.waiting_for() == "talk", "다음은 말 걸기다 (%s)" % guide.waiting_for())
+
+	# 인연을 **직접 탭해서** 말을 건다 - 오른쪽 버튼은 안 누른다.
+	# 그 한 번의 상호작용이 "talk" 도, "act"(오른쪽 버튼과 같은 일을
+	# 직접 탭으로 해낸 것)도 같이 채운다 - 버튼을 안 눌러도 "act" 에서
+	# 영영 안 멈춘다.
+	var f: Folk = null
+	for c in p._folk:
+		if is_instance_valid(c) and c.folk_id == "seal":
+			f = c
+	p._near = f
+	p.talk_to_near()
+	ok(guide.waiting_for() != "act",
+		"직접 탭만으로도 'act' 에서 안 멈춘다 (%s)" % guide.waiting_for())
+
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+	SaveManager.set_flag(Guide.FLAG, false)
+	SaveManager.set_flag(Guide.STEP_FLAG, 0)
+	SaveManager.set_flag(HowToPlay.FLAG, false)
+
+
 func _prologue_clock_freeze_tests() -> void:
 	print("\n[프롤로그 시계가 안 넘어가는가]")
 	JourneyState.reset()
