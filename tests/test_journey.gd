@@ -20,6 +20,8 @@ func _ready() -> void:
 	await _camera_tests()
 	_touch_tests()
 	_quest_tests()
+	await _shop_view_first_tests()
+	await _lighthouse_view_first_tests()
 	await _bag_row_distinction_tests()
 	await _first_greeting_order_tests()
 	await _goal_tests()
@@ -1219,6 +1221,77 @@ func _touch_tests() -> void:
 ## 자리가 있는 줄만 Button, 없는 줄은 Label 인데 폰트 크기·색·여백이
 ## 같아서 눌러 보기 전엔 구별이 안 됐다. 이제 누를 수 있는 줄만
 ## 선택 버튼과 같은 금색을 쓴다.
+## 등대 안에 막 들어서면 화살표가 곧장 "나가기" 를 가리키지 않고
+## 꼭대기 전망부터 가리키는가.
+##
+## 문을 지나는 순간 바깥 목록의 "등대 안에 들어가 보기" 는 이미 끝난
+## 것으로 친다(door 의 enter_key). 그런데 안에서도 같은 기준을 쓰면
+## 안내가 곧장 "나가기" 로 떨어져, 등대의 존재 이유인 꼭대기 전망을
+## 보기도 전에 되돌아 나가라고 시켰다.
+## 가게 안에 들어서면 곧장 "나가기" 가 아니라 안 본 선반부터
+## 짚는가.
+##
+## 여기 안은 할 일 목록에 줄이 없어 곧장 "나가기" 로 떨어져서,
+## 할머니·선반이 눈앞인데도 화면이 되돌아 나가라고 시켰다.
+func _shop_view_first_tests() -> void:
+	print("\n[가게 안 - 선반부터 보는가]")
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 11)
+	var inn: Place = load("res://scenes/journey/interiors/ShopInterior.tscn").instantiate()
+	add_child(inn)
+	await get_tree().process_frame
+	var g := inn.current_goal()
+	ok(String(g.get("kind", "")) == "prop",
+		"막 들어서면 안 본 선반을 짚는다 (%s)" % g)
+
+	# 셋을 다 보면(place.talk_to_near 경로) 그제야 나가는 문을 짚는다.
+	for who in ["오늘의 먹거리", "이 마을 물건", "기억 선반"]:
+		var f2: Folk = null
+		for f in inn._folk:
+			if is_instance_valid(f) and f.is_spot and f.who == who:
+				f2 = f
+		ok(f2 != null, "'%s' 선반이 있다" % who)
+		if f2 != null:
+			inn._near = f2
+			inn.talk_to_near()
+	var g2 := inn.current_goal()
+	ok(String(g2.get("kind", "")) == "exit",
+		"셋을 다 보면 나가는 문을 짚는다 (%s)" % g2)
+	inn.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+func _lighthouse_view_first_tests() -> void:
+	print("\n[등대 안 - 전망부터 보는가]")
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+	JourneyState.exit_tile = Vector2i(24, 12)
+	var inn: Place = load("res://scenes/journey/interiors/LighthouseInterior.tscn") \
+		.instantiate()
+	add_child(inn)
+	await get_tree().process_frame
+	var g := inn.current_goal()
+	ok(String(g.get("kind", "")) == "visit",
+		"막 들어서면 '나가기' 가 아니라 둘러볼 자리를 짚는다 (%s)" % g)
+	ok(String(g.get("label", "")).contains("전망") or String(g.get("label", "")).contains("꼭대기"),
+		"그 자리는 꼭대기 전망이다 (%s)" % g.get("label", ""))
+
+	# 꼭대기에 닿으면 그제야 나가는 문을 짚는다.
+	inn.walker.global_position = inn.world_of(Vector2i(LighthouseInterior.W / 2, 3))
+	inn._tick_quest_zones()
+	await get_tree().process_frame
+	var g2 := inn.current_goal()
+	ok(String(g2.get("kind", "")) == "exit",
+		"전망을 보고 나면 나가는 문을 짚는다 (%s)" % g2)
+	inn.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _bag_row_distinction_tests() -> void:
 	print("\n[배낭 줄 구별]")
 	JourneyState.reset()
@@ -3936,15 +4009,16 @@ func _guide_tests() -> void:
 			var at2: Vector2 = inn.goal_world(g2)
 			ok(at2 != Vector2.INF, "%s: 그 자리를 짚을 수 있다" % room)
 			# 규칙은 하나다 - **안에 갈 자리가 있으면 그것을, 없으면 나가는
-			# 문을.** 샛길과 능 안쪽길은 안쪽에 제 목표가 있어서, 거기서
-			# 문을 가리키면 오히려 틀린 것이다.
-			var inner := false
-			for z in inn.quest_zones():
-				if not JourneyState.quest_done(String(z[0])):
-					inner = true
+			# 문을.** 샛길·능 안쪽길·가게 안(선반)·등대 안(전망)은
+			# 안쪽에 제 목표가 있어서, 거기서 문을 가리키면 오히려
+			# 틀린 것이다. `quest_zones()` 로 짚는 곳도 있고(샛길 등)
+			# `open_goals()` 를 통째로 덮어쓰는 곳도 있으니(가게 안),
+			# "안쪽인가" 는 결국 **지금 안내가 exit 가 아닌가**로 본다.
+			var inner: bool = String(g2.get("kind", "")) != "exit"
 			if inner:
-				ok(String(g2.get("kind", "")) == "visit",
-					"%s: 안쪽에 갈 자리가 있으면 그것을 가리킨다" % room)
+				ok(String(g2.get("kind", "")) in ["visit", "prop"],
+					"%s: 안쪽에 갈 자리가 있으면 그것을 가리킨다 (%s)"
+						% [room, g2.get("kind", "")])
 			else:
 				var door_at: Vector2 = inn.world_of(inn.doors()[0]["tile"])
 				ok(at2.distance_to(door_at) < 1.0,
@@ -3955,6 +4029,11 @@ func _guide_tests() -> void:
 			if inner:
 				for z2 in inn.quest_zones():
 					JourneyState.mark_quest(String(z2[0]))
+				# 가게 안은 `quest_zones()` 가 아니라 선반 표시 셋으로
+				# 안쪽 볼거리를 센다 (`ShopInterior.open_goals`).
+				if room == "ShopInterior":
+					for kind in ["food", "keep", "show"]:
+						JourneyState.mark_quest("%s:선반:%s" % [inn.village_we_came_from(), kind])
 				var after: Dictionary = inn.current_goal()
 				var door2: Vector2 = inn.world_of(inn.doors()[0]["tile"])
 				ok(not after.is_empty() \
@@ -5178,6 +5257,21 @@ func _shade_spot_tests() -> void:
 		"그 문은 ShadeSpot 으로 이어진다")
 	ban.queue_free()
 	await get_tree().process_frame
+
+	# ⑤ 화살표를 안 켠다 - 할 일이 있어서 앉는 자리가 아니다. 곧장
+	# "나가기" 를 가리키면 "앉아 있지 말고 얼른 나가라" 는 말이 된다.
+	JourneyState.reset()
+	var s3: Place = load("res://scenes/journey/interiors/ShadeSpot.tscn").instantiate()
+	add_child(s3)
+	await get_tree().process_frame
+	ok(s3.open_goals().is_empty(), "화살표가 짚을 것이 없다")
+	ok(s3.current_goal().is_empty(), "지금 할 일도 없다")
+	# 왜 조용한지는 한 줄로 말해 준다.
+	ok(s3.hud._hint_busy or not s3.hud._hint_queue.is_empty(),
+		"대신 '그냥 쉬어요' 한 줄이 뜬다")
+	s3.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
 
 	s2.queue_free()
 	await get_tree().process_frame

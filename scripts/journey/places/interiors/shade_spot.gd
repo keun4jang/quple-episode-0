@@ -210,9 +210,16 @@ func doors() -> Array:
 	}]
 
 
-## 여기는 실내(서브맵)다 - 볼 것을 다 보면 화살표가 나가는 문을
-## 짚는다 (`Place.open_goals` 의 기본값. 여기선 따로 덮어쓸 것도
-## 없다 - 앉는 자리는 목록 줄이 아니라서 애초에 짚을 대상이 아니다).
+## **화살표를 안 켠다.** `Place` 기본값을 그대로 두면 여기도 "볼
+## 것을 다 보면 나가는 문을 짚는" 다른 실내들과 같아진다 - 그런데
+## 이 자리는 **할 일이 있어서 앉는 게 아니다.** 벌이 없다는 걸
+## 서브맵으로도 보여 주려던 곳인데, 화살표가 곧장 "나가기" 를
+## 가리키면 "앉아 있지 말고 얼른 나가라" 는 말이 된다. 문은
+## 가까이 가면 늘 뜨는 "문" 표시(`Place._tick_mark`)로 충분하다.
+func open_goals() -> Array:
+	return []
+
+
 func is_indoors() -> bool:
 	return true
 
@@ -223,6 +230,10 @@ func quest_village() -> String:
 
 func on_built() -> void:
 	JourneyState.here = place_name()
+	# 화살표도 위쪽 안내줄도 없는 자리라, 왜 조용한지 한 줄은 말해 준다 -
+	# 안 그러면 "할 일이 안 뜨네, 고장인가" 로 읽힌다.
+	if hud != null:
+		hud.call("_say_hint", "여기서는 그냥 쉬어요.", true, 1.6)
 	var c := _cfg()
 	if not c.has("sit"):
 		return

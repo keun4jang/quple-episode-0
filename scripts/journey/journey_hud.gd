@@ -1119,6 +1119,13 @@ func _first_task() -> String:
 		var now: Dictionary = place.current_goal()
 		if not now.is_empty():
 			return String(now.get("label", ""))
+		# **실내가 일부러 조용하면 그대로 조용히 둔다.** 그늘 자리
+		# (`ShadeSpot`) 처럼 `open_goals()` 를 일부러 비워 둔 곳에서
+		# 마을(바깥) 할 일로 떨어지면, "여기서는 그냥 쉬어요" 옆에
+		# 엉뚱하게 바깥 마을의 남은 할 일이 뜬다 - 그 자리에서 할 수도
+		# 없는 일이다.
+		if place.is_indoors():
+			return ""
 	for q in Quests.quest_list(_quest_village()):
 		if not bool(q.get("done", false)):
 			return String(q.get("label", ""))

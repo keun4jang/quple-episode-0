@@ -220,6 +220,26 @@ func quest_village() -> String:
 	return village_we_came_from()
 
 
+## **아직 안 본 선반부터 짚는다.** 여태는 여기 안에 할 일 줄이 없어
+## 곧장 "나가기" 로 떨어져, 할머니·선반이 눈앞인데도 화면이 되돌아
+## 나가라고 시켰다 - 처음 잡는 사람은 안쪽 볼거리를 보기 전에
+## 되돌아 나가곤 했다. 셋을 다 보면(또는 선반이 없는 마을이면)
+## `Place` 기본값대로 문을 짚는다.
+func open_goals() -> Array:
+	var v := village_we_came_from()
+	if Items.has(v):
+		# key 는 `goal_world()` 의 "prop" 갈래가 보는 `Folk.who` 와
+		# 같아야 한다 - `_shelf()` 가 그 자리에 세운 이름표 그대로.
+		for e in [["food", "오늘의 먹거리"], ["keep", "이 마을 물건"],
+				["show", "기억 선반"]]:
+			var kind: String = e[0]
+			var who: String = e[1]
+			if not JourneyState.quest_done("%s:선반:%s" % [v, kind]):
+				return [{"label": "선반 들여다보기", "kind": "prop",
+					"key": who, "done": false}]
+	return super()
+
+
 func on_built() -> void:
 	JourneyState.here = place_name()
 	var mid := W / 2

@@ -1965,6 +1965,12 @@ func talk_to_near() -> void:
 	# (걸어가서 한 번 누르기) 여는 것만 다르다 (`ShelfPanel`).
 	if f.is_spot and f.spot_key.begins_with("선반:"):
 		var kind := f.spot_key.substr(3)
+		# **마을별로 따로 기억한다.** `place_name()` 은 어느 마을 가게든
+		# "가게 안" 으로 같아서, 그대로 키를 쓰면 아홉 마을의 같은 선반이
+		# 서로 뒤섞인다. `open_goals()` 가 이 표시로 "아직 안 본 선반부터
+		# 짚는다" 를 하므로(가게 안에 들어서면 곧장 나가라고 하던 문제),
+		# 마을 이름을 넣어 가른다.
+		JourneyState.mark_quest("%s:선반:%s" % [quest_village(), kind])
 		ShelfPanel.open(self, quest_village(), kind)
 		return
 	# 재회 대본이 걸려 있나. **말을 걸어야 한 단계 넘어간다** —

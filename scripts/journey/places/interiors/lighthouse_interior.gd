@@ -101,6 +101,16 @@ func quest_village() -> String:
 	return village_we_came_from()
 
 
+## **꼭대기 전망까지가 "올라가 보기" 다.** 바깥 목록의 "등대 안에
+## 들어가 보기" 는 문을 지나는 순간 끝난 것으로 치지만(door 의
+## `enter_key`), 여기 안에서는 그게 곧 "나가기" 화살표로 이어졌다 -
+## 올라가 보기도 전에 출구부터 가리켰다. `open_goals()` 가 이 존을
+## 먼저 보고, 다 봤을 때만(`Place` 기본값대로) 문을 짚는다.
+func quest_zones() -> Array:
+	return [["%s:등대전망" % village_we_came_from(), Vector2i(W / 2, 3), 40.0,
+		"나선 계단을 올라 꼭대기 보기"]]
+
+
 func on_built() -> void:
 	JourneyState.here = place_name()
 	# 세 마을이 같은 등대를 쓰지만 **꼭대기에서 보이는 것**은 마을마다
