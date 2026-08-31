@@ -18,17 +18,23 @@ const FLAG := "how_to_play_done"
 
 signal closed
 
-## [화면 어느 쪽, 가로 치우침, 세로 치우침, 이름, 한 줄 설명]
+## [화면 어느 쪽, 가로 치우침, 세로 치우침, 이름, 한 줄 설명, (옆에 붙임), (보임 확인 키)]
 ## 치우침은 그 귀퉁이에서 안쪽으로 얼마나 들어오는지(px).
+##
+## **보임 확인 키**가 있는 셋("작은 지도"·"행동"·"사진")은 카드가
+## 뜨는 그 순간 실제로 화면에 있을 때만 그린다. 지도를 받기 전엔
+## 미니맵 자체가 안 보이고, 카메라가 없으면 사진 버튼이 숨고, 가까이
+## 간 것이 없으면 행동 버튼도 없다 - 없는 자리에 고리만 뜨면 처음
+## 잡은 사람은 없는 것을 찾아 누르게 된다 (`_visible_now`).
 const SPOTS := [
 	[Control.PRESET_TOP_LEFT, 56, 40, "지금 시각", "걷는 동안 하루가 흘러요"],
 	[Control.PRESET_TOP_RIGHT, -60, 60, "설정", "소리와 되돌리기"],
-	[Control.PRESET_TOP_RIGHT, -175, 155, "작은 지도", "누르면 크게 봐요"],
+	[Control.PRESET_TOP_RIGHT, -175, 155, "작은 지도", "누르면 크게 봐요", false, "map"],
 	# 배낭은 이름을 **고리 옆**에 붙인다. 위로 올리면 바로 위 "행동"
 	# 고리와 겹친다 (오른쪽 아래는 둘이 세로로 붙어 있다).
 	[Control.PRESET_BOTTOM_RIGHT, -80, -80, "배낭", "해볼 일과 가진 것", true],
-	[Control.PRESET_BOTTOM_RIGHT, -107, -198, "행동", "가까이 가면 떠요"],
-	[Control.PRESET_BOTTOM_LEFT, 80, -80, "사진", "카메라를 받으면 켜져요"],
+	[Control.PRESET_BOTTOM_RIGHT, -107, -198, "행동", "가까이 가면 떠요", false, "act"],
+	[Control.PRESET_BOTTOM_LEFT, 80, -80, "사진", "카메라를 받으면 켜져요", false, "cam"],
 ]
 
 const HOWS := [
@@ -47,12 +53,38 @@ static func open(tree: SceneTree) -> HowToPlay:
 	return h
 
 
+## 가려 둔 HUD 글자를 되살릴 때 쓴다.
+var _hidden_texts: Array = []
+
 func _ready() -> void:
 	layer = 11
 	add_to_group("how_to_play")
 	# 안드로이드 뒤로가기가 이걸 먼저 닫는다 (`back_handler.gd`).
 	add_to_group("overlay")
+	_hide_hud_texts()
 	_build()
+
+
+## **덮개가 화면을 어둡게만 깔고 글자는 안 지운다.** 그 밑에 시계·
+## "지금 해볼 일" 줄이 그대로 있어서, "지금 시각" 이라 적은 설명과
+## 실제 시계 글자가 겹쳐 보였다. 이 카드가 떠 있는 동안은 조용히
+## 숨겨 뒀다가 닫힐 때 되돌린다.
+func _hide_hud_texts() -> void:
+	var hud := get_tree().get_first_node_in_group("journey_hud")
+	if hud == null:
+		return
+	for name in ["_clock", "_task_strip", "_place_title", "_arrive_task"]:
+		var n = hud.get(name)
+		if n != null and n is CanvasItem and (n as CanvasItem).visible:
+			_hidden_texts.append(n)
+			(n as CanvasItem).visible = false
+
+
+func _restore_hud_texts() -> void:
+	for n in _hidden_texts:
+		if is_instance_valid(n):
+			(n as CanvasItem).visible = true
+	_hidden_texts.clear()
 
 
 func _build() -> void:
@@ -72,6 +104,8 @@ func _build() -> void:
 	root.add_child(dim)
 
 	for s in SPOTS:
+		if s.size() > 6 and not _visible_now(String(s[6])):
+			continue
 		root.add_child(_marker(s))
 
 	# 가운데 — 무엇을 눌러서 무엇을 하는지 세 줄
@@ -136,6 +170,24 @@ func _build() -> void:
 	root.add_child(btn)
 
 
+## 그 자리가 지금 실제로 화면에 있나. "map"·"act"·"cam" 셋만 쓴다 -
+## 나머지(시계·설정·배낭)는 늘 있다.
+func _visible_now(key: String) -> bool:
+	match key:
+		"map":
+			for n in get_tree().get_nodes_in_group("mini_map"):
+				if n is CanvasItem:
+					return (n as CanvasItem).visible
+			return false
+		"act", "cam":
+			var hud := get_tree().get_first_node_in_group("journey_hud")
+			if hud == null:
+				return false
+			var btn = hud.get(("_act_btn" if key == "act" else "_cam_btn"))
+			return btn != null and btn.visible
+	return true
+
+
 ## 귀퉁이 하나. **그 자리에** 고리를 그리고 곁에 이름을 붙인다.
 func _marker(s: Array) -> Control:
 	var c := Control.new()
@@ -197,6 +249,14 @@ func _marker(s: Array) -> Control:
 	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	c.add_child(d)
 	return c
+
+
+## 안드로이드 뒤로가기는 `close()` 가 없으면 그냥 `queue_free()` 를
+## 부른다(`back_handler.gd`) - `_close()` 를 거치지 않고 사라질 수
+## 있으므로, 가려 둔 글자를 되살리는 건 **어떻게 없어지든** 불리는
+## `_exit_tree()` 에 둔다.
+func _exit_tree() -> void:
+	_restore_hud_texts()
 
 
 func _close() -> void:

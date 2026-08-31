@@ -20,6 +20,7 @@ func _ready() -> void:
 	await _camera_tests()
 	_touch_tests()
 	_quest_tests()
+	await _how_to_play_visibility_tests()
 	await _guide_generous_tests()
 	await _prologue_clock_freeze_tests()
 	await _shop_view_first_tests()
@@ -1247,6 +1248,50 @@ func _touch_tests() -> void:
 ## 그 답은 위쪽 안내줄에 이미 떠 있어서 열 이유가 없었다. "act"(오른쪽
 ## 버튼) 단계도 그 버튼을 실제로 눌러야만 넘어갔는데, 직전 단계에서
 ## 배운 대로 인연·문을 직접 탭하는 사람은 거기서 멈췄다.
+## "화면 보는 법" 카드가 아직 없는 UI(작은 지도·행동·사진)를 가리키지
+## 않는가. 그리고 밑에 깔린 시계·안내줄이 그 설명과 안 겹치는가.
+func _how_to_play_visibility_tests() -> void:
+	print("\n[화면 보는 법 - 없는 것을 안 가리키는가]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var hud: JourneyHud = p.hud
+	# 아직 지도도 카메라도 없고, 가까이 간 것도 없다 - 셋 다 화면에
+	# 없어야 정상이다.
+	ok(not p.minimap.visible, "아직 지도가 안 보인다")
+	ok(not hud._cam_btn.visible, "아직 사진 버튼이 안 보인다")
+	ok(not hud._act_btn.visible, "아직 행동 버튼이 안 보인다")
+
+	var card := HowToPlay.open(get_tree())
+	ok(card != null, "카드가 뜬다")
+	var names: Array = []
+	# card(CanvasLayer) -> root(Control) -> 마커들. 마커마다 이름·설명
+	# Label 이 자식으로 붙어 있다.
+	var root := card.get_child(0)
+	for c in root.get_children():
+		for gc in c.get_children():
+			if gc is Label and gc.horizontal_alignment != HORIZONTAL_ALIGNMENT_CENTER:
+				names.append(String(gc.text))
+	ok(not names.any(func(n): return n == "작은 지도"),
+		"없는 지도는 안 가리킨다 (%s)" % str(names))
+	ok(not names.any(func(n): return n == "행동"),
+		"없는 행동 버튼도 안 가리킨다 (%s)" % str(names))
+	ok(not names.any(func(n): return n == "사진"),
+		"없는 사진 버튼도 안 가리킨다 (%s)" % str(names))
+	ok(names.any(func(n): return n == "지금 시각"),
+		"늘 있는 것(시계)은 그대로 가리킨다 (%s)" % str(names))
+
+	# 밑에 깔린 시계·안내줄은 카드가 떠 있는 동안 숨는다.
+	ok(not hud._clock.visible, "카드가 떠 있는 동안 시계 글자를 숨긴다")
+	card._close()
+	await get_tree().process_frame
+	ok(hud._clock.visible, "닫으면 시계 글자가 되돌아온다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _guide_generous_tests() -> void:
 	print("\n[길잡이가 안 막히는가]")
 	JourneyState.reset()
