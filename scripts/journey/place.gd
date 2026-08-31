@@ -1411,6 +1411,15 @@ func _tick_clock(delta: float) -> void:
 	# 대화 중에 시간을 건너뛰면 화면이 낮인 채로 굳었다.
 	var paused := (say != null and say.is_busy()) \
 		or (hud != null and hud.bag_open())
+	# **잿마루는 밤 11시에 시작해 자정까지 실시간 20초뿐이다.**
+	# 도착 카드·화면 보는 법 카드·길잡이를 읽는 것만으로도 다 쓴다.
+	# 자정이 되면 남은 할 일 여섯 줄이 "다음 길로" 하나로 바뀌어
+	# 치는데, 천천히 읽는 사람일수록 사무실 이야기를 통째로 건너뛰고
+	# 정류장으로 떠밀렸다. **밤 11시는 어차피 고정된 무드다** - 여기
+	# 있는 동안은 시계를 그 자리에 묶어 둔다. 떠나면(씬이 바뀌면)
+	# 다음 마을은 어차피 아침부터 다시 시작한다(`JourneyState.arriving`).
+	if place_name() == "잿마루":
+		paused = true
 	if not paused:
 		JourneyState.advance_time(delta * MINUTES_PER_SECOND)
 		# **자정에는 다음 길을 가리켜 준다.** 자정이 되면 시계도 하늘도

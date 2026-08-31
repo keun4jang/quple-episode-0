@@ -20,6 +20,7 @@ func _ready() -> void:
 	await _camera_tests()
 	_touch_tests()
 	_quest_tests()
+	await _prologue_clock_freeze_tests()
 	await _shop_view_first_tests()
 	await _lighthouse_view_first_tests()
 	await _bag_row_distinction_tests()
@@ -1233,6 +1234,28 @@ func _touch_tests() -> void:
 ##
 ## 여기 안은 할 일 목록에 줄이 없어 곧장 "나가기" 로 떨어져서,
 ## 할머니·선반이 눈앞인데도 화면이 되돌아 나가라고 시켰다.
+## 잿마루(프롤로그)에서 시계가 자정으로 안 넘어가는가.
+##
+## 밤 11시 시작에 실시간 1초=게임 3분이라 자정까지 20초뿐이었다.
+## 도착 카드·화면 보는 법·길잡이를 읽는 것만으로 다 썼고, 자정이
+## 되면 남은 할 일 여섯 줄이 "다음 길로" 하나로 바뀌어 쳐서 천천히
+## 읽는 사람일수록 사무실 이야기를 통째로 건너뛰었다.
+func _prologue_clock_freeze_tests() -> void:
+	print("\n[프롤로그 시계가 안 넘어가는가]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["잿마루"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var m0 := JourneyState.minutes
+	for i in 60:
+		p._tick_clock(0.5)   # 30초어치 - 옛 기준이면 자정을 넘고도 남는다
+	ok(JourneyState.minutes == m0, "잿마루에 있는 동안은 시계가 안 움직인다")
+	ok(not JourneyState.day_is_over(), "그래서 자정도 안 온다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _shop_view_first_tests() -> void:
 	print("\n[가게 안 - 선반부터 보는가]")
 	JourneyState.reset()
