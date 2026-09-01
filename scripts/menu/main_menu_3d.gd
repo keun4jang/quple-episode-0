@@ -239,6 +239,22 @@ func _on_start() -> void:
 		return
 	_start_new(false)
 
+## "새 여행 시작" 확인창 버튼 하나를 알약 모양으로 칠한다.
+func _ask_btn_style(b: Button, bg: Color, border: Color, font_col: Color) -> void:
+	b.focus_mode = Control.FOCUS_NONE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.set_corner_radius_all(24)
+	sb.set_border_width_all(3)
+	sb.border_color = border
+	for st in ["normal", "hover"]:
+		b.add_theme_stylebox_override(st, sb)
+	var pr := sb.duplicate() as StyleBoxFlat
+	pr.bg_color = bg.lightened(0.12)
+	b.add_theme_stylebox_override("pressed", pr)
+	b.add_theme_color_override("font_color", font_col)
+
+
 ## 프롤로그를 건너뛸지 선택
 func _ask_skip_prologue() -> void:
 	var ctrl = get_node_or_null("UILayer/Control")
@@ -257,10 +273,31 @@ func _ask_skip_prologue() -> void:
 	wrap.add_theme_stylebox_override("panel", sb)
 	wrap.set_anchors_preset(Control.PRESET_CENTER)
 	wrap.set_offset(SIDE_LEFT, -400); wrap.set_offset(SIDE_RIGHT, 400)
-	wrap.set_offset(SIDE_TOP, -220);  wrap.set_offset(SIDE_BOTTOM, 220)
+	# **높이는 고정하지 않는다.** 여기 있는 기록 경고문(다섯 줄) + 버튼
+	# 셋을 440px 에 우겨 넣었더니 마지막 버튼("지우고 처음부터 다시
+	# 보기")이 화면 아래로 잘려 나갔다. 화면 높이에 맞춰 넉넉히 잡는다 -
+	# `TravelBoard._fit_panel()` 과 같은 결이다.
+	var vp_h := get_viewport().get_visible_rect().size.y
+	var half_h: float = clampf(vp_h * 0.46, 220.0, 400.0)
+	wrap.set_offset(SIDE_TOP, -half_h);  wrap.set_offset(SIDE_BOTTOM, half_h)
+
+	# **더 잘라 내도 스크롤로 받는다.** 가로가 넓고 세로가 짧은 폰
+	# (실제로 겪은 화면)에서는 위 클램프로도 다섯 줄 경고문 + 버튼 셋이
+	# 다 안 들어갈 수 있다 - 잘려서 사라지는 것보다 스크롤로라도 끝까지
+	# 보이는 편이 낫다 (`TravelBoard._scroll` 과 같은 결).
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 0)
+	outer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wrap.add_child(outer)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(scroll)
 
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 24)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 18)
+	scroll.add_child(v)
 
 	# **여태 다닌 기록이 지워진다고 먼저 말한다.** 여기 있는 두 갈래는
 	# 다 `JourneyState.reset()` 뒤에 곧바로 저장을 덮어쓴다. 그런데
@@ -289,7 +326,7 @@ func _ask_skip_prologue() -> void:
 		var what := "%d일째" % days
 		if places > 0:
 			what += ", 다녀온 곳 %d군데" % places
-		d.text = "%s 까지 온 여행이 있어요.\n새로 시작하면 그건 없어져요.\n이어서 하시려면 아래 '아직 아니에요' 를 누르고\n'이어하기' 를 골라 주세요." % what
+		d.text = "%s까지 온 여행이 있어요.\n새로 시작하면 그건 없어져요.\n이어서 하시려면 아래 '아직 아니에요' 를 누르고\n'이어하기' 를 골라 주세요." % what
 	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	d.add_theme_font_size_override("font_size", 32 if not save.is_empty() else 36)
 	d.add_theme_color_override("font_color", Color(0.88, 0.85, 1.0))
@@ -298,10 +335,16 @@ func _ask_skip_prologue() -> void:
 	# **무를 수 있어야 한다.** 실수로 "새 여행 시작" 을 눌렀을 때
 	# 빠져나갈 길이 없으면 그건 사고다. 기록이 있으면 이 안전한 쪽을
 	# **맨 위, 제일 크게** 둔다 — 지우는 두 버튼보다 먼저 손에 닿게.
+	#
+	# **셋 다 진짜 버튼처럼 보이게 칠한다.** 여태는 글자만 있고 배경이
+	# 없어서, 어두운 판 위에서 눌리는 자리인지 그냥 문단인지 구별이
+	# 안 됐다. 안전한 쪽은 크림, 지우는 두 쪽은 옅은 산호 테두리로
+	# "되돌릴 수 없다" 는 인상을 살짝 준다.
 	var back := Button.new()
 	back.text = "아직 아니에요"
-	back.custom_minimum_size = Vector2(0, 104 if not save.is_empty() else 84)
-	back.add_theme_font_size_override("font_size", 44 if not save.is_empty() else 38)
+	back.custom_minimum_size = Vector2(0, 100 if not save.is_empty() else 84)
+	back.add_theme_font_size_override("font_size", 40 if not save.is_empty() else 38)
+	_ask_btn_style(back, Color("#FFE39A"), Color("#8C6E3F"), Color("#4A3A22"))
 	back.pressed.connect(func():
 		AudioManager.ui_click()
 		wrap.queue_free())
@@ -310,23 +353,24 @@ func _ask_skip_prologue() -> void:
 
 	var skip := Button.new()
 	skip.text = "지우고 여행 시작" if not save.is_empty() else "건너뛰고 여행 시작"
-	skip.custom_minimum_size = Vector2(0, 104)
-	skip.add_theme_font_size_override("font_size", 44)
+	skip.custom_minimum_size = Vector2(0, 92)
+	skip.add_theme_font_size_override("font_size", 36)
+	_ask_btn_style(skip, Color("#3A2C34"), Color("#C97F63"), Color("#FFD9CC"))
 	skip.pressed.connect(func(): AudioManager.ui_confirm(); _start_new(true))
 	v.add_child(skip)
 
 	var play := Button.new()
 	play.text = "지우고 처음부터 다시 보기" if not save.is_empty() \
 		else "처음부터 다시 보기"
-	play.custom_minimum_size = Vector2(0, 92)
-	play.add_theme_font_size_override("font_size", 44)
+	play.custom_minimum_size = Vector2(0, 84)
+	play.add_theme_font_size_override("font_size", 32)
+	_ask_btn_style(play, Color("#3A2C34"), Color("#C97F63"), Color("#FFD9CC"))
 	play.pressed.connect(func(): AudioManager.ui_click(); _start_new(false))
 	v.add_child(play)
 
 	if save.is_empty():
 		v.add_child(back)
 
-	wrap.add_child(v)
 	ctrl.add_child(wrap)
 
 func _start_new(skip_prologue: bool) -> void:
