@@ -983,14 +983,26 @@ func _drain_hints() -> void:
 	if _hint_queue.is_empty():
 		_hint_busy = false
 		return
-	var head: Dictionary = _hint_queue[0]
-	if bool(head.get("patient", false)) and _center_covered():
-		# 아직 덮여 있다. 줄을 그대로 두고 물러난다 — `_process` 가
+	# **줄에서 첫째만 보지 않는다.** 도착하자마자 편지가 오면(patient)
+	# 그 줄이 덮개가 걷힐 때까지 큐 맨 앞에 버티고 서서, 뒤이어 들어온
+	# 급한 안내(부두에 닿았을 때의 한 줄 등, patient가 아닌 것들)까지
+	# 같이 막아 버렸다 - 도착 카드가 떠 있는 3.6초 동안 그 사이에 생긴
+	# 어떤 안내도 못 뜨는 셈이었다. 지금 띄울 수 있는 **첫째**를 찾는다.
+	var i := 0
+	while i < _hint_queue.size():
+		var cand: Dictionary = _hint_queue[i]
+		if bool(cand.get("patient", false)) and _center_covered():
+			i += 1
+			continue
+		break
+	if i >= _hint_queue.size():
+		# 아직 다 덮여 있다. 줄을 그대로 두고 물러난다 — `_process` 가
 		# 덮개가 걷힌 프레임에 다시 부른다.
 		_hint_busy = false
 		return
+	var head: Dictionary = _hint_queue[i]
 	_hint_busy = true
-	_hint_queue.pop_front()
+	_hint_queue.remove_at(i)
 	Wrap.put(_hint, String(head.get("text", "")))
 	_hint.modulate.a = 1.0
 	var tw := create_tween()

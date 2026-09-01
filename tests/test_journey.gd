@@ -41,6 +41,7 @@ func _ready() -> void:
 	_josa_tests()
 	await _seaglass_hint_tests()
 	await _patient_hint_tests()
+	await _hint_queue_starvation_tests()
 	await _indoor_quest_tests()
 	await _door_tap_tests()
 	await _reunion2_tests()
@@ -634,16 +635,16 @@ func _extras_tests() -> void:
 
 	# 편지는 **떠난 횟수**로 센다. 여행지가 넷뿐이라 "다녀온 곳 수"로 세면
 	# 아무리 다녀도 한 통에서 멈춘다 (`journey_state.gd` 의 `maybe_letter`).
+	# **도착할 때마다 한 통** - 아홉 마을을 한 번씩만 도는 보통 플레이가
+	# 도착 아홉 번뿐이라, 예전엔(두 도착에 한 통) 편지가 넷에서 멈췄다.
 	JourneyState.visit("윤슬")
 	JourneyState.maybe_letter()
-	ok(JourneyState.letters.is_empty(), "한 번 만에는 안 온다")
+	ok(JourneyState.letters.size() == 1, "첫 도착에 한 통 온다")
 	JourneyState.visit("볕뉘")
 	JourneyState.maybe_letter()
-	ok(JourneyState.letters.size() == 1, "두 번째 도착에 한 통 온다")
+	ok(JourneyState.letters.size() == 2, "도착마다 한 통씩 는다")
 	# 같은 곳에 다시 가도 떠난 것이다 — 여기서 편지가 멈추면 안 된다.
-	# `due = arrivals/2` 이니 전체(`LETTERS.size()`)를 다 받으려면
-	# 도착이 그 두 배는 있어야 한다.
-	for i in JourneyState.LETTERS.size() * 2:
+	for i in JourneyState.LETTERS.size():
 		JourneyState.visit("윤슬")
 		JourneyState.maybe_letter()
 	# 안 만난 서브 인연 넷(수달·다람쥐·개구리·고라니)의 편지는 아직 안 온다 —
@@ -672,6 +673,23 @@ func _extras_tests() -> void:
 	JourneyState.maybe_letter()
 	ok(JourneyState.letters.size() == JourneyState.LETTERS.size(),
 		"같은 편지를 두 번 안 보낸다")
+
+	# 재회 상대(너구리)의 편지가 **보통 한 판**(아홉 마을을 한 번씩만
+	# 도는 선형 완주, 도착 아홉 번) 안에 오는가. 여태는 열넷째 자리에
+	# 있었고 두 도착에 한 통이라 due=4 에서 멈춰서, 시뮬레이션으로도
+	# 한 번을 못 봤다. "재회가 이 게임의 심장" 이라면서 그 상대의
+	# 편지가 죽은 콘텐츠였다.
+	JourneyState.reset()
+	for v in Quests.ORDER:
+		JourneyState.visit(v)
+		JourneyState.maybe_letter()
+	var got_raccoon := false
+	for l in JourneyState.letters:
+		if String(l.get("who", "")) == "배낭 멘 너구리":
+			got_raccoon = true
+	ok(got_raccoon, "아홉 마을을 한 번씩만 돌아도 너구리 편지가 온다 (%d통)"
+		% JourneyState.letters.size())
+	JourneyState.reset()
 
 	print("\n[사진]")
 	var p: Place = preload("res://scenes/journey/Yunseul.tscn").instantiate()
@@ -2562,6 +2580,36 @@ func _patient_hint_tests() -> void:
 	await get_tree().process_frame
 	ok(hud._hint_queue.is_empty(), "덮여 있어도 급한 안내는 바로 뜬다")
 
+	hud.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 덮여서 기다리는 안내(patient) 뒤에 급한 안내(non-patient)가
+## 들어오면, 뒤엣것이 앞엣것에 막혀 같이 굶지 않는가.
+##
+## 편지가 도착하자마자 뜨는 patient 안내가 줄 맨 앞에서 덮개가 걷히길
+## 기다리는 동안, 그 뒤에 들어온 급한 안내(부두에 닿았을 때 한 줄 등)
+## 까지 같이 막혔다 - 도착 카드가 떠 있는 3.6초 동안 그 사이에 생긴
+## 어떤 안내도 못 떴다.
+func _hint_queue_starvation_tests() -> void:
+	print("\n[막힌 안내가 뒷줄까지 막지 않는가]")
+	JourneyState.reset()
+	var hud := JourneyHud.new()
+	add_child(hud)
+	await get_tree().process_frame
+	hud.announce_place("윤슬")   # 가운데를 덮는다
+	await get_tree().process_frame
+	ok(hud._center_covered(), "도착 카드가 가운데를 덮고 있다")
+
+	hud._say_hint("편지가 왔어요.", true, 2.2)   # 덮여서 못 뜬다 - 줄 맨 앞
+	hud._say_hint("부두 끝에 닿았어요.")          # 급한 안내 - 뒤에 들어온다
+	await get_tree().process_frame
+	ok(hud._hint_queue.size() == 1, "급한 안내는 막힌 것 뒤에서도 먼저 뜬다")
+	ok(String(hud._hint.text) == "부두 끝에 닿았어요.",
+		"실제로 그게 화면에 뜬다 (%s)" % hud._hint.text)
+	ok(hud._hint_queue[0]["text"] == "편지가 왔어요.",
+		"막혔던 것은 줄에 그대로 남아 다음을 기다린다")
 	hud.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
