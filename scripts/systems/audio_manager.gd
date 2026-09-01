@@ -900,6 +900,10 @@ const AMB_KINDS := {
 	"rain":  [8.0,  0.62],
 	"space": [12.0, 0.66],
 	"room":  [8.0,  0.30],   # 거의 무음에 가까운 방 소리
+	# 담수 3부작(굽이나루·방울못)이 1탄 바다 넷과 같은 "wave" 를 그대로
+	# 썼다 - 귀로는 정체가 "바다가 아니다" 인데 마을만 다르고 소리는
+	# 같았다. 냇물은 바다처럼 크게 출렁이지 않고 잔잔히 조잘댄다.
+	"river": [9.0,  0.55],
 }
 
 func set_ambient_volume(v: float) -> void:
@@ -913,7 +917,7 @@ func _amb_db() -> float:
 	return AMB_BASE_DB + linear_to_db(_amb_volume)
 
 ## 환경음을 튼다. 같은 종류면 아무것도 하지 않는다.
-##   "wave" / "wind" / "rain" / "space" / "room"
+##   "wave" / "wind" / "rain" / "space" / "room" / "river"
 func play_ambient(kind: String) -> void:
 	if kind == _amb_current and _amb_player and _amb_player.playing:
 		return
@@ -1040,6 +1044,13 @@ func _amb_noise_layer(kind: String, total: int) -> PackedFloat32Array:
 				lp1 += (w - lp1) * 0.020
 				lp2 += (lp1 - lp2) * 0.020
 				v = lp2 * 7.0
+			"river":
+				# 바다("wave")보다 더 얕게 거른다 - 저역이 덜 무겁고,
+				# 물 위쪽의 잔물결(고역 성분)을 살짝 남겨 "조잘댄다" 는
+				# 느낌을 준다. 알갱이는 없다 - 그건 빗소리의 몫이다.
+				lp1 += (w - lp1) * 0.075
+				lp2 += (lp1 - lp2) * 0.075
+				v = lp2 * 6.0 + (w - lp1) * 0.5
 		buf[i] = v
 	return buf
 
@@ -1076,6 +1087,15 @@ func _amb_modulate(kind: String, buf: PackedFloat32Array, n: int, dur: float) ->
 			for i in range(n):
 				var t := float(i) / float(AMB_RATE)
 				buf[i] *= 0.85 + 0.15 * sin(TAU * m1 * t)
+		"river":
+			# 바다의 10~20초짜리 큰 출렁임과 다르게, 냇물은 짧은 주기로
+			# 계속 잔잔히 조잘댄다 - 세기 변화 폭도 훨씬 얕다.
+			var v1 := _amb_lfo_freq(0.9, dur)
+			var v2 := _amb_lfo_freq(1.7, dur)
+			for i in range(n):
+				var t := float(i) / float(AMB_RATE)
+				var s := 0.72 + 0.16 * sin(TAU * v1 * t) + 0.10 * sin(TAU * v2 * t + 1.7)
+				buf[i] *= maxf(0.4, s)
 
 ## 우주 험 — 40~70Hz 사인을 살짝 어긋나게 겹친다.
 ## 주파수가 조금씩 다르면 맥놀이가 생겨 "살아 있는" 저주파가 된다.

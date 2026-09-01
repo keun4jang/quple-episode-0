@@ -23,6 +23,7 @@ func _ready() -> void:
 	await _how_to_play_visibility_tests()
 	await _guide_generous_tests()
 	await _prologue_clock_freeze_tests()
+	await _ambient_variety_tests()
 	await _night_tag_readable_tests()
 	await _name_tag_overlap_tests()
 	await _shop_view_first_tests()
@@ -1389,6 +1390,40 @@ func _prologue_clock_freeze_tests() -> void:
 ## 전체에 곱하는데, 이름표까지 같이 곱혀져서 밝은 글자도 어두운 땅
 ## 위에서 거의 안 보였다. 가로등이 겪은 것과 같은 문제(`Place._add_lamp`
 ## 주석)라, 눌릴 만큼 미리 밝혀 최종 색이 그대로 나오게 했는지 본다.
+## 담수 3부작(굽이나루·방울못)이 1탄 바다 넷과 같은 "wave" 소리를
+## 그대로 썼다 - 귀로는 정체가 "바다가 아니다" 인데 마을만 다르고
+## 소리는 같았다. 갈밭머리(갈대밭)는 기존 "wind" 로 옮겨도 충분하다.
+func _ambient_variety_tests() -> void:
+	print("\n[담수 3부작 배경음]")
+	JourneyState.reset()
+	for entry in [["굽이나루", "river"], ["방울못", "river"], ["갈밭머리", "wind"]]:
+		var v: String = entry[0]
+		var want: String = entry[1]
+		var p: Place = load(GOAL_SCENES[v]).instantiate()
+		add_child(p)
+		await get_tree().process_frame
+		ok(p.ambient_kind() == want,
+			"%s: 배경음이 '%s' 다 (%s)" % [v, want, p.ambient_kind()])
+		ok(p.ambient_kind() != "wave", "%s: 1탄 바다 소리를 안 쓴다" % v)
+		p.queue_free()
+		await get_tree().process_frame
+	# 1탄 바다 넷은 그대로 "wave" 다 - 잘못 건드리지 않았는지 확인한다.
+	for v in ["윤슬", "가풀재", "하늬섬"]:
+		var p2: Place = load(GOAL_SCENES[v]).instantiate()
+		add_child(p2)
+		await get_tree().process_frame
+		ok(p2.ambient_kind() == "wave", "%s: 여전히 바다 소리다 (%s)" % [v, p2.ambient_kind()])
+		p2.queue_free()
+		await get_tree().process_frame
+	JourneyState.reset()
+
+	# 새 합성 종류("river")가 실제로 소리를 만들어 내는가.
+	var stream := AudioManager._build_ambient("river")
+	ok(stream != null, "river 합성이 실제로 결과물을 낸다")
+	if stream != null:
+		ok(stream.data.size() > 0, "빈 소리가 아니다 (%d바이트)" % stream.data.size())
+
+
 func _night_tag_readable_tests() -> void:
 	print("\n[밤에도 이름표가 읽히는가]")
 	JourneyState.reset()

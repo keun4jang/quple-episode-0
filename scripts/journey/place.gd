@@ -1332,11 +1332,20 @@ func bgm_track() -> String:
 
 
 ## 배경에 계속 나는 소리.
+##
+## **담수 3부작(굽이나루·방울못)이 1탄 바다 넷과 같은 "wave" 였다.**
+## 강 굽이도, 둥근 연못도 바다가 아닌데 귀로는 똑같았다 - 방울못의
+## "데크 끝에서 물소리 듣기" 에서 들리는 소리가 1탄 내내 듣던 파도
+## 루프였다. 갈밭머리는 갈대밭이니 기존 "wind" 만 옮겨도 달라진다 -
+## 새 소리를 안 만들어도 된다.
 func ambient_kind() -> String:
 	match place_name():
 		"잿마루": return "room"
 		"볕뉘": return "wind"
 		"고향": return "wind"
+		"굽이나루": return "river"
+		"방울못": return "river"
+		"갈밭머리": return "wind"
 		_:      return "wave"
 
 
