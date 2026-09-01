@@ -1706,6 +1706,15 @@ func _update_near() -> void:
 	# 버튼이 다섯 번 켜졌다 꺼졌다. 놓는 거리를 조금 넉넉히 둔다.
 	var keep := _prev_near
 	var best := TALK_RANGE * TALK_RANGE
+	# 이름표는 **가장 가까운 하나만** 보인다. 여태는 150px 안의 모두가
+	# 동시에 떴는데, 인연 몇이 붙어 서 있으면(가풀재 부두·굽이나루·
+	# 솔은재) 이름표끼리 포개져 누가 누군지 안 읽혔다. 대화 중에는
+	# 그마저도 안 켠다 — 대화창 자체가 누구와 말하는지 이미 보여 준다
+	# (`journey_say.gd` 의 `_who`); 세계 이름표까지 뜨면 오른쪽 아래
+	# "다음" 버튼이나 오른쪽 위 설정 버튼과 겹쳐 보였다.
+	var nearest_tag: Folk = null
+	var nearest_d := TAG_RANGE * TAG_RANGE
+	var talking := say != null and say.is_busy()
 	for f in _folk:
 		if not is_instance_valid(f):
 			continue
@@ -1713,10 +1722,12 @@ func _update_near() -> void:
 		if d < best:
 			best = d
 			_near = f
-		# 이름표는 **가까이 온 이의 것만** 보인다. 화면의 이름이 죄다
-		# 한꺼번에 떠 있으면 서로 겹치고, 지도가 글자밭이 된다.
-		if f.has_method("set_tag_near"):
-			f.set_tag_near(d < TAG_RANGE * TAG_RANGE)
+		if not talking and d < nearest_d:
+			nearest_d = d
+			nearest_tag = f
+	for f in _folk:
+		if is_instance_valid(f) and f.has_method("set_tag_near"):
+			f.set_tag_near(f == nearest_tag)
 	# 주울 것의 이름표도 같은 규칙 — 다가와야 스르르 보인다.
 	var dt := get_process_delta_time()
 	for a in _loose:

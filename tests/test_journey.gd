@@ -23,6 +23,7 @@ func _ready() -> void:
 	await _how_to_play_visibility_tests()
 	await _guide_generous_tests()
 	await _prologue_clock_freeze_tests()
+	await _name_tag_overlap_tests()
 	await _shop_view_first_tests()
 	await _lighthouse_view_first_tests()
 	await _bag_row_distinction_tests()
@@ -1370,6 +1371,52 @@ func _prologue_clock_freeze_tests() -> void:
 		p._tick_clock(0.5)   # 30초어치 - 옛 기준이면 자정을 넘고도 남는다
 	ok(JourneyState.minutes == m0, "잿마루에 있는 동안은 시계가 안 움직인다")
 	ok(not JourneyState.day_is_over(), "그래서 자정도 안 온다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 인연 여럿이 붙어 서 있을 때 이름표가 서로 안 겹치는가. 그리고
+## 대화 중엔 세계 이름표가 안 뜨는가(버튼과 안 겹치게).
+##
+## 여태는 150px 안의 모두가 동시에 이름표를 띄워서, 인연 몇이 붙어
+## 서 있으면(가풀재 부두·굽이나루·솔은재) 이름표끼리 포개져 누가
+## 누군지 안 읽혔다. 대화 중엔 대화창이 이미 상대를 보여 주는데도
+## 세계 이름표가 그대로 남아 오른쪽 아래 "다음"·오른쪽 위 설정
+## 버튼과 겹쳐 보였다.
+func _name_tag_overlap_tests() -> void:
+	print("\n[이름표가 하나만 뜨는가]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["가풀재"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var folks: Array = []
+	for f in p._folk:
+		if is_instance_valid(f) and not f.is_spot:
+			folks.append(f)
+	ok(folks.size() >= 2, "가풀재에 붙박이가 둘 이상이다 (%d)" % folks.size())
+	if folks.size() >= 2:
+		# 둘을 가까이 붙여 세운다.
+		folks[0].global_position = Vector2(500, 500)
+		folks[1].global_position = Vector2(510, 500)
+		p.walker.global_position = Vector2(505, 510)
+		p._update_near()
+		var shown := 0
+		for f in folks:
+			if f._tag_on:
+				shown += 1
+		ok(shown == 1, "가까이 붙어 있어도 이름표는 하나만 뜬다 (%d개)" % shown)
+
+	# 대화 중에는 아무 이름표도 안 뜬다 - 대화창이 이미 보여 준다.
+	if not folks.is_empty():
+		p._near = folks[0]
+		p.talk_to_near()
+		p._update_near()
+		var shown2 := 0
+		for f in folks:
+			if f._tag_on:
+				shown2 += 1
+		ok(shown2 == 0, "대화 중엔 세계 이름표가 안 뜬다 (%d개)" % shown2)
 	p.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
