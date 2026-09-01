@@ -133,6 +133,17 @@ func _process(delta: float) -> void:
 		_tag.position.y = 4.0 if on_screen < 64.0 else above
 		_tag.modulate.a = move_toward(_tag.modulate.a,
 			0.95 if _tag_on else 0.0, delta * 4.0)
+		# **밤에는 `CanvasModulate` 가 이름표까지 곱한다.** 자정 하늘빛이
+		# (0.267, 0.302, 0.420) 이라 밝은 글자도 어두운 남색으로 눌려,
+		# 밤에는 이름표가 어두운 땅 위에서 거의 안 보였다. 가로등이
+		# 겪은 것과 같은 문제다(`Place._add_lamp` 주석) - 다만 빛을
+		# 더하는 대신, 눌릴 만큼 미리 밝혀서(역수) 최종 색이 그대로 나오게 한다.
+		var parent := get_parent()
+		if parent != null and parent.has_method("sky_tint"):
+			var tint: Color = parent.sky_tint(JourneyState.minutes)
+			_tag.self_modulate = Color(
+				1.0 / maxf(tint.r, 0.05), 1.0 / maxf(tint.g, 0.05),
+				1.0 / maxf(tint.b, 0.05))
 	if _talk_outline_on:
 		return
 	outline_color = QuoWalker.talk_pulse()

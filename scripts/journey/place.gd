@@ -1730,6 +1730,11 @@ func _update_near() -> void:
 			f.set_tag_near(f == nearest_tag)
 	# 주울 것의 이름표도 같은 규칙 — 다가와야 스르르 보인다.
 	var dt := get_process_delta_time()
+	# 밤에는 `CanvasModulate` 가 이 이름표도 남색으로 누른다
+	# (`Folk._process` 와 같은 문제, 같은 수법으로 미리 밝힌다).
+	var tint := sky_tint(JourneyState.minutes)
+	var tag_comp := Color(1.0 / maxf(tint.r, 0.05), 1.0 / maxf(tint.g, 0.05),
+		1.0 / maxf(tint.b, 0.05))
 	for a in _loose:
 		if not is_instance_valid(a):
 			continue
@@ -1739,6 +1744,7 @@ func _update_near() -> void:
 		var on: bool = walker.global_position.distance_squared_to(
 			a.global_position) < TAG_RANGE * TAG_RANGE
 		tg.modulate.a = move_toward(tg.modulate.a, 0.9 if on else 0.0, dt * 4.0)
+		tg.self_modulate = tag_comp
 	if _near == null and keep != null and is_instance_valid(keep):
 		var far := TALK_RANGE * 1.45
 		if walker.global_position.distance_squared_to(keep.global_position) < far * far:

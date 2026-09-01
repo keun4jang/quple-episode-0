@@ -23,6 +23,7 @@ func _ready() -> void:
 	await _how_to_play_visibility_tests()
 	await _guide_generous_tests()
 	await _prologue_clock_freeze_tests()
+	await _night_tag_readable_tests()
 	await _name_tag_overlap_tests()
 	await _shop_view_first_tests()
 	await _lighthouse_view_first_tests()
@@ -1384,6 +1385,37 @@ func _prologue_clock_freeze_tests() -> void:
 ## 누군지 안 읽혔다. 대화 중엔 대화창이 이미 상대를 보여 주는데도
 ## 세계 이름표가 그대로 남아 오른쪽 아래 "다음"·오른쪽 위 설정
 ## 버튼과 겹쳐 보였다.
+## 밤에는 `CanvasModulate` 가 하늘빛(자정엔 어두운 남색)을 화면
+## 전체에 곱하는데, 이름표까지 같이 곱혀져서 밝은 글자도 어두운 땅
+## 위에서 거의 안 보였다. 가로등이 겪은 것과 같은 문제(`Place._add_lamp`
+## 주석)라, 눌릴 만큼 미리 밝혀 최종 색이 그대로 나오게 했는지 본다.
+func _night_tag_readable_tests() -> void:
+	print("\n[밤에도 이름표가 읽히는가]")
+	JourneyState.reset()
+	JourneyState.minutes = 24 * 60 - 1   # 자정 직전 - 가장 어두운 하늘빛
+	var p: Place = load(GOAL_SCENES["꽃눈벌"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var tint := p.sky_tint(JourneyState.minutes)
+	ok(tint.r < 0.5 and tint.g < 0.5 and tint.b < 0.5, "자정 하늘빛이 실제로 어둡다 (%s)" % tint)
+	var f: Folk = null
+	for c in p._folk:
+		if is_instance_valid(c) and not c.is_spot:
+			f = c
+	ok(f != null, "붙박이가 있다")
+	if f != null:
+		f._process(0.5)
+		# 보정색과 하늘빛을 곱하면 대략 흰색(1.0 안팎)이어야 한다 -
+		# 최종 화면에서 원래 밝기로 보인다는 뜻이다.
+		var final := Color(f._tag.self_modulate.r * tint.r,
+			f._tag.self_modulate.g * tint.g, f._tag.self_modulate.b * tint.b)
+		ok(final.r > 0.9 and final.g > 0.9 and final.b > 0.9,
+			"곱하면 다시 밝은 색으로 돌아온다 (%s)" % final)
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _name_tag_overlap_tests() -> void:
 	print("\n[이름표가 하나만 뜨는가]")
 	JourneyState.reset()
