@@ -24,3 +24,27 @@ static func press(sb: StyleBoxFlat) -> StyleBoxFlat:
 	sb.content_margin_top += 1
 	sb.content_margin_bottom = maxf(0.0, sb.content_margin_bottom - 1)
 	return sb
+
+
+## 코드로 만드는 버튼을 알약 하나로 완성한다. **정성껏 만든 판 안에
+## 배경 없는 버튼이 섞여 있는 사고**가 되풀이됐다 — 설정 버튼, 배낭
+## 안 "길잡이 다시 보기"·"화면 보는 법", 인트로의 "건너뛰기" 가
+## 전부 이 한 줄을 안 불러서 종이 질감 판 위에 엔진 기본 회색
+## 사각형으로 떴다. 전역 테마(`quple_bold.tres`)는 폰트만 정하고
+## 버튼 배경은 안 정하므로, 안 부르면 그대로 밋밋하게 남는다.
+static func button(b: Button, bg: Color, border: Color, font_col: Color,
+		corner := 16) -> void:
+	b.focus_mode = Control.FOCUS_NONE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.set_corner_radius_all(corner)
+	sb.set_border_width_all(2)
+	sb.border_color = border
+	lift(sb)
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", sb)
+	var pr := sb.duplicate() as StyleBoxFlat
+	pr.bg_color = bg.lightened(0.1)
+	press(pr)
+	b.add_theme_stylebox_override("pressed", pr)
+	b.add_theme_color_override("font_color", font_col)

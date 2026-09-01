@@ -1406,6 +1406,10 @@ func _add_settings() -> void:
 	b.offset_right = -32
 	b.offset_bottom = 96
 	b.modulate.a = 0.72
+	# **배경을 안 칠했었다.** 전역 테마는 폰트만 정하지 버튼 배경은
+	# 안 정해서, 종이 질감 판들 사이에서 이 버튼만 엔진 기본 회색
+	# 사각형이었다.
+	Paper.button(b, Color("#3A2C34"), Color("#8C7B68"), Color("#FFF2C8"))
 	b.pressed.connect(func() -> void:
 		var sv2 = get_tree().get_first_node_in_group("settings_ui")
 		if sv2 != null and sv2.has_method("open"):

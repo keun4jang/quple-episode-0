@@ -113,13 +113,17 @@ func _build() -> void:
 
 	var skip := Button.new()
 	skip.text = "건너뛰기"
-	skip.focus_mode = Control.FOCUS_NONE
 	skip.add_theme_font_size_override("font_size", 22)
 	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	skip.offset_left = -160
 	skip.offset_top = 28
 	skip.offset_right = -32
 	skip.offset_bottom = 84
+	# **배경이 없었다.** 전역 테마는 폰트만 정해서, 안 칠하면 엔진
+	# 기본 회색 사각형으로 뜬다 - 다른 화면(메인 메뉴 확인창 등)은
+	# 다 알약 모양으로 칠했는데 여기만 빠져 있었다.
+	Paper.button(skip, Color(0.10, 0.09, 0.12, 0.55), Color(1, 0.95, 0.8, 0.4),
+		Color(1, 0.95, 0.8, 0.9))
 	skip.pressed.connect(_go_on)
 	bg.add_child(skip)
 

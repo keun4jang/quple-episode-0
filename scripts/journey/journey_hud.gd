@@ -467,6 +467,10 @@ func _build_bag(root: Control) -> void:
 		b.text = ["배낭", "사진첩", "편지", "행복첩", "이 마을"][i]
 		b.custom_minimum_size = Vector2(112, 60)
 		b.add_theme_font_size_override("font_size", 24)
+		# 골랐는지는 `_refill_bag()` 이 modulate 로 밝기를 낮춰 보여 주지만,
+		# 그 바탕이 될 배경 자체가 없어서 엔진 기본 회색 버튼 다섯이
+		# 나란히 붕 떠 보였다.
+		Paper.button(b, Color("#F4EDE2"), Color("#8C7B68"), Color("#3A2C2C"), 12)
 		b.pressed.connect(_pick_tab.bind(i))
 		_tabs.add_child(b)
 
@@ -812,6 +816,9 @@ func _fill_quests() -> void:
 	gb.text = "길잡이 다시 보기"
 	gb.custom_minimum_size = Vector2(0, 64)
 	gb.add_theme_font_size_override("font_size", 24)
+	# **배경이 없었다.** 배낭 목록의 다른 줄들은 색·정렬을 다 맞췄는데
+	# 이 버튼만 엔진 기본 회색 사각형이라 붕 떠 보였다.
+	Paper.button(gb, Color("#F4EDE2"), Color("#8C7B68"), Color("#3A2C2C"))
 	gb.pressed.connect(_open_guide_recap)
 	_bag_grid.add_child(gb)
 
@@ -821,6 +828,7 @@ func _fill_quests() -> void:
 	hb.text = "화면 보는 법"
 	hb.custom_minimum_size = Vector2(0, 64)
 	hb.add_theme_font_size_override("font_size", 24)
+	Paper.button(hb, Color("#F4EDE2"), Color("#8C7B68"), Color("#3A2C2C"))
 	hb.pressed.connect(func() -> void:
 		toggle_bag()
 		HowToPlay.open(get_tree()))
@@ -928,6 +936,9 @@ func _open_guide_recap() -> void:
 	howto.text = "화면 보는 법"
 	howto.custom_minimum_size = Vector2(0, 68)
 	howto.add_theme_font_size_override("font_size", 26)
+	# **배경이 없었다.** 종이 질감으로 정성껏 만든 판(`Paper.lift`) 안에
+	# 배경 없는 엔진 기본 버튼 둘이 떠 있었다.
+	Paper.button(howto, Color("#F4EDE2"), Color("#8C7B68"), Color("#3A2C2C"))
 	howto.pressed.connect(func() -> void:
 		layer.queue_free()
 		HowToPlay.open(get_tree()))
@@ -937,6 +948,7 @@ func _open_guide_recap() -> void:
 	close.text = "닫기"
 	close.custom_minimum_size = Vector2(0, 68)
 	close.add_theme_font_size_override("font_size", 26)
+	Paper.button(close, Color("#FFE39A"), Color("#8C6E3F"), Color("#4A3A22"))
 	# 배낭 되돌리기는 위의 `tree_exiting` 이 맡는다 — 여기선 닫기만 한다.
 	close.pressed.connect(layer.queue_free)
 	box.add_child(close)

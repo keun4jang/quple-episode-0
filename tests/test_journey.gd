@@ -26,6 +26,7 @@ func _ready() -> void:
 	await _ambient_variety_tests()
 	await _night_tag_readable_tests()
 	await _name_tag_overlap_tests()
+	await _button_style_tests()
 	await _shop_view_first_tests()
 	await _lighthouse_view_first_tests()
 	await _bag_row_distinction_tests()
@@ -1487,6 +1488,71 @@ func _name_tag_overlap_tests() -> void:
 	p.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
+
+
+## 코드로 만드는 버튼마다 배경 스타일이 실제로 걸려 있는가.
+##
+## 전역 테마(`quple_bold.tres`)는 폰트만 정하고 버튼 배경은 안 정한다.
+## `add_theme_stylebox_override("normal", ...)` 를 안 부르면 엔진
+## 기본 회색 사각형으로 뜬다 - 메인 메뉴 확인창 버튼 셋이 그래서
+## 배경 없이 글자만 떠 보였다(실기기 스크린샷으로 확인). 같은 실수가
+## 다른 곳에도 있었다: 설정 버튼, 배낭 탭 다섯, "길잡이 다시 보기"·
+## "화면 보는 법"(배낭 안·길잡이 판 안 둘 다), 인트로 "건너뛰기".
+func _button_style_tests() -> void:
+	print("\n[버튼마다 배경이 있는가]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+
+	var settings := _find_button(p, "설정")
+	ok(settings != null and settings is Button, "설정 버튼을 찾았다")
+	if settings != null:
+		ok(settings.has_theme_stylebox_override("normal"), "설정 버튼에 배경이 있다")
+
+	var hud: JourneyHud = p.hud
+	hud.toggle_bag()
+	hud._pick_tab(4)   # "이 마을" - 늘 있는 탭
+	await get_tree().process_frame
+	var tab_ok := true
+	for c in hud._tabs.get_children():
+		if c is Button and not c.has_theme_stylebox_override("normal"):
+			tab_ok = false
+	ok(tab_ok, "배낭 탭 다섯에 다 배경이 있다")
+
+	var gb := _find_button(hud._bag_grid, "길잡이 다시 보기")
+	ok(gb != null and gb.has_theme_stylebox_override("normal"),
+		"배낭 안 '길잡이 다시 보기' 에 배경이 있다")
+	var hb := _find_button(hud._bag_grid, "화면 보는 법")
+	ok(hb != null and hb.has_theme_stylebox_override("normal"),
+		"배낭 안 '화면 보는 법' 에 배경이 있다")
+
+	hud._open_guide_recap()
+	await get_tree().process_frame
+	var overlay := get_tree().get_first_node_in_group("overlay")
+	ok(overlay != null, "길잡이 판이 떴다")
+	if overlay != null:
+		var howto2 := _find_button(overlay, "화면 보는 법")
+		var close2 := _find_button(overlay, "닫기")
+		ok(howto2 != null and howto2.has_theme_stylebox_override("normal"),
+			"길잡이 판 안 '화면 보는 법' 에 배경이 있다")
+		ok(close2 != null and close2.has_theme_stylebox_override("normal"),
+			"길잡이 판 '닫기' 에 배경이 있다")
+		overlay.queue_free()
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 이름으로 버튼을 재귀로 찾는다 (텍스트가 같은 첫째).
+func _find_button(root: Node, text: String) -> Button:
+	if root is Button and String((root as Button).text) == text:
+		return root
+	for c in root.get_children():
+		var found := _find_button(c, text)
+		if found != null:
+			return found
+	return null
 
 
 func _shop_view_first_tests() -> void:
@@ -3960,6 +4026,30 @@ func _shelf_tests() -> void:
 					flat_bad.append("%s/%s(%s)" % [kind, it["id"], t])
 	ok(flat_bad.is_empty(), "선반을 누르면 말이 한 겹으로 나온다%s"
 		% ("" if flat_bad.is_empty() else " — " + str(flat_bad)))
+
+	# 위 ⑦ 에서 연 마지막 판이 안 닫힌 채 남아 있다 - 안 치우면 다음
+	# `ShelfPanel.open()` 이 "이미 하나 떠 있다" 며 null 을 돌려준다.
+	for n in get_tree().get_nodes_in_group("shelf_panel"):
+		n.queue_free()
+	await get_tree().process_frame
+
+	# ⑧ 판 높이에 상한이 있고, 줄 목록이 스크롤 안에 있는가.
+	#
+	# 여태는 세로 높이에 상한이 없어서, 주운 것이 많은 마을의 "기억
+	# 선반"은 화면보다 커져도 그냥 화면 밖으로 넘칠 수 있었다.
+	var p5 := ShelfPanel.open(shop, "윤슬", ShelfPanel.KIND_SHOW)
+	await get_tree().process_frame
+	ok(p5 != null, "판을 다시 열 수 있다")
+	if p5 != null:
+		ok(not is_zero_approx(p5._panel.offset_top) or not is_zero_approx(p5._panel.offset_bottom),
+			"판 높이가 화면에 맞춰 잡힌다 (%s~%s)" % [p5._panel.offset_top, p5._panel.offset_bottom])
+		var found_scroll := false
+		for c in p5._panel.get_child(0).get_children():
+			if c is ScrollContainer:
+				found_scroll = true
+		ok(found_scroll, "물건 줄 목록이 스크롤 안에 있다")
+		p5.queue_free()
+		await get_tree().process_frame
 
 	# 가게 안 소품(선반 표시)도 마찬가지다 — `put_spot()` 이 이미 한 겹
 	# 씌우므로 여기서 또 씌우면 안 된다.

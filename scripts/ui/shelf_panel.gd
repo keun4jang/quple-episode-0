@@ -17,6 +17,7 @@ const KIND_SHOW := "show"
 var _village := ""
 var _kind := ""
 var _place: Node = null
+var _panel: PanelContainer
 
 
 static func open(place: Node, village: String, kind: String) -> ShelfPanel:
@@ -78,6 +79,7 @@ func _build() -> void:
 	root.add_child(dim)
 
 	var panel := PanelContainer.new()
+	_panel = panel
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color("#FFFDF6")
 	sb.set_corner_radius_all(18)
@@ -90,9 +92,17 @@ func _build() -> void:
 	panel.add_theme_stylebox_override("panel", Paper.lift(sb))
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	panel.offset_left = -300
 	panel.offset_right = 300
+	# **세로 높이에 상한이 없었다.** 내용(물건 줄 수)만큼 무한정 자라서,
+	# 주운 것이 많은 마을의 "기억 선반"은 판이 화면보다 커져도 잘리는
+	# 대신 그냥 화면 밖으로 넘칠 수 있었다 - 스크롤도 없었다. 길잡이
+	# 다시 보기 판(`journey_hud._open_guide_recap`)과 같은 방식으로
+	# 화면 높이에 맞춰 잡고, 남는 내용은 스크롤로 받는다.
+	var vp := get_viewport().get_visible_rect().size
+	var h: float = clampf(vp.y * 0.8, 360.0, 640.0)
+	panel.offset_top = -h * 0.5
+	panel.offset_bottom = h * 0.5
 	root.add_child(panel)
 
 	var box := VBoxContainer.new()
@@ -106,6 +116,15 @@ func _build() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 12)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+
 	var rows := _rows()
 	if rows.is_empty():
 		var e := Label.new()
@@ -113,9 +132,9 @@ func _build() -> void:
 		e.add_theme_font_size_override("font_size", 22)
 		e.add_theme_color_override("font_color", Color("#A79A8A"))
 		e.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		box.add_child(e)
+		list.add_child(e)
 	for it in rows:
-		box.add_child(_row(it))
+		list.add_child(_row(it))
 
 	var close := Button.new()
 	close.text = "그만 보기"
