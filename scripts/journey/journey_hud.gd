@@ -883,6 +883,7 @@ func _open_guide_recap() -> void:
 	panel.add_theme_stylebox_override("panel", Paper.lift(sb))
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	var vp := get_viewport().get_visible_rect().size
+	# 자리를 우선 넉넉히 잡아 둔다 - 아래서 내용 높이를 잰 다음 다시 맞춘다.
 	var h: float = clampf(vp.y * 0.78, 400.0, 700.0)
 	panel.offset_left = -300
 	panel.offset_right = 300
@@ -903,8 +904,9 @@ func _open_guide_recap() -> void:
 
 	var step: int = SaveManager.get_flag(Guide.STEP_FLAG, Guide.STEPS.size())
 	var finished: bool = SaveManager.get_flag(Guide.FLAG, false) or step >= Guide.STEPS.size()
+	var now: Label = null
 	if not finished:
-		var now := Label.new()
+		now = Label.new()
 		# 줄표(—)를 쓰면 안 된다. PoorStory 에 없어서 폰에서 네모 상자가
 		# 뜬다 (`CLAUDE.md` 폰트 규칙). 가운뎃점은 들어 있다.
 		now.custom_minimum_size = Vector2(500, 0)
@@ -952,6 +954,25 @@ func _open_guide_recap() -> void:
 	# 배낭 되돌리기는 위의 `tree_exiting` 이 맡는다 — 여기선 닫기만 한다.
 	close.pressed.connect(layer.queue_free)
 	box.add_child(close)
+
+	# **판 높이를 내용에 맞춘다** (`_fit_bag_panel()` 과 같은 방식). 화면
+	# 높이의 78% 로 고정해 뒀더니, 가로가 넓고 세로가 짧은 폰(세로 720
+	# 안팎)에서는 튜토리얼이 진행 중일 때(안내 7줄 + "지금은" 줄 + 버튼
+	# 둘)이 다 안 들어가 스크롤 목록 마지막 줄이 글자 중간에서 잘려
+	# "화면 보는 법" 버튼과 맞닿아 보였다. 실제 내용 높이를 잰 다음
+	# 화면이 허락하는 만큼 넉넉히 늘려 잡는다 - 그래도 못 담으면 그때
+	# 스크롤이 받는다.
+	await get_tree().process_frame
+	var sep: float = box.get_theme_constant("separation")
+	var chrome: float = title.get_combined_minimum_size().y \
+		+ howto.get_combined_minimum_size().y + close.get_combined_minimum_size().y \
+		+ sep * 3
+	if now != null:
+		chrome += now.get_combined_minimum_size().y + sep
+	var content: float = list.get_combined_minimum_size().y
+	var need: float = clampf(chrome + content + 44.0, 400.0, minf(vp.y * 0.92, 760.0))
+	panel.offset_top = -need * 0.5
+	panel.offset_bottom = need * 0.5
 
 
 ## 받침을 보고 을/를 을 골라 붙인다. `Wrap.with_josa` 로 옮겼다 -
@@ -1216,7 +1237,13 @@ func _maybe_explain_sides(list: Array) -> void:
 	for q in list:
 		if String(q.get("id", "")).contains(":샛길:"):
 			JourneyState.mark_quest(flag)
-			_say_hint("샛길은 이름 그대로 - 둘만 골라 해도 다음 마을이 열려요.")
+			# **patient.** `_process` 가 매 프레임 부르는 함수라, 마침 배낭의
+			# "이 마을에서" 탭을 펼쳐 둔 채로 샛길 항목이 막 나타나는 순간과
+			# 겹칠 수 있다. 안 기다리면 위쪽 고정 자리(_hint)가 그 아래 펼쳐진
+			# 배낭판과 같은 자리를 다퉈, 짧고 넓은 화면에서 글자가 탭 줄
+			# 사이로 배어났다. 이 안내는 사용자가 막 누른 것에 대한 응답이
+			# 아니라 상태 변화로 뜨는 것이라 배낭이 닫힐 때까지 미뤄도 된다.
+			_say_hint("샛길은 이름 그대로 - 둘만 골라 해도 다음 마을이 열려요.", true)
 			return
 
 

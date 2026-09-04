@@ -260,8 +260,25 @@ func _ask_skip_prologue() -> void:
 	var ctrl = get_node_or_null("UILayer/Control")
 	if ctrl == null:
 		_start_new(false); return
-	if ctrl.has_node("SkipAsk"):
+	if get_tree().get_first_node_in_group("skip_ask") != null:
 		return
+	# **화면 전체를 덮어야 한다.** 여태는 이 확인창을 `ctrl` 밑에 판 하나로만
+	# 얹어서, 화면 중앙 800px 폭 밖에 있던 "새 여행 시작·이어하기"·
+	# "설정·만든 사람·종료" 줄이 그대로 노출된 채 눌렸다 - 기록을 지우는
+	# 결정을 다루는 창인데 정작 그 뒤에서 실수로 "종료" 를 누를 수 있었다.
+	# `_show_credits()` 와 같은 결로 CanvasLayer + 전체화면 dim 을 둔다 -
+	# 뒤로가기도 이걸로 닫힌다("overlay" 그룹, `back_handler.gd`).
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	layer.add_to_group("overlay")
+	layer.add_to_group("skip_ask")
+	ctrl.add_child(layer)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.05, 0.04, 0.09, 0.72)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
+
 	var wrap := PanelContainer.new()
 	wrap.name = "SkipAsk"
 	var sb := StyleBoxFlat.new()
@@ -347,7 +364,7 @@ func _ask_skip_prologue() -> void:
 	_ask_btn_style(back, Color("#FFE39A"), Color("#8C6E3F"), Color("#4A3A22"))
 	back.pressed.connect(func():
 		AudioManager.ui_click()
-		wrap.queue_free())
+		layer.queue_free())
 	if not save.is_empty():
 		v.add_child(back)
 
@@ -371,7 +388,7 @@ func _ask_skip_prologue() -> void:
 	if save.is_empty():
 		v.add_child(back)
 
-	ctrl.add_child(wrap)
+	dim.add_child(wrap)
 
 func _start_new(skip_prologue: bool) -> void:
 	# 새로 시작하면 쿼카컴퍼니(프롤로그)부터. 건너뛰면 첫 여행지로 간다.

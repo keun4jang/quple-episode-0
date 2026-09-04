@@ -138,8 +138,24 @@ func _safe_rect() -> Rect2:
 		return Rect2()
 	var size := vp.get_visible_rect().size
 	var pad := JourneyHud.safe_insets(vp)
-	return Rect2(Vector2(EDGE + pad.x, EDGE + pad.y),
-		size - Vector2(EDGE * 2.0 + pad.x + pad.z, EDGE * 2.0 + pad.y + pad.w))
+	var left := EDGE + pad.x
+	var top := EDGE + pad.y
+	var right := size.x - (EDGE + pad.z)
+	var bottom := size.y - (EDGE + pad.w)
+
+	# **접힌 미니맵도 피한다.** EDGE(118)는 아래 두 모서리(배낭·사진 버튼,
+	# 지름 96 안팎)에 맞춘 값인데, 오른쪽 위 미니맵은 그보다 크고(최대
+	# 148x100) 더 아래(위에서 116)부터 시작해서 118 안쪽까지 못 물러나
+	# 화살표가 그 위로 그려져 지도를 덮었다. 실제 미니맵 자리를 물어서
+	# 안전지대의 위쪽·오른쪽 변을 그만큼 더 밀어낸다 - 펼쳐져 있을 때는
+	# `Place._tick_goal_arrow()` 가 화살표 자체를 꺼서 여기까지 안 온다.
+	var mm := get_tree().get_first_node_in_group("mini_map")
+	if mm is Control and (mm as Control).visible and not bool(mm.call("is_big")):
+		var mr: Rect2 = (mm as Control).get_global_rect()
+		top = maxf(top, mr.end.y + 8.0)
+		right = minf(right, mr.position.x - 8.0)
+
+	return Rect2(Vector2(left, top), Vector2(right - left, bottom - top))
 
 
 func _on_draw() -> void:

@@ -28,7 +28,13 @@ signal closed
 ## 잡은 사람은 없는 것을 찾아 누르게 된다 (`_visible_now`).
 const SPOTS := [
 	[Control.PRESET_TOP_LEFT, 56, 40, "지금 시각", "걷는 동안 하루가 흘러요"],
-	[Control.PRESET_TOP_RIGHT, -60, 60, "설정", "소리와 되돌리기"],
+	# **고리 옆에 붙인다.** 실제 설정 버튼(place.gd)의 중심은 -80 인데
+	# 여기 -60 이라 고리가 버튼과 어긋나 있었다(수치를 맞춰 고쳤다).
+	# 게다가 바로 아래 "작은 지도" 고리와 가로 97px 밖에 안 떨어져 있어
+	# 이름을 아래에 붙이면(2줄, 48px) 둘 사이 빈 틈(29px)에 안 들어가고
+	# 어느 한쪽 고리와 겹친다 - 배낭·행동 쌍과 같은 사고라 같은 해법을
+	# 쓴다: 아래 대신 옆에 붙인다.
+	[Control.PRESET_TOP_RIGHT, -80, 60, "설정", "소리와 되돌리기", true],
 	[Control.PRESET_TOP_RIGHT, -175, 155, "작은 지도", "누르면 크게 봐요", false, "map"],
 	# 배낭은 이름을 **고리 옆**에 붙인다. 위로 올리면 바로 위 "행동"
 	# 고리와 겹친다 (오른쪽 아래는 둘이 세로로 붙어 있다).
@@ -106,7 +112,7 @@ func _build() -> void:
 	for s in SPOTS:
 		if s.size() > 6 and not _visible_now(String(s[6])):
 			continue
-		root.add_child(_marker(s))
+		root.add_child(_marker(_placed(s)))
 
 	# 가운데 — 무엇을 눌러서 무엇을 하는지 세 줄
 	var box := VBoxContainer.new()
@@ -170,6 +176,33 @@ func _build() -> void:
 	root.add_child(btn)
 
 
+## "작은 지도" 자리를 실제 미니맵 위치로 맞춘다.
+##
+## 미니맵 폭은 지도 칸 비율에 따라 마을마다 달라진다(`MiniMap._fit`).
+## 한 값으로 못 박아 두면 어느 마을에선 맞고 어느 마을에선 어긋난다 -
+## 실제로 재 보니 고리 중심이 실제 자리보다 69px 오른쪽에 있었다.
+## 그려지는 그 순간의 진짜 자리를 물어서 맞춘다.
+func _placed(s: Array) -> Array:
+	if s.size() <= 6 or String(s[6]) != "map":
+		return s
+	var mm := _find_minimap()
+	if mm == null:
+		return s
+	var vp := get_viewport().get_visible_rect().size
+	var c := mm.get_global_rect().get_center()
+	var spot := s.duplicate()
+	spot[1] = c.x - vp.x   # 오른쪽 귀퉁이 기준 - 화면 오른쪽 끝에서 얼마나 왼쪽인지
+	spot[2] = c.y
+	return spot
+
+
+func _find_minimap() -> Control:
+	for n in get_tree().get_nodes_in_group("mini_map"):
+		if n is Control and (n as Control).visible:
+			return n
+	return null
+
+
 ## 그 자리가 지금 실제로 화면에 있나. "map"·"act"·"cam" 셋만 쓴다 -
 ## 나머지(시계·설정·배낭)는 늘 있다.
 func _visible_now(key: String) -> bool:
@@ -218,7 +251,10 @@ func _marker(s: Array) -> Control:
 	var lx: float = (40.0 - 22.0) if to_right else (40.0 + 22.0 - w)
 	var align: int = HORIZONTAL_ALIGNMENT_LEFT if to_right \
 		else HORIZONTAL_ALIGNMENT_RIGHT
-	var top_y: float = 54.0 if below else -74.0
+	# 고리는 항상 반지름 34(로컬 y 6~74)로 그려진다. below=true 쪽은
+	# 54 로 잡혀 있어 고리 아래쪽 호와 20px 겹쳐 글자 위로 테두리가
+	# 지나갔다 - 고리 아래로 내린다.
+	var top_y: float = 78.0 if below else -74.0
 	# 옆에 붙이라고 적힌 것은 고리 높이에 나란히 둔다
 	var beside: bool = s.size() > 5 and bool(s[5])
 	if beside:

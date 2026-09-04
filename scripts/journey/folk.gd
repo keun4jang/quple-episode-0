@@ -74,20 +74,25 @@ func _build_name_tag() -> void:
 		return
 	var l := Label.new()
 	l.name = "NameTag"
-	l.text = who
 	l.add_theme_font_size_override("font_size", 11)
+	l.text = who
 	l.add_theme_color_override("font_color", Color(1.0, 0.98, 0.92, 0.92))
 	l.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
 	l.add_theme_constant_override("outline_size", 5)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.z_index = 40
+	l.modulate.a = 0.0     # 가까이 와야 보인다 (`Place.TAG_RANGE`)
+	# **트리에 먼저 넣은 뒤에 크기를 잰다.** 트리 밖에서 곧바로
+	# `size = ...` 를 주면, 방금 준 11px 오버라이드가 아직 안 먹어서
+	# 전역 테마 기본 크기(34px) 기준 최소 크기가 그대로 굳어 버렸다 -
+	# 이름이 길수록(6~11자) 이름표가 최대 279px 까지 부풀어 가운데
+	# 정렬이 깨지고 옆 이름표·소품과 겹쳐 보였다.
+	add_child(l)
 	# 발밑이 원점이라 키만큼 올린 뒤 한 뼘 더. 폭은 넉넉히 잡고 가운데 정렬.
 	var tall: float = sprite.size().y if sprite != null else 24.0
 	l.size = Vector2(120, 16)
 	l.position = Vector2(-60, -tall - 17.0)
-	l.modulate.a = 0.0     # 가까이 와야 보인다 (`Place.TAG_RANGE`)
-	add_child(l)
 	_tag = l
 
 

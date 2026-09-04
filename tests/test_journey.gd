@@ -25,6 +25,7 @@ func _ready() -> void:
 	await _prologue_clock_freeze_tests()
 	await _ambient_variety_tests()
 	await _night_tag_readable_tests()
+	await _name_tag_size_tests()
 	await _name_tag_overlap_tests()
 	await _button_style_tests()
 	await _shop_view_first_tests()
@@ -54,6 +55,8 @@ func _ready() -> void:
 	await _placement_lint_tests()
 	await _old_save_tests()
 	await _how_to_play_tests()
+	await _how_to_play_marker_overlap_tests()
+	await _how_to_play_minimap_alignment_tests()
 	await _mark_timing_tests()
 	await _order_tests()
 	await _trace_tests()
@@ -61,6 +64,7 @@ func _ready() -> void:
 	await _wrap_tests()
 	await _big_map_cover_tests()
 	await _edge_arrow_visibility_tests()
+	await _goal_pointer_avoids_minimap_tests()
 	await _guide_tests()
 	await _talk_cooldown_tests()
 	await _pinch_during_talk_tests()
@@ -1452,6 +1456,29 @@ func _night_tag_readable_tests() -> void:
 	JourneyState.reset()
 
 
+## 이름표 Label 을 만들 때 글자(`l.text = who`)를 11px 오버라이드보다
+## 먼저 넣고 트리 밖에서 곧바로 `size` 를 줬더니, 아직 안 먹은 전역
+## 테마 기본 크기(34px) 기준 최소 크기가 굳어 버려 이름이 길수록(최대
+## 279px 까지) 이름표가 부풀고 가운데 정렬이 깨졌다.
+func _name_tag_size_tests() -> void:
+	print("\n[이름표 크기가 이름 길이에 안 휘둘리는가]")
+	var bad: Array = []
+	for v in GOAL_SCENES:
+		JourneyState.reset()
+		var p: Place = load(GOAL_SCENES[v]).instantiate()
+		add_child(p)
+		await get_tree().process_frame
+		for f in p._folk:
+			if is_instance_valid(f) and not f.is_spot and f.who != "" and f._tag != null:
+				if f._tag.size.x > 130.0:
+					bad.append("%s/%s(%s, %.0fpx)" % [v, f.who, f._tag.text, f._tag.size.x])
+		p.queue_free()
+		await get_tree().process_frame
+	ok(bad.is_empty(), "이름이 길어도 이름표 폭이 안 부푼다%s"
+		% ("" if bad.is_empty() else " - " + str(bad)))
+	JourneyState.reset()
+
+
 func _name_tag_overlap_tests() -> void:
 	print("\n[이름표가 하나만 뜨는가]")
 	JourneyState.reset()
@@ -1529,6 +1556,10 @@ func _button_style_tests() -> void:
 
 	hud._open_guide_recap()
 	await get_tree().process_frame
+	# `_open_guide_recap()` 도 `_fit_bag_panel()` 처럼 내용 높이를 잰
+	# 다음(트리에 자리 잡은 다음 프레임) 판 높이를 다시 맞춘다 - 한
+	# 프레임 더 기다려야 그 재계산까지 끝난다.
+	await get_tree().process_frame
 	var overlay := get_tree().get_first_node_in_group("overlay")
 	ok(overlay != null, "길잡이 판이 떴다")
 	if overlay != null:
@@ -1538,6 +1569,16 @@ func _button_style_tests() -> void:
 			"길잡이 판 안 '화면 보는 법' 에 배경이 있다")
 		ok(close2 != null and close2.has_theme_stylebox_override("normal"),
 			"길잡이 판 '닫기' 에 배경이 있다")
+		# **스크롤 목록 마지막 줄이 버튼과 안 맞닿는가.** 화면 높이의
+		# 78% 로 판을 고정했더니, 가로가 넓고 세로가 짧은 화면(이 테스트
+		# 창도 720 안팎)에서 튜토리얼이 진행 중이면 안내 목록이 다 안
+		# 들어가 마지막 줄이 "화면 보는 법" 버튼에 바로 붙어 잘려 보였다.
+		var scroll := _find_scroll(overlay)
+		ok(scroll != null, "길잡이 목록이 스크롤 안에 있다")
+		if scroll != null and howto2 != null:
+			var gap: float = howto2.get_global_rect().position.y \
+				- scroll.get_global_rect().end.y
+			ok(gap >= 4.0, "목록과 '화면 보는 법' 버튼 사이에 틈이 있다 (%.1fpx)" % gap)
 		overlay.queue_free()
 	p.queue_free()
 	await get_tree().process_frame
@@ -1550,6 +1591,17 @@ func _find_button(root: Node, text: String) -> Button:
 		return root
 	for c in root.get_children():
 		var found := _find_button(c, text)
+		if found != null:
+			return found
+	return null
+
+
+## 첫째 ScrollContainer 를 재귀로 찾는다.
+func _find_scroll(root: Node) -> ScrollContainer:
+	if root is ScrollContainer:
+		return root
+	for c in root.get_children():
+		var found := _find_scroll(c)
 		if found != null:
 			return found
 	return null
@@ -3720,6 +3772,83 @@ func _how_to_play_tests() -> void:
 	SaveManager.set_flag(HowToPlay.FLAG, true)
 
 
+## 위 귀퉁이 고리(below=true)는 이름을 고리 아래에 붙이는데, 그 자리가
+## 고리(반지름 34)와 겹쳤다. "설정"은 바로 아래 "작은 지도" 고리와도
+## 너무 가까워 아래로 내리는 대신 배낭·행동처럼 옆으로 붙였다.
+func _how_to_play_marker_overlap_tests() -> void:
+	print("\n[화면 보는 법 - 고리와 이름이 안 겹치는가]")
+	SaveManager.set_flag(HowToPlay.FLAG, false)
+	var card := HowToPlay.open(get_tree())
+	await get_tree().process_frame
+	var root: Control = card.get_child(0)
+
+	var settings_spot: Array = []
+	for sp in HowToPlay.SPOTS:
+		if String(sp[3]) == "설정":
+			settings_spot = sp
+	ok(settings_spot.size() > 5 and bool(settings_spot[5]),
+		"'설정' 이름은 고리 아래 대신 옆에 붙는다 (배낭·행동처럼 바로 아래 '작은 지도' 고리와 너무 가까워서)")
+	ok(int(settings_spot[1]) == -80,
+		"'설정' 고리 중심이 실제 설정 버튼 중심(-80)과 맞다 (%d)" % int(settings_spot[1]))
+
+	var settings_mk: Control = null
+	var clock_mk: Control = null
+	for c in root.get_children():
+		if not (c is Control and c.get_child_count() >= 1 and c.get_child(0) is Label):
+			continue
+		match String((c.get_child(0) as Label).text):
+			"설정": settings_mk = c
+			"지금 시각": clock_mk = c
+	ok(settings_mk != null, "'설정' 고리를 찾았다")
+	if settings_mk != null:
+		var n := settings_mk.get_child(0) as Label
+		ok(n.position.x + n.size.x <= 6.0,
+			"옆에 붙인 '설정' 이름이 고리(로컬 x 6~74) 왼쪽으로 안 겹친다 (%s)" % n.position)
+	ok(clock_mk != null, "'지금 시각' 고리를 찾았다")
+	if clock_mk != null:
+		var n2 := clock_mk.get_child(0) as Label
+		ok(n2.position.y >= 74.0,
+			"고리 아래에 붙인 '지금 시각' 이름이 고리(로컬 y 6~74) 아래로 안 겹친다 (%s)" % n2.position)
+
+	card._close()
+	await get_tree().process_frame
+	SaveManager.set_flag(HowToPlay.FLAG, true)
+
+
+## "작은 지도" 고리는 마을마다 다른 미니맵 폭(`MiniMap._fit`)에 맞춰
+## 실제 자리를 물어서 잡는다 - 못 박아 둔 값이 실제보다 69px 어긋나
+## 있었다.
+func _how_to_play_minimap_alignment_tests() -> void:
+	print("\n[화면 보는 법 - 작은 지도 자리가 실제와 맞는가]")
+	JourneyState.reset()
+	JourneyState.pick("map")   # 지도가 있어야 미니맵이 보인다
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	SaveManager.set_flag(HowToPlay.FLAG, false)
+	var card := HowToPlay.open(get_tree())
+	await get_tree().process_frame
+	var root: Control = card.get_child(0)
+	var map_mk: Control = null
+	for c in root.get_children():
+		if c is Control and c.get_child_count() >= 1 and c.get_child(0) is Label \
+				and String((c.get_child(0) as Label).text) == "작은 지도":
+			map_mk = c
+	ok(map_mk != null, "'작은 지도' 고리를 찾았다")
+	if map_mk != null:
+		var ring_center := map_mk.get_global_rect().get_center()
+		var mm_center := p.minimap.get_global_rect().get_center()
+		ok(ring_center.distance_to(mm_center) < 20.0,
+			"고리 중심이 실제 미니맵 중심과 가깝다 (고리 %s, 지도 %s)"
+				% [ring_center, mm_center])
+	card._close()
+	await get_tree().process_frame
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+	SaveManager.set_flag(HowToPlay.FLAG, true)
+
+
 # ── 표시가 너무 일찍 남지 않는가 ──────────────────────────────────────
 #
 # "정류장에서 첫 여행지 고르기" 가 **여행판을 열기만 해도** 다 한 것이
@@ -4300,6 +4429,28 @@ func _edge_arrow_visibility_tests() -> void:
 		p._tick_goal_arrow(0.016)
 		ok(not p._goal_edge.visible,
 			"목표 바로 위에 서면 가장자리 화살표도 꺼진다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 접힌 미니맵보다 EDGE(118px)가 작아서, 화살표의 안전 사각형과 실제
+## 미니맵 자리가 오른쪽 위 모서리에서 겹쳤다 - 화살표가 지도를 덮었다.
+func _goal_pointer_avoids_minimap_tests() -> void:
+	print("\n[가장자리 화살표가 미니맵을 피하는가]")
+	JourneyState.reset()
+	JourneyState.pick("map")   # 지도가 있어야 미니맵이 보인다
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var g := GoalPointer.new()
+	add_child(g)
+	await get_tree().process_frame
+	var mr: Rect2 = p.minimap.get_global_rect()
+	var safe := g._safe_rect()
+	ok(not safe.intersects(mr),
+		"안전 사각형이 접힌 미니맵과 안 겹친다 (안전 %s, 미니맵 %s)" % [safe, mr])
+	g.queue_free()
 	p.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
@@ -4960,13 +5111,32 @@ func _unlock_notice_tests() -> void:
 	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
 	add_child(p)
 	var hud: JourneyHud = p.hud
+	# 이 힌트는 patient 다 - 막 도착해 도착 카드가 떠 있는 동안은 안
+	# 뜨고 기다린다(배낭판과 겹쳐 보이던 사고를 고치며 그렇게 바꿨다).
+	hud._arrival_card_up = false
+	await get_tree().process_frame
+
+	# **배낭의 "이 마을에서" 탭을 펼쳐 둔 채로 이 안내가 뜨면 안 된다.**
+	# 위쪽 고정 자리(_hint)가 그 아래 펼쳐진 배낭판과 같은 자리를 다퉈
+	# 글자가 탭 줄 사이로 배어났다(폰 화면에서 실제로 있었던 사고).
+	# patient 라 배낭이 열려 있는 동안은 기다렸다가, 닫히면 그제야 뜬다.
+	#
+	# 위에서 한 번 기다린 프레임 사이에 `_process()` 가 자동으로 먼저
+	# 이 안내를 (덮인 것 없이) 띄워 플래그를 채 갈 수 있다 - 이 검사가
+	# 보려는 건 그 경주가 아니라 "덮여 있으면 미룬다" 자체라, 플래그를
+	# 다시 지워 깨끗한 상태에서 잰다.
+	hud.toggle_bag()
 	hud._hint.text = ""
 	hud._hint_queue.clear()
 	hud._hint_busy = false
-	await get_tree().process_frame
+	JourneyState.quest_flags.erase("윤슬:샛길설명")
 	hud._maybe_explain_sides(Quests.quest_list("윤슬"))
-	ok(String(hud._hint.text).contains("둘만"),
-		"샛길 줄이 보이면 둘만 해도 된다고 알려 준다 (%s)" % hud._hint.text)
+	ok(String(hud._hint.text) == "",
+		"배낭이 열려 있으면 배낭판과 안 겹치게 미뤄 둔다 (%s)" % hud._hint.text)
+	hud.toggle_bag()
+	await get_tree().process_frame
+	ok(String(hud._hint.text).contains("둘만"), "배낭을 닫으면 그제야 뜬다 (%s)" % hud._hint.text)
+
 	hud._hint.text = ""
 	hud._hint_queue.clear()
 	hud._hint_busy = false
