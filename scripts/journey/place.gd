@@ -762,6 +762,14 @@ func _build_props() -> void:
 	_props.y_sort_enabled = true
 	add_child(_props)
 
+	# 막는 소품끼리 너무 가까우면, 둘 다 제 칸은 안 넘어도 그 사이 칸을
+	# 양쪽에서 갉아먹어 걷는 이(9px 안팎)보다 좁은 틈만 남길 수 있다.
+	# 소품 하나하나는 옛 규칙 그대로 두고(제 칸 언저리만 막아 왔고 그걸로
+	# 이미 잘 맞던 자리가 많다), 다 놓은 뒤에 **같은 줄·같은 칸**에서
+	# 서로 마주 보는 소품 쌍만 따로 재서 사이 칸이 좁으면 그때 막는다
+	# (`_close_prop_gaps()`).
+	var blockers: Array = []
+
 	for p in props() + _frame_props():
 		var tx: int = p[0]
 		var ty: int = p[1]
@@ -813,17 +821,58 @@ func _build_props() -> void:
 			var half: int = int(ceil(maxf(TILE, tex.get_width() * 0.7) * 0.5 / TILE))
 			for bx in range(tx - half + 1, tx + half):
 				_blocked[Vector2i(bx, ty)] = true
+			var w: float = maxf(TILE, tex.get_width() * 0.7)
+			blockers.append([tx, ty, w * 0.5])
 			var body := StaticBody2D.new()
 			var cs := CollisionShape2D.new()
 			var r := RectangleShape2D.new()
-			var w: float = maxf(TILE, tex.get_width() * 0.7)
 			r.size = Vector2(w, 8.0)
 			cs.shape = r
 			cs.position = s.position + Vector2(0, -4.0)
 			body.add_child(cs)
 			add_child(body)
 
+	_close_prop_gaps(blockers)
 	shadows.queue_redraw()
+
+
+## 막는 소품 둘이 같은 줄에 몇 칸 두고 떨어져 있으면, 둘 다 제 칸만
+## 막아도 그 사이 칸이 양쪽 콜라이더에 갉아 먹혀 걷는 이보다 좁아질 수
+## 있다 (좌판 둘을 두 칸 두고 놓으면 44px 그림 반폭이 7.4px씩 넘어와
+## 1.2px 틈만 남는 식). 실제로 마주 보는 두 콜라이더 사이 틈을 재서,
+## 걷는 이 몸(9px 안팎, `QuoWalker._ready()` 의 폭 규칙과 같은 값을
+## 안전하게 잡는다)보다 좁으면 그제야 사이 칸을 막는다 - 소품 하나만
+## 있을 땐 옆 칸 태반이 비어 있어 이 정도로 막을 일이 없다.
+const _WALKER_CLEARANCE := 10.0
+
+func _close_prop_gaps(blockers: Array) -> void:
+	for axis in [Vector2i(1, 0), Vector2i(0, 1)]:
+		var by_line: Dictionary = {}
+		for b in blockers:
+			var tx: int = b[0]
+			var ty: int = b[1]
+			var line: int = ty if axis.x == 1 else tx
+			var along: int = tx if axis.x == 1 else ty
+			if not by_line.has(line):
+				by_line[line] = []
+			by_line[line].append([along, b[2]])
+		for line in by_line:
+			var row: Array = by_line[line]
+			row.sort_custom(func(a, b2): return a[0] < b2[0])
+			for i in row.size() - 1:
+				var along_a: int = row[i][0]
+				var half_a: float = row[i][1]
+				var along_b: int = row[i + 1][0]
+				var half_b: float = row[i + 1][1]
+				var gap_tiles := along_b - along_a
+				if gap_tiles <= 1:
+					continue   # 바로 붙었으면 사이 칸이 없다
+				var gap_px: float = float(gap_tiles) * TILE - half_a - half_b
+				if gap_px >= _WALKER_CLEARANCE:
+					continue
+				for along in range(along_a + 1, along_b):
+					var t := Vector2i(along, line) if axis.x == 1 else Vector2i(line, along)
+					_blocked[t] = true
 
 
 # ── 건물 간판 ─────────────────────────────────────────────────────────
@@ -2633,7 +2682,12 @@ const REACH := 5.0            # 길목에 이만큼 닿으면 다음 길목으�
 const ARRIVE := 4.0           # 마지막 자리에 이만큼 닿으면 도착
 
 
-func walk_to(at: Vector2) -> void:
+## `retry` 는 `_tick_goto()` 가 막혀서 같은 길을 다시 찾을 때만 켠다 -
+## 그때는 "얼마나 못 나아가고 있는지" 재던 것(`_goto_best_dist`)을
+## 그대로 이어가야 한다. 새로 누른 걸음까지 매번 지워 버리면, 정작
+## 진짜 막힌 자리에서 다시 찾기를 되풀이할 때마다 그 셈이 매번
+## 초기화돼 영영 못 멈춘다.
+func walk_to(at: Vector2, retry := false) -> void:
 	_path.clear()
 	# 다른 목적의 이동이면 다가가서 자동으로 말 걸려던 건 잊는다 —
 	# 인연을 향해 걷다가 다른 데를 눌렀는데 엉뚱하게 말이 걸리면 안 된다.
@@ -2642,6 +2696,9 @@ func walk_to(at: Vector2) -> void:
 	_pending_depart = false
 	_retalk_tried = false
 	_walk_to_age = 0.0
+	if not retry:
+		_goto_best_dist = INF
+		_goto_stall_time = 0.0
 	if walker == null:
 		return
 	var from := tile_of(walker.global_position)
@@ -2808,31 +2865,120 @@ func _smooth(tiles: Array) -> Array:
 	return out
 
 
-## 두 칸 사이가 다 트여 있나. 칸을 하나씩 밟아 본다.
+## 두 칸 사이가 다 트여 있나. 선이 지나는 칸을 하나도 안 빼놓고 다 짚는다.
+##
+## **예전엔 칸을 반올림으로 하나씩만 짚었다.** 한쪽이 다른 쪽보다 훨씬
+## 긴 완만한 대각선에서는, 표본이 옆으로 건너뛰는 그 순간에 낀 칸들이
+## 통째로 안 걸렸다 - 물칸이 나란히 서넛 있어도 사이사이가 안 밟혀서
+## "다 트여 있다" 로 잘못 답했다 (방울못 연못 남단·솔은재 가로등 옆에서
+## 실측으로 걸렸다 - 곧게 편 그 지름길로 실제로 걸으면 안 밟힌 물칸
+## 자리에 발이 걸려 멈췄다).
+##
+## 세계 좌표를 촘촘히 표본 찍어 고치려 했더니, 이번엔 표본 간격이
+## 타일 경계와 안 맞아떨어질 때마다 "대각으로 한 칸 건너뛰었다" 는
+## 판정이 헛짚여서, 사실 거의 일직선인 완만한 길에도 모서리 걸림 규칙이
+## 잘못 걸렸다 (가풀재 부두 서쪽 우회로는 고쳤지만 방울못 pebble·acorn
+## 이 되레 막혀 버렸다).
+##
+## 그래서 좌표를 표본 찍는 대신, 이 선이 **실제로 지나는 칸을 순서대로
+## 밟는** 격자 순회로 바꿨다(레이캐스팅에 흔히 쓰는 방식) - 한 걸음에
+## 가로나 세로 어느 한쪽으로만 한 칸씩 옮긴다. 정확히 모서리 점을
+## 지날 때만(가로·세로 경계에 동시에 닿을 때) 대각으로 한 칸 건너뛰는데,
+## 그때는 그 모서리 양옆 중 하나라도 트여 있어야 지나간다 -
+## `_astar.diagonal_mode` 가 대각으로 갈 때 요구하는 것과 같은 결이다.
 func _clear_line(a: Vector2i, b: Vector2i) -> bool:
-	var d := b - a
-	var steps: int = maxi(absi(d.x), absi(d.y))
-	if steps == 0:
+	if a == b:
 		return true
-	for k in range(1, steps + 1):
-		var t := Vector2i(
-			a.x + int(round(float(d.x) * k / steps)),
-			a.y + int(round(float(d.y) * k / steps)))
-		if not _walkable(t):
-			return false
-		# 대각선으로 스칠 때 양옆도 본다 — 모서리를 뚫으면 안 된다.
-		if not _walkable(Vector2i(t.x, a.y + int(round(float(d.y) * (k - 1) / steps)))) \
-				and not _walkable(Vector2i(a.x + int(round(float(d.x) * (k - 1) / steps)), t.y)):
-			return false
+	if not _walkable(a):
+		return false
+	var wa := world_of(a) - Vector2(0, TILE * 0.5)
+	var wb := world_of(b) - Vector2(0, TILE * 0.5)
+	var dir := wb - wa
+	if dir.length_squared() < 0.01:
+		return true
+	var step_x: int = 0
+	if dir.x > 0.0001:
+		step_x = 1
+	elif dir.x < -0.0001:
+		step_x = -1
+	var step_y: int = 0
+	if dir.y > 0.0001:
+		step_y = 1
+	elif dir.y < -0.0001:
+		step_y = -1
+	var t_max_x: float = INF
+	var t_delta_x: float = INF
+	if step_x != 0:
+		var next_vx: float = float(a.x + (1 if step_x > 0 else 0)) * TILE
+		t_max_x = (next_vx - wa.x) / dir.x
+		t_delta_x = TILE / absf(dir.x)
+	var t_max_y: float = INF
+	var t_delta_y: float = INF
+	if step_y != 0:
+		var next_vy: float = float(a.y + (1 if step_y > 0 else 0)) * TILE
+		t_max_y = (next_vy - wa.y) / dir.y
+		t_delta_y = TILE / absf(dir.y)
+
+	var x := a.x
+	var y := a.y
+	var guard := 0
+	while (x != b.x or y != b.y) and guard < 2048:
+		guard += 1
+		if t_max_x < t_max_y - 0.0001:
+			t_max_x += t_delta_x
+			x += step_x
+			if not _walkable(Vector2i(x, y)):
+				return false
+		elif t_max_y < t_max_x - 0.0001:
+			t_max_y += t_delta_y
+			y += step_y
+			if not _walkable(Vector2i(x, y)):
+				return false
+		else:
+			# 정확히 모서리를 지난다 - 가로세로가 한 번에 바뀐다.
+			#
+			# **둘 다 트여야 지나간다.** 하나만 트여도 지나가게 했더니,
+			# `_astar.diagonal_mode`(대각으로 가려면 양옆 다 트여야 한다)
+			# 라면 A* 가 절대 안 낼 대각 걸음을 지름길 검사만 봐줘 버려서,
+			# 실제로 걸으면 소품 하나가 콕 찍은 모서리를 스쳐 그 자리에
+			# 발이 걸렸다 (가풀재 부두 골목에서 실측으로 걸렸다).
+			t_max_x += t_delta_x
+			t_max_y += t_delta_y
+			if not _walkable(Vector2i(x + step_x, y)) or not _walkable(Vector2i(x, y + step_y)):
+				return false
+			x += step_x
+			y += step_y
+			if not _walkable(Vector2i(x, y)):
+				return false
 	return true
 
 
 var _goto_stuck := 0.0
+## 목적지까지 실제로 좁혀 본 가장 가까운 거리. 이보다 못 좁히는 채로
+## 한참 있으면 - 길목을 버리거나 다시 찾기를 몇 번을 되풀이해도 -
+## 진짜 못 가는 자리라는 뜻이다.
+var _goto_best_dist := INF
+var _goto_stall_time := 0.0
 
 func _tick_goto(delta: float) -> Vector2:
 	if _path.is_empty() or walker == null:
 		return Vector2.ZERO
 	var here := walker.global_position
+	# **길목 하나하나가 아니라 마지막 자리까지 잰다.** 길목을 버리거나
+	# 다시 찾을 때마다 카운터를 매번 0으로 되돌리면, 몸은 제자리인데
+	# 그때그때는 "막 나아간 것"으로 읽혀 영영 못 멈춘다 - 굽이나루
+	# 모래톱·가풀재 부두 골목에서 몇 걸음씩 흔들리며 20초 넘게 제자리를
+	# 맴도는 것으로 실측됐다. 최종 목적지까지 거리가 안 줄어드는 채로
+	# 3초를 넘기면 그만둔다.
+	var dist_to_goal := here.distance_to(_path[_path.size() - 1])
+	if dist_to_goal < _goto_best_dist - 1.0:
+		_goto_best_dist = dist_to_goal
+		_goto_stall_time = 0.0
+	else:
+		_goto_stall_time += delta
+		if _goto_stall_time > 3.0:
+			stop_walk_to()
+			return Vector2.ZERO
 	var goal: Vector2 = _path[0]
 	var to := goal - here
 	var near: float = ARRIVE if _path.size() == 1 else REACH
@@ -2857,7 +3003,7 @@ func _tick_goto(delta: float) -> Vector2:
 			else:
 				var again: Vector2 = _path[0]
 				stop_walk_to()
-				walk_to(again)
+				walk_to(again, true)
 				return Vector2.ZERO
 	# **살살 선다.** 예전엔 `to.limit_length(1.0)` 를 썼는데 그건 길이를
 	# 1 이하로 자르는 것이라, 1px 만 넘으면 결과가 늘 정확히 1.0 이었다 —

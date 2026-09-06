@@ -65,6 +65,8 @@ func _ready() -> void:
 	await _big_map_cover_tests()
 	await _edge_arrow_visibility_tests()
 	await _goal_pointer_avoids_minimap_tests()
+	await _walk_squeeze_tests()
+	await _walk_gives_up_tests()
 	await _guide_tests()
 	await _talk_cooldown_tests()
 	await _pinch_during_talk_tests()
@@ -4451,6 +4453,108 @@ func _goal_pointer_avoids_minimap_tests() -> void:
 	ok(not safe.intersects(mr),
 		"안전 사각형이 접힌 미니맵과 안 겹친다 (안전 %s, 미니맵 %s)" % [safe, mr])
 	g.queue_free()
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 목표 칸까지 실제로 걸어서(`Place.walk_to()`, 진짜 길찾기) 가 본다.
+## `tools/shots/sim_journey.gd::_walk_to()` 의 검증된 패턴을 그대로 쓴다.
+func _walk_real(place: Place, t: Vector2i, secs: float) -> bool:
+	var goal := place.world_of(t)
+	place.walk_to(goal)
+	var spent := 0.0
+	while spent < secs and place.is_walking_to():
+		await get_tree().physics_frame
+		spent += get_physics_process_delta_time()
+	while spent < secs and place.walker.global_position.distance_to(goal) > 10.0:
+		place.walker.set_input((goal - place.walker.global_position).normalized())
+		await get_tree().physics_frame
+		spent += get_physics_process_delta_time()
+	place.walker.set_input(Vector2.ZERO)
+	place.stop_walk_to()
+	await get_tree().process_frame
+	return place.walker.global_position.distance_to(goal) <= 24.0
+
+
+## 걷는 이(9px 안팎)보다 좁은 틈을 A* 는 뚫린 칸으로 보고 걸어가라고
+## 보내는 사고. 소품 하나하나는 제 칸만 막아도, 둘이 두 칸 두고
+## 마주 보면 그 사이 칸이 양쪽에서 갉아 먹혀 실제로는 못 지나간다
+## (`Place._close_prop_gaps()`). 여기서 실제로 고쳐진 자리만 확인한다 -
+## 부두·연못 물가처럼 지형(물) 자체가 좁게 끼는 자리 몇몇은 이 수정만
+## 으로는 아직 못 고쳤다(따로 기록해 둔다).
+func _walk_squeeze_tests() -> void:
+	print("\n[좁은 틈을 걷기로 확인]")
+	JourneyState.reset()
+	var gap: Place = load(GOAL_SCENES["가풀재"]).instantiate()
+	add_child(gap)
+	await get_tree().process_frame
+	ok(not gap._walkable(Vector2i(12, 7)),
+		"가풀재: 좌판 두 개 사이(12,7)는 몸보다 좁아 막힌다")
+	gap.walker.global_position = gap.world_of(Vector2i(17, 2))
+	var ok1: bool = await _walk_real(gap, gap.sleep_tile(), 30.0)
+	ok(ok1, "가풀재: 부두 쪽에서 와도 잠자리까지 걸어간다")
+	gap.queue_free()
+	await get_tree().process_frame
+
+	var han: Place = load(GOAL_SCENES["하늬섬"]).instantiate()
+	add_child(han)
+	await get_tree().process_frame
+	var st: Vector2i = han.sleep_tile()
+	var ok2: bool = await _walk_real(han, st, 30.0)
+	ok(ok2, "하늬섬: 북쪽 언덕 지나 잠자리까지 걸어간다")
+	han.walker.global_position = han.world_of(han.spawn_tile())
+	var ok2b: bool = await _walk_real(han, Vector2i(7, 6), 25.0)
+	ok(ok2b, "하늬섬: 언덕 지역 꽃(7,6) 까지 걸어간다")
+	han.queue_free()
+	await get_tree().process_frame
+
+	var bg: Place = load(GOAL_SCENES["방울못"]).instantiate()
+	add_child(bg)
+	await get_tree().process_frame
+	var baker: Folk = null
+	for f in bg._folk:
+		if is_instance_valid(f) and not f.is_spot and f.who.contains("빵집"):
+			baker = f
+	ok(baker != null, "방울못: 빵집 아주머니를 찾았다")
+	if baker != null:
+		var ok3: bool = await _walk_real(bg, bg.tile_of(baker.global_position), 30.0)
+		ok(ok3, "방울못: 벤치·좌판 무리를 지나 빵집 아주머니 곁까지 걸어간다")
+	bg.queue_free()
+	await get_tree().process_frame
+
+	# `_clear_line()` 이 가로등 소품 모서리를 스치는 지름길을 만들어,
+	# 빈 잔디밭 위에서 캐릭터가 20초 넘게 들러붙어 있었다 - 이제는
+	# 금방(15초 안) 도착해야 한다.
+	var sol: Place = load(GOAL_SCENES["솔은재"]).instantiate()
+	add_child(sol)
+	await get_tree().process_frame
+	sol.walker.global_position = sol.world_of(Vector2i(25, 20))
+	var t0 := Time.get_ticks_msec()
+	var ok4: bool = await _walk_real(sol, Vector2i(20, 3), 30.0)
+	var spent := (Time.get_ticks_msec() - t0) / 1000.0
+	ok(ok4, "솔은재: 쉼터 마당 지나 (20,3) 까지 걸어간다")
+	ok(spent < 15.0, "솔은재: 가로등 모서리에 안 들러붙고 금방 온다 (%.1fs)" % spent)
+	sol.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 진짜 못 가는 자리(물로 막힌 곳 등)를 눌러도 제자리에서 영원히
+## 떨지 않고, 얼마 못 가 스스로 멈춰야 한다 (`Place._tick_goto()` 의
+## 진행도 기반 포기).
+func _walk_gives_up_tests() -> void:
+	print("\n[진짜 못 가면 스스로 멈추는가]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["굽이나루"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	p.walk_to(p.world_of(Vector2i(29, 10)))   # 강 한복판 모래톱 - 물로 막혀 있다
+	var spent := 0.0
+	while spent < 10.0 and p.is_walking_to():
+		await get_tree().physics_frame
+		spent += get_physics_process_delta_time()
+	ok(not p.is_walking_to(), "10초 안에 스스로 걷기를 멈춘다 (%.1fs)" % spent)
 	p.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
