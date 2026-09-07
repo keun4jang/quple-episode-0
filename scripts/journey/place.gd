@@ -841,11 +841,23 @@ func _build_props() -> void:
 ## 있다 (좌판 둘을 두 칸 두고 놓으면 44px 그림 반폭이 7.4px씩 넘어와
 ## 1.2px 틈만 남는 식). 실제로 마주 보는 두 콜라이더 사이 틈을 재서,
 ## 걷는 이 몸(9px 안팎, `QuoWalker._ready()` 의 폭 규칙과 같은 값을
-## 안전하게 잡는다)보다 좁으면 그제야 사이 칸을 막는다 - 소품 하나만
-## 있을 땐 옆 칸 태반이 비어 있어 이 정도로 막을 일이 없다.
+## 안전하게 잡는다)보다 좁으면 그제야 사이 칸을 막는다.
+##
+## **소품 하나만 있어도 옆 칸이 막힐 수 있다.** 콜라이더가 제 칸보다
+## 넓으면(그림 40px 넘는 것 - 좌판·돌담·등대·평상) 옆 칸을 파고들어,
+## 그 칸에 남는 빈 폭이 몸보다 좁아진다 (좌판이면 8.6px 만 남는다).
+## 가풀재 부두로 올라가는 길이 그렇게 막혀 있었다 - 길찾기는 뚫린
+## 칸으로 보고 보내는데 실제 몸은 못 들어갔다.
 const _WALKER_CLEARANCE := 10.0
 
 func _close_prop_gaps(blockers: Array) -> void:
+	for b in blockers:
+		var half_px: float = b[2]
+		if TILE * 1.5 - half_px >= _WALKER_CLEARANCE:
+			continue
+		for d in [-1, 1]:
+			_blocked[Vector2i(int(b[0]) + d, int(b[1]))] = true
+
 	for axis in [Vector2i(1, 0), Vector2i(0, 1)]:
 		var by_line: Dictionary = {}
 		for b in blockers:
@@ -2678,7 +2690,13 @@ func _folk_at(at: Vector2) -> Folk:
 #
 # 지도가 44x20 칸이라 A* 를 매번 돌려도 싸다. 미리 만들어 둘 것도 없다.
 var _path: Array[Vector2] = []
-const REACH := 5.0            # 길목에 이만큼 닿으면 다음 길목으로
+# 길목에 이만큼 닿으면 다음 길목으로.
+#
+# **5px 는 좁은 길목에서 너무 헐거웠다.** 몸 폭이 9.4px 라 한 칸(16px)
+# 통로에서 남는 여유는 좌우 3.3px 뿐인데, 길목을 5px 어긋난 채 "닿았다"
+# 치고 다음 길목으로 꺾으면 그 어긋난 만큼 옆벽에 낀다 - 굽이나루
+# 모래톱으로 올라가는 한 칸 통로(30,13)에서 실측으로 걸렸다.
+const REACH := 3.0
 const ARRIVE := 4.0           # 마지막 자리에 이만큼 닿으면 도착
 
 
@@ -2897,6 +2915,25 @@ func _smooth(tiles: Array) -> Array:
 ## 지날 때만(가로·세로 경계에 동시에 닿을 때) 대각으로 한 칸 건너뛰는데,
 ## 그때는 그 모서리 양옆 중 하나라도 트여 있어야 지나간다 -
 ## `_astar.diagonal_mode` 가 대각으로 갈 때 요구하는 것과 같은 결이다.
+##
+## **가운뎃점 하나로는 모자란다.** 걷는 이는 점이 아니라 몸이다 -
+## 발끝에서 위로 6px, 좌우로 4.7px 짜리 상자다(`QuoWalker._ready()`).
+## 소품 밑동 콜라이더는 제 칸 아래쪽 8px 이라, 완만한 대각선이 그 칸
+## 바로 아랫줄을 스쳐 지날 때 - 발밑은 아랫줄에 멀쩡히 있어도 - 몸통
+## 윗모서리가 윗줄 소품 밑동을 1~2px 문다. 윤슬 잠자리 가는 길이
+## 나무(8,13) 밑을 지나며 딱 그렇게 걸렸다.
+##
+## 그래서 가운뎃점 대신 **몸 상자의 네 모서리**가 지나는 자리를 다 본다.
+## 상자가 한 칸(16px)보다 작으니 모서리 넷이면 몸이 스치는 칸을 다
+## 훑는다. 이렇게 딱 맞춰 재면, 걸릴 지름길은 A* 가 짜 준 원래 길
+## (한 칸씩 밟는 길, 그 자체로는 늘 안전하다)로 되돌아갈 뿐이라 -
+## 잘못 막을 일이 없다.
+##
+## 5px·4.7px 로 잡는 것은 `tile_of()` 가 세로로 1px 밀려 있어서다 -
+## 딱 맞닿기만 하는 자리를 괜히 막지 않으려는 것이다.
+const BODY_UP := 5.0
+const BODY_SIDE := 4.7
+
 func _clear_line(a: Vector2i, b: Vector2i) -> bool:
 	if a == b:
 		return true
@@ -2904,6 +2941,21 @@ func _clear_line(a: Vector2i, b: Vector2i) -> bool:
 		return false
 	var wa := world_of(a) - Vector2(0, TILE * 0.5)
 	var wb := world_of(b) - Vector2(0, TILE * 0.5)
+	for corner in [Vector2(-BODY_SIDE, 0.0), Vector2(BODY_SIDE, 0.0),
+			Vector2(-BODY_SIDE, -BODY_UP), Vector2(BODY_SIDE, -BODY_UP)]:
+		if not _rail_clear(wa + corner, wb + corner):
+			return false
+	return true
+
+
+## 선 한 줄이 지나는 칸을 순서대로 다 밟아 본다.
+func _rail_clear(wa: Vector2, wb: Vector2) -> bool:
+	var a := tile_of(wa)
+	var b := tile_of(wb)
+	if not _walkable(a):
+		return false
+	if a == b:
+		return true
 	var dir := wb - wa
 	if dir.length_squared() < 0.01:
 		return true

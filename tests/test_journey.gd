@@ -4509,6 +4509,18 @@ func _walk_squeeze_tests() -> void:
 	han.queue_free()
 	await get_tree().process_frame
 
+	# 부두로 올라가는 길목 - 좌판 콜라이더가 옆 칸을 몸보다 좁게 남겨
+	# 실제로는 못 지나는데 길찾기는 뚫린 칸으로 보고 보냈다.
+	gap = load(GOAL_SCENES["가풀재"]).instantiate()
+	add_child(gap)
+	await get_tree().process_frame
+	ok(not gap._walkable(Vector2i(10, 7)),
+		"가풀재: 좌판 옆 칸(10,7)도 몸보다 좁아 막힌다")
+	var ok1b: bool = await _walk_real(gap, Vector2i(12, 4), 25.0)
+	ok(ok1b, "가풀재: 부두 조개(12,4) 까지 걸어간다")
+	gap.queue_free()
+	await get_tree().process_frame
+
 	var bg: Place = load(GOAL_SCENES["방울못"]).instantiate()
 	add_child(bg)
 	await get_tree().process_frame
@@ -4521,6 +4533,16 @@ func _walk_squeeze_tests() -> void:
 		var ok3: bool = await _walk_real(bg, bg.tile_of(baker.global_position), 30.0)
 		ok(ok3, "방울못: 벤치·좌판 무리를 지나 빵집 아주머니 곁까지 걸어간다")
 	bg.queue_free()
+	await get_tree().process_frame
+
+	# 나무(8,13) 밑을 스쳐 지나는 길 - 발밑은 아랫줄에 멀쩡히 있는데
+	# 몸통 윗모서리가 나무 밑동을 물어 그 자리에 멈췄다.
+	var yun: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yun)
+	await get_tree().process_frame
+	var ok5: bool = await _walk_real(yun, yun.sleep_tile(), 25.0)
+	ok(ok5, "윤슬: 나무 밑을 지나 잠자리까지 걸어간다")
+	yun.queue_free()
 	await get_tree().process_frame
 
 	# `_clear_line()` 이 가로등 소품 모서리를 스치는 지름길을 만들어,
@@ -4544,26 +4566,34 @@ func _walk_squeeze_tests() -> void:
 	var gub: Place = load(GOAL_SCENES["굽이나루"]).instantiate()
 	add_child(gub)
 	await get_tree().process_frame
-	var ok5: bool = await _walk_real(gub, Vector2i(30, 11), 20.0)
-	ok(ok5, "굽이나루: 다리를 건너 모래톱 조약돌(30,11) 까지 걸어간다")
+	var ok6: bool = await _walk_real(gub, Vector2i(30, 11), 20.0)
+	ok(ok6, "굽이나루: 다리를 건너 모래톱 조약돌(30,11) 까지 걸어간다")
 	gub.walker.global_position = gub.world_of(gub.spawn_tile())
-	var ok6: bool = await _walk_real(gub, Vector2i(31, 11), 20.0)
-	ok(ok6, "굽이나루: 다리를 건너 샛길 입구 문(31,11) 까지 걸어간다")
+	var ok7: bool = await _walk_real(gub, Vector2i(31, 11), 20.0)
+	ok(ok7, "굽이나루: 다리를 건너 샛길 입구 문(31,11) 까지 걸어간다")
+	gub.walker.global_position = gub.world_of(gub.spawn_tile())
+	var ok8: bool = await _walk_real(gub, Vector2i(29, 10), 20.0)
+	ok(ok8, "굽이나루: 모래톱 북서쪽 조약돌(29,10) 까지 걸어간다")
 	gub.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
 
 
-## 진짜 못 가는 자리(물로 막힌 곳 등)를 눌러도 제자리에서 영원히
-## 떨지 않고, 얼마 못 가 스스로 멈춰야 한다 (`Place._tick_goto()` 의
-## 진행도 기반 포기).
+## 어떤 자리를 눌러도 **제자리에서 영원히 떨지 않는다.** 못 가면 못
+## 가는 대로 스스로 멈춰야 한다 (`Place._tick_goto()` 의 진행도 기반
+## 포기). 지금은 지도 위 갈 자리가 다 뚫려 있어 진짜 못 가는 칸이
+## 없으므로, 길목을 벽 한가운데로 억지로 박아 놓고 재 본다.
 func _walk_gives_up_tests() -> void:
 	print("\n[진짜 못 가면 스스로 멈추는가]")
 	JourneyState.reset()
 	var p: Place = load(GOAL_SCENES["굽이나루"]).instantiate()
 	add_child(p)
 	await get_tree().process_frame
-	p.walk_to(p.world_of(Vector2i(29, 10)))   # 강 한복판 모래톱 - 물로 막혀 있다
+	# 강 한복판 물칸. `walk_to()` 를 거치면 가장 가까운 뭍으로 옮겨
+	# 잡히므로, 길목을 직접 박아 "절대 못 닿는 자리" 를 만든다.
+	var wall := Vector2i(28, 10)
+	ok(not p._walkable(wall), "고른 자리(%s)가 실제로 못 가는 칸이다" % wall)
+	p._path = [p.world_of(wall)] as Array[Vector2]
 	var spent := 0.0
 	while spent < 10.0 and p.is_walking_to():
 		await get_tree().physics_frame

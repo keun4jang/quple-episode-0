@@ -150,9 +150,17 @@ godot --path .                                    # 게임 실행 (메인 화면
 godot --path . res://scenes/journey/Gwaeul.tscn    # 프롤로그부터
 godot --path . res://tests/TestJourney.tscn        # 여행 테스트
 godot --path . res://tools/shots/SimJourney.tscn   # 처음부터 끝까지 걸어서
+godot --path . res://tools/shots/WalkAll.tscn      # 모든 곳을 걸어서 훑기
 ```
 
 테스트는 `tests/` 에 넷 — TestJourney · TestSave · TestResume · TestUpdate.
+
+**소품을 옮기거나 지도를 손봤으면 `WalkAll` 을 돌린다.** 열 마을과
+고향, 실내 여섯까지 줍기·문·인연·정류장·잠자리를 **진짜 길찾기로 걸어서**
+닿는지 본다. 칸 단위로는 뚫려 있는데 몸이 실제로는 못 지나는 자리
+(소품 콜라이더가 옆 칸을 파고들어 몸보다 좁은 틈만 남는 자리)는
+정적 검사로 안 걸리고 이걸 돌려야 나온다. 몇 분 걸리니 `-- 1`·`-- 2`·
+`-- 3` 으로 나눠 돌려도 된다.
 
 ## 에셋 교체
 
