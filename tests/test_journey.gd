@@ -4537,6 +4537,20 @@ func _walk_squeeze_tests() -> void:
 	ok(spent < 15.0, "솔은재: 가로등 모서리에 안 들러붙고 금방 온다 (%.1fs)" % spent)
 	sol.queue_free()
 	await get_tree().process_frame
+
+	# 강 한복판 모래톱 - 서안에서 다리를 건너야 닿는다. 지름길이 다리
+	# 어귀 가로등과 강가 모서리를 스쳐 다리를 건너기도 전에 멈췄었다.
+	# 샛길 입구 문(31,11)은 실제 콘텐츠라 특히 중요하다.
+	var gub: Place = load(GOAL_SCENES["굽이나루"]).instantiate()
+	add_child(gub)
+	await get_tree().process_frame
+	var ok5: bool = await _walk_real(gub, Vector2i(30, 11), 20.0)
+	ok(ok5, "굽이나루: 다리를 건너 모래톱 조약돌(30,11) 까지 걸어간다")
+	gub.walker.global_position = gub.world_of(gub.spawn_tile())
+	var ok6: bool = await _walk_real(gub, Vector2i(31, 11), 20.0)
+	ok(ok6, "굽이나루: 다리를 건너 샛길 입구 문(31,11) 까지 걸어간다")
+	gub.queue_free()
+	await get_tree().process_frame
 	JourneyState.reset()
 
 

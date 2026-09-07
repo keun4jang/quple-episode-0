@@ -2846,6 +2846,14 @@ func _find_path(from: Vector2i, to: Vector2i) -> Array:
 ## 직선 한 칸 → 대각 한 칸 → 직선 한 칸이라 방향이 매 칸 바뀌어서
 ## 하나도 안 합쳐졌고, 길 하나에 꺾임이 여섯 개씩 남아 걸음이 잔물결처럼
 ## 흔들렸다 (구간의 55~62% 가 한 칸 반도 안 됐다).
+##
+## **한 번에 너무 멀리는 안 본다.** `_clear_line()` 은 칸 가운데만 잰다 -
+## 몸에는 폭이 있어서, 아주 길고 완만한 지름길일수록(굽이나루 강가처럼
+## 스무 칸 넘게) 그 폭 때문에 모서리를 스칠 확률이 쌓인다. A* 가 이미
+## 안전하게 짜 둔 길을 몇 칸 간격으로만 다림질하면, 다림질 폭 자체가
+## 좁아 모서리를 스칠 자리가 거의 안 남는다.
+const MAX_SMOOTH_SPAN := 10
+
 func _smooth(tiles: Array) -> Array:
 	if tiles.size() < 3:
 		return tiles
@@ -2856,6 +2864,9 @@ func _smooth(tiles: Array) -> Array:
 	while i < tiles.size():
 		var far := i
 		for j in range(tiles.size() - 1, i - 1, -1):
+			var d: Vector2i = tiles[j] - anchor
+			if maxi(absi(d.x), absi(d.y)) > MAX_SMOOTH_SPAN:
+				continue
 			if _clear_line(anchor, tiles[j]):
 				far = j
 				break
