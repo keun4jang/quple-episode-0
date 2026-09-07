@@ -790,6 +790,29 @@ static func quest_list(village: String) -> Array:
 			{"label": "정류장에서 첫 여행지 고르기", "kind": "depart", "key": "",
 				"done": JourneyState.quest_done("잿마루:정류장")},
 		]
+	# 고향에도 목록을 둔다 — 잿마루와 똑같은 이유다.
+	#
+	# **처음 하는 사람이 잘못 들르는 곳이 여기다.** 첫 여행판은 갈 수
+	# 있는 곳이 둘뿐인데 고향이 맨 윗줄이라, 그냥 위엣것을 누른다.
+	# 그런데 여기엔 목록이 없어서 배낭을 열어도 "딱히 할 일이 없어요"
+	# 뿐이었다 — "아무것도 안 되니까 그만하고 싶어졌다" 는 말을
+	# 그대로 들었다.
+	#
+	# 그렇다고 숙제를 만들지는 않는다. 여기 적는 건 **이미 마당에 있는
+	# 것들**이다 — 식구 셋과 평상. 다 해도 상은 없고, 안 해도 아무 일도
+	# 안 난다(`village_cleared()` 는 고향을 늘 마친 것으로 친다).
+	# 다 하고 나면 `Place.open_goals()` 가 정류장을 짚어 준다.
+	if village == "고향":
+		return [
+			{"label": "엄마와 이야기하기", "kind": "talk", "key": "mom",
+				"done": JourneyState.heart("mom") >= 1},
+			{"label": "아빠와 이야기하기", "kind": "talk", "key": "dad",
+				"done": JourneyState.heart("dad") >= 1},
+			{"label": "동생과 이야기하기", "kind": "talk", "key": "sibling",
+				"done": JourneyState.heart("sibling") >= 1},
+			{"label": "평상에 앉아 보기", "kind": "prop", "key": "평상",
+				"done": JourneyState.quest_done("고향:본:평상")},
+		]
 	# ── 매듭이 있는 마을 ──────────────────────────────────────────
 	#
 	# 목록에는 **다섯 줄**만 보인다 — 매듭 한 줄과 샛길 넷. 매듭 줄은

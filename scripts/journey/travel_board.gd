@@ -34,6 +34,7 @@ const PLACES := {
 var _panel: PanelContainer
 var _scroll: ScrollContainer
 var _list: VBoxContainer
+var _hint: Label
 var _from := ""
 
 
@@ -95,6 +96,17 @@ func _build() -> void:
 	title.add_theme_color_override("font_color", Color("#3A2C2C"))
 	box.add_child(title)
 
+	# **처음이면 어디부터인지 한 줄로 말해 준다.** 첫 판은 고를 수 있는
+	# 곳이 둘뿐인데 둘 다 처음 보는 이름이라, 어느 쪽이 "여행" 이고
+	# 어느 쪽이 "돌아가기" 인지 알 수가 없다. 한 번 떠나고 나면 이 줄은
+	# 사라진다 - 그다음부터는 어디로 갈지 스스로 고르는 게 맞다.
+	_hint = Label.new()
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.add_theme_font_size_override("font_size", 22)
+	_hint.add_theme_color_override("font_color", Color("#8C6E3F"))
+	_hint.visible = false
+	box.add_child(_hint)
+
 	# 여행지가 여덟 곳까지 늘었다 — 목록이 고정 칸보다 길어지면 스크롤로
 	# 받는다. 안 그러면 화면 아래로 잘려 나가거나 겹쳐 보인다.
 	_scroll = ScrollContainer.new()
@@ -138,12 +150,44 @@ func _style(b: Button, strong: bool) -> void:
 ## 밖이었다 - "고향은 언제든 돌아갈 수 있어야 한다" 는 이 파일 위쪽
 ## 주석과 정반대였다. 엄마 편지가 계속 "먹고 싶을 때 와" 라고 부르는데
 ## 정작 정류장엔 그 길이 안 보였다.
+##
+## **단, 아직 아무 데도 안 가 봤으면 맨 위가 아니다.** 첫 여행판은
+## 갈 수 있는 곳이 둘(고향·윤슬)뿐인데 고향이 맨 윗줄이라, 처음 하는
+## 사람은 그냥 위엣것을 누른다 - 그러곤 아무것도 없는 마당에 선다.
+## 돌아갈 곳은 **떠나 본 다음에야** 뜻이 생긴다. 그전까지는 여행지를
+## 먼저 보여 주고 고향은 그 아래 둔다.
 func _row_order() -> Array:
-	var out: Array = ["고향"]
+	var out: Array = []
+	var first_trip := JourneyState.places_visited() == 0
+	if not first_trip:
+		out.append("고향")
 	for name in PLACES:
 		if name != "고향":
 			out.append(name)
+	if first_trip:
+		out.append("고향")
 	return out
+
+
+## 아직 안 가 본 곳 중 다음 차례. 처음 하는 사람에게 어디부터인지
+## 알려 줄 때만 쓴다.
+func _next_place() -> String:
+	for name in Quests.ORDER:
+		if not JourneyState.visited.has(name) and Quests.is_unlocked(name):
+			return String(name)
+	return ""
+
+
+## 고향 줄에 적을 한 줄. **기다리는 것이 있으면 그걸 적는다** —
+## "언제든 돌아갈 수 있는 곳" 은 맞는 말이지만 갈 이유는 아니다.
+func _home_line() -> String:
+	var mail := JourneyState.unread_letters()
+	if mail > 0:
+		return "편지 %d통이 와 있어요" % mail
+	var cards: int = JourneyState.postcards.size()
+	if cards > 0:
+		return "평상에서 엽서 %d장을 넘겨 볼 수 있어요" % cards
+	return String(PLACES["고향"][1])
 
 
 func open(from_place: String) -> void:
@@ -160,7 +204,10 @@ func open(from_place: String) -> void:
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		if unlocked:
 			# 다녀온 곳은 조용히 표시한다. 안 가 본 곳을 굳이 부추기지 않는다.
-			var tail := "  ·  " + String(entry[1]) if String(entry[1]) != "" else ""
+			# 고향만은 **기다리는 것**을 적는다 - 편지가 와 있는데 그걸
+			# 정류장에서 알 길이 없으면 돌아갈 이유가 안 보인다.
+			var line: String = _home_line() if name == "고향" else String(entry[1])
+			var tail := "  ·  " + line if line != "" else ""
 			b.text = name + tail
 			b.custom_minimum_size = Vector2(0, 84)
 			b.add_theme_font_size_override("font_size", 32)
@@ -193,6 +240,10 @@ func open(from_place: String) -> void:
 			# 건 알려준다. 살짝 흔들리고, 이미 적혀 있는 글줄이 그 대답이다.
 			b.pressed.connect(_shake.bind(b))
 		_list.add_child(b)
+	var first := _next_place()
+	_hint.visible = JourneyState.places_visited() == 0 and first != ""
+	if _hint.visible:
+		_hint.text = "처음이라면 %s부터 가 보세요." % first
 	visible = true
 	_fit_panel()
 

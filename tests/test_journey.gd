@@ -65,6 +65,8 @@ func _ready() -> void:
 	await _big_map_cover_tests()
 	await _edge_arrow_visibility_tests()
 	await _goal_pointer_avoids_minimap_tests()
+	await _no_dead_end_tests()
+	await _first_board_tests()
 	await _walk_squeeze_tests()
 	await _walk_gives_up_tests()
 	await _guide_tests()
@@ -1793,7 +1795,13 @@ func _quest_tests() -> void:
 		"인사를 마치면 매듭 줄이 다음 단계로 넘어간다")
 	JourneyState.reset()
 	ok(Quests.quest_list("볕뉘").size() == 7, "볕뉘는 항목 7개 (능 안쪽길·흙마당 포함)")
-	ok(Quests.quest_list("고향").is_empty(), "고향은 할 일 목록이 없다")
+	# **고향에도 목록을 뒀다.** 여태 비워 뒀더니 첫 여행판에서 잘못
+	# 들른 사람이 아무것도 안 뜨는 마당에 서서 게임을 접었다. 숙제를
+	# 만든 건 아니고 **이미 마당에 있던 것들**(식구 셋과 평상)을 적었을
+	# 뿐이라, 잠금(`village_cleared`)에는 그대로 안 걸린다.
+	ok(Quests.quest_list("고향").size() == 4, "고향에도 해볼 일이 넷 있다")
+	ok(Quests.village_cleared("고향"),
+		"그래도 고향은 늘 '다 한 곳' 이다 — 잠그는 데 안 쓴다")
 
 	# ⑤-2 프롤로그(잿마루)에도 할 일이 있다. **게임의 첫 화면이라**
 	# 여기가 비어 있으면 시작하자마자 "할 일은 배낭에" 안내가 거짓이 된다.
@@ -2918,13 +2926,23 @@ func _josa_tests() -> void:
 ## 아래)이라, 판이 네댓 줄만 보여 주는 화면에서는 스크롤 없이 존재
 ## 자체를 몰랐다 - "고향은 언제든 돌아갈 수 있어야 한다" 는 이 파일의
 ## 원칙과 정반대였다.
+##
+## **단 한 번, 첫 여행만 예외다.** 그때는 갈 수 있는 곳이 둘뿐인데
+## 고향이 맨 위라 처음 하는 사람이 그냥 위엣것을 눌렀고, 아무 할 일도
+## 없던 마당에서 게임을 접었다. 돌아갈 곳은 떠나 본 다음에야 뜻이
+## 생긴다 (`TravelBoard._row_order`).
 func _home_row_tests() -> void:
 	print("\n[고향 줄이 맨 위인가]")
 	var b := TravelBoard.new()
-	ok(b._row_order()[0] == "고향", "고향이 목록 맨 위다")
+	JourneyState.reset()
+	ok(b._row_order()[0] != "고향", "첫 여행에서는 고향이 맨 위가 아니다")
+	ok(b._row_order()[-1] == "고향", "대신 맨 아래에 둔다 - 지우지는 않는다")
+	JourneyState.visit("윤슬")
+	ok(b._row_order()[0] == "고향", "한 번 다녀오고 나면 고향이 맨 위다")
 	ok(String(TravelBoard.PLACES["고향"][1]) != "",
 		"고향에도 설명이 있다 (%s)" % TravelBoard.PLACES["고향"][1])
 	b.free()
+	JourneyState.reset()
 
 
 ## 여행판이 바깥을 눌러도 닫히는가.
@@ -4483,6 +4501,145 @@ func _walk_real(place: Place, t: Vector2i, secs: float) -> bool:
 ## (`Place._close_prop_gaps()`). 여기서 실제로 고쳐진 자리만 확인한다 -
 ## 부두·연못 물가처럼 지형(물) 자체가 좁게 끼는 자리 몇몇은 이 수정만
 ## 으로는 아직 못 고쳤다(따로 기록해 둔다).
+## **어디에 서 있든 "다음" 이 화면에 있어야 한다.**
+##
+## 첫 여행판에서 맨 윗줄(고향)을 눌러 온 사람이 그대로 게임을 접었다 -
+## 고향엔 할 일 목록이 없어서 위쪽 띠도, 도착 카드도, 화살표도, 배낭
+## 점도 전부 비어 있었다. 벌이 없는 게임이라도 **갈 곳이 안 보이는 건
+## 다른 문제다.** 장소를 새로 만들거나 목록을 손볼 때마다 다시 생길
+## 수 있는 사고라, 모든 곳을 세 가지 상태로 훑어 둔다.
+func _no_dead_end_tests() -> void:
+	print("\n[막다른 길이 없는가]")
+	var inside := {
+		"가게 안": ["res://scenes/journey/interiors/ShopInterior.tscn", "윤슬"],
+		"등대 안": ["res://scenes/journey/interiors/LighthouseInterior.tscn", "윤슬"],
+		"샛길 안": ["res://scenes/journey/interiors/SidePathInterior.tscn", "윤슬"],
+		"능 길": ["res://scenes/journey/interiors/TombPathInterior.tscn", "솔은재"],
+		"모임터": ["res://scenes/journey/interiors/GatherGround.tscn", "꽃눈벌"],
+	}
+	# 그늘 자리만 뺀다. 거기는 **일부러** 화살표를 끈 곳이고
+	# (`ShadeSpot.open_goals`), 대신 도착하자마자 "여기서는 그냥 쉬어요"
+	# 라고 왜 조용한지 말해 준다. 그 예외는 아래에서 따로 확인한다.
+	var bad: Array = []
+	var seen := 0
+	# `GOAL_SCENES` 에는 고향이 없다 - 여행지 목록이라서다. 여기서는
+	# 고향이 특히 중요하니 따로 얹는다.
+	var outside := GOAL_SCENES.duplicate()
+	outside["고향"] = "res://scenes/journey/Home.tscn"
+	for name in outside:
+		for mode in ["막 도착", "다 마침", "한밤중"]:
+			JourneyState.reset()
+			JourneyState.here = String(name)
+			if mode == "다 마침":
+				for q in Quests.quest_list(String(name)):
+					JourneyState.mark_quest(Quests.row_id(q))
+			elif mode == "한밤중":
+				JourneyState.minutes = 24 * 60 - 10
+			var p: Place = load(String(outside[name])).instantiate()
+			add_child(p)
+			await get_tree().process_frame
+			await get_tree().process_frame
+			seen += 1
+			var g: Dictionary = p.current_goal()
+			if g.is_empty() or String(g.get("label", "")) == "":
+				bad.append("%s(%s)" % [name, mode])
+			p.queue_free()
+			await get_tree().process_frame
+	for name in inside:
+		JourneyState.reset()
+		JourneyState.here = String(inside[name][1])
+		JourneyState.exit_scene = String(outside[String(inside[name][1])])
+		JourneyState.exit_tile = Vector2i(24, 12)
+		var p2: Place = load(String(inside[name][0])).instantiate()
+		add_child(p2)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		seen += 1
+		var g2: Dictionary = p2.current_goal()
+		if g2.is_empty() or String(g2.get("label", "")) == "":
+			bad.append(String(name))
+		p2.queue_free()
+		await get_tree().process_frame
+	ok(bad.is_empty(), "어디에 서 있든 갈 곳이 있다 (%d곳)%s"
+		% [seen, "" if bad.is_empty() else " — " + str(bad)])
+
+	# 고향이 특히 그랬다 - 처음 하는 사람이 잘못 들르는 곳이다.
+	JourneyState.reset()
+	JourneyState.here = "고향"
+	var home: Place = load("res://scenes/journey/Home.tscn").instantiate()
+	add_child(home)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(Quests.quest_list("고향").size() >= 3, "고향에도 해볼 일이 있다 (%d개)"
+		% Quests.quest_list("고향").size())
+	ok(String(home.hud._arrive_task.text) != "",
+		"고향에 닿으면 도착 카드가 해볼 일을 적어 준다 (%s)" % home.hud._arrive_task.text)
+	# 식구와 다 이야기하고 평상까지 앉은 다음에도 갈 곳은 남는다.
+	for id in ["mom", "dad", "sibling"]:
+		JourneyState.hearts[id] = 1
+	JourneyState.mark_quest("고향:본:평상")
+	var after: Dictionary = home.current_goal()
+	ok(String(after.get("kind", "")) == "depart",
+		"고향에서 다 하고 나면 정류장을 짚는다 (%s)" % after.get("label", ""))
+	home.queue_free()
+	await get_tree().process_frame
+
+	# 그늘 자리 - 화살표는 일부러 없지만, 왜 조용한지는 말해 준다.
+	JourneyState.reset()
+	JourneyState.here = "방울못"
+	JourneyState.exit_scene = "res://scenes/journey/Bangulmot.tscn"
+	JourneyState.exit_tile = Vector2i(10, 10)
+	var shade: Place = load("res://scenes/journey/interiors/ShadeSpot.tscn").instantiate()
+	add_child(shade)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(String(shade.hud._hint.text).contains("쉬"),
+		"그늘 자리는 화살표 대신 왜 조용한지 말해 준다 (%s)" % shade.hud._hint.text)
+	shade.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+## 처음 하는 사람이 첫 여행판에서 헤매지 않는가.
+func _first_board_tests() -> void:
+	print("\n[첫 여행판]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["잿마루"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var board = get_tree().get_first_node_in_group("travel_board")
+	ok(board != null, "여행판이 있다")
+	if board != null:
+		board.open("잿마루")
+		await get_tree().process_frame
+		var rows: Array = board._list.get_children()
+		ok(not rows.is_empty(), "고를 줄이 있다")
+		# **맨 윗줄이 고향이면 안 된다.** 처음 하는 사람은 그냥 위엣것을
+		# 누르는데, 그게 아무 할 일도 없던 고향이었다.
+		ok(not String(rows[0].text).begins_with("고향"),
+			"아직 아무 데도 안 가 봤으면 맨 윗줄이 고향이 아니다 (%s)" % rows[0].text)
+		ok(String(rows[0].text).begins_with("윤슬"),
+			"맨 윗줄이 첫 여행지다 (%s)" % rows[0].text)
+		ok(board._hint.visible and String(board._hint.text).contains("윤슬"),
+			"어디부터인지 한 줄로 알려 준다 (%s)" % board._hint.text)
+
+		# 한 번 다녀오고 나면 고향이 다시 맨 위로 - 돌아갈 길이 보여야 한다.
+		JourneyState.visit("윤슬")
+		JourneyState.letters.append({"who": "엄마", "text": "밥 먹었니",
+			"day": 2, "read": false})
+		board.open("윤슬")
+		await get_tree().process_frame
+		var rows2: Array = board._list.get_children()
+		ok(String(rows2[0].text).begins_with("고향"),
+			"다녀온 뒤에는 고향이 맨 위다 (%s)" % rows2[0].text)
+		ok(String(rows2[0].text).contains("편지"),
+			"고향 줄이 기다리는 것을 적는다 (%s)" % rows2[0].text)
+		ok(not board._hint.visible, "한 번 떠나고 나면 안내줄은 사라진다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 func _walk_squeeze_tests() -> void:
 	print("\n[좁은 틈을 걷기로 확인]")
 	JourneyState.reset()

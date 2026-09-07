@@ -3355,6 +3355,18 @@ func open_goals() -> Array:
 		if not ds.is_empty():
 			out.append({"label": "나가기", "kind": "exit", "key": "",
 				"done": false})
+		return out
+	# **밖에서도 할 것이 없으면 정류장을 짚는다.**
+	#
+	# 실내에는 위처럼 "나가기" 가 있는데 실외에는 그런 갈래가 없었다.
+	# 그래서 할 일 목록이 없는 곳(고향)에 서면 위쪽 띠도, 화살표도,
+	# 배낭 점도 전부 비어 **화면 어디에도 다음이 없었다** — 첫 여행판에서
+	# 맨 윗줄(고향)을 눌러 온 사람이 "뭘 해야 할지 아무것도 안 되니
+	# 그만하고 싶어졌다" 고 했다. 그 자리가 막다른 길이었던 것이다.
+	# 어디에 서 있든 갈 곳 하나는 늘 있어야 한다.
+	if _has_stop:
+		out.append({"label": "다시 떠나기", "kind": "depart", "key": "",
+			"done": false})
 	return out
 
 
