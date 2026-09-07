@@ -818,10 +818,17 @@ func _build_props() -> void:
 
 		if blocks:
 			# 밑동만 막는다. 나무 꼭대기까지 막으면 뒤로 못 지나간다.
-			var half: int = int(ceil(maxf(TILE, tex.get_width() * 0.7) * 0.5 / TILE))
-			for bx in range(tx - half + 1, tx + half):
-				_blocked[Vector2i(bx, ty)] = true
+			#
+			# **몸이 그 칸 한가운데 설 수 있나로 가른다.** 여태는 콜라이더
+			# 너비를 칸으로 나눠 올림했는데(`ceil`), 그러면 옆칸을 조금만
+			# 먹는 소품이 "안 막는 것" 으로 셈됐다 - 길찾기는 그 칸 한가운데를
+			# 지나는 길을 그리고, 실제 몸은 소품에 1px 걸려 못 지나간다.
+			# 가풀재 옹벽(36px)에서 등대 오르는 길이 그렇게 막혔다.
+			# 길목이 칸 한가운데에 놓이므로, 재는 자도 거기여야 한다.
 			var w: float = maxf(TILE, tex.get_width() * 0.7)
+			var reach: int = int(floor((w * 0.5 + BODY_SIDE - 0.001) / TILE))
+			for bx in range(tx - reach, tx + reach + 1):
+				_blocked[Vector2i(bx, ty)] = true
 			blockers.append([tx, ty, w * 0.5])
 			var body := StaticBody2D.new()
 			var cs := CollisionShape2D.new()
@@ -2457,10 +2464,27 @@ func _tick_village_done() -> void:
 		return
 	JourneyState.mark_quest(key)
 	# 여기 **사는** 이들만. 여행자는 제 몫(재회)으로 따로 오른다.
+	#
+	# **두 칸 오른다.** 한 칸이면 화살표대로 한 번씩 말을 걸고 마을을
+	# 다 돈 사람이 딱 둘에서 멈춘다 - 가까워졌다고 볼 만한 선이 셋인데
+	# (`JourneyState.HEART_CLOSE`) 한 칸이 모자라서, 처음부터 끝까지
+	# 걸어 본 여행에서 엽서가 **한 장**밖에 안 왔다. 평상에 앉는 마지막
+	# 장면이 엽서를 넘겨 보는 장면인데 넘길 것이 없었다.
+	#
+	# 출석을 늘리라고 요구하지 않는다. 그 마을을 제대로 다 돌아본 것은
+	# 며칠 서서 인사한 것보다 큰 일이고, 그러니 그만큼 오른다.
 	for f in _folk:
 		if is_instance_valid(f) and not f.is_spot and not f.wanderer \
 				and f.folk_id != "":
-			JourneyState.warm(f.folk_id)
+			JourneyState.warm(f.folk_id, 2)
+			# **엽서는 여기서 부친다.** 여태는 말을 거는 순간에만 줬는데
+			# (`talk_to_near`), 마음이 차는 건 마을을 다 돈 이 순간이라
+			# 그 뒤로 한 번 더 말을 걸어야만 엽서가 왔다 - 다 하고
+			# 떠나는 사람에겐 영영 안 왔다. 떠나온 곳에서 오는 소식이니
+			# 여기서 부치는 것이 결에도 맞는다.
+			if f.heart() >= JourneyState.HEART_CLOSE \
+					and not FAMILY_IDS.has(f.folk_id):
+				JourneyState.give_postcard(f.folk_id, f.who)
 
 
 ## 안내가 기다리던 일을 해냈다고 알린다.
@@ -2511,6 +2535,16 @@ func _refresh_action() -> void:
 	if _photo_now():
 		hud.set_action("photo", "사진 찍기")
 		return
+	# **기다리는 것도 문보다 먼저다.** 등대곶은 등대 문 앞이라, 화살표를
+	# 따라 그 자리에 서면 버튼이 늘 "등대 들어가기" 였다 - 저녁까지
+	# 기다리는 버튼은 화살표대로 걸어온 사람에게는 한 번도 안 보였다.
+	# `_current_wait()` 은 그 자리 안에 서 있을 때만 답한다.
+	var w := _current_wait()
+	if not w.is_empty():
+		# **언제까지인지 적는다.** "기다리기" 만으로는 잠깐인지 저녁까지인지
+		# 누르기 전엔 모른다 - `_current_wait` 가 이미 `when` 을 알고 있다.
+		hud.set_action("wait", "%s까지 기다리기" % String(w["when"]))
+		return
 	var door = _can_enter()
 	if door != null:
 		hud.set_action("enter", _door_label(door))
@@ -2521,12 +2555,6 @@ func _refresh_action() -> void:
 		return
 	if _can_depart():
 		hud.set_action("depart", "떠나기")
-		return
-	var w := _current_wait()
-	if not w.is_empty():
-		# **언제까지인지 적는다.** "기다리기" 만으로는 잠깐인지 저녁까지인지
-		# 누르기 전엔 모른다 - `_current_wait` 가 이미 `when` 을 알고 있다.
-		hud.set_action("wait", "%s까지 기다리기" % String(w["when"]))
 		return
 	hud.set_action("", "")
 

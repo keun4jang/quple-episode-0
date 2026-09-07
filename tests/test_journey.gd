@@ -3248,16 +3248,24 @@ func _heart_pace_tests() -> void:
 	ok(Quests.village_cleared("가풀재"), "가풀재를 다 돌아봤다")
 	await get_tree().process_frame
 	await get_tree().process_frame
-	ok(JourneyState.heart("san_seal") == 2,
-		"다 돌아보면 한 칸 더 (%d)" % JourneyState.heart("san_seal"))
+	# **두 칸이다.** 한 칸이면 화살표대로 한 번씩 인사하고 마을을 다 돈
+	# 사람이 둘에서 멈춘다 - 선이 셋이라 한 칸이 모자라서, 통짜로 걸어 본
+	# 여행에서 엽서가 한 장밖에 안 왔다.
+	ok(JourneyState.heart("san_seal") == 3,
+		"다 돌아보면 두 칸 더 (%d)" % JourneyState.heart("san_seal"))
 	# 마을마다 한 번만. 화면을 다시 열어도 또 오르지 않는다.
 	p._village_warmed = false
 	await get_tree().process_frame
 	await get_tree().process_frame
-	ok(JourneyState.heart("san_seal") == 2,
+	ok(JourneyState.heart("san_seal") == 3,
 		"다 돌아본 몫은 한 번뿐이다 (%d)" % JourneyState.heart("san_seal"))
+	# **엽서는 그 자리에서 부친다.** 마음이 차는 건 마을을 다 돈 이
+	# 순간인데 엽서를 말 거는 순간에만 줬더니, 다 하고 바로 떠나는
+	# 사람에겐 영영 안 왔다.
+	ok(JourneyState.postcards.has("san_seal"),
+		"다 돌아본 그 자리에서 엽서가 온다")
 
-	# ③ 이튿날 한 번 더 말을 걸면 셋 - 여기서 말이 맡겨진다
+	# ③ 이튿날 한 번 더 말을 걸면 넷 - 여기서 말이 맡겨진다
 	JourneyState.day += 1
 	for f in folks:
 		f.reset_day()
@@ -3270,7 +3278,11 @@ func _heart_pace_tests() -> void:
 		"이틀이면 가까워진 것으로 친다 (%d칸, 선은 %d)"
 			% [JourneyState.heart("san_seal"), JourneyState.HEART_CLOSE])
 	ok(JourneyState.postcards.has("san_seal"), "엽서를 준다")
-	ok(not Quests.relay_line("가풀재", "san_seal").is_empty(),
+	# **이미 맡겨졌는지로 본다.** 말은 `talk_to_near` 안에서 그 자리에
+	# 맡겨진다 - 마을을 다 돌아본 것만으로 선을 넘게 되면서, 이튿날
+	# 말을 거는 그 순간에 벌써 건네받는다. 여기서 `relay_line` 을 또
+	# 부르면 이미 맡은 것이라 빈 줄이 돌아온다.
+	ok(Quests.relay_given("가풀재_솔은재_계단고개"),
 		"말도 맡긴다 - 이제 벽 뒤에 안 갇혀 있다")
 	p.queue_free()
 	await get_tree().process_frame
