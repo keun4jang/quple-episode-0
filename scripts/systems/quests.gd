@@ -213,7 +213,25 @@ static func _knot_target_key(step: Dictionary) -> String:
 	if String(step.get("key", "")) == "윤슬:매듭:1" \
 			and has_map() and not has_camera():
 		return "seagull"
+	# 윤슬 매듭 3은 **손에 바다유리가 있어야** 되는 일이다. 없는 채로
+	# 소년을 짚으면, 가서 말을 걸어도 아무 일이 없고 화살표는 그대로
+	# 소년을 가리킨다 - 걸어갔다 돌아오기를 되풀이하게 된다.
+	# 없으면 먼저 주울 것을 짚는다.
+	if _needs_seaglass(step):
+		return "p-seaglass"
 	return String(step.get("map", ""))
+
+
+## 짚어야 할 것이 사람이 아니라 주울 것일 때가 있다.
+static func _knot_target_kind(step: Dictionary) -> String:
+	if _needs_seaglass(step):
+		return "pickup"
+	return String(step.get("kind", ""))
+
+
+static func _needs_seaglass(step: Dictionary) -> bool:
+	return String(step.get("key", "")) == "윤슬:매듭:3" \
+		and JourneyState.count("p-seaglass") <= 0
 
 
 ## 지금 이어가고 있는 단계 번호. 다 마쳤으면 단계 수를 돌려준다.
@@ -845,9 +863,10 @@ static func quest_list(village: String) -> Array:
 			# 다시 체크리스트로 읽힌다. 폰트에 없는 그림글자는 못 쓰니
 			# 앞머리 낱말로 가른다 (`CLAUDE.md` 폰트 규칙).
 			"label": "이야기 %d/%d · %s%s" % [mini(at + 1, steps.size()),
-				steps.size(), String(cur["label"]), suffix],
+				steps.size(), String(cur["label"]),
+				"  (바다유리부터)" if _needs_seaglass(cur) else suffix],
 			"id": String(cur["key"]),
-		"kind": String(cur["kind"]), "key": _knot_target_key(cur),
+		"kind": _knot_target_kind(cur), "key": _knot_target_key(cur),
 			"photo": bool(cur.get("photo", false)),
 			"waiting": waiting,
 			"when": when,

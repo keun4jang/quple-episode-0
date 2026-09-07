@@ -2504,6 +2504,13 @@ func _refresh_action() -> void:
 	if _near != null:
 		hud.set_action("talk", "보기" if _near.is_spot else "말 걸기")
 		return
+	# **사진 자리에서는 사진이 먼저다.** 등대곶은 등대 문 앞이기도 해서
+	# 버튼에 "등대 들어가기" 가 떴다 - 사진을 남겨야 넘어가는 자리인데
+	# 큰 버튼은 엉뚱한 데로 안내했다. 카메라 버튼이 따로 있어도, 처음
+	# 하는 사람은 큰 버튼부터 누른다.
+	if _photo_now():
+		hud.set_action("photo", "사진 찍기")
+		return
 	var door = _can_enter()
 	if door != null:
 		hud.set_action("enter", _door_label(door))
@@ -2522,6 +2529,33 @@ func _refresh_action() -> void:
 		hud.set_action("wait", "%s까지 기다리기" % String(w["when"]))
 		return
 	hud.set_action("", "")
+
+
+## 지금 여기서 사진을 찍어야 할 자리인가.
+##
+## 이 마을의 "가 볼 곳"(`Quests.VISIT_KEY`)이 사진까지 필요한 곳이고,
+## 그 자리 안에 서 있고, 카메라가 있고, 아직 안 찍었을 때만 참이다.
+func _photo_now() -> bool:
+	if walker == null:
+		return false
+	var village := quest_village()
+	var key := String(Quests.VISIT_KEY.get(village, ""))
+	if key == "" or not Quests.VISIT_NEEDS_PHOTO.get(village, false):
+		return false
+	if Quests._photo_taken(village) or JourneyState.count("camera") <= 0:
+		return false
+	# **아직 때가 아니면 아니다.** 등대는 저녁에만 불이 켜진다 - 낮에
+	# 사진 버튼을 내밀면 찍어 놓고도 안 넘어가는 셈이 된다.
+	# 그때는 기다리기가 먼저다 (`_current_wait`).
+	if not _current_wait().is_empty():
+		return false
+	for z in quest_zones():
+		if String(z[0]) != key:
+			continue
+		var r: float = z[2]
+		if walker.global_position.distance_squared_to(world_of(z[1])) <= r * r:
+			return true
+	return false
 
 
 ## 문에 적을 말. 가게에 **볼 것이 남았으면** 한 마디 덧붙인다.
@@ -2546,6 +2580,9 @@ func _on_action() -> void:
 		"talk":
 			stop_walk_to()
 			talk_to_near()
+		"photo":
+			stop_walk_to()
+			_take_photo()
 		"enter":
 			_do_enter(_can_enter())
 		"sleep":
@@ -3222,6 +3259,10 @@ func goal_world(item: Dictionary) -> Vector2:
 				else Vector2.ZERO
 			for a in _loose:
 				if not is_instance_valid(a):
+					continue
+				# 무엇을 주워야 하는지 정해진 일이면 그것만 본다
+				# (`Quests._knot_target_key` — 윤슬 바다유리).
+				if key != "" and String(a.get_meta("item", "")) != key:
 					continue
 				var d2 := from.distance_squared_to(a.global_position)
 				if d2 < near:

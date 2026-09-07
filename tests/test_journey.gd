@@ -67,6 +67,7 @@ func _ready() -> void:
 	await _goal_pointer_avoids_minimap_tests()
 	await _no_dead_end_tests()
 	await _first_board_tests()
+	await _photo_button_tests()
 	await _walk_squeeze_tests()
 	await _walk_gives_up_tests()
 	await _guide_tests()
@@ -4635,6 +4636,65 @@ func _first_board_tests() -> void:
 		ok(String(rows2[0].text).contains("편지"),
 			"고향 줄이 기다리는 것을 적는다 (%s)" % rows2[0].text)
 		ok(not board._hint.visible, "한 번 떠나고 나면 안내줄은 사라진다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
+func _photo_button_tests() -> void:
+	print("\n[사진 자리에서 큰 버튼]")
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	JourneyState.hearts["seal"] = 1
+	JourneyState.hearts["seagull"] = 1
+	JourneyState.minutes = 19 * 60          # 저녁 - 등대에 불이 켜진다
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var g: Dictionary = p.current_goal()
+	var at: Vector2 = p.goal_world(g)
+	p.walker.global_position = at
+	await get_tree().physics_frame
+	await get_tree().process_frame
+	p._refresh_action()
+	# **등대곶은 등대 문 앞이기도 하다.** 큰 버튼이 "등대 들어가기" 로
+	# 뜨면, 사진을 남겨야 넘어가는 자리에서 엉뚱한 데로 안내한다.
+	ok(p.hud.action_kind() == "photo",
+		"사진 자리에서는 큰 버튼이 사진이다 (%s)" % p.hud.action_kind())
+	p._on_action()
+	await get_tree().process_frame
+	ok(not JourneyState.photos.is_empty(), "눌렀더니 사진이 찍힌다")
+	p._refresh_action()
+	ok(p.hud.action_kind() != "photo", "한 장 찍고 나면 다시 문으로 돌아간다")
+
+	# 바다유리가 없으면 소년이 아니라 주울 것을 짚는다 - 없이 말을
+	# 걸어 봐야 아무 일도 없어서 걸었다 돌아오기를 되풀이하게 된다.
+	JourneyState.mark_quest("윤슬:등대")
+	JourneyState.mark_quest("윤슬:등대@저녁")
+	JourneyState.day = 2
+	var step3: Dictionary = {}
+	for q in Quests.quest_list("윤슬"):
+		if String(q.get("id", "")) == "윤슬:매듭:3":
+			step3 = q
+	ok(not step3.is_empty(), "매듭 3이 목록에 있다")
+	if not step3.is_empty():
+		ok(String(step3.get("kind", "")) == "pickup",
+			"바다유리가 없으면 주울 것을 짚는다 (%s)" % step3.get("kind", ""))
+		ok(String(step3.get("key", "")) == "p-seaglass",
+			"짚는 것이 바다유리다 (%s)" % step3.get("key", ""))
+		ok(String(step3.get("label", "")).contains("바다유리부터"),
+			"줄에도 그렇게 적힌다 (%s)" % step3.get("label", ""))
+		var to: Vector2 = p.goal_world(step3)
+		ok(to != Vector2.INF, "그 바다유리가 지도 위 어디인지 안다")
+		JourneyState.pick("p-seaglass")
+		for q2 in Quests.quest_list("윤슬"):
+			if String(q2.get("id", "")) == "윤슬:매듭:3":
+				ok(String(q2.get("kind", "")) == "talk"
+					and String(q2.get("key", "")) == "seagull",
+					"손에 쥐고 나면 다시 소년을 짚는다")
 	p.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
