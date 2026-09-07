@@ -3060,17 +3060,50 @@ var _goto_stuck := 0.0
 var _goto_best_dist := INF
 var _goto_stall_time := 0.0
 
+## 두 칸 사이에 **못 걷는 바닥**이 없나. 소품은 안 본다.
+##
+## 길목을 건너뛰어도 되는지 가릴 때 쓴다. `_clear_line()` 은 몸 네
+## 귀퉁이까지 재는 엄한 자라서 소나무 사이 좁은 길을 다 막힌 것으로
+## 친다 - 그걸로 가리면 솔그늘 샛길에서 영영 못 건너뛴다. 여기서
+## 막고 싶은 건 물이나 벽을 가로지르는 직선 하나뿐이다.
+func _floor_between(a: Vector2i, b: Vector2i) -> bool:
+	if a == b:
+		return true
+	var steps: int = maxi(absi(b.x - a.x), absi(b.y - a.y)) * 2
+	for i in range(steps + 1):
+		var t: float = float(i) / float(steps)
+		var x: int = int(round(lerpf(float(a.x), float(b.x), t)))
+		var y: int = int(round(lerpf(float(a.y), float(b.y), t)))
+		if _solid_at(x, y):
+			return false
+	return true
+
+
+## 남은 길의 길이. 다음 길목까지 + 그 뒤로 이어진 길목들.
+func _path_left(here: Vector2) -> float:
+	if _path.is_empty():
+		return 0.0
+	var left := here.distance_to(_path[0])
+	for i in range(1, _path.size()):
+		left += _path[i - 1].distance_to(_path[i])
+	return left
+
+
 func _tick_goto(delta: float) -> Vector2:
 	if _path.is_empty() or walker == null:
 		return Vector2.ZERO
 	var here := walker.global_position
-	# **길목 하나하나가 아니라 마지막 자리까지 잰다.** 길목을 버리거나
+	# **길목 하나하나가 아니라 남은 길 전체를 잰다.** 길목을 버리거나
 	# 다시 찾을 때마다 카운터를 매번 0으로 되돌리면, 몸은 제자리인데
 	# 그때그때는 "막 나아간 것"으로 읽혀 영영 못 멈춘다 - 굽이나루
 	# 모래톱·가풀재 부두 골목에서 몇 걸음씩 흔들리며 20초 넘게 제자리를
-	# 맴도는 것으로 실측됐다. 최종 목적지까지 거리가 안 줄어드는 채로
-	# 3초를 넘기면 그만둔다.
-	var dist_to_goal := here.distance_to(_path[_path.size() - 1])
+	# 맴도는 것으로 실측됐다.
+	#
+	# **눈앞의 직선 거리로 재면 안 된다.** 솔그늘 샛길처럼 굽이도는 길은
+	# 목적지에서 한참 멀어졌다가 돌아온다 - 그 구간이 3초를 넘으면
+	# 멀쩡히 걷는 중에 그만둬 버렸다(솔은재·꽃눈벌 샛길에서 실측).
+	# 남은 길의 **길이**로 재면 굽이를 돌 때도 계속 줄어든다.
+	var dist_to_goal := _path_left(here)
 	if dist_to_goal < _goto_best_dist - 1.0:
 		_goto_best_dist = dist_to_goal
 		_goto_stall_time = 0.0
@@ -3097,11 +3130,24 @@ func _tick_goto(delta: float) -> Vector2:
 		_goto_stuck += delta
 		if _goto_stuck > 0.4:
 			_goto_stuck = 0.0
+			# **건너뛰기는 곧게 갈 수 있을 때만.** 그냥 다음 길목을
+			# 버리면 그 다음 자리로 직선을 그어 버리는데, 굽이나루
+			# 모래톱처럼 다리를 내려와 직각으로 꺾는 자리에서는 그
+			# 직선이 강을 가로지른다 - 물에 처박혀 비비다 되돌아
+			# 올라가기를 되풀이하다 그만뒀다(실측). 못 그으면 버리지
+			# 말고 그 자리에서 길을 다시 찾는다.
+			var here_t := tile_of(here)
+			var skip_ok := false
 			if _path.size() > 1:
+				# 가까운 길목이면 그냥 건너뛴다 - 굽은 길에서는 길목이
+				# 촘촘해서 이쪽이 실제로 통한다(솔그늘 샛길).
+				skip_ok = here.distance_to(_path[1]) <= TILE * 3.0 \
+					or _floor_between(here_t, tile_of(_path[1]))
+			if skip_ok:
 				_path.remove_at(0)
 				to = _path[0] - here
 			else:
-				var again: Vector2 = _path[0]
+				var again: Vector2 = _path[_path.size() - 1]
 				stop_walk_to()
 				walk_to(again, true)
 				return Vector2.ZERO

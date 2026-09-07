@@ -4818,6 +4818,33 @@ func _walk_gives_up_tests() -> void:
 	ok(not p.is_walking_to(), "10초 안에 스스로 걷기를 멈춘다 (%.1fs)" % spent)
 	p.queue_free()
 	await get_tree().process_frame
+
+	# **굽이도는 길에서는 안 멈춰야 한다.** 그만두는 셈을 목적지까지의
+	# 직선 거리로 재던 때, 솔그늘 샛길처럼 목적지에서 한참 멀어졌다
+	# 돌아오는 길은 걷는 도중에 스스로 그만뒀다 - 3초쯤 걸으면
+	# "못 나아간다" 로 읽혔기 때문이다 (`Place._path_left`).
+	for v in ["솔은재", "꽃눈벌"]:
+		JourneyState.reset()
+		JourneyState.exit_scene = GOAL_SCENES[v]
+		JourneyState.exit_tile = Vector2i(1, 1)
+		var sp: Place = load("res://scenes/journey/interiors/SidePathInterior.tscn") \
+			.instantiate()
+		add_child(sp)
+		await get_tree().process_frame
+		ok(sp.place_name() != "모래톱 샛길",
+			"%s 샛길이 제 지형으로 열린다 (%s)" % [v, sp.place_name()])
+		var far: Vector2 = sp.world_of(sp.quest_zones()[0][1])
+		sp.walk_to(far)
+		var t := 0.0
+		while t < 40.0 and sp.is_walking_to():
+			await get_tree().physics_frame
+			t += get_physics_process_delta_time()
+		var gap: float = sp.walker.global_position.distance_to(far)
+		ok(gap <= float(sp.quest_zones()[0][2]),
+			"%s: 굽이도는 샛길 끝까지 안 멈추고 걸어간다 (남은 %.1f, %.1f초)"
+				% [v, gap, t])
+		sp.queue_free()
+		await get_tree().process_frame
 	JourneyState.reset()
 
 

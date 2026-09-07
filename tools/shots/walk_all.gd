@@ -107,7 +107,15 @@ const INSIDE = [
 	["가게 안", "res://scenes/journey/interiors/ShopInterior.tscn", "윤슬"],
 	["등대 안", "res://scenes/journey/interiors/LighthouseInterior.tscn", "윤슬"],
 	["그늘 자리", "res://scenes/journey/interiors/ShadeSpot.tscn", "볕뉘"],
-	["샛길 안", "res://scenes/journey/interiors/SidePathInterior.tscn", "윤슬"],
+	# 샛길은 **들어온 마을마다 지형이 다르다** (`SidePathInterior.PATHS`).
+	# 넷째 칸이 없으면 나가는 문 경로가 윤슬로 남아 늘 첫 번째(굽이나루)
+	# 지형만 돌았다 - 솔그늘·밭사잇길이 통째로 안 돌아 봐진 채였다.
+	["모래톱 샛길", "res://scenes/journey/interiors/SidePathInterior.tscn",
+		"굽이나루", "res://scenes/journey/Gubinaru.tscn"],
+	["솔그늘 샛길", "res://scenes/journey/interiors/SidePathInterior.tscn",
+		"솔은재", "res://scenes/journey/Soleunjae.tscn"],
+	["밭사잇길", "res://scenes/journey/interiors/SidePathInterior.tscn",
+		"꽃눈벌", "res://scenes/journey/Kkonnunbeol.tscn"],
 	["능 길", "res://scenes/journey/interiors/TombPathInterior.tscn", "솔은재"],
 	["모임터", "res://scenes/journey/interiors/GatherGround.tscn", "꽃눈벌"],
 ]
@@ -139,9 +147,13 @@ func _ready() -> void:
 	if which in ["all", "3"]:
 		for room in INSIDE:
 			JourneyState.here = String(room[2])
-			JourneyState.exit_scene = "res://scenes/journey/Yunseul.tscn"
+			JourneyState.exit_scene = String(room[3]) if room.size() > 3 \
+				else "res://scenes/journey/Yunseul.tscn"
 			JourneyState.exit_tile = Vector2i(24, 12)
-			await _sweep(String(room[0]), String(room[1]), 12.0)
+			# 샛길 셋은 아래 끝에서 위 끝까지 굽이도는 긴 길이라 20초쯤
+			# 걸린다 - 방 하나 크기로 재면 걷는 중에 실패로 친다.
+			var budget: float = 26.0 if room.size() > 3 else 12.0
+			await _sweep(String(room[0]), String(room[1]), budget)
 
 	print("\n=== %d 통과 / %d 실패 ===" % [_pass, _fail])
 	if not _bad.is_empty():
