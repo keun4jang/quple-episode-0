@@ -103,6 +103,7 @@ func _ready() -> void:
 	# 화면이 자리를 잡은 뒤에 첫 줄을 띄운다. 켜자마자 뜨면 급해 보인다.
 	await get_tree().create_timer(1.2).timeout
 	if is_inside_tree():
+		_armed = true
 		_show_step()
 
 
@@ -158,7 +159,16 @@ func _step_ready(key: String) -> bool:
 
 
 ## 다른 창이 떠 있으면 잠깐 물러난다. 배낭 위에 겹쳐 뜨면 지저분하다.
+## 첫 줄을 띄울 준비가 됐나. `_ready()` 가 기다리는 것들(도착 카드가
+## 걷히기, 화면 보는 법 판을 닫기, 1.2초)을 **`_process` 가 앞질러
+## 버렸다** — `_at` 이 0인 채로 매 프레임 돌아서, 지도가 깔리자마자
+## 첫 줄이 도착 카드 위에 떴다가 곧바로 화면 보는 법 판에 덮였다.
+## 처음 하는 사람은 안내 한 줄을 읽다 말고 다른 판을 닫게 된다.
+var _armed := false
+
 func _process(_delta: float) -> void:
+	if not _armed:
+		return
 	# 아직 조건이 안 된 단계면 조용히 기다린다 — 조건이 갖춰지는 순간
 	# (지도를 받는 순간) 저절로 뜬다.
 	if _at < STEPS.size() and _shown == "" and _step_ready(String(STEPS[_at][0])):
@@ -166,7 +176,7 @@ func _process(_delta: float) -> void:
 	if _panel == null or _shown == "":
 		return
 	var busy := false
-	for g in ["journey_say", "travel_board", "settings_ui"]:
+	for g in ["journey_say", "travel_board", "settings_ui", "how_to_play"]:
 		var n := get_tree().get_first_node_in_group(g)
 		if n != null and n.visible:
 			busy = true
