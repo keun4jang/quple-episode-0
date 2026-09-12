@@ -8,8 +8,16 @@ var _bgm_player: AudioStreamPlayer
 var _sfx_player: AudioStreamPlayer
 
 var _sfx_lib := {}
-var _bgm_stream: AudioStreamWAV = null
+var _bgm_cache := {}
 var _current_bgm: String = ""
+
+## 씬별 BGM 무드 정의: [주파수들(화음), 길이, 음량, 트레몰로 속도(Hz), 트레몰로 깊이]
+const BGM_THEMES := {
+    "night":  {"freqs": [220.00, 261.63, 329.63], "dur": 4.0, "vol": 0.12, "trem_hz": 0.25, "trem_depth": 0.3},
+    "indoor": {"freqs": [293.66, 349.23, 440.00, 523.25], "dur": 5.0, "vol": 0.10, "trem_hz": 0.18, "trem_depth": 0.22},
+    "tense":  {"freqs": [110.00, 155.56, 207.65], "dur": 3.0, "vol": 0.14, "trem_hz": 0.6, "trem_depth": 0.45},
+    "menu":   {"freqs": [261.63, 329.63, 392.00, 523.25], "dur": 4.0, "vol": 0.13, "trem_hz": 0.35, "trem_depth": 0.18},
+}
 
 var bgm_volume: float = 0.8
 var sfx_volume: float = 1.0
@@ -29,6 +37,37 @@ func _ready() -> void:
     _sfx_lib["dialogue_tick"] = _tone([1200.0], 0.04, 0.18, 0.002, 0.03)
     _sfx_lib["camera_shutter"] = _noise(0.12, 0.6, 0.5)
     _sfx_lib["footstep"] = _noise(0.09, 0.35, 0.25)
+    _sfx_lib["confirm"] = _tone([523.25, 659.25, 784.0], 0.18, 0.45, 0.005, 0.12)
+    _sfx_lib["page_turn"] = _noise(0.08, 0.3, 0.6)
+    _sfx_lib["clear_fanfare"] = _fanfare()
+
+## 짧은 3음 상승 팡파르 (게임 클리어용)
+func _fanfare() -> AudioStreamWAV:
+    var notes := [523.25, 659.25, 784.0, 1046.5]  # C5 E5 G5 C6
+    var note_dur := 0.16
+    var n := int(SR * note_dur * notes.size())
+    var data := PackedByteArray()
+    data.resize(n * 2)
+    for i in range(n):
+        var t := float(i) / SR
+        var note_i := int(t / note_dur)
+        note_i = min(note_i, notes.size() - 1)
+        var local_t := t - note_i * note_dur
+        var f: float = notes[note_i]
+        var s := sin(TAU * f * local_t) + 0.4 * sin(TAU * f * 2.0 * local_t)
+        var env: float = 1.0
+        if local_t < 0.01:
+            env = local_t / 0.01
+        elif local_t > note_dur - 0.05:
+            env = max(0.0, (note_dur - local_t) / 0.05)
+        var v := int(clamp(s * env * 0.35, -1.0, 1.0) * 32767.0)
+        data.encode_s16(i * 2, v)
+    var st := AudioStreamWAV.new()
+    st.format = AudioStreamWAV.FORMAT_16_BITS
+    st.mix_rate = SR
+    st.stereo = false
+    st.data = data
+    return st
 
 ## 톤 버퍼 생성기 (여러 주파수를 합성한 사인파 + attack/decay 엔벨로프)
 func _tone(freqs: Array, dur: float, vol: float, attack: float, decay: float) -> AudioStreamWAV:
@@ -78,22 +117,18 @@ func _noise(dur: float, vol: float, lowpass: float) -> AudioStreamWAV:
     st.data = data
     return st
 
-## 부드럽게 반복되는 앰비언트 패드 (A minor 화음 + 느린 진폭 트레몰로)
-func _build_bgm() -> AudioStreamWAV:
-    var dur := 4.0
+## 씬 무드별 반복 앰비언트 패드 (화음 + 진폭 트레몰로), BGM_THEMES 파라미터로 생성
+func _build_pad(freqs: Array, dur: float, vol: float, trem_hz: float, trem_depth: float) -> AudioStreamWAV:
     var n := int(SR * dur)
     var data := PackedByteArray()
     data.resize(n * 2)
-    var freqs := [220.0, 261.63, 329.63]  # A minor 패드
-    var vol := 0.12
     for i in range(n):
         var t := float(i) / SR
         var s := 0.0
         for f in freqs:
             s += sin(TAU * f * t)
         s /= freqs.size()
-        # 느린 진폭 트레몰로 (0.25Hz)
-        var tremolo := 0.7 + 0.3 * sin(TAU * 0.25 * t)
+        var tremolo: float = (1.0 - trem_depth) + trem_depth * sin(TAU * trem_hz * t)
         var v := int(clamp(s * tremolo * vol, -1.0, 1.0) * 32767.0)
         data.encode_s16(i * 2, v)
     var st := AudioStreamWAV.new()
@@ -106,15 +141,19 @@ func _build_bgm() -> AudioStreamWAV:
     st.loop_end = n
     return st
 
+func _build_bgm(track_name: String) -> AudioStreamWAV:
+    var theme: Dictionary = BGM_THEMES.get(track_name, BGM_THEMES["night"])
+    return _build_pad(theme.freqs, theme.dur, theme.vol, theme.trem_hz, theme.trem_depth)
+
 # ── 공개 API ──────────────────────────────────────────────
 
 func play_bgm(track_name: String, _fade_in: float = 1.0) -> void:
     if _current_bgm == track_name and _bgm_player.playing:
         return
-    if _bgm_stream == null:
-        _bgm_stream = _build_bgm()
+    if not _bgm_cache.has(track_name):
+        _bgm_cache[track_name] = _build_bgm(track_name)
     _current_bgm = track_name
-    _bgm_player.stream = _bgm_stream
+    _bgm_player.stream = _bgm_cache[track_name]
     set_bgm_volume(bgm_volume)
     _bgm_player.play()
 

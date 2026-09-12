@@ -36,11 +36,13 @@ func _unhandled_input(event: InputEvent) -> void:
     var unlocked = _get_unlocked()
     if unlocked.size() == 0:
         return
-    if event.is_action_pressed("ui_left"):
-        _current_page = max(0, _current_page - 1)
+    if event.is_action_pressed("ui_left") and _current_page > 0:
+        _current_page -= 1
+        if AudioManager: AudioManager.play_sfx("page_turn")
         _show_page(unlocked)
-    elif event.is_action_pressed("ui_right"):
-        _current_page = min(unlocked.size() - 1, _current_page + 1)
+    elif event.is_action_pressed("ui_right") and _current_page < unlocked.size() - 1:
+        _current_page += 1
+        if AudioManager: AudioManager.play_sfx("page_turn")
         _show_page(unlocked)
 
 func _get_unlocked() -> Array:

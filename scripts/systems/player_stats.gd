@@ -1,0 +1,184 @@
+extends Node
+## PlayerStats — 쿼카의 "마음" 스탯. 레벨/경험치/체력/마음력/화폐/인벤토리를 관리한다.
+## 이 게임의 전투는 눈에 보이지 않는 부정적 감정(불안·욕심·불행 등)을 상대하므로
+## 공격력은 "마음의 힘", MP는 "마음력"으로 부른다.
+
+signal stats_changed
+signal leveled_up(new_level: int)
+signal coins_changed(amount: int)
+signal item_changed(item_id: String, count: int)
+
+var level: int = 1
+var exp_points: int = 0
+var hp: int = 60
+var max_hp: int = 60
+var mp: int = 20
+var max_mp: int = 20
+var attack: int = 10
+var defense: int = 4
+var coins: int = 0
+
+## 배운 스킬 id 목록 (battle_system.gd의 SKILLS 참조)
+var skills: Array = ["laugh"]
+
+## 소비 아이템 보유량 { item_id: 개수 }
+var inventory: Dictionary = {}
+
+## 레벨업에 필요한 누적 경험치
+func exp_to_next() -> int:
+    return int(round(28.0 * pow(float(level), 1.45)))
+
+func add_exp(amount: int) -> Array:
+    var gained_levels: Array = []
+    exp_points += amount
+    while exp_points >= exp_to_next():
+        exp_points -= exp_to_next()
+        _level_up()
+        gained_levels.append(level)
+    stats_changed.emit()
+    return gained_levels
+
+func _level_up() -> void:
+    level += 1
+    max_hp += 12
+    max_mp += 5
+    attack += 2
+    defense += 1
+    hp = max_hp
+    mp = max_mp
+    _unlock_skills_for_level()
+    leveled_up.emit(level)
+
+## 레벨에 따라 새 스킬 해금
+const SKILL_UNLOCKS := {
+    2: "breath",
+    3: "daydream",
+    4: "cheer",
+    6: "hug",
+}
+
+func _unlock_skills_for_level() -> void:
+    if SKILL_UNLOCKS.has(level):
+        var id: String = SKILL_UNLOCKS[level]
+        if not id in skills:
+            skills.append(id)
+
+func take_damage(amount: int) -> int:
+    var real := max(1, amount - defense)
+    hp = max(0, hp - real)
+    stats_changed.emit()
+    return real
+
+func heal(amount: int) -> int:
+    var before := hp
+    hp = min(max_hp, hp + amount)
+    stats_changed.emit()
+    return hp - before
+
+func restore_mp(amount: int) -> int:
+    var before := mp
+    mp = min(max_mp, mp + amount)
+    stats_changed.emit()
+    return mp - before
+
+func spend_mp(amount: int) -> bool:
+    if mp < amount:
+        return false
+    mp -= amount
+    stats_changed.emit()
+    return true
+
+func is_down() -> bool:
+    return hp <= 0
+
+## 쓰러졌을 때 — 힐링 게임이라 죽지 않고 절반 회복으로 다시 일어선다
+func revive_soft() -> void:
+    hp = max(1, int(max_hp * 0.5))
+    mp = max(0, int(max_mp * 0.3))
+    stats_changed.emit()
+
+# ── 화폐 ──────────────────────────────────────────────
+func add_coins(amount: int) -> void:
+    coins = max(0, coins + amount)
+    coins_changed.emit(coins)
+    stats_changed.emit()
+
+func spend_coins(amount: int) -> bool:
+    if coins < amount:
+        return false
+    coins -= amount
+    coins_changed.emit(coins)
+    stats_changed.emit()
+    return true
+
+# ── 인벤토리 ──────────────────────────────────────────
+func add_item(item_id: String, count: int = 1) -> void:
+    inventory[item_id] = inventory.get(item_id, 0) + count
+    item_changed.emit(item_id, inventory[item_id])
+    stats_changed.emit()
+
+func remove_item(item_id: String, count: int = 1) -> bool:
+    var have: int = inventory.get(item_id, 0)
+    if have < count:
+        return false
+    have -= count
+    if have <= 0:
+        inventory.erase(item_id)
+    else:
+        inventory[item_id] = have
+    item_changed.emit(item_id, have)
+    stats_changed.emit()
+    return true
+
+func item_count(item_id: String) -> int:
+    return inventory.get(item_id, 0)
+
+func total_items() -> int:
+    var n := 0
+    for k in inventory:
+        n += inventory[k]
+    return n
+
+# ── 저장/불러오기용 ───────────────────────────────────
+func to_dict() -> Dictionary:
+    return {
+        "level": level,
+        "exp": exp_points,
+        "hp": hp,
+        "max_hp": max_hp,
+        "mp": mp,
+        "max_mp": max_mp,
+        "attack": attack,
+        "defense": defense,
+        "coins": coins,
+        "skills": skills,
+        "inventory": inventory,
+    }
+
+func from_dict(d: Dictionary) -> void:
+    level = d.get("level", 1)
+    exp_points = d.get("exp", 0)
+    max_hp = d.get("max_hp", 60)
+    max_mp = d.get("max_mp", 20)
+    hp = d.get("hp", max_hp)
+    mp = d.get("mp", max_mp)
+    attack = d.get("attack", 10)
+    defense = d.get("defense", 4)
+    coins = d.get("coins", 0)
+    skills = d.get("skills", ["laugh"])
+    inventory = d.get("inventory", {})
+    stats_changed.emit()
+
+func reset_new_game() -> void:
+    level = 1
+    exp_points = 0
+    max_hp = 60
+    max_mp = 20
+    hp = max_hp
+    mp = max_mp
+    attack = 10
+    defense = 4
+    coins = 0
+    skills = ["laugh"]
+    inventory = {"cocoa": 2, "cookie": 1}
+    stats_changed.emit()
