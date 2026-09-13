@@ -24,13 +24,13 @@ func _build_scene() -> void:
 	# 화면 아래쪽이 바닥 끝을 넘어간다. 없으면 배경색 띠가 그대로 보인다)
 	_box(self, Vector3(0, -0.11, 4), Vector3(48, 0.2, 52), "#242A33", "OutsideFill")
 	_box(self, Vector3(0, -0.05, 1), Vector3(14, 0.1, 16), "#7F8790", "Floor")
-	_box(self, Vector3(-7.1, 3, 1), Vector3(0.2, 6, 16), "#43566A", "WallLeft")
-	_box(self, Vector3(7.1, 3, 1), Vector3(0.2, 6, 16), "#43566A", "WallRight")
-	_box(self, Vector3(0, 3, -5.1), Vector3(14, 6, 0.2), "#43566A", "WallBack")
+	_box(self, Vector3(-7.1, 3, 1), Vector3(0.2, 6, 16), "#43566A", "WallLeft", true)
+	_box(self, Vector3(7.1, 3, 1), Vector3(0.2, 6, 16), "#43566A", "WallRight", true)
+	_box(self, Vector3(0, 3, -5.1), Vector3(14, 6, 0.2), "#43566A", "WallBack", true)
 	# 앞쪽 낮은 벽 (파란 빈 공간 가림)
 	# 앞쪽 낮은 벽. 바닥과 같은 밝은 색이면 위에서 내려다볼 때 화면을 가로지르는
 	# 밝은 띠로 보여서, 사무실과 같은 어두운 벽 색으로 낮췄다.
-	_box(self, Vector3(0, 1.0, 8.9), Vector3(14, 2, 0.2), "#2D3A4A", "WallFront")
+	_box(self, Vector3(0, 1.0, 8.9), Vector3(14, 2, 0.2), "#2D3A4A", "WallFront", true)
 	# Ceiling 제거 - 위에서 내려다보는 카메라 구조
 	_box(self, Vector3(0, 0.6, -2), Vector3(4, 1.2, 1), "#43566A", "Desk")
 	_box(self, Vector3(0, 1.25, -2), Vector3(4.2, 0.1, 1.1), "#2D3A4A", "DeskTop")
@@ -79,12 +79,23 @@ func _build_scene() -> void:
 	if sbm:
 		sbm.emission_enabled = true; sbm.emission = Color("#54E0FF"); sbm.emission_energy_multiplier = 2.0
 
-func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "") -> MeshInstance3D:
+## solid=true 면 같은 크기의 충돌체를 달아 플레이어가 통과하지 못하게 한다.
+## 맵 상자는 전부 MeshInstance3D(그림)라서, 이걸 안 붙이면 벽을 그냥 걸어서 빠져나간다.
+func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "", solid: bool = false) -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	if label != "": mi.name = label
 	var mesh = BoxMesh.new(); mesh.size = size; mi.mesh = mesh
 	var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.9
-	mi.material_override = mat; mi.position = pos; parent.add_child(mi); return mi
+	mi.material_override = mat; mi.position = pos; parent.add_child(mi)
+	if solid:
+		var body = StaticBody3D.new()
+		var col = CollisionShape3D.new()
+		var shape = BoxShape3D.new()
+		shape.size = size
+		col.shape = shape
+		body.add_child(col)
+		mi.add_child(body)
+	return mi
 
 func _planter(parent: Node3D, pos: Vector3) -> void:
 	_box(parent, pos + Vector3(0, 0.15, 0), Vector3(0.5, 0.3, 0.5), "#6D7D8F", "PlanterBox")

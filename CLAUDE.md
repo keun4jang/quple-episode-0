@@ -333,6 +333,24 @@ SceneTransition.go_to("res://scenes/maps/씬이름.tscn", "normal")   # 검정
 - BossDoorHallway3D: 붉은 긴장 조명 + 문 아래 빛샘
 - 모든 씬: WorldEnvironment에 glow_enabled + ssao_enabled
 
+## 맵 충돌 (벽 통과 방지)
+맵의 상자는 전부 `_box()`가 만드는 `MeshInstance3D`(그림)라서 기본적으로 충돌체가 없다.
+막아야 하는 상자는 마지막 인자로 `true`를 넘긴다 — 같은 크기의
+`StaticBody3D` + `BoxShape3D`가 자식으로 붙는다.
+
+```gdscript
+_box(self, Vector3(-5.1, 2.5, 1), Vector3(0.2, 5, 14), "#2D3A4A", "WallLeft", true)
+```
+
+- 실내 3맵(사무실·로비·보스 문 앞)은 좌·우·뒤·앞 벽 4개에 붙였다.
+- 야외인 `CompanyFront3D`는 막아줄 벽이 없어서 `_bound(pos, size, label)`로
+  **눈에 안 보이는 경계벽**(그림 없이 충돌체만) 4개를 둘렀다. 북쪽은 z=-4.8까지
+  갈 수 있게 둬서 정문 상호작용은 그대로 닿는다.
+- 바닥에는 붙이지 않는다. 플레이어에게 중력이 없어서(velocity.y를 안 쓴다)
+  바닥 충돌체는 필요 없고, 오히려 캡슐이 걸릴 수 있다.
+- 문 트리거(Area3D)는 벽보다 안쪽에 있어 벽을 세워도 닿는다 — 새 문을 만들 때는
+  플레이어가 벽에 막힌 위치(벽 표면 + 캡슐 반지름 0.22)에서 닿는지 확인할 것.
+
 ## 인터랙터블 시스템
 interactable_3d.gd (Area3D 기반):
 - `interact_text`: 힌트 텍스트
@@ -415,6 +433,7 @@ GODOT_BIN=/path/to/godot bash tools/take_screenshots.sh ui_equip     # 일부만
 ## 다음 작업 후보
 - **실제 기기에서 APK 빌드·플레이 테스트** (지금까지 전부 미검증 — 이 컨테이너에서는 불가)
 - 파트너에게도 장비 표시 / 상점에서 잠긴 장비를 예고로 보여주기
+- 책상·소파 같은 가구에도 충돌체 (지금은 벽만 막는다)
 
 ## 검증 안 된 부분 (중요)
 이 컨테이너에 Godot 실행 파일이 없어 **엔진 구동 테스트를 하지 못했다.**
