@@ -14,7 +14,7 @@ var home_pos: Vector3 = Vector3.ZERO
 var _time: float = 0.0
 var _wander_angle: float = 0.0
 var _cooldown: float = 0.0
-var _player: Node3D = null
+var _player = null
 var _body_mesh: MeshInstance3D
 var _glow: OmniLight3D
 
