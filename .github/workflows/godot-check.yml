@@ -1,0 +1,41 @@
+name: Godot 검증
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: 4.3.0
+
+jobs:
+  parse-check:
+    name: GDScript 파싱 검사
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot 설치
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: false
+
+      - name: 프로젝트 임포트 (오토로드·씬 로딩 검사)
+        run: |
+          godot --headless --import --quit >/dev/null 2>&1 || true
+          godot --headless --import --quit 2>&1 | tee import.log || true
+          if grep -qiE "SCRIPT ERROR|Parse Error|Failed to load script|Cannot load script" import.log; then
+            echo "::error::프로젝트 임포트 중 스크립트 에러 발생"
+            grep -iE "SCRIPT ERROR|Parse Error|Failed to load script|Cannot load script" -A 3 import.log
+            exit 1
+          fi
+          echo "임포트 정상 — 파싱 에러 없음"
+
+      - name: 실패 시 로그 업로드
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-import-log
+          path: import.log
+          if-no-files-found: ignore

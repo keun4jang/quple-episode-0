@@ -427,7 +427,7 @@ func _restore_field_bgm() -> void:
     var scene := get_tree().current_scene
     if scene == null:
         return
-    match scene.name:
+    match String(scene.name):
         "CompanyFront3D":
             AudioManager.play_bgm("night")
         "BossDoorHallway3D":

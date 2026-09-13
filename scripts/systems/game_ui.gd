@@ -64,7 +64,7 @@ func _check_scene() -> void:
     _on_scene_changed(scene)
 
 func _on_scene_changed(scene: Node) -> void:
-    var show_hud := not (scene.name in NO_HUD_SCENES)
+    var show_hud := not (String(scene.name) in NO_HUD_SCENES)
     hud.visible = show_hud
     _close_all_panels()
     if show_hud:
@@ -93,7 +93,7 @@ func open_album() -> void:
     var scene := get_tree().current_scene
     if scene == null:
         return
-    var album := scene.get_node_or_null("AlbumUI")
+    var album = scene.get_node_or_null("AlbumUI")
     if album and album.has_method("refresh"):
         album.refresh()
         album.visible = true
@@ -101,7 +101,7 @@ func open_album() -> void:
         toast("앨범은 여행이 시작된 뒤에 볼 수 있어요.")
 
 func open_settings() -> void:
-    var s := get_tree().get_first_node_in_group("settings_ui")
+    var s = get_tree().get_first_node_in_group("settings_ui")
     if s and s.has_method("open"):
         s.open()
     else:
@@ -128,16 +128,17 @@ func _toggle(panel, key: String) -> void:
 
 # ── 그림자 감정 배치 ─────────────────────────────────
 func _spawn_enemies(scene: Node) -> void:
-    if not SPAWN_TABLE.has(scene.name):
+    var scene_name := String(scene.name)
+    if not SPAWN_TABLE.has(scene_name):
         return
     await get_tree().create_timer(0.6).timeout
     if get_tree().current_scene != scene:
         return
-    var player := get_tree().get_first_node_in_group("player")
+    var player = get_tree().get_first_node_in_group("player")
     if player == null:
         return
     var origin: Vector3 = player.global_position
-    var ids: Array = SPAWN_TABLE[scene.name]
+    var ids: Array = SPAWN_TABLE[scene_name]
     var index := 0
     for id in ids:
         # 보스는 한 번만 나타난다
