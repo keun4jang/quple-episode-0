@@ -283,6 +283,25 @@ interactable_3d.gd (Area3D 기반):
 - 런처 아이콘을 지정하지 않아 Godot 기본 아이콘이 쓰인다. 커스텀 아이콘은 이미지 파일이
   필요한데 "외부 이미지 금지" 원칙과 부딪히므로, 넣을지 여부는 별도 결정이 필요하다.
 
+## 스크린샷 도구
+`tools/take_screenshots.sh` — 맵·메뉴·전투·튜토리얼을 자동으로 찍어 `docs/screenshots/`에 넣는다.
+헤드리스(xvfb + 소프트웨어 렌더링)로 돌아가므로 화면 없는 환경에서도 된다.
+
+```bash
+GODOT_BIN=/path/to/godot bash tools/take_screenshots.sh              # 전부
+GODOT_BIN=/path/to/godot bash tools/take_screenshots.sh ui_equip     # 일부만
+```
+
+- 찍을 목록은 스크립트의 `SHOTS` 배열에 `"씬|모드|파일이름"` 한 줄씩 있다. 새 화면을
+  추가하려면 여기에 한 줄 넣으면 된다.
+- 모드는 `tools/capture_autoload.gd`가 해석한다:
+  `map` / `panel:<inventory|equip|skill|quest|shop>` / `battle:<적 id>` / `tutorial`
+- 캡처용 오토로드는 스크립트가 `project.godot`에 **임시로 끼웠다가 원복**한다
+  (`trap`으로 중간에 죽어도 되돌린다). 게임 빌드에는 절대 들어가지 않는다.
+- 빈 세이브로는 메뉴가 텅 비어 보이므로 `_seed_demo_state()`가 아이템·장비·레벨(LV4)을
+  미리 채운다 — 스킬 창에서 해금된 것과 잠긴 것이 함께 보이고, 포근 세트도 완성된 상태다.
+- 전투 샷은 등장 연출이 끝나고 "어떻게 할까?" 상태에서 찍히도록 더 오래 기다린다.
+
 ## 현재 진행 상황
 - ✅ 4개 맵 씬 완성 (CompanyFront, Lobby, Office, BossDoorHallway)
 - ✅ 캐릭터 완성 (눈 3레이어, 꼬리, 감정 시스템)
