@@ -384,6 +384,12 @@ func _play_event(ev: Dictionary) -> void:
             _spawn_float_text("힘 +%d" % ev.amount, COL_GOLD, false)
             _play_skill_burst(ev.get("skill", ""), false)
             await get_tree().create_timer(0.35).timeout
+        "status":
+            # 적이 마음력을 빨아가거나 마음의 힘을 꺾었을 때
+            _spawn_float_text(ev.msg, Color(String(ev.get("color", "#C88FE0"))), false)
+            _shake = 8.0
+            _refresh_bars()
+            await get_tree().create_timer(0.5).timeout
         "weakness":
             if AudioManager:
                 AudioManager.play_sfx("clear_fanfare")
