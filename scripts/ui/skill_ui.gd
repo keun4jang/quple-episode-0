@@ -75,6 +75,8 @@ func _skill_card(skill_id: String) -> PanelContainer:
         info.append("적 공격 -%d" % s.enemy_atk_down)
     if s.has("partner_bonus"):
         info.append("파트너와 함께면 ×%.2f" % s.partner_bonus)
+    if s.has("grants"):
+        info.append("%s 상태를 남긴다" % BattleSystem.STATUSES.get(String(s.grants), {}).get("name", "특수"))
     box.add_child(make_label("   ".join(info), 24, Color("#4A7A3A") if learned else Color("#8A8074")))
 
     box.add_child(make_label(s.desc, 24, Color("#6A5A4A") if learned else Color("#9A9084")))
