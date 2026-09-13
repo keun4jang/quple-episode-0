@@ -30,6 +30,29 @@ const SETS := {
         "bonuses": {2: {"attack": 3}, 4: {"attack": 6, "max_mp": 8}},
         "perk": "'거리두기'에 반드시 성공한다",
     },
+    # ── 두 개짜리 교차 세트 ──
+    # 포근(기본)·여행(상위) 등급을 하나씩 섞어야 완성된다. 한 등급을 다 모으는
+    # 길만 있으면 장비를 하나씩 갈아입는 중간 과정이 전부 손해로 느껴지기 때문에,
+    # 섞어 입는 쪽에도 갈 곳을 만들어뒀다. 세트끼리 아이템이 겹쳐도 상관없다 —
+    # 조건을 만족하는 세트는 전부 따로 계산된다.
+    "nightwalk": {
+        "name": "밤마실 세트",
+        "items": ["hat", "star_scarf"],
+        "bonuses": {2: {"defense": 3, "max_mp": 5}},
+        "perk": "전투를 시작할 때 적의 약점이 이미 보인다",
+    },
+    "firststep": {
+        "name": "첫걸음 세트",
+        "items": ["mittens", "travel_shoes"],
+        "bonuses": {2: {"attack": 2, "max_hp": 8}},
+        "perk": "전투를 시작할 때 마음력이 6 돌아온다",
+    },
+    "starlit": {
+        "name": "별밤 세트",
+        "items": ["star_scarf", "star_charm"],
+        "bonuses": {2: {"attack": 2, "defense": 2}},
+        "perk": "그림자를 걷어낼 때 반짝 조각을 25% 더 얻는다",
+    },
 }
 
 const PALETTE := {
@@ -245,6 +268,44 @@ const ITEMS := {
             "nnnnnnnn",
             ".dddddd.",
             "..dddd..",
+            "........",
+        ],
+    },
+    "tail_ribbon": {
+        "name": "리본 꼬리끈",
+        "desc": "꼬리에 묶는 작은 리본. 방어 +2, 마음력 최대치 +3 (상시 착용).",
+        "kind": "equipment",
+        "slot": "tail",
+        "price": 60,
+        "effect": {"defense": 2, "max_mp": 3},
+        "wear": {"color": "#E86A9A", "accent": "#FFF6E4", "style": "ribbon"},
+        "art": [
+            "........",
+            ".pp..pp.",
+            "pppwwppp",
+            "pppwwppp",
+            ".pp..pp.",
+            "...pp...",
+            "..p..p..",
+            "........",
+        ],
+    },
+    "star_charm": {
+        "name": "별 장식 꼬리끈",
+        "desc": "걸을 때마다 작은 별이 흔들린다. 마음의 힘 +3, 마음력 최대치 +3 (상시 착용).",
+        "kind": "equipment",
+        "slot": "tail",
+        "price": 150,
+        "effect": {"attack": 3, "max_mp": 3},
+        "wear": {"color": "#3E5AA8", "accent": "#F5D563", "style": "charm"},
+        "art": [
+            "...y....",
+            "...y....",
+            ".yyyyy..",
+            "..yyy...",
+            ".yy.yy..",
+            "........",
+            ".bbbbbb.",
             "........",
         ],
     },

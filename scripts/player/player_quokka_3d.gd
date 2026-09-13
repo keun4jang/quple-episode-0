@@ -313,6 +313,14 @@ func _setup_equipment_roots() -> void:
 			_make_equip_root($BodyPivot/RightLegPivot, Vector3(0, -0.16, 0.05)),
 		],
 	}
+	# 꼬리는 메시 자체가 흔들리므로 그 자식으로 붙여야 장식도 같이 흔들린다.
+	# (_Tail 은 _build_meshes() 가 만든다 — 타입이 Node 로 굳지 않게 var 로 받는다)
+	var tail_node = get_node_or_null("BodyPivot/_Tail")
+	if tail_node != null:
+		var tail_root := _make_equip_root(tail_node, Vector3(0, 0.01, 0.05))
+		# 꼬리 메시가 (0.8, 0.8, 1.0)으로 눌려 있어 그만큼 되돌려준다
+		tail_root.scale = Vector3(1.25, 1.25, 1.0)
+		_equip_roots["tail"] = [tail_root]
 
 func _make_equip_root(parent: Node3D, pos: Vector3) -> Node3D:
 	var n = Node3D.new()
@@ -351,6 +359,8 @@ func _build_worn(root: Node3D, item_id: String) -> void:
 			_build_worn_gloves(root, col, accent, style)
 		"shoes":
 			_build_worn_shoes(root, col, accent, style)
+		"tail":
+			_build_worn_tail(root, col, accent, style)
 
 func _build_worn_scarf(root: Node3D, col: Color, accent: Color, style: String) -> void:
 	# 목에 두르는 링
@@ -483,6 +493,57 @@ func _build_worn_shoes(root: Node3D, col: Color, accent: Color, style: String) -
 		lace.material_override = _wear_mat(accent)
 		lace.position = Vector3(0, 0.052, 0.05)
 		root.add_child(lace)
+
+func _build_worn_tail(root: Node3D, col: Color, accent: Color, style: String) -> void:
+	# 꼬리를 감싸는 띠 (토러스 구멍이 꼬리 방향(Z)을 향하도록 눕힌다)
+	var band = MeshInstance3D.new()
+	var tm = TorusMesh.new()
+	tm.inner_radius = 0.055
+	tm.outer_radius = 0.095
+	band.mesh = tm
+	band.material_override = _wear_mat(col)
+	band.rotation_degrees = Vector3(90, 0, 0)
+	root.add_child(band)
+	if style == "charm":
+		# 별 장식 — 작은 구 하나에 십자 막대를 얹어 반짝임을 만든다
+		var core = MeshInstance3D.new()
+		var sm = SphereMesh.new()
+		sm.radius = 0.045
+		sm.height = 0.09
+		core.mesh = sm
+		core.material_override = _wear_mat(accent)
+		core.position = Vector3(0, -0.12, -0.02)
+		root.add_child(core)
+		for i in range(2):
+			var spike = MeshInstance3D.new()
+			var sbm = BoxMesh.new()
+			sbm.size = Vector3(0.14, 0.025, 0.025)
+			spike.mesh = sbm
+			spike.material_override = _wear_mat(accent)
+			spike.position = Vector3(0, -0.12, -0.02)
+			spike.rotation_degrees = Vector3(0, 0, 45.0 + 90.0 * float(i))
+			root.add_child(spike)
+	else:
+		# 리본 — 양옆으로 뻗은 고리 두 개와 가운데 매듭
+		for i in range(2):
+			var loop = MeshInstance3D.new()
+			var lm = SphereMesh.new()
+			lm.radius = 0.055
+			lm.height = 0.09
+			loop.mesh = lm
+			loop.material_override = _wear_mat(accent)
+			var side = 0.09 if i == 0 else -0.09
+			loop.position = Vector3(side, 0.02, -0.02)
+			loop.scale = Vector3(1.3, 0.7, 0.6)
+			root.add_child(loop)
+		var knot = MeshInstance3D.new()
+		var km = SphereMesh.new()
+		km.radius = 0.038
+		km.height = 0.07
+		knot.mesh = km
+		knot.material_override = _wear_mat(accent)
+		knot.position = Vector3(0, 0.02, -0.02)
+		root.add_child(knot)
 
 func _wear_mat(col: Color) -> StandardMaterial3D:
 	var mat = StandardMaterial3D.new()

@@ -58,12 +58,13 @@ func _seed_demo_state() -> void:
 	PlayerStats.add_coins(480)
 	for id in ["cocoa", "cookie", "energy_drink", "clover", "herb_tea", "star_candy"]:
 		PlayerStats.add_item(id, 3)
-	for id in ["hat", "scarf", "mittens", "slippers", "travel_cap", "star_scarf"]:
+	for id in ["hat", "scarf", "mittens", "slippers", "travel_cap", "star_scarf",
+			"tail_ribbon", "star_charm"]:
 		PlayerStats.add_item(id, 1)
 	for id in ["camera", "notebook"]:
 		PlayerStats.add_item(id, 1)
 	# 포근 세트를 다 갖춰 세트 효과가 보이게 한다
-	for id in ["hat", "scarf", "mittens", "slippers"]:
+	for id in ["hat", "scarf", "mittens", "slippers", "tail_ribbon"]:
 		PlayerStats.equip_item(id)
 
 func _force_tutorial() -> void:
