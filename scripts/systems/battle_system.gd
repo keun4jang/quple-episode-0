@@ -290,6 +290,11 @@ const SKILLS := {
         "desc": "\"할 수 있어.\" 마음의 힘이 오른다.",
         "mp": 5, "type": "buff", "atk_buff": 8,
     },
+    "steel": {
+        "name": "마음 단단히",
+        "desc": "한 번 숨을 고르고 버틴다. 잠시 덜 아프다.",
+        "mp": 6, "type": "buff", "grants": "guarded",
+    },
     "hug": {
         "name": "따뜻한 포옹",
         "desc": "둘이 함께라면 더 강하다.",
@@ -322,6 +327,12 @@ const STATUSES := {
         "on_msg": "마음이 먹먹해진다...",
         "off_msg": "다시 감각이 돌아왔다.",
     },
+    "guarded": {
+        "name": "굳건함", "good": true, "turns": 3, "color": "#6C9BD4",
+        "desc": "받는 피해가 30% 줄어든다.",
+        "on_msg": "숨을 고르고 자세를 낮췄다.",
+        "off_msg": "긴장이 풀렸다.",
+    },
     "warm": {
         "name": "온기", "good": true, "turns": 3, "color": "#7FBF6A",
         "desc": "매 턴 체력이 조금씩 돌아온다.",
@@ -332,6 +343,7 @@ const STATUSES := {
 }
 const DAUNTED_ATK_MULT := 0.75   # 위축: 주는 피해
 const NUMB_HEAL_MULT := 0.5      # 먹먹함: 회복 스킬 효과
+const GUARDED_TAKEN_MULT := 0.7  # 굳건함: 받는 피해
 
 var in_battle: bool = false
 var enemy: Dictionary = {}
@@ -371,6 +383,9 @@ func start_battle(id: String, source_node: Node = null) -> bool:
     turn_count = 0
     _last_player_damage = 0
     statuses.clear()
+    # 포근 세트 특전 — 온기를 두른 채로 전투를 시작한다
+    if PlayerStats.has_full_set("cozy"):
+        apply_status("warm")
     in_battle = true
     battle_started.emit(enemy)
     return true
@@ -484,12 +499,17 @@ func player_use_skill(skill_id: String) -> Array:
             var healed := PlayerStats.heal(amount)
             events.append({"type": "text", "msg": "%s — 체력 %d 회복." % [skill.name, healed]})
             events.append({"type": "heal", "amount": healed, "skill": skill_id})
-            if skill.has("grants"):
-                events.append(apply_status(String(skill.grants)))
         "buff":
-            atk_buff += skill.atk_buff
-            events.append({"type": "text", "msg": "%s! 마음의 힘 +%d" % [skill.name, skill.atk_buff]})
-            events.append({"type": "buff", "amount": skill.atk_buff, "skill": skill_id})
+            if skill.has("atk_buff"):
+                atk_buff += skill.atk_buff
+                events.append({"type": "text", "msg": "%s! 마음의 힘 +%d" % [skill.name, skill.atk_buff]})
+                events.append({"type": "buff", "amount": skill.atk_buff, "skill": skill_id})
+            else:
+                events.append({"type": "text", "msg": "%s!" % skill.name})
+
+    # 상태를 남기는 스킬 (심호흡=온기, 마음 단단히=굳건함)
+    if skill.has("grants"):
+        events.append(apply_status(String(skill.grants)))
 
     if enemy.hp <= 0:
         events.append({"type": "enemy_defeated"})
@@ -529,7 +549,8 @@ func player_flee() -> Array:
         return events
     turn_count += 1
     _last_player_damage = 0
-    if randf() < 0.62:
+    # 여행 세트 특전 — 언제든 떠날 수 있다
+    if randf() < 0.62 or PlayerStats.has_full_set("travel"):
         events.append({"type": "text", "msg": "잠시 거리를 두었다. 그것도 방법이야."})
         events.append({"type": "flee_success"})
         return events
@@ -574,7 +595,7 @@ func _enemy_action() -> Array:
         "reflect":
             var back: int = clamp(int(round(float(_last_player_damage) * float(plan.ratio))), 1, enemy.atk * 2)
             events.append({"type": "text", "msg": "%s가 방금 그 마음을 그대로 비춘다..." % enemy.name})
-            var mirrored := PlayerStats.take_damage(max(1, back - def_buff))
+            var mirrored := _hit_player(back)
             events.append({"type": "damage_player", "amount": mirrored, "heavy": false})
             if PlayerStats.is_down():
                 events.append({"type": "defeat"})
@@ -590,7 +611,7 @@ func _enemy_action() -> Array:
         events.append({"type": "text", "msg": enemy.line})
     for i in range(times):
         var base: int = int(round(float(enemy.atk + randi_range(0, 3)) * mult))
-        var real := PlayerStats.take_damage(max(1, base - def_buff))
+        var real := _hit_player(base)
         events.append({"type": "damage_player", "amount": real, "heavy": heavy})
         if PlayerStats.is_down():
             events.append({"type": "defeat"})
@@ -695,8 +716,17 @@ func enemy_intent() -> String:
 
 func expected_enemy_damage(mult: float = 1.0) -> int:
     var raw: int = int(round(float(enemy.get("atk", 0) + 1) * mult))
-    var base: int = max(1, raw - def_buff)
-    return max(1, int(round(float(base) * _mitigation(PlayerStats.defense))))
+    var base: float = float(max(1, raw - def_buff))
+    if has_status("guarded"):
+        base *= GUARDED_TAKEN_MULT
+    return max(1, int(round(base * _mitigation(PlayerStats.defense))))
+
+## 플레이어가 실제로 맞는 자리 — 방어 버프와 굳건함을 여기서 한 번에 반영한다
+func _hit_player(base: int) -> int:
+    var amount: float = float(max(1, base - def_buff))
+    if has_status("guarded"):
+        amount *= GUARDED_TAKEN_MULT
+    return PlayerStats.take_damage(max(1, int(round(amount))))
 
 ## 이 전투 중 밝혀진 적의 약점 (없으면 "")
 func known_weakness() -> String:

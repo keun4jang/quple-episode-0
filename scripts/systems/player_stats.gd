@@ -28,6 +28,10 @@ var inventory: Dictionary = {}
 ## 장비 슬롯 { slot: item_id } — 목도리(scarf)/모자(hat) 등 상시 착용 장비
 var equipment: Dictionary = {}
 
+## 지금 스탯에 반영돼 있는 세트 보너스 { stat_key: 값 }.
+## 장비를 벗을 때 정확히 이만큼만 되돌리려고 들고 있는다.
+var _applied_set_bonus: Dictionary = {}
+
 ## 레벨업에 필요한 누적 경험치
 func exp_to_next() -> int:
     return int(round(24.0 * pow(float(level), 1.25)))
@@ -57,6 +61,7 @@ func _level_up() -> void:
 const SKILL_UNLOCKS := {
     2: "daydream",
     3: "cheer",
+    4: "steel",
     5: "hug",
 }
 
@@ -155,6 +160,7 @@ func equip_item(item_id: String) -> bool:
         _apply_equip_effect(equipment[slot], -1)
     equipment[slot] = item_id
     _apply_equip_effect(item_id, 1)
+    _refresh_set_bonus()
     stats_changed.emit()
     equipment_changed.emit()
     return true
@@ -164,6 +170,7 @@ func unequip_slot(slot: String) -> bool:
         return false
     _apply_equip_effect(equipment[slot], -1)
     equipment.erase(slot)
+    _refresh_set_bonus()
     stats_changed.emit()
     equipment_changed.emit()
     return true
@@ -183,6 +190,70 @@ func _apply_equip_effect(item_id: String, sign: int) -> void:
         max_mp = max(0, max_mp + delta_mp)
         mp = clamp(mp + delta_mp, 0, max_mp)
 
+# ── 장비 세트 효과 ────────────────────────────────────
+## 세트별로 지금 몇 개를 착용 중인지 { set_id: 개수 }
+func set_counts() -> Dictionary:
+    var worn: Array = equipment.values()
+    var out: Dictionary = {}
+    for set_id in ItemDB.SETS:
+        var n := 0
+        for item_id in ItemDB.SETS[set_id].items:
+            if item_id in worn:
+                n += 1
+        out[set_id] = n
+    return out
+
+## 세트를 전부 갖췄는지 (4개 특전 판정용)
+func has_full_set(set_id: String) -> bool:
+    var s: Dictionary = ItemDB.SETS.get(set_id, {})
+    if s.is_empty():
+        return false
+    return set_counts().get(set_id, 0) >= s.items.size()
+
+## 지금 착용 상태로 받아야 할 세트 보너스 총합
+func pending_set_bonus() -> Dictionary:
+    var total: Dictionary = {}
+    var counts := set_counts()
+    for set_id in ItemDB.SETS:
+        var have: int = counts.get(set_id, 0)
+        for need in ItemDB.SETS[set_id].bonuses:
+            if have < int(need):
+                continue
+            for key in ItemDB.SETS[set_id].bonuses[need]:
+                total[key] = int(total.get(key, 0)) + int(ItemDB.SETS[set_id].bonuses[need][key])
+    return total
+
+## 장비가 바뀔 때마다 세트 보너스를 다시 계산해 차액만 스탯에 반영한다.
+## (이미 적용된 값은 _applied_set_bonus에 남겨두고 저장 데이터에도 넣는다 —
+##  나중에 장비를 벗을 때 정확히 그만큼만 되돌려야 하기 때문)
+func _refresh_set_bonus() -> void:
+    var want := pending_set_bonus()
+    var keys: Array = []
+    for k in want:
+        if not k in keys:
+            keys.append(k)
+    for k in _applied_set_bonus:
+        if not k in keys:
+            keys.append(k)
+    for key in keys:
+        var delta: int = int(want.get(key, 0)) - int(_applied_set_bonus.get(key, 0))
+        if delta != 0:
+            _apply_stat_delta(String(key), delta)
+    _applied_set_bonus = want
+
+func _apply_stat_delta(key: String, delta: int) -> void:
+    match key:
+        "defense":
+            defense = max(0, defense + delta)
+        "attack":
+            attack = max(1, attack + delta)
+        "max_hp":
+            max_hp = max(1, max_hp + delta)
+            hp = clamp(hp + delta, 0, max_hp)
+        "max_mp":
+            max_mp = max(0, max_mp + delta)
+            mp = clamp(mp + delta, 0, max_mp)
+
 # ── 저장/불러오기용 ───────────────────────────────────
 func to_dict() -> Dictionary:
     return {
@@ -198,6 +269,7 @@ func to_dict() -> Dictionary:
         "skills": skills,
         "inventory": inventory,
         "equipment": equipment,
+        "set_bonus": _applied_set_bonus,
     }
 
 func from_dict(d: Dictionary) -> void:
@@ -215,6 +287,7 @@ func from_dict(d: Dictionary) -> void:
     # attack/defense/max_hp/max_mp는 이미 장비 보너스가 반영된 값으로 저장되어 있으므로
     # equipment는 표시용으로만 복원하고 _apply_equip_effect()를 다시 적용하지 않는다.
     equipment = d.get("equipment", {})
+    _applied_set_bonus = d.get("set_bonus", {})
     stats_changed.emit()
     equipment_changed.emit()
 
@@ -231,5 +304,6 @@ func reset_new_game() -> void:
     skills = ["laugh", "breath"]
     inventory = {"cocoa": 2, "cookie": 1}
     equipment = {}
+    _applied_set_bonus = {}
     stats_changed.emit()
     equipment_changed.emit()

@@ -26,6 +26,8 @@ func _refresh_content() -> void:
     set_subtitle("마음의 힘 %d   ·   방어 %d   ·   체력 %d   ·   마음력 %d" % [
         PlayerStats.attack, PlayerStats.defense, PlayerStats.max_hp, PlayerStats.max_mp])
 
+    content.add_child(_set_card())
+
     for slot in SLOTS:
         var slot_id: String = slot.id
         var equipped_id: String = String(PlayerStats.equipment.get(slot_id, ""))
@@ -41,6 +43,46 @@ func _refresh_content() -> void:
             continue
         for item_id in owned:
             content.add_child(_equip_card(item_id, item_id == equipped_id))
+
+## 세트 진행도 카드 — 몇 개 모았고 다음 단계에 뭐가 붙는지 보여준다
+func _set_card() -> PanelContainer:
+    var counts := PlayerStats.set_counts()
+    var any_full := false
+    for set_id in ItemDB.SETS:
+        if counts.get(set_id, 0) >= ItemDB.SETS[set_id].items.size():
+            any_full = true
+    var card := make_card(Color("#F5D563") if any_full else COL_INK)
+    var margin := MarginContainer.new()
+    set_margins(margin, 16)
+    card.add_child(margin)
+
+    var box := VBoxContainer.new()
+    box.add_theme_constant_override("separation", 8)
+    margin.add_child(box)
+    box.add_child(make_label("— 세트 효과 —", 30, COL_INK))
+
+    for set_id in ItemDB.SETS:
+        var s: Dictionary = ItemDB.SETS[set_id]
+        var have: int = counts.get(set_id, 0)
+        var total: int = s.items.size()
+        var done: bool = have >= total
+        box.add_child(make_label("%s   %d / %d%s" % [s.name, have, total, "   완성!" if done else ""],
+            28, Color("#4A7A3A") if done else COL_INK))
+        for need in s.bonuses:
+            var got: bool = have >= int(need)
+            var mark: String = "✓" if got else "·"
+            box.add_child(make_label("   %s %d개 — %s" % [mark, int(need), _bonus_text(s.bonuses[need])],
+                23, Color("#4A7A3A") if got else Color("#8A7A6A")))
+        box.add_child(make_label("   %s %d개 — %s" % ["✓" if done else "·", total, s.perk],
+            23, Color("#4A7A3A") if done else Color("#8A7A6A")))
+    return card
+
+func _bonus_text(bonus: Dictionary) -> String:
+    var parts: Array = []
+    for key in bonus:
+        if EFFECT_NAMES.has(key):
+            parts.append("%s +%d" % [EFFECT_NAMES[key], int(bonus[key])])
+    return ", ".join(parts)
 
 func _owned_for_slot(slot_id: String) -> Array:
     var out: Array = []

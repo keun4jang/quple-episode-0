@@ -14,6 +14,24 @@ extends Node
 ##   (scarf=목에 두르는 링, hat=머리, gloves=양손, shoes=양발),
 ##   style이 세부를 정한다(plain/star, beanie/cap, mitten/glove, slipper/sneaker).
 
+## 장비 세트 — 같은 계열을 여러 개 착용하면 보너스가 붙는다.
+## bonuses의 키는 "몇 개 이상 착용"이고, 조건을 만족하는 단계는 **전부 누적**된다
+## (4개 착용 = 2단계 + 4단계 둘 다). perk는 4개 다 모았을 때의 특전 설명이다.
+const SETS := {
+    "cozy": {
+        "name": "포근 세트",
+        "items": ["hat", "scarf", "mittens", "slippers"],
+        "bonuses": {2: {"max_hp": 10}, 4: {"max_hp": 25, "defense": 3}},
+        "perk": "전투를 '온기' 상태로 시작한다",
+    },
+    "travel": {
+        "name": "여행 세트",
+        "items": ["travel_cap", "star_scarf", "travel_gloves", "travel_shoes"],
+        "bonuses": {2: {"attack": 3}, 4: {"attack": 6, "max_mp": 8}},
+        "perk": "'거리두기'에 반드시 성공한다",
+    },
+}
+
 const PALETTE := {
     "k": "#2A211C",  # 외곽선(어두운 갈색)
     "w": "#FFF6E4",  # 밝은 크림
