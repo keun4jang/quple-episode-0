@@ -51,6 +51,8 @@ func _setup_shot() -> void:
 		GameUI.open_panel(mode.substr(6))
 	elif mode.begins_with("battle:"):
 		BattleSystem.start_battle(mode.substr(7))
+	elif mode == "couple":
+		_seed_couple()
 	elif mode == "tutorial":
 		_force_tutorial()
 
@@ -79,6 +81,19 @@ func _dismiss_tutorial() -> void:
 	var scene = get_tree().current_scene
 	if scene and scene.has_node("TutorialUI"):
 		scene.get_node("TutorialUI").queue_free()
+
+## 파트너 합류 + '둘이서' 등급 전부 착용 — 커플룩(파트너도 같은 차림) 확인용
+func _seed_couple() -> void:
+	for id in ["sun_hat", "pair_muffler", "hold_gloves", "pair_sandals", "knot_charm"]:
+		PlayerStats.add_item(id, 1)
+		PlayerStats.equip_item(id)
+	Episode0State.partner_joined = true
+	var scene = get_tree().current_scene
+	if scene and scene.has_node("PartnerQuokka3D"):
+		var partner = scene.get_node("PartnerQuokka3D")
+		partner.visible = true
+		if partner.has_method("join_player"):
+			partner.join_player()
 
 func _force_tutorial() -> void:
 	# 이미 봤다고 저장돼 있으면 안 뜨므로 플래그를 지운다

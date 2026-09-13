@@ -37,6 +37,8 @@ SHOTS=(
   "CompanyFront3D|battle:anxiety|battle_anxiety"
   "Office3D|battle:burnout|battle_burnout"
   "BossDoorHallway3D|battle:overtime|battle_boss"
+  # 커플룩 (파트너 합류 + 둘이서 등급 전부 착용)
+  "CompanyFront3D|couple|couple"
   # 튜토리얼 첫 화면
   "CompanyFront3D|tutorial|tutorial"
 )

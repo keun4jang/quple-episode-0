@@ -572,6 +572,17 @@ func shop_list() -> Array:
     out.sort_custom(func(a, b): return ITEMS[a].price < ITEMS[b].price)
     return out
 
+## 조건 때문에 아직 상점에 안 나오는 아이템 (예고용으로만 쓴다)
+func locked_shop_list() -> Array:
+    var out: Array = []
+    for id in ITEMS:
+        if ITEMS[id].kind != "equipment":
+            continue
+        if ITEMS[id].get("requires_partner", false) and not Episode0State.partner_joined:
+            out.append(id)
+    out.sort_custom(func(a, b): return ITEMS[a].price < ITEMS[b].price)
+    return out
+
 ## 아이템 사용 — 성공하면 사용 결과 설명을 반환, 실패하면 빈 문자열
 ## in_battle=false면 버프류(전투 전용)는 사용할 수 없다.
 func use_item(id: String, in_battle: bool = false) -> String:
