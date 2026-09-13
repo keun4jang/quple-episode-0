@@ -71,8 +71,8 @@ func _skill_card(skill_id: String) -> PanelContainer:
         info.append("회복 %d + 레벨×3" % s.heal_base)
     if s.has("atk_buff"):
         info.append("마음의 힘 +%d" % s.atk_buff)
-    if s.has("enemy_atk_down"):
-        info.append("적 공격 -%d" % s.enemy_atk_down)
+    if s.has("enemy_grants"):
+        info.append("적을 %s 상태로 만든다" % BattleSystem.ENEMY_STATUSES.get(String(s.enemy_grants), {}).get("name", "특수"))
     if s.has("partner_bonus"):
         info.append("파트너와 함께면 ×%.2f" % s.partner_bonus)
     if s.has("grants"):
