@@ -6,8 +6,10 @@ extends Node
 ##
 ## 로직은 전부 여기에 있고, BattleUI는 여기서 돌려주는 "이벤트 배열"을 순서대로 연출만 한다.
 ## 이벤트: {"type": ..., ...}
-##   text / damage_enemy / damage_player / heal / buff / enemy_defeated
-##   victory / defeat / flee_success / flee_fail
+##   text / damage_enemy / damage_player / heal / buff / status / weakness
+##   enemy_defeated / victory / defeat / flee_success / flee_fail
+##
+## 적은 감정마다 다른 행동 패턴을 가진다 — ENEMIES의 "pattern" 필드와 _enemy_plan() 참고.
 
 signal battle_started(enemy: Dictionary)
 signal battle_finished(result: String)
@@ -19,6 +21,7 @@ const ENEMIES := {
         "name": "불안",
         "title": "잠 못 드는 밤의 속삭임",
         "line": "\"내일도 잘할 수 있을까...?\"",
+        "pattern": {"kind": "multi", "times": 2, "mult": 0.62, "every": 1},
         "hp": 26, "atk": 8, "def": 2,
         "exp": 18, "coins": 12,
         "weak": "daydream",
@@ -43,6 +46,7 @@ const ENEMIES := {
         "name": "욕심",
         "title": "끝없이 더 달라는 목소리",
         "line": "\"더, 더, 더 가져야 해!\"",
+        "pattern": {"kind": "drain", "every": 3, "amount": 6},
         "hp": 42, "atk": 11, "def": 4,
         "exp": 30, "coins": 30,
         "weak": "laugh",
@@ -67,6 +71,7 @@ const ENEMIES := {
         "name": "불행",
         "title": "어차피 안 될 거라는 먹구름",
         "line": "\"어차피 안 될 거야.\"",
+        "pattern": {"kind": "weaken", "every": 3, "amount": 3},
         "hp": 38, "atk": 12, "def": 3,
         "exp": 26, "coins": 22,
         "weak": "hug",
@@ -91,6 +96,7 @@ const ENEMIES := {
         "name": "비교",
         "title": "남의 삶을 비추는 거울",
         "line": "\"쟤는 너보다 잘하잖아.\"",
+        "pattern": {"kind": "reflect", "ratio": 0.35},
         "hp": 34, "atk": 10, "def": 3,
         "exp": 22, "coins": 18,
         "weak": "laugh",
@@ -115,6 +121,7 @@ const ENEMIES := {
         "name": "번아웃",
         "title": "다 타버린 재의 덩어리",
         "line": "\"...아무것도 하기 싫어.\"",
+        "pattern": {"kind": "burst", "every": 3, "mult": 2.0},
         "hp": 56, "atk": 15, "def": 5,
         "exp": 40, "coins": 38,
         "weak": "hug",
@@ -139,6 +146,7 @@ const ENEMIES := {
         "name": "외로움",
         "title": "아무도 없는 로비에 남은 메아리",
         "line": "\"다들 집에 갔구나... 나만 아직 여기 남았어.\"",
+        "pattern": {"kind": "lonely", "alone_mult": 1.5, "together_mult": 0.5},
         "hp": 36, "atk": 10, "def": 3,
         "exp": 24, "coins": 20,
         "weak": "laugh",
@@ -163,6 +171,7 @@ const ENEMIES := {
         "name": "조급함",
         "title": "숨 돌릴 틈도 주지 않는 초침",
         "line": "\"빨리, 빨리… 지금 아니면 늦어버릴 거야.\"",
+        "pattern": {"kind": "escalate", "step": 0.18, "max_mult": 2.2},
         "hp": 48, "atk": 13, "def": 3,
         "exp": 34, "coins": 32,
         "weak": "daydream",
@@ -187,6 +196,7 @@ const ENEMIES := {
         "name": "미루기",
         "title": "내일의 나에게 떠넘기는 손",
         "line": "\"이건 내일의 내가 하면 돼.\"",
+        "pattern": {"kind": "lazy", "every": 2},
         "hp": 40, "atk": 7, "def": 4,
         "exp": 26, "coins": 22,
         "weak": "daydream",
@@ -211,6 +221,7 @@ const ENEMIES := {
         "name": "강박",
         "title": "몇 번을 확인해도 모자란 눈",
         "line": "\"완벽하지 않으면, 아무 소용 없어.\"",
+        "pattern": {"kind": "multi", "times": 2, "mult": 0.8, "every": 2},
         "hp": 52, "atk": 16, "def": 5,
         "exp": 42, "coins": 36,
         "weak": "hug",
@@ -235,6 +246,7 @@ const ENEMIES := {
         "name": "야근 귀신",
         "title": "퇴근을 먹고 자라는 것",
         "line": "\"오늘도... 못 가.\"",
+        "pattern": {"kind": "heavy", "every": 4, "mult": 1.8},
         "hp": 220, "atk": 18, "def": 6,
         "exp": 140, "coins": 110,
         "drop": {"star_candy": 0.6, "clover": 0.5, "travel_shoes": 0.5},
@@ -296,6 +308,9 @@ var turn_count: int = 0
 var defeated_counts: Dictionary = {}
 var weakness_found: Dictionary = {}
 var world_enemy: Node = null
+## 직전 플레이어 공격이 준 피해 — "비교"의 되돌리기 패턴이 참고한다.
+## 공격이 아닌 행동(회복·버프·아이템·도망)을 하면 0으로 돌아간다.
+var _last_player_damage: int = 0
 
 func start_battle(id: String, source_node: Node = null) -> bool:
     if in_battle or not ENEMIES.has(id):
@@ -317,6 +332,7 @@ func start_battle(id: String, source_node: Node = null) -> bool:
     atk_buff = 0
     def_buff = 0
     turn_count = 0
+    _last_player_damage = 0
     in_battle = true
     battle_started.emit(enemy)
     return true
@@ -355,6 +371,7 @@ func player_use_skill(skill_id: String) -> Array:
     var hit_weakness: bool = skill.type == "attack" and ENEMIES[enemy_id].get("weak", "") == skill_id
 
     turn_count += 1
+    _last_player_damage = 0
     match skill.type:
         "attack":
             var power: float = skill.power
@@ -368,6 +385,7 @@ func player_use_skill(skill_id: String) -> Array:
             var dmg := _calc_player_damage(power)
             var crit: bool = dmg.crit
             enemy.hp = max(0, enemy.hp - dmg.amount)
+            _last_player_damage = dmg.amount
             events.append({"type": "damage_enemy", "amount": dmg.amount, "crit": crit, "weak": hit_weakness, "skill": skill_id})
             if skill.has("enemy_atk_down"):
                 enemy.atk = max(1, enemy.atk - skill.enemy_atk_down)
@@ -403,6 +421,7 @@ func player_use_item(item_id: String) -> Array:
         events.append({"type": "text", "msg": "지금은 쓸 수 없어요."})
         return events
     turn_count += 1
+    _last_player_damage = 0
     events.append({"type": "text", "msg": msg})
     events.append({"type": "heal", "amount": 0})
     events.append_array(_enemy_turn())
@@ -418,6 +437,7 @@ func player_flee() -> Array:
         events.append_array(_enemy_turn())
         return events
     turn_count += 1
+    _last_player_damage = 0
     if randf() < 0.62:
         events.append({"type": "text", "msg": "잠시 거리를 두었다. 그것도 방법이야."})
         events.append({"type": "flee_success"})
@@ -427,23 +447,110 @@ func player_flee() -> Array:
     return events
 
 # ── 적 턴 ────────────────────────────────────────────
+## 적마다 다른 행동을 한다. ENEMIES의 "pattern"을 보고 이번 턴에 무엇을 할지 정한다.
+## 같은 함수를 enemy_intent()도 쓰기 때문에, 예고와 실제 행동이 항상 일치한다.
 func _enemy_turn() -> Array:
     var events: Array = []
     if enemy.hp <= 0:
         return events
-    # 보스는 가끔 강한 일격을 날린다
-    var heavy: bool = enemy.get("is_boss", false) and turn_count % 4 == 0
-    var base: int = enemy.atk + randi_range(0, 3)
+    var plan := _enemy_plan(turn_count)
+
+    match String(plan.act):
+        "rest":
+            events.append({"type": "text", "msg": "%s%s" % [enemy.name, plan.rest_msg]})
+            return events
+        "drain":
+            var taken: int = min(PlayerStats.mp, int(plan.amount))
+            events.append({"type": "text", "msg": "%s가 마음의 여유를 빨아간다..." % enemy.name})
+            if taken > 0:
+                PlayerStats.spend_mp(taken)
+                events.append({"type": "status", "msg": "마음력 -%d" % taken, "color": "#6C9BD4"})
+            else:
+                events.append({"type": "text", "msg": "하지만 빼앗을 여유가 남아 있지 않았다."})
+            return events
+        "weaken":
+            # 마음의 힘이 절반 밑으로는 떨어지지 않게 막는다
+            var floor_buff: int = -int(PlayerStats.attack / 2)
+            var before: int = atk_buff
+            atk_buff = max(atk_buff - int(plan.amount), floor_buff)
+            events.append({"type": "text", "msg": enemy.line})
+            if atk_buff < before:
+                events.append({"type": "status", "msg": "마음의 힘 %d" % (atk_buff - before), "color": "#C88FE0"})
+            else:
+                events.append({"type": "text", "msg": "하지만 마음은 더 꺾이지 않았다."})
+            return events
+        "reflect":
+            var back: int = clamp(int(round(float(_last_player_damage) * float(plan.ratio))), 1, enemy.atk * 2)
+            events.append({"type": "text", "msg": "%s가 방금 그 마음을 그대로 비춘다..." % enemy.name})
+            var mirrored := PlayerStats.take_damage(max(1, back - def_buff))
+            events.append({"type": "damage_player", "amount": mirrored, "heavy": false})
+            if PlayerStats.is_down():
+                events.append({"type": "defeat"})
+            return events
+
+    # ── 공격 계열 ──
+    var times: int = int(plan.get("times", 1))
+    var mult: float = float(plan.get("mult", 1.0))
+    var heavy: bool = bool(plan.get("heavy", false))
     if heavy:
-        base = int(base * 1.8)
         events.append({"type": "text", "msg": "%s가 크게 숨을 몰아쉰다..." % enemy.name})
     else:
         events.append({"type": "text", "msg": enemy.line})
-    var real := PlayerStats.take_damage(max(1, base - def_buff))
-    events.append({"type": "damage_player", "amount": real, "heavy": heavy})
-    if PlayerStats.is_down():
-        events.append({"type": "defeat"})
+    for i in range(times):
+        var base: int = int(round(float(enemy.atk + randi_range(0, 3)) * mult))
+        var real := PlayerStats.take_damage(max(1, base - def_buff))
+        events.append({"type": "damage_player", "amount": real, "heavy": heavy})
+        if PlayerStats.is_down():
+            events.append({"type": "defeat"})
+            return events
     return events
+
+## 이번(또는 다음) 턴에 적이 할 행동을 정한다 — 무작위 없이 턴 수만으로 결정된다.
+## act: attack / rest / drain / weaken / reflect
+func _enemy_plan(turn: int) -> Dictionary:
+    var p: Dictionary = ENEMIES.get(enemy_id, {}).get("pattern", {})
+    match String(p.get("kind", "plain")):
+        "multi":
+            # 여러 번 연속으로 때린다 (불안=매 턴 재잘거림, 강박=주기적으로 다시 확인)
+            if turn % int(p.get("every", 1)) == 0:
+                var n: int = int(p.get("times", 2))
+                return {"act": "attack", "times": n, "mult": float(p.get("mult", 0.65)),
+                    "desc": "%d연속 공격" % n}
+        "heavy":
+            # 주기적으로 강한 일격 (보스)
+            if turn % int(p.get("every", 4)) == 0:
+                return {"act": "attack", "times": 1, "mult": float(p.get("mult", 1.8)),
+                    "heavy": true, "desc": "강한 일격"}
+        "burst":
+            # 타올랐다 꺼진다 — 쉬다가 주기마다 크게 터진다 (번아웃)
+            if turn % int(p.get("every", 3)) == 0:
+                return {"act": "attack", "times": 1, "mult": float(p.get("mult", 2.0)),
+                    "heavy": true, "desc": "다 태우는 일격"}
+            return {"act": "rest", "rest_msg": "은(는) 잿더미처럼 늘어져 있다.", "desc": "타오를 준비"}
+        "lazy":
+            # 대부분의 턴을 미룬다 (미루기)
+            if turn % int(p.get("every", 2)) != 0:
+                return {"act": "rest", "rest_msg": "은(는) \"조금 이따 할게...\" 하며 늘어진다.", "desc": "미루는 중"}
+        "drain":
+            if turn % int(p.get("every", 3)) == 0:
+                return {"act": "drain", "amount": int(p.get("amount", 6)), "desc": "마음력 흡수"}
+        "weaken":
+            if turn % int(p.get("every", 3)) == 0:
+                return {"act": "weaken", "amount": int(p.get("amount", 3)), "desc": "기 꺾기"}
+        "reflect":
+            # 직전에 받은 만큼 되돌려준다. 맞은 게 없으면 그냥 때린다 (비교)
+            if _last_player_damage > 0:
+                return {"act": "reflect", "ratio": float(p.get("ratio", 0.35)), "desc": "되돌리기"}
+        "escalate":
+            # 턴이 갈수록 조급해져 빨라진다 (조급함)
+            var grown: float = 1.0 + float(p.get("step", 0.18)) * float(max(0, turn - 1))
+            return {"act": "attack", "times": 1,
+                "mult": min(grown, float(p.get("max_mult", 2.2))), "desc": "점점 빨라지는 공격"}
+        "lonely":
+            # 곁에 누가 있으면 힘을 잃는다 (외로움)
+            var m: float = float(p.get("together_mult", 0.5)) if _partner_here() else float(p.get("alone_mult", 1.5))
+            return {"act": "attack", "times": 1, "mult": m, "desc": "공격"}
+    return {"act": "attack", "times": 1, "mult": 1.0, "desc": "공격"}
 
 # ── 계산 ─────────────────────────────────────────────
 func _mitigation(def_value: int) -> float:
@@ -458,14 +565,29 @@ func _calc_player_damage(power: float) -> Dictionary:
     var amount := max(1, int(round(base)))
     return {"amount": amount, "crit": crit}
 
-## 다음 적 행동 예고
+## 다음 적 행동 예고 — _enemy_plan()과 같은 계산을 쓰므로 예고와 실제가 어긋나지 않는다
 func enemy_intent() -> String:
-    if enemy.get("is_boss", false) and (turn_count + 1) % 4 == 0:
-        return "다음 — 강한 일격을 준비 중!"
-    return "다음 — 공격 (약 %d)" % expected_enemy_damage()
+    var plan := _enemy_plan(turn_count + 1)
+    match String(plan.act):
+        "rest":
+            return "다음 — %s" % plan.desc
+        "drain":
+            return "다음 — 마음력을 빨아간다 (약 %d)" % int(plan.amount)
+        "weaken":
+            return "다음 — 마음의 힘을 꺾는다 (-%d)" % int(plan.amount)
+        "reflect":
+            return "다음 — 방금 준 피해를 되돌린다"
+    var per: int = expected_enemy_damage(float(plan.get("mult", 1.0)))
+    var times: int = int(plan.get("times", 1))
+    if times > 1:
+        return "다음 — %d연속 공격 (각 약 %d)" % [times, per]
+    if plan.get("heavy", false):
+        return "다음 — %s! (약 %d)" % [plan.desc, per]
+    return "다음 — 공격 (약 %d)" % per
 
-func expected_enemy_damage() -> int:
-    var base: int = max(1, enemy.get("atk", 0) + 1 - def_buff)
+func expected_enemy_damage(mult: float = 1.0) -> int:
+    var raw: int = int(round(float(enemy.get("atk", 0) + 1) * mult))
+    var base: int = max(1, raw - def_buff)
     return max(1, int(round(float(base) * _mitigation(PlayerStats.defense))))
 
 ## 이 전투 중 밝혀진 적의 약점 (없으면 "")
