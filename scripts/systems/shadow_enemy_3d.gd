@@ -4,6 +4,8 @@ extends Area3D
 ## 메시는 전부 코드로 만든다(SphereMesh + StandardMaterial3D).
 
 const AGGRO_RANGE := 7.0
+## 나타난 직후 잠깐은 쫓지 않는다. 맵을 옮기자마자 전투로 끌려가지 않게 하는 유예.
+const SPAWN_GRACE := 2.5
 const TOUCH_RANGE := 1.15
 const CHASE_SPEED := 1.9
 const WANDER_SPEED := 0.7
@@ -14,6 +16,7 @@ var home_pos: Vector3 = Vector3.ZERO
 var _time: float = 0.0
 var _wander_angle: float = 0.0
 var _cooldown: float = 0.0
+var _grace: float = SPAWN_GRACE
 var _player = null
 var _body_mesh: MeshInstance3D
 var _glow: OmniLight3D
@@ -115,6 +118,8 @@ func _physics_process(delta: float) -> void:
     _time += delta
     if _cooldown > 0.0:
         _cooldown -= delta
+    if _grace > 0.0:
+        _grace -= delta
 
     if _body_mesh:
         _body_mesh.position.y = 0.9 + sin(_time * 2.2) * 0.12
@@ -142,6 +147,11 @@ func _physics_process(delta: float) -> void:
             global_position -= to_player.normalized() * CHASE_SPEED * delta
         return
 
+    if _grace > 0.0:
+        # 아직 유예 중 — 제자리에서 어슬렁거리기만 한다
+        _wander(delta)
+        return
+
     if dist <= TOUCH_RANGE:
         _engage()
         return
@@ -149,13 +159,16 @@ func _physics_process(delta: float) -> void:
     if dist <= AGGRO_RANGE and dist > 0.01:
         global_position += to_player.normalized() * CHASE_SPEED * delta
     else:
-        # 제자리 근처를 어슬렁거린다
-        _wander_angle += delta * 0.6
-        var target := home_pos + Vector3(cos(_wander_angle) * 1.6, 0, sin(_wander_angle) * 1.6)
-        var dir := target - global_position
-        dir.y = 0
-        if dir.length() > 0.05:
-            global_position += dir.normalized() * WANDER_SPEED * delta
+        _wander(delta)
+
+## 제자리 근처를 어슬렁거린다
+func _wander(delta: float) -> void:
+    _wander_angle += delta * 0.6
+    var target := home_pos + Vector3(cos(_wander_angle) * 1.6, 0, sin(_wander_angle) * 1.6)
+    var dir := target - global_position
+    dir.y = 0
+    if dir.length() > 0.05:
+        global_position += dir.normalized() * WANDER_SPEED * delta
 
 func _engage() -> void:
     if BattleSystem.in_battle or _cooldown > 0.0:

@@ -51,6 +51,8 @@ func _ready() -> void:
     visible = false
     _build()
     BattleSystem.battle_started.connect(_on_battle_started)
+    # 턴 밖에서 스탯이 바뀌어도(레벨업·아이템) 패널이 옛 값을 들고 있지 않도록
+    PlayerStats.stats_changed.connect(_on_stats_changed)
 
 func _process(delta: float) -> void:
     if not visible:
@@ -253,6 +255,11 @@ func _on_battle_started(enemy: Dictionary) -> void:
     _refresh_intent()
     _busy = false
     _set_actions_enabled(true)
+
+## 전투 중에 턴 밖에서 스탯이 바뀌면(레벨업 등) 패널을 다시 그린다
+func _on_stats_changed() -> void:
+    if BattleSystem.in_battle and _player_stat_label != null:
+        _refresh_bars()
 
 func _refresh_intent() -> void:
     _intent_label.text = BattleSystem.enemy_intent()

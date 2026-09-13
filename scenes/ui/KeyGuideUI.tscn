@@ -14,14 +14,14 @@ script = ExtResource("1")
 
 [node name="Panel" type="Panel" parent="."]
 anchors_preset = 0
-anchor_left = 1.0
+anchor_left = 0.0
 anchor_top = 1.0
-anchor_right = 1.0
+anchor_right = 0.0
 anchor_bottom = 1.0
-offset_left = -260.0
-offset_top = -100.0
-offset_right = -10.0
-offset_bottom = -10.0
+offset_left = 40.0
+offset_top = -380.0
+offset_right = 700.0
+offset_bottom = -296.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_1")
 
 [node name="Label" type="Label" parent="Panel"]
@@ -34,6 +34,6 @@ offset_top = 10.0
 offset_right = -12.0
 offset_bottom = -10.0
 theme_override_colors/font_color = Color(1, 0.843, 0.427, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 20
 text = "방향키: 이동   Z/Enter: 상호작용
 I 인벤토리  E 장비  K 스킬  Q 퀘스트  B 앨범  F 사진"

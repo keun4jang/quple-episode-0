@@ -44,6 +44,9 @@ func _setup_shot() -> void:
 	if OS.get_environment("SHOT_DEMO") != "0":
 		_seed_demo_state()
 	var mode := _mode()
+	# 튜토리얼 샷이 아니면 튜토리얼 창을 치운다 — 안 그러면 맵·메뉴가 가려진다
+	if mode != "tutorial":
+		_dismiss_tutorial()
 	if mode.begins_with("panel:"):
 		GameUI.open_panel(mode.substr(6))
 	elif mode.begins_with("battle:"):
@@ -66,6 +69,16 @@ func _seed_demo_state() -> void:
 	# 포근 세트를 다 갖춰 세트 효과가 보이게 한다
 	for id in ["hat", "scarf", "mittens", "slippers", "tail_ribbon"]:
 		PlayerStats.equip_item(id)
+
+## 첫 실행이면 튜토리얼이 떠서 화면을 덮는다. 봤다고 표시하고 이미 뜬 창은 닫는다.
+func _dismiss_tutorial() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load("user://settings.cfg")
+	cfg.set_value("tutorial", "seen", true)
+	cfg.save("user://settings.cfg")
+	var scene = get_tree().current_scene
+	if scene and scene.has_node("TutorialUI"):
+		scene.get_node("TutorialUI").queue_free()
 
 func _force_tutorial() -> void:
 	# 이미 봤다고 저장돼 있으면 안 뜨므로 플래그를 지운다

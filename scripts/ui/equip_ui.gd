@@ -19,6 +19,10 @@ const EFFECT_NAMES := {
     "max_mp": "마음력 최대치",
 }
 
+## 세트 설명을 펼쳐 놨는지. 기본은 접힌 상태다 — 세트가 6종이라 전부 펼치면
+## 화면 2/3을 먹어서 정작 장비를 보려면 한참 스크롤해야 한다.
+var _sets_open: bool = false
+
 func panel_title() -> String:
     return "장비"
 
@@ -60,8 +64,47 @@ func _set_card() -> PanelContainer:
     var box := VBoxContainer.new()
     box.add_theme_constant_override("separation", 8)
     margin.add_child(box)
-    box.add_child(make_label("— 세트 효과 —", 30, COL_INK))
 
+    # 머리글 + 펼치기/접기
+    var head := HBoxContainer.new()
+    head.add_theme_constant_override("separation", 12)
+    box.add_child(head)
+    var head_label := make_label("— 세트 효과 —", 30, COL_INK)
+    head_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    head.add_child(head_label)
+    head.add_child(make_small_button("접기" if _sets_open else "펼치기", _toggle_sets))
+
+    if _sets_open:
+        _fill_sets_full(box, counts)
+    else:
+        _fill_sets_brief(box, counts)
+    return card
+
+func _toggle_sets() -> void:
+    _sets_open = not _sets_open
+    _refresh_content()
+
+## 접힌 상태 — 지금 걸쳐 있는 세트만 한 줄씩
+func _fill_sets_brief(box: VBoxContainer, counts: Dictionary) -> void:
+    var shown := 0
+    for set_id in ItemDB.SETS:
+        var s: Dictionary = ItemDB.SETS[set_id]
+        var have: int = counts.get(set_id, 0)
+        if have <= 0:
+            continue
+        shown += 1
+        var total: int = s.items.size()
+        if have >= total:
+            box.add_child(make_label("%s  완성! — %s" % [s.name, s.perk], 25, Color("#4A7A3A")))
+        else:
+            box.add_child(make_label("%s  %d / %d  (%d개 더)" % [s.name, have, total, total - have],
+                25, COL_INK))
+    if shown == 0:
+        box.add_child(make_label("맞춰 놓은 세트가 없어요. '펼치기'로 어떤 세트가 있는지 볼 수 있어요.",
+            24, Color("#8A7A6A")))
+
+## 펼친 상태 — 전부, 단계별로
+func _fill_sets_full(box: VBoxContainer, counts: Dictionary) -> void:
     for set_id in ItemDB.SETS:
         var s: Dictionary = ItemDB.SETS[set_id]
         var have: int = counts.get(set_id, 0)
@@ -76,7 +119,6 @@ func _set_card() -> PanelContainer:
                 23, Color("#4A7A3A") if got else Color("#8A7A6A")))
         box.add_child(make_label("   %s 완성 — %s" % ["✓" if done else "·", s.perk],
             23, Color("#4A7A3A") if done else Color("#8A7A6A")))
-    return card
 
 func _bonus_text(bonus: Dictionary) -> String:
     var parts: Array = []
