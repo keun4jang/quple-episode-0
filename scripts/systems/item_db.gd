@@ -460,7 +460,7 @@ const ITEMS := {
         "name": "별사탕",
         "desc": "체력과 마음력을 모두 되돌린다.",
         "kind": "consumable",
-        "price": 70,
+        "price": 130,
         "effect": {"hp": 999, "mp": 999},
         "art": [
             "...y....",
