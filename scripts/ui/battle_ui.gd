@@ -31,6 +31,7 @@ var _enemy_title: Label
 var _enemy_hp_fill: ColorRect
 var _enemy_hp_label: Label
 var _intent_label: Label
+var _enemy_status_label: Label
 var _msg_label: Label
 var _player_hp_fill: ColorRect
 var _player_mp_fill: ColorRect
@@ -122,6 +123,11 @@ func _build() -> void:
     _intent_label = _make_label("", 24, Color("#FFB37A"))
     _intent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     enemy_box.add_child(_intent_label)
+
+    # 적에게 걸린 상태 (없으면 빈 줄)
+    _enemy_status_label = _make_label("", 24, Color("#9FE0C0"))
+    _enemy_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    enemy_box.add_child(_enemy_status_label)
 
     # 적 스프라이트 자리
     _enemy_holder = Control.new()
@@ -395,6 +401,13 @@ func _play_event(ev: Dictionary) -> void:
             _shake = 8.0
             _refresh_bars()
             await get_tree().create_timer(0.5).timeout
+        "enemy_status":
+            # 적에게 상태가 걸리거나, 걸린 상태가 적을 갉을 때
+            _spawn_float_text(ev.msg, Color(String(ev.get("color", "#8FD8E0"))), true)
+            if String(ev.get("detail", "")) != "":
+                _msg_label.text = ev.detail
+            _refresh_bars()
+            await get_tree().create_timer(0.5).timeout
         "weakness":
             if AudioManager:
                 AudioManager.play_sfx("clear_fanfare")
@@ -557,6 +570,20 @@ func _refresh_bars() -> void:
         PlayerStats.mp, PlayerStats.max_mp, PlayerStats.coins
     ]
     _refresh_statuses()
+    _refresh_enemy_statuses()
+
+## 적에게 걸린 상태를 한 줄로 — "적 상태 — 누그러짐 2  ·  흔들림 3"
+func _refresh_enemy_statuses() -> void:
+    if _enemy_status_label == null:
+        return
+    var list: Array = BattleSystem.enemy_status_list()
+    if list.is_empty():
+        _enemy_status_label.text = ""
+        return
+    var parts: Array = []
+    for st in list:
+        parts.append("%s %d" % [st.name, st.turns])
+    _enemy_status_label.text = "적 상태 — " + "   ·   ".join(parts)
 
 ## 걸려 있는 상태이상을 한 줄로 보여준다 — "위축 2  ·  온기 3"
 func _refresh_statuses() -> void:

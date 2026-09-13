@@ -283,7 +283,7 @@ const SKILLS := {
     "daydream": {
         "name": "여행 상상",
         "desc": "떠날 날을 그린다. 적의 기세를 꺾는다.",
-        "mp": 6, "type": "attack", "power": 0.9, "enemy_atk_down": 3,
+        "mp": 6, "type": "attack", "power": 0.9, "enemy_grants": "soothed",
     },
     "cheer": {
         "name": "응원 한마디",
@@ -297,8 +297,9 @@ const SKILLS := {
     },
     "hug": {
         "name": "따뜻한 포옹",
-        "desc": "둘이 함께라면 더 강하다.",
+        "desc": "둘이 함께라면 더 강하다. 남은 온기가 적을 천천히 녹인다.",
         "mp": 9, "type": "attack", "power": 1.9, "partner_bonus": 1.4,
+        "enemy_grants": "fading",
     },
 }
 
@@ -345,6 +346,36 @@ const DAUNTED_ATK_MULT := 0.75   # 위축: 주는 피해
 const NUMB_HEAL_MULT := 0.5      # 먹먹함: 회복 스킬 효과
 const GUARDED_TAKEN_MULT := 0.7  # 굳건함: 받는 피해
 
+## 적에게 거는 상태이상 — 플레이어 쪽(STATUSES)과 표를 따로 둔다.
+## 걸리는 방식이 다르기 때문이다: 플레이어 상태는 적이 걸고 아이템으로 풀지만,
+## 적 상태는 플레이어 스킬로만 걸리고 시간이 지나야 풀린다.
+## 여기서도 "턴을 통째로 빼앗는" 상태는 만들지 않는다 — 적이 아무것도 못 하면
+## 행동 예고가 사라지고 전투가 그냥 때리기 싸움이 된다.
+## on_msg / off_msg 에는 적 이름이 들어갈 %s 가 하나씩 있다.
+const ENEMY_STATUSES := {
+    "soothed": {
+        "name": "누그러짐", "turns": 3, "color": "#8FD8E0",
+        "desc": "적이 주는 피해가 25% 줄어든다.",
+        "on_msg": "%s의 기세가 누그러졌다.",
+        "off_msg": "%s이(가) 다시 날을 세운다.",
+    },
+    "shaken": {
+        "name": "흔들림", "turns": 3, "color": "#F5D563",
+        "desc": "적이 받는 피해가 30% 늘어난다.",
+        "on_msg": "%s의 속이 훤히 드러났다!",
+        "off_msg": "%s이(가) 다시 마음을 감췄다.",
+    },
+    "fading": {
+        "name": "사그라듦", "turns": 3, "color": "#7FBF6A",
+        "desc": "매 턴 조금씩 옅어진다.",
+        "on_msg": "%s이(가) 온기에 천천히 녹기 시작한다.",
+        "off_msg": "%s이(가) 다시 또렷해졌다.",
+        "hp_per_turn": -7,
+    },
+}
+const SOOTHED_ATK_MULT := 0.75   # 누그러짐: 적이 주는 피해
+const SHAKEN_TAKEN_MULT := 1.3   # 흔들림: 적이 받는 피해
+
 var in_battle: bool = false
 var enemy: Dictionary = {}
 var enemy_id: String = ""
@@ -360,6 +391,12 @@ var _last_player_damage: int = 0
 
 ## 지금 걸려 있는 상태이상 { status_id: 남은 턴 }. 전투 밖에서는 항상 비어 있다.
 var statuses: Dictionary = {}
+
+## 적에게 걸려 있는 상태이상 { status_id: 남은 턴 }
+var enemy_statuses: Dictionary = {}
+
+## 이번 전투에서 약점으로 적 턴을 이미 건너뛰었는지 — 같은 수법은 두 번 통하지 않는다
+var _weakness_stunned: bool = false
 
 func start_battle(id: String, source_node: Node = null) -> bool:
     if in_battle or not ENEMIES.has(id):
@@ -383,6 +420,8 @@ func start_battle(id: String, source_node: Node = null) -> bool:
     turn_count = 0
     _last_player_damage = 0
     statuses.clear()
+    enemy_statuses.clear()
+    _weakness_stunned = false
     # 포근 세트 특전 — 온기를 두른 채로 전투를 시작한다
     if PlayerStats.has_full_set("cozy"):
         apply_status("warm")
@@ -442,6 +481,48 @@ func _tick_statuses() -> Array:
             events.append({"type": "text", "msg": s.off_msg})
     return events
 
+# ── 적에게 거는 상태이상 ──────────────────────────────
+func enemy_has_status(id: String) -> bool:
+    return enemy_statuses.get(id, 0) > 0
+
+## 적에게 상태를 건다(이미 걸려 있으면 지속 턴을 다시 채운다)
+func apply_enemy_status(id: String) -> Dictionary:
+    if not ENEMY_STATUSES.has(id) or enemy.is_empty():
+        return {"type": "text", "msg": ""}
+    var s: Dictionary = ENEMY_STATUSES[id]
+    enemy_statuses[id] = int(s.turns)
+    return {"type": "enemy_status", "msg": "%s!" % s.name,
+        "detail": String(s.on_msg) % enemy.name, "color": s.color}
+
+## UI 표시용 — [{name, turns, color}, ...]
+func enemy_status_list() -> Array:
+    var out: Array = []
+    for id in enemy_statuses:
+        var s: Dictionary = ENEMY_STATUSES[id]
+        out.append({"name": s.name, "turns": enemy_statuses[id], "color": s.color})
+    return out
+
+## 적 상태의 지속 효과 — 플레이어 상태와 똑같이 적이 움직인 뒤 한 번만 흐른다
+func _tick_enemy_statuses() -> Array:
+    var events: Array = []
+    for id in enemy_statuses.keys():
+        var s: Dictionary = ENEMY_STATUSES[id]
+        if s.has("hp_per_turn") and enemy.hp > 0:
+            var lost: int = min(int(enemy.hp), -int(s.hp_per_turn))
+            if lost > 0:
+                enemy.hp -= lost
+                events.append({"type": "enemy_status", "msg": "-%d" % lost,
+                    "detail": "%s이(가) 조금 옅어졌다." % enemy.name, "color": s.color})
+        enemy_statuses[id] = int(enemy_statuses[id]) - 1
+        if enemy_statuses[id] <= 0:
+            enemy_statuses.erase(id)
+            events.append({"type": "text", "msg": String(s.off_msg) % enemy.name})
+    return events
+
+## 누그러짐이 걸려 있으면 적이 주는 피해가 줄어든다 (예상 피해 계산도 같은 값을 쓴다)
+func _enemy_out_mult() -> float:
+    return SOOTHED_ATK_MULT if enemy_has_status("soothed") else 1.0
+
 func add_atk_buff(v: int) -> void:
     atk_buff += v
 
@@ -489,9 +570,6 @@ func player_use_skill(skill_id: String) -> Array:
             enemy.hp = max(0, enemy.hp - dmg.amount)
             _last_player_damage = dmg.amount
             events.append({"type": "damage_enemy", "amount": dmg.amount, "crit": crit, "weak": hit_weakness, "skill": skill_id})
-            if skill.has("enemy_atk_down"):
-                enemy.atk = max(1, enemy.atk - skill.enemy_atk_down)
-                events.append({"type": "text", "msg": "%s의 기세가 꺾였다! (공격 -%d)" % [enemy.name, skill.enemy_atk_down]})
         "heal":
             var amount: int = skill.heal_base + PlayerStats.level * 3
             if has_status("numb"):
@@ -507,9 +585,12 @@ func player_use_skill(skill_id: String) -> Array:
             else:
                 events.append({"type": "text", "msg": "%s!" % skill.name})
 
-    # 상태를 남기는 스킬 (심호흡=온기, 마음 단단히=굳건함)
+    # 나에게 상태를 남기는 스킬 (심호흡=온기, 마음 단단히=굳건함)
     if skill.has("grants"):
         events.append(apply_status(String(skill.grants)))
+    # 적에게 상태를 거는 스킬 (여행 상상=누그러짐, 따뜻한 포옹=사그라듦)
+    if skill.has("enemy_grants") and enemy.hp > 0:
+        events.append(apply_enemy_status(String(skill.enemy_grants)))
 
     if enemy.hp <= 0:
         events.append({"type": "enemy_defeated"})
@@ -517,8 +598,15 @@ func player_use_skill(skill_id: String) -> Array:
         return events
     if hit_weakness:
         weakness_found[enemy_id] = true
-        events.append({"type": "weakness", "msg": "약점을 찔렀다! %s이(가) 말을 잇지 못한다." % enemy.name})
-        return events
+        events.append(apply_enemy_status("shaken"))
+        # 허를 찌르면 한 턴을 번다. 다만 이 스킵이 매번 통하면 약점 스킬만 반복해도
+        # 적이 영원히 움직이지 못하므로(웃어넘기기는 마음력 0이라 무한히 쓸 수 있다)
+        # 턴 스킵은 전투당 한 번으로 제한한다. 피해 배율과 흔들림은 계속 붙는다.
+        if not _weakness_stunned:
+            _weakness_stunned = true
+            events.append({"type": "weakness", "msg": "약점을 찔렀다! %s이(가) 말을 잇지 못한다." % enemy.name})
+            return events
+        events.append({"type": "weakness", "msg": "약점을 다시 찔렀다! %s이(가) 크게 흔들린다." % enemy.name})
     events.append_array(_enemy_turn())
     return events
 
@@ -569,6 +657,10 @@ func _enemy_turn() -> Array:
     # 상태이상은 적이 움직인 뒤에 한 번만 흐른다 (약점으로 적 턴을 건너뛰면 시간도 안 간다)
     if not PlayerStats.is_down():
         events.append_array(_tick_statuses())
+        events.append_array(_tick_enemy_statuses())
+        if enemy.hp <= 0:
+            events.append({"type": "enemy_defeated"})
+            events.append(_make_victory_event())
     return events
 
 func _enemy_action() -> Array:
@@ -593,7 +685,7 @@ func _enemy_action() -> Array:
             events.append(apply_status(String(plan.status)))
             return events
         "reflect":
-            var back: int = clamp(int(round(float(_last_player_damage) * float(plan.ratio))), 1, enemy.atk * 2)
+            var back: int = clamp(int(round(float(_last_player_damage) * float(plan.ratio) * _enemy_out_mult())), 1, enemy.atk * 2)
             events.append({"type": "text", "msg": "%s가 방금 그 마음을 그대로 비춘다..." % enemy.name})
             var mirrored := _hit_player(back)
             events.append({"type": "damage_player", "amount": mirrored, "heavy": false})
@@ -610,7 +702,7 @@ func _enemy_action() -> Array:
     else:
         events.append({"type": "text", "msg": enemy.line})
     for i in range(times):
-        var base: int = int(round(float(enemy.atk + randi_range(0, 3)) * mult))
+        var base: int = int(round(float(enemy.atk + randi_range(0, 3)) * mult * _enemy_out_mult()))
         var real := _hit_player(base)
         events.append({"type": "damage_player", "amount": real, "heavy": heavy})
         if PlayerStats.is_down():
@@ -684,6 +776,8 @@ func _calc_player_damage(power: float) -> Dictionary:
     var base: float = float(PlayerStats.attack + atk_buff) * power * _mitigation(enemy.get("def", 0))
     if has_status("daunted"):
         base *= DAUNTED_ATK_MULT
+    if enemy_has_status("shaken"):
+        base *= SHAKEN_TAKEN_MULT
     base *= randf_range(0.9, 1.1)
     var crit := randf() < 0.15
     if crit:
@@ -715,7 +809,7 @@ func enemy_intent() -> String:
     return "다음 — 공격 (약 %d)%s" % [per, tail]
 
 func expected_enemy_damage(mult: float = 1.0) -> int:
-    var raw: int = int(round(float(enemy.get("atk", 0) + 1) * mult))
+    var raw: int = int(round(float(enemy.get("atk", 0) + 1) * mult * _enemy_out_mult()))
     var base: float = float(max(1, raw - def_buff))
     if has_status("guarded"):
         base *= GUARDED_TAKEN_MULT
@@ -764,6 +858,7 @@ func end_battle(result: String) -> void:
         return
     in_battle = false
     statuses.clear()
+    enemy_statuses.clear()
     if result == "victory" and is_instance_valid(world_enemy):
         world_enemy.queue_free()
     world_enemy = null
