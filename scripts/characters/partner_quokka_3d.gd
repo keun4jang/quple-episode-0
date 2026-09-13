@@ -43,8 +43,64 @@ func _ready() -> void:
     shadow.position = Vector3(0, 0.03, 0)
     add_child(shadow)
 
+    _setup_equipment_roots()
+    PlayerStats.equipment_changed.connect(_refresh_equipment)
+    _refresh_equipment()
+
 func join_player() -> void:
     _joined = true
+    _refresh_equipment()
+
+# ── 커플룩 (둘이서 등급만) ────────────────────────────
+## 파트너에게는 '둘이서' 등급만 그린다. 이름 그대로 둘이 나눠 쓰는 물건이라
+## (나란한 밀짚모자 · 같이 두른 목도리 · 손잡는 장갑 · 나란한 샌들 · 둘이 묶은 매듭)
+## 플레이어가 그걸 걸치면 파트너도 같은 걸 걸친 걸로 보인다.
+## 다른 등급은 플레이어 혼자 산 물건이라 파트너에게 복제하지 않는다.
+## 메시를 만드는 코드는 플레이어와 공유한다 (WornGear).
+var _equip_roots: Dictionary = {}
+
+func _setup_equipment_roots() -> void:
+    # 파트너는 플레이어보다 살짝 작아서(머리 0.33 vs 0.35) 부착 자리도 0.94배로 줄인다
+    var s94 := Vector3(0.94, 0.94, 0.94)
+    _equip_roots = {
+        "scarf": [_make_equip_root($BodyPivot, Vector3(0, 0.22, 0), s94)],
+        "hat": [_make_equip_root($BodyPivot/HeadPivot, Vector3(0, 0.12, 0), s94)],
+        "gloves": [
+            _make_equip_root($BodyPivot/LeftArmPivot, Vector3(0, -0.22, 0.01), s94),
+            _make_equip_root($BodyPivot/RightArmPivot, Vector3(0, -0.22, 0.01), s94),
+        ],
+        "shoes": [
+            _make_equip_root($BodyPivot/LeftLegPivot, Vector3(0, -0.15, 0.05), s94),
+            _make_equip_root($BodyPivot/RightLegPivot, Vector3(0, -0.15, 0.05), s94),
+        ],
+    }
+    # 꼬리는 메시 자체가 (0.8, 0.8, 1.0)으로 눌려 있어 그만큼 되돌린다
+    if _tail_mesh != null:
+        _equip_roots["tail"] = [_make_equip_root(
+            _tail_mesh, Vector3(0, 0.01, 0.05), Vector3(1.175, 1.175, 0.94))]
+
+func _make_equip_root(parent: Node3D, pos: Vector3, scl: Vector3) -> Node3D:
+    var n = Node3D.new()
+    n.position = pos
+    n.scale = scl
+    parent.add_child(n)
+    return n
+
+func _refresh_equipment() -> void:
+    if _equip_roots.is_empty():
+        return
+    for slot in _equip_roots:
+        var item_id := String(PlayerStats.equipment.get(slot, ""))
+        # 합류 전이거나 '둘이서' 등급이 아니면 아무것도 안 그린다
+        if item_id != "":
+            var pair_item: bool = bool(ItemDB.get_item(item_id).get("requires_partner", false))
+            if not (_joined and pair_item):
+                item_id = ""
+        for root in _equip_roots[slot]:
+            for c in root.get_children():
+                root.remove_child(c)
+                c.queue_free()
+            WornGear.build(root, item_id)
 
 func set_emotion(emotion: String) -> void:
     _emotion = emotion
