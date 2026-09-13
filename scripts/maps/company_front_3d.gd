@@ -21,6 +21,9 @@ func _ready() -> void:
 		_show_opening()
 	elif Episode0State.current_state == Episode0State.State.PARTNER_JOINED:
 		Episode0State.advance_to(Episode0State.State.FIRST_PHOTO)
+	# 합류 전에는 파트너가 아직 사무실에 있다. 씬에 노드가 들어 있으니 숨겨둔다
+	# (안 그러면 구하러 가기도 전에 회사 앞에 같이 서 있다).
+	partner.visible = Episode0State.partner_joined
 	if Episode0State.partner_joined:
 		partner.join_player()
 	if Episode0State.current_state == Episode0State.State.ENTER_COMPANY or Episode0State.current_state == Episode0State.State.START:

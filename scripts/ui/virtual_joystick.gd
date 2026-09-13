@@ -3,7 +3,7 @@ extends CanvasLayer
 signal interact_pressed
 
 @onready var joystick_base: Control = $JoystickBase
-@onready var stick: ColorRect = $JoystickBase/StickCircle
+@onready var stick: Control = $JoystickBase/StickCircle
 @onready var interact_btn: Button = $InteractBtn
 
 var _touch_index: int = -1
@@ -28,22 +28,25 @@ func _style_buttons() -> void:
 	# Style interact button
 	var btn_style = StyleBoxFlat.new()
 	btn_style.bg_color = Color("#FFD76D")
-	btn_style.corner_radius_top_left = 50
-	btn_style.corner_radius_top_right = 50
-	btn_style.corner_radius_bottom_left = 50
-	btn_style.corner_radius_bottom_right = 50
+	btn_style.set_corner_radius_all(80)
 	interact_btn.add_theme_stylebox_override("normal", btn_style)
 	interact_btn.add_theme_color_override("font_color", Color("#1A1412"))
 	interact_btn.add_theme_font_size_override("font_size", 36)
-	# Round the joystick base visually
+	# 조이스틱은 동그래야 한다. ColorRect는 모서리를 굴릴 수 없어서 Panel + StyleBoxFlat을 쓴다
+	# (반지름을 한 변의 절반으로 주면 정원이 된다 — 바깥 200px, 손잡이 80px)
 	var base_style = StyleBoxFlat.new()
 	base_style.bg_color = Color(1, 1, 1, 0.12)
-	base_style.corner_radius_top_left = 100
-	base_style.corner_radius_top_right = 100
-	base_style.corner_radius_bottom_left = 100
-	base_style.corner_radius_bottom_right = 100
-	if $JoystickBase/BaseCircle is ColorRect:
-		pass  # ColorRect doesn't support StyleBox
+	base_style.set_corner_radius_all(100)
+	base_style.border_width_left = 3
+	base_style.border_width_top = 3
+	base_style.border_width_right = 3
+	base_style.border_width_bottom = 3
+	base_style.border_color = Color(1, 1, 1, 0.28)
+	$JoystickBase/BaseCircle.add_theme_stylebox_override("panel", base_style)
+	var stick_style = StyleBoxFlat.new()
+	stick_style.bg_color = Color(1, 0.85, 0.2, 0.7)
+	stick_style.set_corner_radius_all(40)
+	stick.add_theme_stylebox_override("panel", stick_style)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:

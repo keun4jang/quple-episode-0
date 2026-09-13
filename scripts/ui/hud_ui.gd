@@ -45,6 +45,10 @@ func _ready() -> void:
     QuestSystem.quest_completed.connect(func(qid, reward):
         toast("퀘스트 완료 — %s\n%s" % [QuestSystem.QUESTS[qid].name, reward], Color("#7FBF6A")))
     Episode0State.state_changed.connect(func(_s): _refresh_goal())
+    # 전투 중에는 통째로 숨는다 — 안 그러면 적 이름·HP 바 위로 스탯 패널과
+    # 메뉴 버튼이 겹쳐 보인다 (전투 화면에도 같은 정보가 다 있다)
+    BattleSystem.battle_started.connect(func(_e): visible = false)
+    BattleSystem.battle_finished.connect(func(_r): visible = true)
     _refresh()
     _refresh_goal()
 

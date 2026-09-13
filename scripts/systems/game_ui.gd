@@ -163,7 +163,9 @@ func _spawn_enemies(scene: Node) -> void:
         if BattleSystem.enemy_def(id).get("is_boss", false) and BattleSystem.defeated_counts.get(id, 0) > 0:
             continue
         var angle := TAU * (float(index) / float(max(1, ids.size()))) + randf_range(-0.4, 0.4)
-        var radius := randf_range(6.5, 10.0)
+        # 적의 시야(AGGRO_RANGE)가 7m다. 그보다 가까이 놓으면 맵에 들어서자마자
+        # 달려들어 둘러볼 틈이 없다 — 넉넉히 밖에 둔다.
+        var radius := randf_range(11.0, 16.0)
         var pos := origin + Vector3(cos(angle) * radius, 0, sin(angle) * radius)
         pos.y = origin.y
         var enemy := ShadowEnemy3D.new()

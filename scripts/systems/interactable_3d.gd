@@ -126,10 +126,12 @@ func _build_marker() -> void:
     label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
     label.no_depth_test = true
     label.fixed_size = true
-    label.pixel_size = 0.0012
+    # fixed_size 라벨이라 pixel_size가 그대로 화면 크기가 된다.
+    # 0.0012는 1080 폭에서 글자 하나가 80px 가까이 되어 화면을 가로질렀다.
+    label.pixel_size = 0.00045
     label.modulate = col
     label.outline_modulate = Color(0, 0, 0, 0.9)
-    label.outline_size = 12
+    label.outline_size = 6
     label.font_size = 48
     label.position = Vector3(0, floor_y + 1.6, 0)
     add_child(label)

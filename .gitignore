@@ -15,3 +15,6 @@ Thumbs.db
 *.tmp
 *.bak
 .claude/
+
+# Godot가 이미지·에셋마다 자동으로 만드는 임포트 사이드카 (CI가 --import로 다시 만든다)
+*.import
