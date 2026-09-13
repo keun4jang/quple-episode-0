@@ -2,6 +2,9 @@ extends "res://scripts/ui/menu_panel.gd"
 ## BagUI — 가방. 오직 "아이템"만 들어있다.
 ## (퀘스트는 별도 메뉴로 분리했다 — 가방에 퀘스트가 있으면 이상하니까.)
 
+## 장비 슬롯 표시 이름 (같은 자리 장비는 하나만 착용된다)
+const SLOT_NAMES := {"scarf": "목", "hat": "머리"}
+
 func panel_title() -> String:
     return "가방"
 
@@ -94,7 +97,8 @@ func _equip_card(item_id: String) -> PanelContainer:
     row.add_child(text_col)
 
     var count: int = PlayerStats.item_count(item_id)
-    var title := "%s   ×%d" % [item.name, count]
+    var slot_name: String = SLOT_NAMES.get(item.get("slot", ""), "장비")
+    var title := "%s   ×%d   [%s]" % [item.name, count, slot_name]
     if equipped:
         title += "   (착용 중)"
     text_col.add_child(make_label(title, 32, COL_INK))

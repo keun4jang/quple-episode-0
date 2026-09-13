@@ -22,6 +22,10 @@ var _left_eye_hl: MeshInstance3D
 var _right_eye_hl: MeshInstance3D
 var _tail_mesh: MeshInstance3D
 
+# 착용 장비를 붙이는 자리 (목/머리)
+var _scarf_root: Node3D
+var _hat_root: Node3D
+
 @onready var body_pivot: Node3D = $BodyPivot
 @onready var head_pivot: Node3D = $BodyPivot/HeadPivot
 @onready var left_arm: Node3D = $BodyPivot/LeftArmPivot
@@ -61,6 +65,9 @@ func _ready() -> void:
 	interaction_area.area_entered.connect(_on_area_entered)
 	interaction_area.area_exited.connect(_on_area_exited)
 	_blink_timer = randf_range(3.0, 5.0)
+	_setup_equipment_roots()
+	PlayerStats.equipment_changed.connect(_refresh_equipment)
+	_refresh_equipment()
 
 func _physics_process(delta: float) -> void:
 	_cache_ui()
@@ -289,6 +296,130 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 		matroll.position = Vector3(0, 0.26, 0)
 		matroll.rotation_degrees = Vector3(0, 0, 90)
 		$BodyPivot/BackpackPivot.add_child(matroll)
+
+# ── 장비 착용 표시 ────────────────────────────────────
+## 목/머리에 장비 메시를 붙일 빈 자리를 만든다. 위치는 쿼카 몸 비율에 맞춰 고정.
+func _setup_equipment_roots() -> void:
+	_scarf_root = Node3D.new()
+	_scarf_root.position = Vector3(0, 0.24, 0)
+	$BodyPivot.add_child(_scarf_root)
+	_hat_root = Node3D.new()
+	_hat_root.position = Vector3(0, 0.13, 0)
+	$BodyPivot/HeadPivot.add_child(_hat_root)
+
+## PlayerStats.equipment 를 보고 실제 메시를 다시 만든다 (장비 변경 시마다 호출)
+func _refresh_equipment() -> void:
+	if _scarf_root == null or _hat_root == null:
+		return
+	for root in [_scarf_root, _hat_root]:
+		for c in root.get_children():
+			root.remove_child(c)
+			c.queue_free()
+	_build_worn(_scarf_root, String(PlayerStats.equipment.get("scarf", "")))
+	_build_worn(_hat_root, String(PlayerStats.equipment.get("hat", "")))
+
+func _build_worn(root: Node3D, item_id: String) -> void:
+	if item_id == "":
+		return
+	var item = ItemDB.get_item(item_id)
+	if item.is_empty():
+		return
+	var wear = item.get("wear", {})
+	var col = Color(String(wear.get("color", "#E0645A")))
+	var accent = Color(String(wear.get("accent", "#FFF6E4")))
+	var style = String(wear.get("style", ""))
+	match String(item.get("slot", "")):
+		"scarf":
+			_build_worn_scarf(root, col, accent, style)
+		"hat":
+			_build_worn_hat(root, col, accent, style)
+
+func _build_worn_scarf(root: Node3D, col: Color, accent: Color, style: String) -> void:
+	# 목에 두르는 링
+	var ring = MeshInstance3D.new()
+	var tm = TorusMesh.new()
+	tm.inner_radius = 0.14
+	tm.outer_radius = 0.23
+	ring.mesh = tm
+	ring.material_override = _wear_mat(col)
+	root.add_child(ring)
+	# 앞으로 늘어뜨린 자락
+	var tail = MeshInstance3D.new()
+	var bm = BoxMesh.new()
+	bm.size = Vector3(0.11, 0.26, 0.06)
+	tail.mesh = bm
+	tail.material_override = _wear_mat(col)
+	tail.position = Vector3(0.07, -0.14, 0.25)
+	tail.rotation_degrees = Vector3(10, 0, -6)
+	root.add_child(tail)
+	if style == "star":
+		# 링 위에 박힌 작은 별빛
+		for i in range(4):
+			var star = MeshInstance3D.new()
+			var sm = SphereMesh.new()
+			sm.radius = 0.03
+			sm.height = 0.06
+			star.mesh = sm
+			star.material_override = _wear_mat(accent)
+			var a = TAU * float(i) / 4.0 + 0.4
+			star.position = Vector3(cos(a) * 0.19, 0.02, sin(a) * 0.19)
+			root.add_child(star)
+	else:
+		# 자락에 들어간 줄무늬
+		for i in range(2):
+			var stripe = MeshInstance3D.new()
+			var sbm = BoxMesh.new()
+			sbm.size = Vector3(0.12, 0.04, 0.05)
+			stripe.mesh = sbm
+			stripe.material_override = _wear_mat(accent)
+			stripe.position = Vector3(0.07, -0.09 - float(i) * 0.1, 0.27)
+			root.add_child(stripe)
+
+func _build_worn_hat(root: Node3D, col: Color, accent: Color, style: String) -> void:
+	var crown = MeshInstance3D.new()
+	var cm = SphereMesh.new()
+	cm.radius = 0.27
+	cm.height = 0.26
+	crown.mesh = cm
+	crown.material_override = _wear_mat(col)
+	crown.scale = Vector3(1.0, 0.85, 1.0)
+	root.add_child(crown)
+	# 아래 테두리
+	var band = MeshInstance3D.new()
+	var bandm = CylinderMesh.new()
+	bandm.top_radius = 0.30
+	bandm.bottom_radius = 0.33
+	bandm.height = 0.07
+	band.mesh = bandm
+	band.material_override = _wear_mat(accent)
+	band.position = Vector3(0, -0.06, 0)
+	root.add_child(band)
+	if style == "cap":
+		# 앞으로 뻗은 챙
+		var brim = MeshInstance3D.new()
+		var brimm = BoxMesh.new()
+		brimm.size = Vector3(0.30, 0.03, 0.20)
+		brim.mesh = brimm
+		brim.material_override = _wear_mat(accent)
+		brim.position = Vector3(0, -0.06, 0.30)
+		brim.rotation_degrees = Vector3(-6, 0, 0)
+		root.add_child(brim)
+	else:
+		# 방울
+		var pom = MeshInstance3D.new()
+		var pm = SphereMesh.new()
+		pm.radius = 0.07
+		pm.height = 0.14
+		pom.mesh = pm
+		pom.material_override = _wear_mat(accent)
+		pom.position = Vector3(0, 0.16, 0)
+		root.add_child(pom)
+
+func _wear_mat(col: Color) -> StandardMaterial3D:
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = col
+	mat.roughness = 0.85
+	return mat
 
 func _shade(hex: String, amt: float) -> Color:
 	var c = Color(hex)

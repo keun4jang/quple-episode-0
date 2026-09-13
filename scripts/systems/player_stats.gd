@@ -7,6 +7,7 @@ signal stats_changed
 signal leveled_up(new_level: int)
 signal coins_changed(amount: int)
 signal item_changed(item_id: String, count: int)
+signal equipment_changed
 
 var level: int = 1
 var exp_points: int = 0
@@ -159,6 +160,7 @@ func equip_item(item_id: String) -> bool:
     equipment[slot] = item_id
     _apply_equip_effect(item_id, 1)
     stats_changed.emit()
+    equipment_changed.emit()
     return true
 
 func unequip_slot(slot: String) -> bool:
@@ -167,6 +169,7 @@ func unequip_slot(slot: String) -> bool:
     _apply_equip_effect(equipment[slot], -1)
     equipment.erase(slot)
     stats_changed.emit()
+    equipment_changed.emit()
     return true
 
 func _apply_equip_effect(item_id: String, sign: int) -> void:
@@ -217,6 +220,7 @@ func from_dict(d: Dictionary) -> void:
     # equipment는 표시용으로만 복원하고 _apply_equip_effect()를 다시 적용하지 않는다.
     equipment = d.get("equipment", {})
     stats_changed.emit()
+    equipment_changed.emit()
 
 func reset_new_game() -> void:
     level = 1
@@ -232,3 +236,4 @@ func reset_new_game() -> void:
     inventory = {"cocoa": 2, "cookie": 1}
     equipment = {}
     stats_changed.emit()
+    equipment_changed.emit()

@@ -9,6 +9,9 @@ extends Node
 ##
 ## effect: { "hp": n, "mp": n, "atk_buff": n, "def_buff": n, "revive": true }
 ##   (equipment 아이템의 effect는 "defense"/"attack"/"max_hp"/"max_mp" 중 하나 — 착용 시 그만큼 영구 증가)
+## wear: { "color": 본체색, "accent": 포인트색, "style": 모양 }
+##   장비를 3D 캐릭터에 그릴 때 쓴다. slot이 모양 종류를 정하고(scarf=목에 두르는 링,
+##   hat=머리에 쓰는 것), style이 세부를 정한다(plain/star, beanie/cap).
 
 const PALETTE := {
     "k": "#2A211C",  # 외곽선(어두운 갈색)
@@ -102,6 +105,7 @@ const ITEMS := {
         "slot": "scarf",
         "price": 70,
         "effect": {"defense": 4},
+        "wear": {"color": "#E0645A", "accent": "#FFF6E4", "style": "plain"},
         "art": [
             "........",
             ".rrrrrr.",
@@ -113,6 +117,25 @@ const ITEMS := {
             "........",
         ],
     },
+    "star_scarf": {
+        "name": "별무늬 목도리",
+        "desc": "밤하늘을 두른 것 같다. 방어 +7 (상시 착용).",
+        "kind": "equipment",
+        "slot": "scarf",
+        "price": 150,
+        "effect": {"defense": 7},
+        "wear": {"color": "#3E5AA8", "accent": "#F5D563", "style": "star"},
+        "art": [
+            "........",
+            ".bbbbbb.",
+            "bybybybb",
+            ".bbbbbb.",
+            "...bb...",
+            "...byb..",
+            "...bb...",
+            "........",
+        ],
+    },
     "hat": {
         "name": "털모자",
         "desc": "포근하게 감싸주면 마음에 여유가 생긴다. 마음력 최대치 +10 (상시 착용).",
@@ -120,6 +143,7 @@ const ITEMS := {
         "slot": "hat",
         "price": 65,
         "effect": {"max_mp": 10},
+        "wear": {"color": "#E8A24A", "accent": "#FFF6E4", "style": "beanie"},
         "art": [
             "..oooo..",
             ".oyyyyo.",
@@ -128,6 +152,25 @@ const ITEMS := {
             "oyyyyyyo",
             "kkkkkkkk",
             "kwwwwwwk",
+            "........",
+        ],
+    },
+    "travel_cap": {
+        "name": "여행 모자",
+        "desc": "챙이 있어 먼 곳을 보기 좋다. 마음력 최대치 +6, 마음의 힘 +2 (상시 착용).",
+        "kind": "equipment",
+        "slot": "hat",
+        "price": 140,
+        "effect": {"max_mp": 6, "attack": 2},
+        "wear": {"color": "#7A8B4F", "accent": "#5A4636", "style": "cap"},
+        "art": [
+            "..gggg..",
+            ".gggggg.",
+            "gggggggg",
+            "gggggggg",
+            "kkkkkkkk",
+            ".dddddd.",
+            "........",
             "........",
         ],
     },
