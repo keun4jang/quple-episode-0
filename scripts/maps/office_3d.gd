@@ -77,11 +77,11 @@ func _build_scene() -> void:
 	# 옆면이 드러나 화면을 가로지르는 밝은 선이 생긴다.
 	_box(self, Vector3(0, -0.11, 4), Vector3(44, 0.2, 48), "#1B2430", "OutsideFill")
 	_box(self, Vector3(0, -0.05, 1), Vector3(10, 0.1, 14), "#43566A", "Floor")
-	_box(self, Vector3(-5.1, 2.5, 1), Vector3(0.2, 5, 14), "#2D3A4A", "WallLeft")
-	_box(self, Vector3(5.1, 2.5, 1), Vector3(0.2, 5, 14), "#2D3A4A", "WallRight")
-	_box(self, Vector3(0, 2.5, -4.1), Vector3(10, 5, 0.2), "#2D3A4A", "WallBack")
+	_box(self, Vector3(-5.1, 2.5, 1), Vector3(0.2, 5, 14), "#2D3A4A", "WallLeft", true)
+	_box(self, Vector3(5.1, 2.5, 1), Vector3(0.2, 5, 14), "#2D3A4A", "WallRight", true)
+	_box(self, Vector3(0, 2.5, -4.1), Vector3(10, 5, 0.2), "#2D3A4A", "WallBack", true)
 	# 앞쪽 낮은 벽 (파란 빈 공간 가림, 카메라 시야 밖)
-	_box(self, Vector3(0, 1.0, 7.9), Vector3(10, 2, 0.2), "#2D3A4A", "WallFront")
+	_box(self, Vector3(0, 1.0, 7.9), Vector3(10, 2, 0.2), "#2D3A4A", "WallFront", true)
 	# Ceiling 제거 - 카메라가 위에서 내려다보는 구조, 천장 없어야 플레이어 보임
 	_box(self, Vector3(-2, 0.4, -2), Vector3(2, 0.8, 1.2), "#43566A", "PartnerDesk")
 	_box(self, Vector3(-2, 0.85, -2), Vector3(2.2, 0.06, 1.3), "#2D3A4A", "PartnerDeskTop")
@@ -139,9 +139,20 @@ func _build_scene() -> void:
 	for bsy in range(3):
 		_box(self, Vector3(-4.5, 0.6 + bsy * 0.7, 1), Vector3(0.35, 0.06, 3), "#1E2A3C", "Shelf%d" % bsy)
 
-func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "") -> MeshInstance3D:
+## solid=true 면 같은 크기의 충돌체를 달아 플레이어가 통과하지 못하게 한다.
+## 맵 상자는 전부 MeshInstance3D(그림)라서, 이걸 안 붙이면 벽을 그냥 걸어서 빠져나간다.
+func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "", solid: bool = false) -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	if label != "": mi.name = label
 	var mesh = BoxMesh.new(); mesh.size = size; mi.mesh = mesh
 	var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.9
-	mi.material_override = mat; mi.position = pos; parent.add_child(mi); return mi
+	mi.material_override = mat; mi.position = pos; parent.add_child(mi)
+	if solid:
+		var body = StaticBody3D.new()
+		var col = CollisionShape3D.new()
+		var shape = BoxShape3D.new()
+		shape.size = size
+		col.shape = shape
+		body.add_child(col)
+		mi.add_child(body)
+	return mi

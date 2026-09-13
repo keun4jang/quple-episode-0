@@ -48,14 +48,20 @@ func _show_opening() -> void:
 	Episode0State.advance_to(Episode0State.State.ENTER_COMPANY)
 
 func _build_scene() -> void:
+	# 야외라 막아주는 벽이 없다. 눈에 안 보이는 경계벽으로 인도·도로 밖으로
+	# 걸어 나가지 못하게 막는다 (북쪽은 건물 바로 앞까지 갈 수 있게 z=-4.8).
+	_bound(Vector3(0, 2, -4.8), Vector3(30, 4, 0.5), "BoundNorth")
+	_bound(Vector3(0, 2, 14.6), Vector3(30, 4, 0.5), "BoundSouth")
+	_bound(Vector3(-13.8, 2, 5), Vector3(0.5, 4, 24), "BoundWest")
+	_bound(Vector3(13.8, 2, 5), Vector3(0.5, 4, 24), "BoundEast")
 	_box(self, Vector3(0, -0.04, 7), Vector3(28, 0.08, 16), "#3B3E46", "Road")
 	_box(self, Vector3(0, 0, -1), Vector3(28, 0.1, 6), "#7F8790", "Sidewalk")
 	for i in range(-2, 3):
 		_box(self, Vector3(i * 0.9, 0.01, 3.5), Vector3(0.45, 0.01, 2.5), "#F2EEE2", "Crosswalk%d" % i)
 	# 건물 높이 축소 (18→10) - 카메라가 지붕 위에서 볼 수 있도록
-	_box(self, Vector3(0, 5, -6), Vector3(10, 10, 2), "#2D3A4A", "Building")
-	_box(self, Vector3(-5.1, 5, -6), Vector3(0.2, 10, 2.5), "#1E2733", "BuildingLeft")
-	_box(self, Vector3(5.1, 5, -6), Vector3(0.2, 10, 2.5), "#1E2733", "BuildingRight")
+	_box(self, Vector3(0, 5, -6), Vector3(10, 10, 2), "#2D3A4A", "Building", true)
+	_box(self, Vector3(-5.1, 5, -6), Vector3(0.2, 10, 2.5), "#1E2733", "BuildingLeft", true)
+	_box(self, Vector3(5.1, 5, -6), Vector3(0.2, 10, 2.5), "#1E2733", "BuildingRight", true)
 	# 옥상 테두리 디테일
 	_box(self, Vector3(0, 10.1, -6), Vector3(10.4, 0.2, 2.4), "#1A2530", "RoofEdge")
 	for row in range(6):
@@ -120,12 +126,35 @@ func _build_scene() -> void:
 	moon.position = Vector3(8, 16, -10)
 	self.add_child(moon)
 
-func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "") -> MeshInstance3D:
+## solid=true 면 같은 크기의 충돌체를 달아 플레이어가 통과하지 못하게 한다.
+## 맵 상자는 전부 MeshInstance3D(그림)라서, 이걸 안 붙이면 벽을 그냥 걸어서 빠져나간다.
+func _box(parent: Node3D, pos: Vector3, size: Vector3, hex: String, label: String = "", solid: bool = false) -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	if label != "": mi.name = label
 	var mesh = BoxMesh.new(); mesh.size = size; mi.mesh = mesh
 	var mat = StandardMaterial3D.new(); mat.albedo_color = Color(hex); mat.roughness = 0.9
-	mi.material_override = mat; mi.position = pos; parent.add_child(mi); return mi
+	mi.material_override = mat; mi.position = pos; parent.add_child(mi)
+	if solid:
+		var body = StaticBody3D.new()
+		var col = CollisionShape3D.new()
+		var shape = BoxShape3D.new()
+		shape.size = size
+		col.shape = shape
+		body.add_child(col)
+		mi.add_child(body)
+	return mi
+
+## 눈에 안 보이는 경계벽 (그림 없이 충돌체만)
+func _bound(pos: Vector3, size: Vector3, label: String) -> void:
+	var body = StaticBody3D.new()
+	body.name = label
+	body.position = pos
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = size
+	col.shape = shape
+	body.add_child(col)
+	add_child(body)
 
 func _emit(mi: MeshInstance3D, hex: String, energy: float) -> void:
 	var mat = mi.material_override as StandardMaterial3D
