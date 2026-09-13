@@ -82,6 +82,23 @@ const ITEMS := {
             "........",
         ],
     },
+    "herb_tea": {
+        "name": "캐모마일 차",
+        "desc": "한 김 식히면 마음이 가라앉는다. 나쁜 상태를 모두 없앤다. (전투 중에만)",
+        "kind": "consumable",
+        "price": 45,
+        "effect": {"cure": true},
+        "art": [
+            "........",
+            "..w.....",
+            ".kkkkk..",
+            ".kgggk.k",
+            ".kgggk.k",
+            ".kkkkkk.",
+            "..kkk...",
+            "........",
+        ],
+    },
     "clover": {
         "name": "네잎클로버",
         "desc": "다음 공격의 마음의 힘이 크게 오른다.",
@@ -375,6 +392,15 @@ func use_item(id: String, in_battle: bool = false) -> String:
     var is_buff_only := (eff.has("atk_buff") or eff.has("def_buff")) and not eff.has("hp") and not eff.has("mp")
     if is_buff_only and not in_battle:
         return ""
+    # 상태 해제 아이템 — 전투 중에, 실제로 나쁜 상태가 있을 때만 쓸 수 있다
+    if eff.has("cure"):
+        if not in_battle:
+            return ""
+        var cured := BattleSystem.clear_bad_statuses()
+        if cured <= 0:
+            return ""
+        PlayerStats.remove_item(id, 1)
+        return "%s 사용! 마음이 가라앉았다 (나쁜 상태 %d개 해제)" % [item.name, cured]
     var msgs: Array = []
     if eff.has("hp"):
         var healed := PlayerStats.heal(eff.hp)

@@ -35,6 +35,7 @@ var _msg_label: Label
 var _player_hp_fill: ColorRect
 var _player_mp_fill: ColorRect
 var _player_stat_label: Label
+var _status_label: Label
 var _action_row: HBoxContainer
 var _submenu: PanelContainer
 var _submenu_box: VBoxContainer
@@ -164,6 +165,10 @@ func _build() -> void:
 
     _player_stat_label = _make_label("", 28, COL_INK)
     pbox.add_child(_player_stat_label)
+
+    # 지금 걸려 있는 상태이상 (없으면 빈 줄)
+    _status_label = _make_label("", 26, COL_INK)
+    pbox.add_child(_status_label)
 
     var hp_row := _make_bar_wrap(Vector2(0, 30))
     _player_hp_fill = hp_row.get_meta("fill")
@@ -551,6 +556,25 @@ func _refresh_bars() -> void:
         PlayerStats.level, PlayerStats.hp, PlayerStats.max_hp,
         PlayerStats.mp, PlayerStats.max_mp, PlayerStats.coins
     ]
+    _refresh_statuses()
+
+## 걸려 있는 상태이상을 한 줄로 보여준다 — "위축 2  ·  온기 3"
+func _refresh_statuses() -> void:
+    if _status_label == null:
+        return
+    var list: Array = BattleSystem.status_list()
+    if list.is_empty():
+        _status_label.text = ""
+        return
+    var parts: Array = []
+    var good_only := true
+    for st in list:
+        parts.append("%s %d" % [st.name, st.turns])
+        if not st.good:
+            good_only = false
+    _status_label.text = "상태 — " + "   ·   ".join(parts)
+    _status_label.add_theme_color_override("font_color",
+        Color("#4A7A3A") if good_only else Color("#9A4A6A"))
 
 func _set_bar(fill: ColorRect, ratio: float) -> void:
     if fill == null:
