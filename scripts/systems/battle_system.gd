@@ -320,7 +320,7 @@ func player_use_skill(skill_id: String) -> Array:
             var dmg := _calc_player_damage(power)
             var crit: bool = dmg.crit
             enemy.hp = max(0, enemy.hp - dmg.amount)
-            events.append({"type": "damage_enemy", "amount": dmg.amount, "crit": crit, "weak": hit_weakness})
+            events.append({"type": "damage_enemy", "amount": dmg.amount, "crit": crit, "weak": hit_weakness, "skill": skill_id})
             if skill.has("enemy_atk_down"):
                 enemy.atk = max(1, enemy.atk - skill.enemy_atk_down)
                 events.append({"type": "text", "msg": "%s의 기세가 꺾였다! (공격 -%d)" % [enemy.name, skill.enemy_atk_down]})
@@ -328,11 +328,11 @@ func player_use_skill(skill_id: String) -> Array:
             var amount: int = skill.heal_base + PlayerStats.level * 3
             var healed := PlayerStats.heal(amount)
             events.append({"type": "text", "msg": "%s — 체력 %d 회복." % [skill.name, healed]})
-            events.append({"type": "heal", "amount": healed})
+            events.append({"type": "heal", "amount": healed, "skill": skill_id})
         "buff":
             atk_buff += skill.atk_buff
             events.append({"type": "text", "msg": "%s! 마음의 힘 +%d" % [skill.name, skill.atk_buff]})
-            events.append({"type": "buff", "amount": skill.atk_buff})
+            events.append({"type": "buff", "amount": skill.atk_buff, "skill": skill_id})
 
     if enemy.hp <= 0:
         events.append({"type": "enemy_defeated"})
