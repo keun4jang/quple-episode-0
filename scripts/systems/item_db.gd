@@ -2,10 +2,13 @@ extends Node
 ## ItemDB — 아이템 정의 모음. 외부 이미지 없이 8×8 픽셀 아트 문자열로 아이콘을 만든다.
 ##
 ## kind:
-##   "consumable" — 가방에서 사용/전투 중 사용 가능, 상점에서 구매 가능
+##   "consumable" — 가방에서 사용/전투 중 사용 가능, 상점에서 구매 가능. 쓰면 1개 소모된다.
+##   "equipment"  — 슬롯(slot)에 상시 착용하는 장비. 소모되지 않고, 장착 중에는 effect가
+##                  PlayerStats 스탯에 영구 반영된다(해제하면 그만큼 다시 빠진다).
 ##   "story"      — 스토리 진행용(카메라·수첩 등). 사용 불가, 가방에 전시만 된다.
 ##
 ## effect: { "hp": n, "mp": n, "atk_buff": n, "def_buff": n, "revive": true }
+##   (equipment 아이템의 effect는 "defense"/"attack"/"max_hp"/"max_mp" 중 하나 — 착용 시 그만큼 영구 증가)
 
 const PALETTE := {
     "k": "#2A211C",  # 외곽선(어두운 갈색)
@@ -94,10 +97,11 @@ const ITEMS := {
     },
     "scarf": {
         "name": "포근한 목도리",
-        "desc": "전투가 끝날 때까지 방어가 오른다.",
-        "kind": "consumable",
-        "price": 55,
-        "effect": {"def_buff": 9},
+        "desc": "항상 두르고 있으면 마음이 든든해진다. 방어 +4 (상시 착용).",
+        "kind": "equipment",
+        "slot": "scarf",
+        "price": 70,
+        "effect": {"defense": 4},
         "art": [
             "........",
             ".rrrrrr.",
@@ -106,6 +110,24 @@ const ITEMS := {
             "...rr...",
             "...rwr..",
             "...rr...",
+            "........",
+        ],
+    },
+    "hat": {
+        "name": "털모자",
+        "desc": "포근하게 감싸주면 마음에 여유가 생긴다. 마음력 최대치 +10 (상시 착용).",
+        "kind": "equipment",
+        "slot": "hat",
+        "price": 65,
+        "effect": {"max_mp": 10},
+        "art": [
+            "..oooo..",
+            ".oyyyyo.",
+            "oyyyyyyo",
+            "oyyyyyyo",
+            "oyyyyyyo",
+            "kkkkkkkk",
+            "kwwwwwwk",
             "........",
         ],
     },
@@ -209,11 +231,14 @@ func is_consumable(id: String) -> bool:
 func is_story_item(id: String) -> bool:
     return ITEMS.get(id, {}).get("kind", "") == "story"
 
-## 상점 판매 목록 (자판기)
+func is_equipment(id: String) -> bool:
+    return ITEMS.get(id, {}).get("kind", "") == "equipment"
+
+## 상점 판매 목록 (자판기) — 소비 아이템과 장비를 함께 판다
 func shop_list() -> Array:
     var out: Array = []
     for id in ITEMS:
-        if ITEMS[id].kind == "consumable":
+        if ITEMS[id].kind == "consumable" or ITEMS[id].kind == "equipment":
             out.append(id)
     out.sort_custom(func(a, b): return ITEMS[a].price < ITEMS[b].price)
     return out
