@@ -82,7 +82,7 @@ const ITEMS := {
         "name": "따뜻한 코코아",
         "desc": "한 모금에 마음이 녹는다. 체력 40 회복.",
         "kind": "consumable",
-        "price": 28,
+        "price": 18,
         "effect": {"hp": 40},
         "art": [
             "........",
@@ -99,7 +99,7 @@ const ITEMS := {
         "name": "버터 쿠키",
         "desc": "바삭한 위로. 마음력 20 회복.",
         "kind": "consumable",
-        "price": 22,
+        "price": 14,
         "effect": {"mp": 20},
         "art": [
             "........",
@@ -116,7 +116,7 @@ const ITEMS := {
         "name": "야근 탈출 드링크",
         "desc": "체력 25, 마음력 15 회복.",
         "kind": "consumable",
-        "price": 48,
+        "price": 28,
         "effect": {"hp": 25, "mp": 15},
         "art": [
             "..kkk...",
@@ -133,7 +133,7 @@ const ITEMS := {
         "name": "캐모마일 차",
         "desc": "한 김 식히면 마음이 가라앉는다. 나쁜 상태를 모두 없앤다. (전투 중에만)",
         "kind": "consumable",
-        "price": 45,
+        "price": 26,
         "effect": {"cure": true},
         "art": [
             "........",
@@ -150,7 +150,7 @@ const ITEMS := {
         "name": "네잎클로버",
         "desc": "다음 공격의 마음의 힘이 크게 오른다.",
         "kind": "consumable",
-        "price": 60,
+        "price": 34,
         "effect": {"atk_buff": 12},
         "art": [
             "........",
@@ -460,7 +460,7 @@ const ITEMS := {
         "name": "별사탕",
         "desc": "체력과 마음력을 모두 되돌린다.",
         "kind": "consumable",
-        "price": 120,
+        "price": 70,
         "effect": {"hp": 999, "mp": 999},
         "art": [
             "...y....",
