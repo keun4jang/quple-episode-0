@@ -12,21 +12,21 @@ var level: int = 1
 var exp_points: int = 0
 var hp: int = 60
 var max_hp: int = 60
-var mp: int = 20
-var max_mp: int = 20
-var attack: int = 10
+var mp: int = 24
+var max_mp: int = 24
+var attack: int = 12
 var defense: int = 4
 var coins: int = 0
 
 ## 배운 스킬 id 목록 (battle_system.gd의 SKILLS 참조)
-var skills: Array = ["laugh"]
+var skills: Array = ["laugh", "breath"]
 
 ## 소비 아이템 보유량 { item_id: 개수 }
 var inventory: Dictionary = {}
 
 ## 레벨업에 필요한 누적 경험치
 func exp_to_next() -> int:
-    return int(round(28.0 * pow(float(level), 1.45)))
+    return int(round(24.0 * pow(float(level), 1.25)))
 
 func add_exp(amount: int) -> Array:
     var gained_levels: Array = []
@@ -40,9 +40,9 @@ func add_exp(amount: int) -> Array:
 
 func _level_up() -> void:
     level += 1
-    max_hp += 12
-    max_mp += 5
-    attack += 2
+    max_hp += 14
+    max_mp += 6
+    attack += 3
     defense += 1
     hp = max_hp
     mp = max_mp
@@ -51,10 +51,9 @@ func _level_up() -> void:
 
 ## 레벨에 따라 새 스킬 해금
 const SKILL_UNLOCKS := {
-    2: "breath",
-    3: "daydream",
-    4: "cheer",
-    6: "hug",
+    2: "daydream",
+    3: "cheer",
+    5: "hug",
 }
 
 func _unlock_skills_for_level() -> void:
@@ -64,7 +63,7 @@ func _unlock_skills_for_level() -> void:
             skills.append(id)
 
 func take_damage(amount: int) -> int:
-    var real := max(1, amount - defense)
+    var real := max(1, int(round(float(amount) * 100.0 / (100.0 + float(defense) * 8.0))))
     hp = max(0, hp - real)
     stats_changed.emit()
     return real
@@ -159,13 +158,13 @@ func from_dict(d: Dictionary) -> void:
     level = d.get("level", 1)
     exp_points = d.get("exp", 0)
     max_hp = d.get("max_hp", 60)
-    max_mp = d.get("max_mp", 20)
+    max_mp = d.get("max_mp", 24)
     hp = d.get("hp", max_hp)
     mp = d.get("mp", max_mp)
-    attack = d.get("attack", 10)
+    attack = d.get("attack", 12)
     defense = d.get("defense", 4)
     coins = d.get("coins", 0)
-    skills = d.get("skills", ["laugh"])
+    skills = d.get("skills", ["laugh", "breath"])
     inventory = d.get("inventory", {})
     stats_changed.emit()
 
@@ -173,12 +172,12 @@ func reset_new_game() -> void:
     level = 1
     exp_points = 0
     max_hp = 60
-    max_mp = 20
+    max_mp = 24
     hp = max_hp
     mp = max_mp
-    attack = 10
+    attack = 12
     defense = 4
     coins = 0
-    skills = ["laugh"]
+    skills = ["laugh", "breath"]
     inventory = {"cocoa": 2, "cookie": 1}
     stats_changed.emit()

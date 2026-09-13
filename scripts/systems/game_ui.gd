@@ -14,9 +14,9 @@ const NO_HUD_SCENES := ["MainMenu3D", "StartScreen", "CharPreview"]
 
 ## 맵마다 등장하는 그림자 감정
 const SPAWN_TABLE := {
-    "CompanyFront3D": ["anxiety", "anxiety", "misfortune"],
-    "CompanyLobby3D": ["anxiety", "comparison", "comparison"],
-    "Office3D": ["burnout", "burnout", "greed"],
+    "CompanyFront3D": ["anxiety", "anxiety", "comparison"],
+    "CompanyLobby3D": ["anxiety", "comparison", "misfortune"],
+    "Office3D": ["misfortune", "greed", "burnout"],
     "BossDoorHallway3D": ["overtime", "greed"],
 }
 

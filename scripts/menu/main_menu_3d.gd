@@ -48,6 +48,7 @@ func _on_start() -> void:
     PlayerStats.reset_new_game()
     QuestSystem.reset_new_game()
     BattleSystem.defeated_counts = {}
+    BattleSystem.weakness_found = {}
     SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn", "hopeful")
 
 func _on_continue() -> void:

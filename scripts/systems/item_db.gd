@@ -26,10 +26,10 @@ const PALETTE := {
 const ITEMS := {
     "cocoa": {
         "name": "따뜻한 코코아",
-        "desc": "한 모금에 마음이 녹는다. 체력 30 회복.",
+        "desc": "한 모금에 마음이 녹는다. 체력 40 회복.",
         "kind": "consumable",
-        "price": 25,
-        "effect": {"hp": 30},
+        "price": 28,
+        "effect": {"hp": 40},
         "art": [
             "........",
             ".kkkkk..",
@@ -43,10 +43,10 @@ const ITEMS := {
     },
     "cookie": {
         "name": "버터 쿠키",
-        "desc": "바삭한 위로. 마음력 15 회복.",
+        "desc": "바삭한 위로. 마음력 20 회복.",
         "kind": "consumable",
-        "price": 20,
-        "effect": {"mp": 15},
+        "price": 22,
+        "effect": {"mp": 20},
         "art": [
             "........",
             "..kkkk..",
@@ -60,10 +60,10 @@ const ITEMS := {
     },
     "energy_drink": {
         "name": "야근 탈출 드링크",
-        "desc": "체력 15, 마음력 10 회복.",
+        "desc": "체력 25, 마음력 15 회복.",
         "kind": "consumable",
-        "price": 45,
-        "effect": {"hp": 15, "mp": 10},
+        "price": 48,
+        "effect": {"hp": 25, "mp": 15},
         "art": [
             "..kkk...",
             "..kck...",
@@ -80,7 +80,7 @@ const ITEMS := {
         "desc": "다음 공격의 마음의 힘이 크게 오른다.",
         "kind": "consumable",
         "price": 60,
-        "effect": {"atk_buff": 8},
+        "effect": {"atk_buff": 12},
         "art": [
             "........",
             "..g.g...",
@@ -97,7 +97,7 @@ const ITEMS := {
         "desc": "전투가 끝날 때까지 방어가 오른다.",
         "kind": "consumable",
         "price": 55,
-        "effect": {"def_buff": 6},
+        "effect": {"def_buff": 9},
         "art": [
             "........",
             ".rrrrrr.",

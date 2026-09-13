@@ -19,8 +19,9 @@ const ENEMIES := {
         "name": "불안",
         "title": "잠 못 드는 밤의 속삭임",
         "line": "\"내일도 잘할 수 있을까...?\"",
-        "hp": 30, "atk": 6, "def": 2,
-        "exp": 14, "coins": 10,
+        "hp": 26, "atk": 8, "def": 2,
+        "exp": 18, "coins": 12,
+        "weak": "daydream",
         "drop": {"cookie": 0.35},
         "colors": {"X": "#6C7BC4", "D": "#4A57A0", "L": "#9AA6E0", "A": "#C9D2FF"},
         "art": [
@@ -42,8 +43,9 @@ const ENEMIES := {
         "name": "욕심",
         "title": "끝없이 더 달라는 목소리",
         "line": "\"더, 더, 더 가져야 해!\"",
-        "hp": 44, "atk": 8, "def": 3,
-        "exp": 22, "coins": 24,
+        "hp": 42, "atk": 11, "def": 4,
+        "exp": 30, "coins": 30,
+        "weak": "laugh",
         "drop": {"cocoa": 0.3, "clover": 0.1},
         "colors": {"X": "#D9A441", "D": "#A87A26", "L": "#F2CE7A", "A": "#FFF0B8"},
         "art": [
@@ -65,8 +67,9 @@ const ENEMIES := {
         "name": "불행",
         "title": "어차피 안 될 거라는 먹구름",
         "line": "\"어차피 안 될 거야.\"",
-        "hp": 38, "atk": 9, "def": 2,
-        "exp": 20, "coins": 16,
+        "hp": 38, "atk": 12, "def": 3,
+        "exp": 26, "coins": 22,
+        "weak": "hug",
         "drop": {"cocoa": 0.35},
         "colors": {"X": "#4A4458", "D": "#2E2A38", "L": "#6E6682", "A": "#8FD8E0"},
         "art": [
@@ -88,8 +91,9 @@ const ENEMIES := {
         "name": "비교",
         "title": "남의 삶을 비추는 거울",
         "line": "\"쟤는 너보다 잘하잖아.\"",
-        "hp": 34, "atk": 7, "def": 4,
-        "exp": 18, "coins": 14,
+        "hp": 34, "atk": 10, "def": 3,
+        "exp": 22, "coins": 18,
+        "weak": "cheer",
         "drop": {"cookie": 0.3},
         "colors": {"X": "#C46C9E", "D": "#934973", "L": "#E4A0C6", "A": "#FFE0F0"},
         "art": [
@@ -111,8 +115,9 @@ const ENEMIES := {
         "name": "번아웃",
         "title": "다 타버린 재의 덩어리",
         "line": "\"...아무것도 하기 싫어.\"",
-        "hp": 58, "atk": 10, "def": 5,
-        "exp": 32, "coins": 30,
+        "hp": 56, "atk": 15, "def": 5,
+        "exp": 40, "coins": 38,
+        "weak": "breath",
         "drop": {"energy_drink": 0.4, "star_candy": 0.05},
         "colors": {"X": "#7A7A82", "D": "#4E4E56", "L": "#A6A6B0", "A": "#E86A4A"},
         "art": [
@@ -134,8 +139,8 @@ const ENEMIES := {
         "name": "야근 귀신",
         "title": "퇴근을 먹고 자라는 것",
         "line": "\"오늘도... 못 가.\"",
-        "hp": 130, "atk": 13, "def": 6,
-        "exp": 120, "coins": 90,
+        "hp": 220, "atk": 18, "def": 6,
+        "exp": 140, "coins": 110,
         "drop": {"star_candy": 0.6, "clover": 0.5},
         "is_boss": true,
         "colors": {"X": "#2E2E3E", "D": "#1A1A26", "L": "#4E4E66", "A": "#FF5A4A"},
@@ -165,24 +170,26 @@ const SKILLS := {
     "breath": {
         "name": "심호흡",
         "desc": "천천히 숨을 고른다. 체력 회복.",
-        "mp": 4, "type": "heal", "heal_base": 24,
+        "mp": 5, "type": "heal", "heal_base": 26,
     },
     "daydream": {
         "name": "여행 상상",
         "desc": "떠날 날을 그린다. 적의 기세를 꺾는다.",
-        "mp": 6, "type": "attack", "power": 0.8, "enemy_atk_down": 3,
+        "mp": 6, "type": "attack", "power": 0.9, "enemy_atk_down": 3,
     },
     "cheer": {
         "name": "응원 한마디",
         "desc": "\"할 수 있어.\" 마음의 힘이 오른다.",
-        "mp": 5, "type": "buff", "atk_buff": 7,
+        "mp": 5, "type": "buff", "atk_buff": 8,
     },
     "hug": {
         "name": "따뜻한 포옹",
         "desc": "둘이 함께라면 더 강하다.",
-        "mp": 8, "type": "attack", "power": 2.0, "partner_bonus": 1.35,
+        "mp": 9, "type": "attack", "power": 1.9, "partner_bonus": 1.4,
     },
 }
+
+const WEAKNESS_MULT := 1.6
 
 var in_battle: bool = false
 var enemy: Dictionary = {}
@@ -191,6 +198,7 @@ var atk_buff: int = 0
 var def_buff: int = 0
 var turn_count: int = 0
 var defeated_counts: Dictionary = {}
+var weakness_found: Dictionary = {}
 var world_enemy: Node = null
 
 func start_battle(id: String, source_node: Node = null) -> bool:
@@ -246,10 +254,14 @@ func player_use_skill(skill_id: String) -> Array:
         events.append({"type": "text", "msg": "마음력이 부족해요."})
         return events
 
+    var hit_weakness: bool = ENEMIES[enemy_id].get("weak", "") == skill_id
+
     turn_count += 1
     match skill.type:
         "attack":
             var power: float = skill.power
+            if hit_weakness:
+                power *= WEAKNESS_MULT
             if skill.has("partner_bonus") and _partner_here():
                 power *= skill.partner_bonus
                 events.append({"type": "text", "msg": "%s! 둘이 함께라 더 단단해요." % skill.name})
@@ -258,7 +270,7 @@ func player_use_skill(skill_id: String) -> Array:
             var dmg := _calc_player_damage(power)
             var crit: bool = dmg.crit
             enemy.hp = max(0, enemy.hp - dmg.amount)
-            events.append({"type": "damage_enemy", "amount": dmg.amount, "crit": crit})
+            events.append({"type": "damage_enemy", "amount": dmg.amount, "crit": crit, "weak": hit_weakness})
             if skill.has("enemy_atk_down"):
                 enemy.atk = max(1, enemy.atk - skill.enemy_atk_down)
                 events.append({"type": "text", "msg": "%s의 기세가 꺾였다! (공격 -%d)" % [enemy.name, skill.enemy_atk_down]})
@@ -275,6 +287,10 @@ func player_use_skill(skill_id: String) -> Array:
     if enemy.hp <= 0:
         events.append({"type": "enemy_defeated"})
         events.append(_make_victory_event())
+        return events
+    if hit_weakness:
+        weakness_found[enemy_id] = true
+        events.append({"type": "weakness", "msg": "약점을 찔렀다! %s이(가) 말을 잇지 못한다." % enemy.name})
         return events
     events.append_array(_enemy_turn())
     return events
@@ -332,14 +348,33 @@ func _enemy_turn() -> Array:
     return events
 
 # ── 계산 ─────────────────────────────────────────────
+func _mitigation(def_value: int) -> float:
+    return 100.0 / (100.0 + float(def_value) * 8.0)
+
 func _calc_player_damage(power: float) -> Dictionary:
-    var base: float = float(PlayerStats.attack + atk_buff) * power
-    base *= randf_range(0.88, 1.12)
-    var crit := randf() < 0.14
+    var base: float = float(PlayerStats.attack + atk_buff) * power * _mitigation(enemy.get("def", 0))
+    base *= randf_range(0.9, 1.1)
+    var crit := randf() < 0.15
     if crit:
-        base *= 1.7
-    var amount := max(1, int(round(base)) - enemy.get("def", 0))
+        base *= 1.75
+    var amount := max(1, int(round(base)))
     return {"amount": amount, "crit": crit}
+
+## 다음 적 행동 예고
+func enemy_intent() -> String:
+    if enemy.get("is_boss", false) and (turn_count + 1) % 4 == 0:
+        return "다음 — 강한 일격을 준비 중!"
+    return "다음 — 공격 (약 %d)" % expected_enemy_damage()
+
+func expected_enemy_damage() -> int:
+    var base: int = max(1, enemy.get("atk", 0) + 1 - def_buff)
+    return max(1, int(round(float(base) * _mitigation(PlayerStats.defense))))
+
+## 이 전투 중 밝혀진 적의 약점 (없으면 "")
+func known_weakness() -> String:
+    if weakness_found.get(enemy_id, false):
+        return ENEMIES.get(enemy_id, {}).get("weak", "")
+    return ""
 
 func _make_victory_event() -> Dictionary:
     var def: Dictionary = ENEMIES[enemy_id]
@@ -380,7 +415,8 @@ func end_battle(result: String) -> void:
     battle_finished.emit(result)
 
 func to_dict() -> Dictionary:
-    return {"defeated_counts": defeated_counts}
+    return {"defeated_counts": defeated_counts, "weakness_found": weakness_found}
 
 func from_dict(d: Dictionary) -> void:
     defeated_counts = d.get("defeated_counts", {})
+    weakness_found = d.get("weakness_found", {})

@@ -20,6 +20,7 @@ var _enemy_name: Label
 var _enemy_title: Label
 var _enemy_hp_fill: ColorRect
 var _enemy_hp_label: Label
+var _intent_label: Label
 var _msg_label: Label
 var _player_hp_fill: ColorRect
 var _player_mp_fill: ColorRect
@@ -106,6 +107,10 @@ func _build() -> void:
     _enemy_hp_label = _make_label("", 22, Color("#FFF6E4"))
     _enemy_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     enemy_box.add_child(_enemy_hp_label)
+
+    _intent_label = _make_label("", 24, Color("#FFB37A"))
+    _intent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    enemy_box.add_child(_intent_label)
 
     # 적 스프라이트 자리
     _enemy_holder = Control.new()
@@ -209,6 +214,7 @@ func _on_battle_started(enemy: Dictionary) -> void:
 
     _enemy_name.text = enemy.name
     _enemy_title.text = enemy.title
+    _intent_label.text = ""
     _build_enemy_sprite(enemy.id)
     _refresh_bars()
 
@@ -223,8 +229,12 @@ func _on_battle_started(enemy: Dictionary) -> void:
     _msg_label.text = enemy.line
     await get_tree().create_timer(0.6).timeout
     _msg_label.text = "어떻게 할까?"
+    _refresh_intent()
     _busy = false
     _set_actions_enabled(true)
+
+func _refresh_intent() -> void:
+    _intent_label.text = BattleSystem.enemy_intent()
 
 func _build_enemy_sprite(id: String) -> void:
     # 이전 전투에서 쓴 스프라이트와 그 정렬용 래퍼까지 전부 치운다
@@ -272,10 +282,12 @@ func _open_submenu(mode: String) -> void:
     for c in _submenu_box.get_children():
         c.queue_free()
     if mode == "skill":
+        var known_weak := BattleSystem.known_weakness()
         for id in BattleSystem.available_skills():
             var s: Dictionary = BattleSystem.SKILLS[id]
             var cost := "MP %d" % s.mp if s.mp > 0 else "MP 0"
-            var btn := _make_list_button("%s   (%s)\n%s" % [s.name, cost, s.desc])
+            var mark := "  ◆약점" if id == known_weak else ""
+            var btn := _make_list_button("%s%s   (%s)\n%s" % [s.name, mark, cost, s.desc])
             btn.disabled = PlayerStats.mp < s.mp
             btn.pressed.connect(func(): _choose_skill(id))
             _submenu_box.add_child(btn)
@@ -321,6 +333,7 @@ func _run_turn(events: Array) -> void:
     _refresh_bars()
     if BattleSystem.in_battle:
         _msg_label.text = "어떻게 할까?"
+        _refresh_intent()
         _busy = false
         _set_actions_enabled(true)
 
@@ -357,6 +370,14 @@ func _play_event(ev: Dictionary) -> void:
         "buff":
             _spawn_float_text("힘 +%d" % ev.amount, COL_GOLD, false)
             await get_tree().create_timer(0.35).timeout
+        "weakness":
+            if AudioManager:
+                AudioManager.play_sfx("clear_fanfare")
+            await _do_flash(0.7, 0.2)
+            _shake = 16.0
+            _spawn_float_text("약점!", COL_GOLD, true, true)
+            _msg_label.text = ev.msg
+            await get_tree().create_timer(0.9).timeout
         "enemy_defeated":
             await _dissolve_enemy()
         "victory":
