@@ -93,7 +93,7 @@ const ENEMIES := {
         "line": "\"쟤는 너보다 잘하잖아.\"",
         "hp": 34, "atk": 10, "def": 3,
         "exp": 22, "coins": 18,
-        "weak": "cheer",
+        "weak": "laugh",
         "drop": {"cookie": 0.3},
         "colors": {"X": "#C46C9E", "D": "#934973", "L": "#E4A0C6", "A": "#FFE0F0"},
         "art": [
@@ -117,7 +117,7 @@ const ENEMIES := {
         "line": "\"...아무것도 하기 싫어.\"",
         "hp": 56, "atk": 15, "def": 5,
         "exp": 40, "coins": 38,
-        "weak": "breath",
+        "weak": "hug",
         "drop": {"energy_drink": 0.4, "star_candy": 0.05},
         "colors": {"X": "#7A7A82", "D": "#4E4E56", "L": "#A6A6B0", "A": "#E86A4A"},
         "art": [
@@ -133,6 +133,54 @@ const ENEMIES := {
             "..X.XXXX.X..",
             "..X..XX..X..",
             "............",
+        ],
+    },
+    "loneliness": {
+        "name": "외로움",
+        "title": "아무도 없는 로비에 남은 메아리",
+        "line": "\"다들 집에 갔구나... 나만 아직 여기 남았어.\"",
+        "hp": 36, "atk": 10, "def": 3,
+        "exp": 24, "coins": 20,
+        "weak": "laugh",
+        "drop": {"cocoa": 0.3, "scarf": 0.1},
+        "colors": {"X": "#4E6478", "D": "#31404F", "L": "#7E96AC", "A": "#FFD9A0"},
+        "art": [
+            "....XXXX....",
+            "...XXXXXX...",
+            "..XXXXXXXX..",
+            ".XXXXXXXXXX.",
+            "XXXDDDDDXXXX",
+            "XXDDXXXXDDXX",
+            "XXXXXDDXXXXX",
+            ".XXXXXXXXXX.",
+            "..XXXXXXXX..",
+            "...XDDDDX...",
+            "....XXXX....",
+            "...A....A...",
+        ],
+    },
+    "impatience": {
+        "name": "조급함",
+        "title": "숨 돌릴 틈도 주지 않는 초침",
+        "line": "\"빨리, 빨리… 지금 아니면 늦어버릴 거야.\"",
+        "hp": 48, "atk": 13, "def": 3,
+        "exp": 34, "coins": 32,
+        "weak": "daydream",
+        "drop": {"energy_drink": 0.3, "clover": 0.12},
+        "colors": {"X": "#E8622E", "D": "#B8451C", "L": "#F5A467", "A": "#FFE066"},
+        "art": [
+            ".A..XXXX..A.",
+            ".XLXXXXXXXX.",
+            "XXXXDDDDXXXX",
+            "XXWWXXXXWWXX",
+            "XWKWXXXXWKWX",
+            "XXAXXDDXXAXX",
+            "XXXXXDDXXXXX",
+            ".XLXXXXXXXX.",
+            "AXXXXXXXXXX.",
+            "AAXXXXXXXX..",
+            "XX......XXX.",
+            "A.......XX..",
         ],
     },
     "overtime": {
@@ -254,7 +302,9 @@ func player_use_skill(skill_id: String) -> Array:
         events.append({"type": "text", "msg": "마음력이 부족해요."})
         return events
 
-    var hit_weakness: bool = ENEMIES[enemy_id].get("weak", "") == skill_id
+    # 약점 판정은 공격형 스킬에만 적용한다 — 회복/버프 스킬은 적에게 피해를 주지 않으므로
+    # 여기에 걸리면 "피해 0 + 적 턴 스킵"이 되어 무한 회복 악용이 가능해진다.
+    var hit_weakness: bool = skill.type == "attack" and ENEMIES[enemy_id].get("weak", "") == skill_id
 
     turn_count += 1
     match skill.type:
