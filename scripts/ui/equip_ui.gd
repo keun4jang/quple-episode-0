@@ -73,7 +73,7 @@ func _set_card() -> PanelContainer:
             var mark: String = "✓" if got else "·"
             box.add_child(make_label("   %s %d개 — %s" % [mark, int(need), _bonus_text(s.bonuses[need])],
                 23, Color("#4A7A3A") if got else Color("#8A7A6A")))
-        box.add_child(make_label("   %s %d개 — %s" % ["✓" if done else "·", total, s.perk],
+        box.add_child(make_label("   %s 완성 — %s" % ["✓" if done else "·", s.perk],
             23, Color("#4A7A3A") if done else Color("#8A7A6A")))
     return card
 

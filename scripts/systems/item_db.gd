@@ -30,6 +30,23 @@ const SETS := {
         "bonuses": {2: {"attack": 3}, 4: {"attack": 6, "max_mp": 8}},
         "perk": "'거리두기'에 반드시 성공한다",
     },
+    # ── 두 개짜리 교차 세트 ──
+    # 포근(기본)·여행(상위) 등급을 하나씩 섞어야 완성된다. 한 등급을 다 모으는
+    # 길만 있으면 장비를 하나씩 갈아입는 중간 과정이 전부 손해로 느껴지기 때문에,
+    # 섞어 입는 쪽에도 갈 곳을 만들어뒀다. 세트끼리 아이템이 겹쳐도 상관없다 —
+    # 조건을 만족하는 세트는 전부 따로 계산된다.
+    "nightwalk": {
+        "name": "밤마실 세트",
+        "items": ["hat", "star_scarf"],
+        "bonuses": {2: {"defense": 3, "max_mp": 5}},
+        "perk": "전투를 시작할 때 적의 약점이 이미 보인다",
+    },
+    "firststep": {
+        "name": "첫걸음 세트",
+        "items": ["mittens", "travel_shoes"],
+        "bonuses": {2: {"attack": 2, "max_hp": 8}},
+        "perk": "전투를 시작할 때 마음력이 6 돌아온다",
+    },
 }
 
 const PALETTE := {

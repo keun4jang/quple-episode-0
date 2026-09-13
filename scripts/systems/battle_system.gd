@@ -425,6 +425,12 @@ func start_battle(id: String, source_node: Node = null) -> bool:
     # 포근 세트 특전 — 온기를 두른 채로 전투를 시작한다
     if PlayerStats.has_full_set("cozy"):
         apply_status("warm")
+    # 밤마실 세트 특전 — 약점을 처음부터 알고 들어간다 (보스는 약점이 없다)
+    if PlayerStats.has_full_set("nightwalk") and String(def.get("weak", "")) != "":
+        weakness_found[id] = true
+    # 첫걸음 세트 특전 — 한 발 앞서 나간다
+    if PlayerStats.has_full_set("firststep"):
+        PlayerStats.restore_mp(6)
     in_battle = true
     battle_started.emit(enemy)
     return true
