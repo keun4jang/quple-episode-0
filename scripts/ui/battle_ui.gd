@@ -181,7 +181,7 @@ func _build() -> void:
     pbox.add_child(_action_row)
 
     _add_action("싸운다", _on_press_fight)
-    _add_action("가방", _on_press_bag)
+    _add_action("아이템", _on_press_bag)
     _add_action("거리두기", _on_press_flee)
 
     # ── 하위 메뉴(스킬/아이템) ──
@@ -313,7 +313,7 @@ func _open_submenu(mode: String) -> void:
             btn.pressed.connect(func(): _choose_item(item_id))
             _submenu_box.add_child(btn)
         if not any:
-            var empty := _make_label("가방이 비어 있어요.", 28, COL_INK)
+            var empty := _make_label("쓸 수 있는 아이템이 없어요.", 28, COL_INK)
             _submenu_box.add_child(empty)
     var back := _make_list_button("뒤로")
     back.pressed.connect(func(): _submenu.visible = false)

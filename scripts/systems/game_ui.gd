@@ -1,10 +1,12 @@
 extends Node
-## GameUI — 화면 UI(HUD·가방·퀘스트·상점·전투)를 한 곳에서 만들고 관리한다.
+## GameUI — 화면 UI(HUD·인벤토리·장비·스킬·퀘스트·상점·전투)를 한 곳에서 만들고 관리한다.
 ## 오토로드라 씬이 바뀌어도 살아남으므로, 맵마다 UI를 넣어줄 필요가 없다.
 ## 맵에 그림자 감정을 뿌리는 일도 여기서 한다.
 
 const HUD_SCRIPT := preload("res://scripts/ui/hud_ui.gd")
 const BAG_SCRIPT := preload("res://scripts/ui/bag_ui.gd")
+const EQUIP_SCRIPT := preload("res://scripts/ui/equip_ui.gd")
+const SKILL_SCRIPT := preload("res://scripts/ui/skill_ui.gd")
 const QUEST_SCRIPT := preload("res://scripts/ui/quest_ui.gd")
 const SHOP_SCRIPT := preload("res://scripts/ui/shop_ui.gd")
 const BATTLE_SCRIPT := preload("res://scripts/ui/battle_ui.gd")
@@ -23,6 +25,8 @@ const SPAWN_TABLE := {
 # 런타임에 스크립트를 붙여 만들기 때문에 타입을 지정하지 않는다(메서드가 스크립트 쪽에 있음)
 var hud
 var bag
+var equip
+var skill
 var quest
 var shop
 var battle
@@ -38,6 +42,12 @@ func _ready() -> void:
 
     bag = BAG_SCRIPT.new()
     add_child(bag)
+
+    equip = EQUIP_SCRIPT.new()
+    add_child(equip)
+
+    skill = SKILL_SCRIPT.new()
+    add_child(skill)
 
     quest = QUEST_SCRIPT.new()
     add_child(quest)
@@ -71,7 +81,7 @@ func _on_scene_changed(scene: Node) -> void:
         _spawn_enemies(scene)
 
 func _close_all_panels() -> void:
-    for p in [bag, quest, shop]:
+    for p in [bag, equip, skill, quest, shop]:
         p.visible = false
 
 # ── 패널 열기 ────────────────────────────────────────
@@ -80,8 +90,12 @@ func open_panel(which: String) -> void:
         return
     _close_all_panels()
     match which:
-        "bag":
+        "inventory":
             bag.open()
+        "equip":
+            equip.open()
+        "skill":
+            skill.open()
         "quest":
             quest.open()
         "shop":
@@ -116,7 +130,11 @@ func _unhandled_input(event: InputEvent) -> void:
     if BattleSystem.in_battle:
         return
     if event.is_action_pressed("key_bag"):
-        _toggle(bag, "bag")
+        _toggle(bag, "inventory")
+    elif event.is_action_pressed("key_equip"):
+        _toggle(equip, "equip")
+    elif event.is_action_pressed("key_skill"):
+        _toggle(skill, "skill")
     elif event.is_action_pressed("key_quest"):
         _toggle(quest, "quest")
 

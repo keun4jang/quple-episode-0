@@ -1,12 +1,18 @@
 extends Node
 ## QuestSystem — 퀘스트(의뢰) 진행 관리.
-## 가방과 분리된 독립 메뉴에서 보여준다. 조건을 채우면 즉시 보상이 지급된다.
+## 독립 메뉴에서 보여준다. 조건을 채우면 즉시 보상이 지급된다.
 ##
 ## kind:
 ##   "kill"  — 특정 그림자 감정을 target_count마리 물리치기
 ##   "level" — 마음 레벨 도달
 ##   "story" — Episode0State 진행 단계 도달
 ##   "coins" — 반짝 조각 모으기
+##
+## 설계 규칙 (지킬 것):
+##   - **시간대·실시간 대기를 요구하는 퀘스트는 만들지 않는다.** "저녁까지 기다리기" 같은
+##     조건은 힐링 게임이라도 그냥 지루함만 준다. 플레이어가 지금 당장 할 수 있어야 한다.
+##   - 순수 파밍(같은 행동 반복 수집)도 넣지 않는다. 스토리를 따라가다 보면 자연스럽게
+##     채워지는 수준으로만 조건을 잡는다.
 
 signal quest_progress(quest_id: String)
 signal quest_completed(quest_id: String, reward_text: String)
@@ -20,8 +26,8 @@ const QUESTS := {
     },
     "q_anxiety": {
         "name": "잠들 수 있게",
-        "desc": "불안을 3마리 걷어내기",
-        "kind": "kill", "target": "anxiety", "count": 3,
+        "desc": "불안을 2마리 걷어내기",
+        "kind": "kill", "target": "anxiety", "count": 2,
         "reward": {"coins": 60, "exp": 25, "items": {"cookie": 2}},
     },
     "q_greed": {
@@ -30,10 +36,10 @@ const QUESTS := {
         "kind": "kill", "target": "greed", "count": 2,
         "reward": {"coins": 80, "exp": 30, "items": {"clover": 1}},
     },
-    "q_level5": {
+    "q_level3": {
         "name": "단단해진 마음",
-        "desc": "마음 레벨 5 달성",
-        "kind": "level", "count": 5,
+        "desc": "마음 레벨 3 달성",
+        "kind": "level", "count": 3,
         "reward": {"coins": 120, "exp": 0, "items": {"star_candy": 1}},
     },
     "q_travel_items": {
@@ -41,12 +47,6 @@ const QUESTS := {
         "desc": "여행 물품 3개 챙기기",
         "kind": "story", "count": 8,  # Episode0State.State.RETURN_BADGE (const라 숫자로 고정)
         "reward": {"coins": 70, "exp": 20, "items": {"energy_drink": 1}},
-    },
-    "q_savings": {
-        "name": "여행 자금",
-        "desc": "반짝 조각 200개 모으기",
-        "kind": "coins", "count": 200,
-        "reward": {"coins": 0, "exp": 40, "items": {"star_candy": 1}},
     },
     "q_overtime": {
         "name": "퇴근합니다",

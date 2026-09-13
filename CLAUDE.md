@@ -28,8 +28,10 @@ scenes/
   systems/      SceneTransition
 scripts/
   maps/         각 씬 스크립트 (_build_scene()으로 절차적 생성)
-  characters/   player_quokka_3d.gd, partner_quokka_3d.gd
-  ui/           각 UI 스크립트
+  player/       player_quokka_3d.gd (장비 3D 착용 표시 포함)
+  characters/   partner_quokka_3d.gd
+  ui/           menu_panel.gd(창 공통 틀) + bag_ui(인벤토리)·equip_ui·skill_ui·
+                quest_ui·shop_ui·battle_ui·hud_ui·tutorial_ui 등
   systems/      episode0_state.gd, save_manager.gd, scene_transition.gd,
                 interactable_3d.gd, photo_system.gd, audio_manager.gd
 ```
@@ -42,8 +44,11 @@ scripts/
 - `PlayerStats` — 레벨/경험치/체력/마음력/화폐/인벤토리/장비
 - `ItemDB` — 아이템 정의 + 8×8 픽셀 아이콘, 사용 효과 (consumable/equipment/story)
 - `QuestSystem` — 퀘스트 진행/보상 (kill·level·story·coins 조건)
+  - **퀘스트 설계 규칙**: 시간대·실시간 대기를 요구하는 조건("저녁까지 기다리기")은 만들지 않는다.
+    순수 파밍(같은 행동 반복 수집)도 넣지 않는다. 스토리를 따라가면 자연스럽게 채워지는
+    수준으로만 조건을 잡는다.
 - `BattleSystem` — 턴제 전투 로직 + 적/스킬 정의
-- `GameUI` — HUD·가방·퀘스트·상점·전투 UI 생성 및 적 배치 (맵 수정 불필요)
+- `GameUI` — HUD·인벤토리·장비·스킬·퀘스트·상점·전투 UI 생성 및 적 배치 (맵 수정 불필요)
 
 ## 전투 시스템 (그림자 감정)
 현실에선 눈에 보이지 않는 부정적 감정이 형체를 얻어 나타난다. 쿼카는 마음의 힘으로 이를 걷어낸다.
@@ -103,10 +108,25 @@ scripts/
   파트너 쿼카에는 장비를 표시하지 않는다.
 
 ## UI 구조 (화면 상시 노출)
-- 왼쪽 위: LV·체력·마음력·경험치 바 / 오른쪽 위: 반짝 조각
-- 오른쪽 세로 버튼: 가방 · 퀘스트 · 상점 · 앨범 · 설정 (조이스틱과 겹치지 않게 배치)
-- **가방에는 아이템만** 넣는다 — 퀘스트는 독립 메뉴로 분리
-- 단축키: I=가방, Q=퀘스트, B=앨범, D=바람 노트(목표), F=사진
+화면 왼쪽 위에 정보와 메뉴를 한데 모으고, 아래 절반은 조이스틱·상호작용 버튼 자리로 비워둔다.
+
+```
+(24,24)   스탯 패널 642px — LV · 체력 · 마음력 · 경험치        (766,24) 반짝 조각
+(24,200)  메뉴 버튼 4×2 그리드 (150×124, 간격 14)
+(24,486)  현재 목표
+```
+
+- **메뉴 7개는 전부 독립**이다. 한 창 안에 다른 기능을 넣지 않는다:
+  인벤토리 · 장비 · 스킬 · 퀘스트 · 상점 · 앨범 · 설정
+  - 인벤토리 = 소모품 + 중요 물품 (장비는 안 들어간다)
+  - 장비 = 슬롯별 착용/해제 전용 창
+  - 스킬 = 배운 스킬과 해금 예정 스킬 확인 (사용은 전투에서)
+- **이름은 다른 게임에서 쓰는 일반적인 용어로 쓴다.** "배낭·사진첩·바람 노트" 같은
+  감성적 명칭은 쓰지 않는다 — 처음 보는 사람이 바로 알아야 한다.
+- **버튼 크기 근거**: 터치 최소 권장치가 Apple HIG 44pt / Material 48dp인데,
+  1080폭 세로 화면은 대략 3배 밀도라 환산하면 132~144px이다. 그래서 150×124를 쓴다.
+  이보다 작게 만들지 말 것. 간격도 14px 이상 유지한다 (`HudUI.BTN_SIZE`, `BTN_GAP`).
+- 단축키: I=인벤토리, E=장비, K=스킬, Q=퀘스트, B=앨범, D=목표, F=사진
 
 ## 스토리 흐름 (Episode0State.State)
 ```
@@ -124,8 +144,14 @@ START → ENTER_COMPANY → FIND_PARTNER → TALK_PARTNER → CHOICE_WAIT
 ## UI 시스템
 - **DialogueBox**: 타자기 효과, Space로 스킵
 - **ChoiceBox**: 화살표키 선택, 금색 하이라이트
+- **TutorialUI**: 첫 플레이 1회, 5단계 조작 안내(이동→상호작용→메뉴→전투→쓰러져도 괜찮음).
+  언제든 "건너뛰기" 가능. 본 적 있는지는 `user://settings.cfg`의 `tutorial/seen`에 저장한다.
+  첫 맵 `CompanyFront3D`에서 `maybe_show()`로 띄운다.
+- **InventoryUI**(bag_ui.gd) / **EquipUI** / **SkillUI** / **QuestUI** / **ShopUI**:
+  전부 `menu_panel.gd`를 상속하고 `panel_title()` + `_refresh_content()`만 구현한다.
+  새 메뉴를 만들 때도 이 틀을 쓰고, `GameUI`에 인스턴스와 `open_panel()` 분기를 추가한다.
 - **AlbumUI**: B키, 다중 사진 페이지(←→)
-- **WindNoteUI**: D키, 현재 목표 표시
+- **WindNoteUI**: D키, 현재 목표 표시 (HUD 목표 패널과 같은 내용)
 - **VirtualJoystick**: 왼쪽 하단 조이스틱 + 오른쪽 하단 상호작용 버튼(✦)
 - **ClearScreen**: 클리어 화면, Space/Esc로 종료
 
@@ -197,6 +223,9 @@ interactable_3d.gd (Area3D 기반):
 - ✅ 그림자 감정 2종 추가 (미루기·강박) — 일반 적 9종 + 보스
 - ✅ 장비 4종(슬롯당 기본/상위) + 3D 캐릭터에 실제 착용 표시
 - ✅ Android 빌드 설정 (세로 고정, 터치, Mobile 렌더러, Android 내보내기 프리셋)
+- ✅ UI 재설계 — 메뉴 7개 독립 분리(장비·스킬 창 신설), 왼쪽 위 그리드 배치, 명칭 일반화
+- ✅ 단계별 초반 튜토리얼
+- ✅ 파밍 퀘스트 제거 (반짝 조각 200개 삭제, 레벨 5→3, 불안 3→2마리)
 
 ## 다음 작업 후보
 - 실제 기기에서 APK 빌드·플레이 테스트 (지금까지 전부 미검증)

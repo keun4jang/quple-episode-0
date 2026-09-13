@@ -36,4 +36,4 @@ offset_bottom = -10.0
 theme_override_colors/font_color = Color(1, 0.843, 0.427, 1)
 theme_override_font_sizes/font_size = 14
 text = "방향키: 이동   Z/Enter: 상호작용
-D: 바람 노트   B: 앨범   F: 사진"
+I 인벤토리  E 장비  K 스킬  Q 퀘스트  B 앨범  F 사진"

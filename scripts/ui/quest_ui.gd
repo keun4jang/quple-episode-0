@@ -1,5 +1,5 @@
 extends "res://scripts/ui/menu_panel.gd"
-## QuestUI — 퀘스트(의뢰) 목록. 가방에서 분리된 독립 메뉴.
+## QuestUI — 퀘스트 목록. 독립 메뉴다.
 
 func panel_title() -> String:
     return "퀘스트"
