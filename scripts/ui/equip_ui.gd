@@ -8,6 +8,7 @@ const SLOTS := [
     {"id": "scarf", "name": "목"},
     {"id": "gloves", "name": "손"},
     {"id": "shoes", "name": "발"},
+    {"id": "tail", "name": "꼬리"},
 ]
 
 ## 장비 effect 키 → 화면에 보여줄 이름

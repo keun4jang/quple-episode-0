@@ -150,7 +150,7 @@ const ENEMIES := {
         "hp": 36, "atk": 10, "def": 3,
         "exp": 24, "coins": 20,
         "weak": "laugh",
-        "drop": {"cocoa": 0.3, "scarf": 0.1},
+        "drop": {"cocoa": 0.3, "scarf": 0.1, "star_charm": 0.08},
         "colors": {"X": "#4E6478", "D": "#31404F", "L": "#7E96AC", "A": "#FFD9A0"},
         "art": [
             "....XXXX....",
@@ -838,6 +838,9 @@ func _make_victory_event() -> Dictionary:
     var def: Dictionary = ENEMIES[enemy_id]
     var exp_gain: int = def.exp
     var coin_gain: int = def.coins
+    # 별밤 세트 특전 — 걷어낸 자리에서 조각을 더 찾아낸다
+    if PlayerStats.has_full_set("starlit"):
+        coin_gain = int(round(float(coin_gain) * 1.25))
     var drops: Array = []
     for item_id in def.get("drop", {}):
         if randf() < def.drop[item_id]:
