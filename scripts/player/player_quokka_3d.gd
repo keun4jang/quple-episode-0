@@ -380,7 +380,27 @@ func _build_worn_scarf(root: Node3D, col: Color, accent: Color, style: String) -
 	tail.position = Vector3(0.07, -0.14, 0.25)
 	tail.rotation_degrees = Vector3(10, 0, -6)
 	root.add_child(tail)
-	if style == "star":
+	if style == "muffler":
+		# 양쪽으로 길게 늘어뜨린 자락 (같이 두르는 목도리)
+		for i in range(2):
+			var side_tail = MeshInstance3D.new()
+			var stm = BoxMesh.new()
+			stm.size = Vector3(0.10, 0.34, 0.06)
+			side_tail.mesh = stm
+			side_tail.material_override = _wear_mat(col)
+			var sx = 0.16 if i == 0 else -0.16
+			side_tail.position = Vector3(sx, -0.18, 0.18)
+			side_tail.rotation_degrees = Vector3(8, 0, -6.0 if i == 0 else 6.0)
+			root.add_child(side_tail)
+			# 자락 끝 술
+			var fringe = MeshInstance3D.new()
+			var fm = BoxMesh.new()
+			fm.size = Vector3(0.11, 0.05, 0.07)
+			fringe.mesh = fm
+			fringe.material_override = _wear_mat(accent)
+			fringe.position = Vector3(sx, -0.34, 0.19)
+			root.add_child(fringe)
+	elif style == "star":
 		# 링 위에 박힌 작은 별빛
 		for i in range(4):
 			var star = MeshInstance3D.new()
@@ -422,7 +442,27 @@ func _build_worn_hat(root: Node3D, col: Color, accent: Color, style: String) -> 
 	band.material_override = _wear_mat(accent)
 	band.position = Vector3(0, -0.06, 0)
 	root.add_child(band)
-	if style == "cap":
+	if style == "straw":
+		# 사방으로 넓게 퍼진 챙 (밀짚모자)
+		var wide = MeshInstance3D.new()
+		var wm = CylinderMesh.new()
+		wm.top_radius = 0.30
+		wm.bottom_radius = 0.46
+		wm.height = 0.035
+		wide.mesh = wm
+		wide.material_override = _wear_mat(col)
+		wide.position = Vector3(0, -0.07, 0)
+		root.add_child(wide)
+		# 챙에 두른 띠
+		var ribbon = MeshInstance3D.new()
+		var rm = TorusMesh.new()
+		rm.inner_radius = 0.28
+		rm.outer_radius = 0.33
+		ribbon.mesh = rm
+		ribbon.material_override = _wear_mat(accent)
+		ribbon.position = Vector3(0, -0.04, 0)
+		root.add_child(ribbon)
+	elif style == "cap":
 		# 앞으로 뻗은 챙
 		var brim = MeshInstance3D.new()
 		var brimm = BoxMesh.new()
@@ -451,10 +491,20 @@ func _build_worn_gloves(root: Node3D, col: Color, accent: Color, style: String) 
 	mm.height = 0.184
 	mitt.mesh = mm
 	mitt.material_override = _wear_mat(col)
-	if style == "glove":
+	if style == "glove" or style == "hold":
 		# 장갑은 손 모양이 살아 있게 조금 갸름하게
 		mitt.scale = Vector3(0.92, 1.05, 1.0)
 	root.add_child(mitt)
+	if style == "hold":
+		# 손등에 올라간 작은 장식
+		var stud = MeshInstance3D.new()
+		var stm = SphereMesh.new()
+		stm.radius = 0.035
+		stm.height = 0.06
+		stud.mesh = stm
+		stud.material_override = _wear_mat(accent)
+		stud.position = Vector3(0, 0.02, 0.075)
+		root.add_child(stud)
 	# 손목 테두리
 	var cuff = MeshInstance3D.new()
 	var cm = CylinderMesh.new()
@@ -467,6 +517,25 @@ func _build_worn_gloves(root: Node3D, col: Color, accent: Color, style: String) 
 	root.add_child(cuff)
 
 func _build_worn_shoes(root: Node3D, col: Color, accent: Color, style: String) -> void:
+	if style == "sandal":
+		# 샌들은 발을 덮지 않는다 — 얇은 밑창 + 발등을 가로지르는 끈 두 개
+		var plate = MeshInstance3D.new()
+		var pm = BoxMesh.new()
+		pm.size = Vector3(0.19, 0.03, 0.26)
+		plate.mesh = pm
+		plate.material_override = _wear_mat(col)
+		plate.position = Vector3(0, -0.05, 0.02)
+		root.add_child(plate)
+		for i in range(2):
+			var strap = MeshInstance3D.new()
+			var stm = BoxMesh.new()
+			stm.size = Vector3(0.2, 0.03, 0.045)
+			strap.mesh = stm
+			strap.material_override = _wear_mat(accent)
+			strap.position = Vector3(0, 0.005 - float(i) * 0.02, -0.02 + float(i) * 0.12)
+			strap.rotation_degrees = Vector3(12.0 * float(i), 0, 0)
+			root.add_child(strap)
+		return
 	# 발등 (원래 발보다 한 겹 크게, 앞으로 길게)
 	var shoe = MeshInstance3D.new()
 	var sm = SphereMesh.new()
@@ -504,7 +573,27 @@ func _build_worn_tail(root: Node3D, col: Color, accent: Color, style: String) ->
 	band.material_override = _wear_mat(col)
 	band.rotation_degrees = Vector3(90, 0, 0)
 	root.add_child(band)
-	if style == "charm":
+	if style == "knot":
+		# 매듭 — 겹쳐 묶은 두 덩이와 아래로 뻗은 짧은 끈
+		for i in range(2):
+			var lump = MeshInstance3D.new()
+			var km = SphereMesh.new()
+			km.radius = 0.05
+			km.height = 0.085
+			lump.mesh = km
+			lump.material_override = _wear_mat(accent)
+			var kx = 0.045 if i == 0 else -0.045
+			lump.position = Vector3(kx, -0.02, -0.03)
+			lump.scale = Vector3(1.0, 1.0, 0.8)
+			root.add_child(lump)
+		var cord = MeshInstance3D.new()
+		var cm2 = BoxMesh.new()
+		cm2.size = Vector3(0.03, 0.12, 0.03)
+		cord.mesh = cm2
+		cord.material_override = _wear_mat(accent)
+		cord.position = Vector3(0, -0.1, -0.03)
+		root.add_child(cord)
+	elif style == "charm":
 		# 별 장식 — 작은 구 하나에 십자 막대를 얹어 반짝임을 만든다
 		var core = MeshInstance3D.new()
 		var sm = SphereMesh.new()

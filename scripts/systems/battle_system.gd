@@ -398,6 +398,9 @@ var enemy_statuses: Dictionary = {}
 ## 이번 전투에서 약점으로 적 턴을 이미 건너뛰었는지 — 같은 수법은 두 번 통하지 않는다
 var _weakness_stunned: bool = false
 
+## '둘이서 세트' 특전(한 번 다시 일어나기)을 이번 전투에서 이미 썼는지
+var _second_wind_used: bool = false
+
 func start_battle(id: String, source_node: Node = null) -> bool:
     if in_battle or not ENEMIES.has(id):
         return false
@@ -422,6 +425,7 @@ func start_battle(id: String, source_node: Node = null) -> bool:
     statuses.clear()
     enemy_statuses.clear()
     _weakness_stunned = false
+    _second_wind_used = false
     # 포근 세트 특전 — 온기를 두른 채로 전투를 시작한다
     if PlayerStats.has_full_set("cozy"):
         apply_status("warm")
@@ -524,6 +528,19 @@ func _tick_enemy_statuses() -> Array:
             enemy_statuses.erase(id)
             events.append({"type": "text", "msg": String(s.off_msg) % enemy.name})
     return events
+
+## 맞은 직후 처리 — 쓰러졌으면 '둘이서 세트' 특전으로 전투당 한 번 다시 일으켜 세운다.
+## 정말 쓰러졌으면(전투 종료) true, 아직 서 있거나 다시 일어났으면 false.
+func _down_check(events: Array) -> bool:
+    if not PlayerStats.is_down():
+        return false
+    if PlayerStats.has_full_set("together") and not _second_wind_used:
+        _second_wind_used = true
+        var back := PlayerStats.heal(int(round(float(PlayerStats.max_hp) * 0.4)))
+        events.append({"type": "status", "msg": "둘이니까 일어난다! +%d" % back, "color": "#F2A6AE"})
+        return false
+    events.append({"type": "defeat"})
+    return true
 
 ## 누그러짐이 걸려 있으면 적이 주는 피해가 줄어든다 (예상 피해 계산도 같은 값을 쓴다)
 func _enemy_out_mult() -> float:
@@ -695,8 +712,7 @@ func _enemy_action() -> Array:
             events.append({"type": "text", "msg": "%s가 방금 그 마음을 그대로 비춘다..." % enemy.name})
             var mirrored := _hit_player(back)
             events.append({"type": "damage_player", "amount": mirrored, "heavy": false})
-            if PlayerStats.is_down():
-                events.append({"type": "defeat"})
+            _down_check(events)
             return events
 
     # ── 공격 계열 ──
@@ -711,8 +727,7 @@ func _enemy_action() -> Array:
         var base: int = int(round(float(enemy.atk + randi_range(0, 3)) * mult * _enemy_out_mult()))
         var real := _hit_player(base)
         events.append({"type": "damage_player", "amount": real, "heavy": heavy})
-        if PlayerStats.is_down():
-            events.append({"type": "defeat"})
+        if _down_check(events):
             return events
     # 공격과 함께 상태를 남기는 적이 있다 (번아웃=먹먹함, 강박=초조)
     if String(plan.get("inflict", "")) != "":
