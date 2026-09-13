@@ -40,6 +40,8 @@ func eavesdrop() -> void:
 	SceneTransition.go_to("res://scenes/maps/Office3D.tscn")
 
 func _build_scene() -> void:
+	# 방 밖을 메우는 어두운 바닥 (복도는 폭이 6m뿐이라 좌우로도 빈다)
+	_box(self, Vector3(0, -0.11, 4), Vector3(40, 0.2, 48), "#141A24", "OutsideFill")
 	_box(self, Vector3(0, -0.05, 1), Vector3(6, 0.1, 14), "#1E2733", "Floor")
 	_box(self, Vector3(-3.1, 2, 1), Vector3(0.2, 4, 14), "#17283A", "WallLeft")
 	_box(self, Vector3(3.1, 2, 1), Vector3(0.2, 4, 14), "#17283A", "WallRight")
