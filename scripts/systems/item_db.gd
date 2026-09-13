@@ -47,6 +47,12 @@ const SETS := {
         "bonuses": {2: {"attack": 2, "max_hp": 8}},
         "perk": "전투를 시작할 때 마음력이 6 돌아온다",
     },
+    "together": {
+        "name": "둘이서 세트",
+        "items": ["sun_hat", "pair_muffler", "hold_gloves", "pair_sandals", "knot_charm"],
+        "bonuses": {2: {"max_hp": 10, "max_mp": 4}, 4: {"attack": 5, "defense": 4}},
+        "perk": "전투에서 한 번 쓰러져도 다시 일어난다",
+    },
     "starlit": {
         "name": "별밤 세트",
         "items": ["star_scarf", "star_charm"],
@@ -271,6 +277,109 @@ const ITEMS := {
             "........",
         ],
     },
+    # ── 3등급 "둘이서" 장비 ──
+    # 파트너가 합류한 뒤에야 상점에 나온다 (requires_partner). 상위 등급보다
+    # 공격은 낮고 방어·체력이 높아, 더 센 물건이 아니라 다른 방향의 선택지다.
+    "sun_hat": {
+        "name": "나란한 밀짚모자",
+        "desc": "둘이 하나씩 나눠 썼다. 마음력 최대치 +8, 방어 +2 (상시 착용).",
+        "kind": "equipment",
+        "slot": "hat",
+        "price": 185,
+        "requires_partner": true,
+        "effect": {"max_mp": 8, "defense": 2},
+        "wear": {"color": "#E8C87A", "accent": "#E0645A", "style": "straw"},
+        "art": [
+            "........",
+            "..oooo..",
+            ".oooooo.",
+            ".orrrro.",
+            "oooooooo",
+            "oooooooo",
+            "........",
+            "........",
+        ],
+    },
+    "pair_muffler": {
+        "name": "같이 두른 목도리",
+        "desc": "하나를 둘이 나눠 두른다. 방어 +9, 체력 최대치 +8 (상시 착용).",
+        "kind": "equipment",
+        "slot": "scarf",
+        "price": 195,
+        "requires_partner": true,
+        "effect": {"defense": 9, "max_hp": 8},
+        "wear": {"color": "#E0645A", "accent": "#F5D563", "style": "muffler"},
+        "art": [
+            "........",
+            ".rrrrrr.",
+            "rrrrrrrr",
+            ".rr..rr.",
+            ".rr..rr.",
+            ".ry..yr.",
+            "........",
+            "........",
+        ],
+    },
+    "hold_gloves": {
+        "name": "손잡는 장갑",
+        "desc": "손을 잡으면 힘이 난다. 마음의 힘 +6, 마음력 최대치 +2 (상시 착용).",
+        "kind": "equipment",
+        "slot": "gloves",
+        "price": 205,
+        "requires_partner": true,
+        "effect": {"attack": 6, "max_mp": 2},
+        "wear": {"color": "#E08CA0", "accent": "#F5D563", "style": "hold"},
+        "art": [
+            "........",
+            "..pp.pp.",
+            ".pppppp.",
+            "ppyppypp",
+            "pppppppp",
+            ".pppppp.",
+            "..pppp..",
+            "........",
+        ],
+    },
+    "pair_sandals": {
+        "name": "나란한 샌들",
+        "desc": "발끝이 가볍다. 체력 최대치 +24, 방어 +2 (상시 착용).",
+        "kind": "equipment",
+        "slot": "shoes",
+        "price": 215,
+        "requires_partner": true,
+        "effect": {"max_hp": 24, "defense": 2},
+        "wear": {"color": "#8A5A3A", "accent": "#F5D563", "style": "sandal"},
+        "art": [
+            "........",
+            "..yyyy..",
+            ".y....y.",
+            "..yyyy..",
+            ".n....n.",
+            "nnnnnnnn",
+            "dddddddd",
+            "........",
+        ],
+    },
+    "knot_charm": {
+        "name": "둘이 묶은 매듭",
+        "desc": "풀리지 않게 두 번 묶었다. 마음의 힘 +4, 방어 +2 (상시 착용).",
+        "kind": "equipment",
+        "slot": "tail",
+        "price": 190,
+        "requires_partner": true,
+        "effect": {"attack": 4, "defense": 2},
+        "wear": {"color": "#B59CE0", "accent": "#F2A6AE", "style": "knot"},
+        "art": [
+            "........",
+            "..m..m..",
+            ".mmmmmm.",
+            ".mppppm.",
+            ".mmmmmm.",
+            "..m..m..",
+            "..m..m..",
+            "........",
+        ],
+    },
     "tail_ribbon": {
         "name": "리본 꼬리끈",
         "desc": "꼬리에 묶는 작은 리본. 방어 +2, 마음력 최대치 +3 (상시 착용).",
@@ -454,8 +563,12 @@ func is_equipment(id: String) -> bool:
 func shop_list() -> Array:
     var out: Array = []
     for id in ITEMS:
-        if ITEMS[id].kind == "consumable" or ITEMS[id].kind == "equipment":
-            out.append(id)
+        if ITEMS[id].kind != "consumable" and ITEMS[id].kind != "equipment":
+            continue
+        # "둘이서" 등급은 파트너가 합류해야 상점에 나온다 — 혼자일 때는 살 수 없다
+        if ITEMS[id].get("requires_partner", false) and not Episode0State.partner_joined:
+            continue
+        out.append(id)
     out.sort_custom(func(a, b): return ITEMS[a].price < ITEMS[b].price)
     return out
 
