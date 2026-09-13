@@ -1,5 +1,5 @@
 extends CanvasLayer
-## MenuPanel — 가방/퀘스트/상점 화면이 공통으로 쓰는 창 틀.
+## MenuPanel — 인벤토리/장비/스킬/퀘스트/상점 화면이 공통으로 쓰는 창 틀.
 ## 각 화면은 이 스크립트를 상속하고 _build_content() / _refresh_content() 만 구현한다.
 
 const COL_INK := Color("#1B1622")

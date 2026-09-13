@@ -18,7 +18,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif not _other_ui_open():
 			_open()
 
-## 전투 중이거나 가방/퀘스트/상점이 열려 있으면 일시정지 메뉴를 열지 않는다
+## 전투 중이거나 다른 메뉴가 열려 있으면 일시정지 메뉴를 열지 않는다
 func _other_ui_open() -> bool:
 	if BattleSystem.in_battle:
 		return true

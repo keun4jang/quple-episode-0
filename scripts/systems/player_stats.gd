@@ -143,10 +143,6 @@ func total_items() -> int:
     return n
 
 # ── 장비 (상시 착용) ──────────────────────────────────
-func is_item_equipped(item_id: String) -> bool:
-    var item := ItemDB.get_item(item_id)
-    return equipment.get(item.get("slot", ""), "") == item_id
-
 ## 장비를 착용한다. 같은 슬롯에 이미 다른 장비가 있으면 자동으로 해제 후 갈아입는다.
 func equip_item(item_id: String) -> bool:
     var item := ItemDB.get_item(item_id)

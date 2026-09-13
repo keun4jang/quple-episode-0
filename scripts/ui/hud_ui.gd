@@ -1,10 +1,31 @@
 extends CanvasLayer
 ## HudUI — 화면에 항상 떠 있는 정보/메뉴 바.
-## 왼쪽 위: 레벨·체력·마음력·경험치, 오른쪽 위: 반짝 조각,
-## 오른쪽 세로줄: 가방/퀘스트/상점/앨범/설정 버튼 (조이스틱과 겹치지 않게 배치).
+## 왼쪽 위에 스탯 → 메뉴 버튼 그리드 → 목표를 세로로 쌓고, 오른쪽 위에 반짝 조각을 둔다.
+## 아래쪽 절반은 조이스틱·상호작용 버튼 자리라 비워둔다.
+##
+## 버튼 크기 근거: 터치 최소 권장치는 Apple HIG 44pt / Material 48dp.
+## 1080폭 세로 화면은 대략 3배 밀도라 환산하면 132~144px이므로 150×124로 잡았다.
+## 버튼 사이 간격 14px도 같은 기준(8dp≈24px의 절반 이상)을 지킨다.
 
 const COL_INK := Color("#1B1622")
 const COL_PANEL := Color("#F7ECD8")
+
+const BTN_SIZE := Vector2(150, 124)
+const BTN_GAP := 14
+const GRID_COLUMNS := 4
+const HUD_LEFT := 24
+const PANEL_WIDTH := 642  # 150*4 + 14*3
+
+## 왼쪽 위 메뉴 — 이름은 다른 게임에서 쓰는 일반적인 용어로 통일한다
+const MENU_ITEMS := [
+    {"label": "인벤토리", "action": "panel", "target": "inventory"},
+    {"label": "장비", "action": "panel", "target": "equip"},
+    {"label": "스킬", "action": "panel", "target": "skill"},
+    {"label": "퀘스트", "action": "panel", "target": "quest"},
+    {"label": "상점", "action": "panel", "target": "shop"},
+    {"label": "앨범", "action": "album", "target": ""},
+    {"label": "설정", "action": "settings", "target": ""},
+]
 
 var _hp_fill: ColorRect
 var _mp_fill: ColorRect
@@ -30,8 +51,8 @@ func _ready() -> void:
 func _build() -> void:
     # ── 왼쪽 위 스탯 패널 ──
     var panel := PanelContainer.new()
-    panel.position = Vector2(24, 24)
-    panel.custom_minimum_size = Vector2(560, 0)
+    panel.position = Vector2(HUD_LEFT, 24)
+    panel.custom_minimum_size = Vector2(PANEL_WIDTH, 0)
     panel.add_theme_stylebox_override("panel", _pixel_box(Color(0.96, 0.93, 0.85, 0.92), COL_INK))
     add_child(panel)
 
@@ -76,10 +97,20 @@ func _build() -> void:
     _coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     cmargin.add_child(_coin_label)
 
-    # ── 현재 목표 ──
+    # ── 왼쪽 위 메뉴 버튼 그리드 (스탯 바로 아래) ──
+    var menu := GridContainer.new()
+    menu.columns = GRID_COLUMNS
+    menu.position = Vector2(HUD_LEFT, 200)
+    menu.add_theme_constant_override("h_separation", BTN_GAP)
+    menu.add_theme_constant_override("v_separation", BTN_GAP)
+    add_child(menu)
+    for item in MENU_ITEMS:
+        _menu_button(menu, item)
+
+    # ── 현재 목표 (버튼 그리드 아래) ──
     var goal_panel := PanelContainer.new()
-    goal_panel.position = Vector2(24, 210)
-    goal_panel.custom_minimum_size = Vector2(560, 0)
+    goal_panel.position = Vector2(HUD_LEFT, 486)
+    goal_panel.custom_minimum_size = Vector2(PANEL_WIDTH, 0)
     goal_panel.add_theme_stylebox_override("panel", _pixel_box(Color(0.16, 0.13, 0.2, 0.80), Color("#6E5F8A")))
     add_child(goal_panel)
 
@@ -91,19 +122,6 @@ func _build() -> void:
     _goal_label = _label("", 24, Color("#FFF6E4"))
     _goal_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     gmargin.add_child(_goal_label)
-
-    # ── 오른쪽 세로 메뉴 버튼 ──
-    var menu := VBoxContainer.new()
-    menu.position = Vector2(910, 470)
-    menu.custom_minimum_size = Vector2(146, 0)
-    menu.add_theme_constant_override("separation", 14)
-    add_child(menu)
-
-    _menu_button(menu, "가방", func(): GameUI.open_panel("bag"))
-    _menu_button(menu, "퀘스트", func(): GameUI.open_panel("quest"))
-    _menu_button(menu, "상점", func(): GameUI.open_panel("shop"))
-    _menu_button(menu, "앨범", func(): GameUI.open_album())
-    _menu_button(menu, "설정", func(): GameUI.open_settings())
 
     # ── 토스트(알림) 영역 ──
     _toast_box = VBoxContainer.new()
@@ -183,19 +201,28 @@ func _add_bar(parent: Control, height: int, color: Color) -> ColorRect:
 func _set_bar(fill: ColorRect, ratio: float) -> void:
     fill.anchor_right = clamp(ratio, 0.0, 1.0)
 
-func _menu_button(parent: Control, text: String, cb: Callable) -> void:
+func _menu_button(parent: Control, item: Dictionary) -> void:
     var b := Button.new()
-    b.text = text
-    b.custom_minimum_size = Vector2(146, 110)
-    b.add_theme_font_size_override("font_size", 30)
+    b.text = item.label
+    b.custom_minimum_size = BTN_SIZE
+    b.add_theme_font_size_override("font_size", 28)
     b.add_theme_color_override("font_color", COL_PANEL)
     b.add_theme_stylebox_override("normal", _pixel_box(Color(0.29, 0.24, 0.39, 0.92), COL_INK))
     b.add_theme_stylebox_override("hover", _pixel_box(Color(0.38, 0.31, 0.5, 0.95), COL_INK))
     b.add_theme_stylebox_override("pressed", _pixel_box(Color(0.19, 0.16, 0.29, 0.95), COL_INK))
-    b.pressed.connect(func():
-        if AudioManager: AudioManager.ui_select()
-        cb.call())
+    b.pressed.connect(_on_menu_pressed.bind(String(item.action), String(item.target)))
     parent.add_child(b)
+
+func _on_menu_pressed(action: String, target: String) -> void:
+    if AudioManager:
+        AudioManager.ui_select()
+    match action:
+        "panel":
+            GameUI.open_panel(target)
+        "album":
+            GameUI.open_album()
+        "settings":
+            GameUI.open_settings()
 
 func _pixel_box(bg: Color, border: Color) -> StyleBoxFlat:
     var sb := StyleBoxFlat.new()
