@@ -69,6 +69,13 @@ func _on_choice(index: int) -> void:
 		SceneTransition.go_to("res://scenes/maps/BossDoorHallway3D.tscn")
 
 func _build_scene() -> void:
+	# 방 밖을 메우는 어두운 바닥. 카메라가 플레이어보다 6m 뒤에서 내려다보기 때문에
+	# 화면 아래쪽은 방 앞 끝(z=8)을 넘어간다. 이게 없으면 그 자리에 아무것도 안 그려져
+	# 하늘색 배경이 그대로 드러난다(화면 아래 15%가 통짜 파란 띠로 보였다).
+	# 방보다 훨씬 넓게 깔아 어디서 보든 어두운 바닥이 받쳐주게 한다.
+	# 윗면을 바닥 윗면(y=0)보다 0.01만 낮춰 둔다 — 더 낮추면 밝은 바닥 슬래브의
+	# 옆면이 드러나 화면을 가로지르는 밝은 선이 생긴다.
+	_box(self, Vector3(0, -0.11, 4), Vector3(44, 0.2, 48), "#1B2430", "OutsideFill")
 	_box(self, Vector3(0, -0.05, 1), Vector3(10, 0.1, 14), "#43566A", "Floor")
 	_box(self, Vector3(-5.1, 2.5, 1), Vector3(0.2, 5, 14), "#2D3A4A", "WallLeft")
 	_box(self, Vector3(5.1, 2.5, 1), Vector3(0.2, 5, 14), "#2D3A4A", "WallRight")
