@@ -1,7 +1,12 @@
 .godot/
 .import/
 export.cfg
-export_presets.cfg
+# export_presets.cfg 는 공유한다 (Android 프리셋). Godot 4는 키스토어 비밀번호 같은
+# 민감한 값을 export_credentials.cfg 에 따로 저장하므로 그 파일만 제외하면 된다.
+export_credentials.cfg
+*.keystore
+*.jks
+build/
 .mono/
 data_*/
 .DS_Store

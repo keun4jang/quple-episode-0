@@ -156,6 +156,30 @@ interactable_3d.gd (Area3D 기반):
 - `item_id`: "camera" / "notebook" / "travel_bag" / "badge"
 - 금색 구체 힌트가 위에서 bobbing
 
+## Android 빌드
+저장소에 들어있는 설정 (이미 반영됨):
+- `project.godot`
+  - `window/handheld/orientation=1` — 세로 고정
+  - `pointing/emulate_touch_from_mouse=true` — **중요**: `VirtualJoystick`은 `InputEventScreenTouch`
+    /`ScreenDrag`만 처리하므로 이 설정이 없으면 데스크톱에서 마우스로 조이스틱을 못 움직인다
+  - `renderer/rendering_method.mobile="mobile"` — 안드로이드는 Mobile 렌더러
+  - `textures/vram_compression/import_etc2_astc=true` — 모바일 텍스처 압축
+- `export_presets.cfg` — Android 프리셋 (APK, arm64-v8a + armeabi-v7a, 몰입 모드,
+  패키지명 `com.quokkacorp.quple0`, 버전 0.1.0). 배포 전에 패키지명은 본인 도메인으로 바꿀 것.
+
+빌드하려면 (이 컨테이너·CI에서는 불가 — Godot 에디터와 Android SDK가 필요):
+1. 에디터 → 편집기 설정 → Export → Android 에서 Android SDK 경로 지정
+2. 내보내기 템플릿 설치 (에디터 → 프로젝트 → 내보내기 템플릿 관리)
+3. 디버그 빌드는 에디터가 디버그 키스토어를 자동 생성한다. 릴리스는 직접 만든 키스토어 사용
+4. **키스토어와 비밀번호는 절대 커밋하지 말 것** — `.gitignore`에 `*.keystore`, `*.jks`,
+   `export_credentials.cfg`(Godot 4가 비밀번호를 저장하는 파일)를 등록해뒀다
+
+알아둘 것:
+- Mobile 렌더러는 **SSAO를 지원하지 않는다** (glow는 된다). 안드로이드에서는 씬의 SSAO 설정이
+  무시되므로 PC보다 음영이 얕게 보인다.
+- 런처 아이콘을 지정하지 않아 Godot 기본 아이콘이 쓰인다. 커스텀 아이콘은 이미지 파일이
+  필요한데 "외부 이미지 금지" 원칙과 부딪히므로, 넣을지 여부는 별도 결정이 필요하다.
+
 ## 현재 진행 상황
 - ✅ 4개 맵 씬 완성 (CompanyFront, Lobby, Office, BossDoorHallway)
 - ✅ 캐릭터 완성 (눈 3레이어, 꼬리, 감정 시스템)
@@ -172,9 +196,10 @@ interactable_3d.gd (Area3D 기반):
 - ✅ 스킬별 고유 이펙트 (파편 색·모양·플래시 색을 스킬마다 다르게)
 - ✅ 그림자 감정 2종 추가 (미루기·강박) — 일반 적 9종 + 보스
 - ✅ 장비 4종(슬롯당 기본/상위) + 3D 캐릭터에 실제 착용 표시
+- ✅ Android 빌드 설정 (세로 고정, 터치, Mobile 렌더러, Android 내보내기 프리셋)
 
 ## 다음 작업 후보
-- Android 빌드 설정
+- 실제 기기에서 APK 빌드·플레이 테스트 (지금까지 전부 미검증)
 - 장비 슬롯 추가 (장갑·신발 등)
 - 그림자 감정별 고유 행동 패턴 (지금은 전부 단순 공격)
 
