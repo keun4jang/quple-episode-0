@@ -7,6 +7,7 @@ signal stats_changed
 signal leveled_up(new_level: int)
 signal coins_changed(amount: int)
 signal item_changed(item_id: String, count: int)
+signal equipment_changed
 
 var level: int = 1
 var exp_points: int = 0
@@ -23,6 +24,9 @@ var skills: Array = ["laugh", "breath"]
 
 ## 소비 아이템 보유량 { item_id: 개수 }
 var inventory: Dictionary = {}
+
+## 장비 슬롯 { slot: item_id } — 목도리(scarf)/모자(hat) 등 상시 착용 장비
+var equipment: Dictionary = {}
 
 ## 레벨업에 필요한 누적 경험치
 func exp_to_next() -> int:
@@ -138,6 +142,51 @@ func total_items() -> int:
         n += inventory[k]
     return n
 
+# ── 장비 (상시 착용) ──────────────────────────────────
+func is_item_equipped(item_id: String) -> bool:
+    var item := ItemDB.get_item(item_id)
+    return equipment.get(item.get("slot", ""), "") == item_id
+
+## 장비를 착용한다. 같은 슬롯에 이미 다른 장비가 있으면 자동으로 해제 후 갈아입는다.
+func equip_item(item_id: String) -> bool:
+    var item := ItemDB.get_item(item_id)
+    if item.is_empty() or item.kind != "equipment" or item_count(item_id) <= 0:
+        return false
+    var slot: String = item.slot
+    if equipment.get(slot, "") == item_id:
+        return false
+    if equipment.has(slot):
+        _apply_equip_effect(equipment[slot], -1)
+    equipment[slot] = item_id
+    _apply_equip_effect(item_id, 1)
+    stats_changed.emit()
+    equipment_changed.emit()
+    return true
+
+func unequip_slot(slot: String) -> bool:
+    if not equipment.has(slot):
+        return false
+    _apply_equip_effect(equipment[slot], -1)
+    equipment.erase(slot)
+    stats_changed.emit()
+    equipment_changed.emit()
+    return true
+
+func _apply_equip_effect(item_id: String, sign: int) -> void:
+    var eff: Dictionary = ItemDB.get_item(item_id).get("effect", {})
+    if eff.has("defense"):
+        defense = max(0, defense + sign * int(eff.defense))
+    if eff.has("attack"):
+        attack = max(1, attack + sign * int(eff.attack))
+    if eff.has("max_hp"):
+        var delta: int = sign * int(eff.max_hp)
+        max_hp = max(1, max_hp + delta)
+        hp = clamp(hp + delta, 0, max_hp)
+    if eff.has("max_mp"):
+        var delta_mp: int = sign * int(eff.max_mp)
+        max_mp = max(0, max_mp + delta_mp)
+        mp = clamp(mp + delta_mp, 0, max_mp)
+
 # ── 저장/불러오기용 ───────────────────────────────────
 func to_dict() -> Dictionary:
     return {
@@ -152,6 +201,7 @@ func to_dict() -> Dictionary:
         "coins": coins,
         "skills": skills,
         "inventory": inventory,
+        "equipment": equipment,
     }
 
 func from_dict(d: Dictionary) -> void:
@@ -166,7 +216,11 @@ func from_dict(d: Dictionary) -> void:
     coins = d.get("coins", 0)
     skills = d.get("skills", ["laugh", "breath"])
     inventory = d.get("inventory", {})
+    # attack/defense/max_hp/max_mp는 이미 장비 보너스가 반영된 값으로 저장되어 있으므로
+    # equipment는 표시용으로만 복원하고 _apply_equip_effect()를 다시 적용하지 않는다.
+    equipment = d.get("equipment", {})
     stats_changed.emit()
+    equipment_changed.emit()
 
 func reset_new_game() -> void:
     level = 1
@@ -180,4 +234,6 @@ func reset_new_game() -> void:
     coins = 0
     skills = ["laugh", "breath"]
     inventory = {"cocoa": 2, "cookie": 1}
+    equipment = {}
     stats_changed.emit()
+    equipment_changed.emit()

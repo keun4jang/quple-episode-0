@@ -2,10 +2,16 @@ extends Node
 ## ItemDB — 아이템 정의 모음. 외부 이미지 없이 8×8 픽셀 아트 문자열로 아이콘을 만든다.
 ##
 ## kind:
-##   "consumable" — 가방에서 사용/전투 중 사용 가능, 상점에서 구매 가능
+##   "consumable" — 가방에서 사용/전투 중 사용 가능, 상점에서 구매 가능. 쓰면 1개 소모된다.
+##   "equipment"  — 슬롯(slot)에 상시 착용하는 장비. 소모되지 않고, 장착 중에는 effect가
+##                  PlayerStats 스탯에 영구 반영된다(해제하면 그만큼 다시 빠진다).
 ##   "story"      — 스토리 진행용(카메라·수첩 등). 사용 불가, 가방에 전시만 된다.
 ##
 ## effect: { "hp": n, "mp": n, "atk_buff": n, "def_buff": n, "revive": true }
+##   (equipment 아이템의 effect는 "defense"/"attack"/"max_hp"/"max_mp" 중 하나 — 착용 시 그만큼 영구 증가)
+## wear: { "color": 본체색, "accent": 포인트색, "style": 모양 }
+##   장비를 3D 캐릭터에 그릴 때 쓴다. slot이 모양 종류를 정하고(scarf=목에 두르는 링,
+##   hat=머리에 쓰는 것), style이 세부를 정한다(plain/star, beanie/cap).
 
 const PALETTE := {
     "k": "#2A211C",  # 외곽선(어두운 갈색)
@@ -94,10 +100,12 @@ const ITEMS := {
     },
     "scarf": {
         "name": "포근한 목도리",
-        "desc": "전투가 끝날 때까지 방어가 오른다.",
-        "kind": "consumable",
-        "price": 55,
-        "effect": {"def_buff": 9},
+        "desc": "항상 두르고 있으면 마음이 든든해진다. 방어 +4 (상시 착용).",
+        "kind": "equipment",
+        "slot": "scarf",
+        "price": 70,
+        "effect": {"defense": 4},
+        "wear": {"color": "#E0645A", "accent": "#FFF6E4", "style": "plain"},
         "art": [
             "........",
             ".rrrrrr.",
@@ -106,6 +114,63 @@ const ITEMS := {
             "...rr...",
             "...rwr..",
             "...rr...",
+            "........",
+        ],
+    },
+    "star_scarf": {
+        "name": "별무늬 목도리",
+        "desc": "밤하늘을 두른 것 같다. 방어 +7 (상시 착용).",
+        "kind": "equipment",
+        "slot": "scarf",
+        "price": 150,
+        "effect": {"defense": 7},
+        "wear": {"color": "#3E5AA8", "accent": "#F5D563", "style": "star"},
+        "art": [
+            "........",
+            ".bbbbbb.",
+            "bybybybb",
+            ".bbbbbb.",
+            "...bb...",
+            "...byb..",
+            "...bb...",
+            "........",
+        ],
+    },
+    "hat": {
+        "name": "털모자",
+        "desc": "포근하게 감싸주면 마음에 여유가 생긴다. 마음력 최대치 +10 (상시 착용).",
+        "kind": "equipment",
+        "slot": "hat",
+        "price": 65,
+        "effect": {"max_mp": 10},
+        "wear": {"color": "#E8A24A", "accent": "#FFF6E4", "style": "beanie"},
+        "art": [
+            "..oooo..",
+            ".oyyyyo.",
+            "oyyyyyyo",
+            "oyyyyyyo",
+            "oyyyyyyo",
+            "kkkkkkkk",
+            "kwwwwwwk",
+            "........",
+        ],
+    },
+    "travel_cap": {
+        "name": "여행 모자",
+        "desc": "챙이 있어 먼 곳을 보기 좋다. 마음력 최대치 +6, 마음의 힘 +2 (상시 착용).",
+        "kind": "equipment",
+        "slot": "hat",
+        "price": 140,
+        "effect": {"max_mp": 6, "attack": 2},
+        "wear": {"color": "#7A8B4F", "accent": "#5A4636", "style": "cap"},
+        "art": [
+            "..gggg..",
+            ".gggggg.",
+            "gggggggg",
+            "gggggggg",
+            "kkkkkkkk",
+            ".dddddd.",
+            "........",
             "........",
         ],
     },
@@ -209,11 +274,14 @@ func is_consumable(id: String) -> bool:
 func is_story_item(id: String) -> bool:
     return ITEMS.get(id, {}).get("kind", "") == "story"
 
-## 상점 판매 목록 (자판기)
+func is_equipment(id: String) -> bool:
+    return ITEMS.get(id, {}).get("kind", "") == "equipment"
+
+## 상점 판매 목록 (자판기) — 소비 아이템과 장비를 함께 판다
 func shop_list() -> Array:
     var out: Array = []
     for id in ITEMS:
-        if ITEMS[id].kind == "consumable":
+        if ITEMS[id].kind == "consumable" or ITEMS[id].kind == "equipment":
             out.append(id)
     out.sort_custom(func(a, b): return ITEMS[a].price < ITEMS[b].price)
     return out

@@ -14,10 +14,10 @@ const NO_HUD_SCENES := ["MainMenu3D", "StartScreen", "CharPreview"]
 
 ## 맵마다 등장하는 그림자 감정
 const SPAWN_TABLE := {
-    "CompanyFront3D": ["anxiety", "anxiety", "comparison"],
-    "CompanyLobby3D": ["anxiety", "comparison", "misfortune"],
-    "Office3D": ["misfortune", "greed", "burnout"],
-    "BossDoorHallway3D": ["overtime", "greed"],
+    "CompanyFront3D": ["anxiety", "procrastination", "comparison"],
+    "CompanyLobby3D": ["anxiety", "comparison", "misfortune", "loneliness"],
+    "Office3D": ["misfortune", "greed", "burnout", "impatience"],
+    "BossDoorHallway3D": ["overtime", "greed", "obsession"],
 }
 
 # 런타임에 스크립트를 붙여 만들기 때문에 타입을 지정하지 않는다(메서드가 스크립트 쪽에 있음)

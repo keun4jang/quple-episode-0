@@ -2,6 +2,9 @@ extends "res://scripts/ui/menu_panel.gd"
 ## BagUI — 가방. 오직 "아이템"만 들어있다.
 ## (퀘스트는 별도 메뉴로 분리했다 — 가방에 퀘스트가 있으면 이상하니까.)
 
+## 장비 슬롯 표시 이름 (같은 자리 장비는 하나만 착용된다)
+const SLOT_NAMES := {"scarf": "목", "hat": "머리"}
+
 func panel_title() -> String:
     return "가방"
 
@@ -10,12 +13,21 @@ func _refresh_content() -> void:
     set_subtitle("아이템 %d개   ·   ✦ %d" % [PlayerStats.total_items(), PlayerStats.coins])
 
     var consumables: Array = []
+    var equipment_items: Array = []
     var story_items: Array = []
     for id in PlayerStats.inventory.keys():
         if ItemDB.is_story_item(id):
             story_items.append(id)
+        elif ItemDB.is_equipment(id):
+            equipment_items.append(id)
         else:
             consumables.append(id)
+
+    content.add_child(make_label("— 장비 (상시 착용) —", 30, Color("#6A5A4A")))
+    if equipment_items.is_empty():
+        content.add_child(make_label("아직 장비가 없어요. 상점에서 사거나 그림자를 물리치면 얻어요.", 26, Color("#8A7A6A")))
+    for id in equipment_items:
+        content.add_child(_equip_card(id))
 
     content.add_child(make_label("— 쓸 수 있는 것 —", 30, Color("#6A5A4A")))
     if consumables.is_empty():
@@ -63,10 +75,55 @@ func _item_card(item_id: String, usable: bool) -> PanelContainer:
             row.add_child(make_small_button("사용", func(): _use(item_id)))
     return card
 
+func _equip_card(item_id: String) -> PanelContainer:
+    var item: Dictionary = ItemDB.get_item(item_id)
+    var equipped: bool = PlayerStats.is_item_equipped(item_id)
+    var card := make_card(Color("#7FBF6A") if equipped else COL_INK)
+    var margin := MarginContainer.new()
+    set_margins(margin, 16)
+    card.add_child(margin)
+
+    var row := HBoxContainer.new()
+    row.add_theme_constant_override("separation", 18)
+    margin.add_child(row)
+
+    var icon_wrap := Control.new()
+    icon_wrap.custom_minimum_size = Vector2(80, 80)
+    PixelArt.build(item.art, ItemDB.PALETTE, 10.0, icon_wrap)
+    row.add_child(icon_wrap)
+
+    var text_col := VBoxContainer.new()
+    text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    row.add_child(text_col)
+
+    var count: int = PlayerStats.item_count(item_id)
+    var slot_name: String = SLOT_NAMES.get(item.get("slot", ""), "장비")
+    var title := "%s   ×%d   [%s]" % [item.name, count, slot_name]
+    if equipped:
+        title += "   (착용 중)"
+    text_col.add_child(make_label(title, 32, COL_INK))
+    text_col.add_child(make_label(item.desc, 24, Color("#6A5A4A")))
+
+    if equipped:
+        row.add_child(make_small_button("해제", func(): _unequip(item.slot)))
+    else:
+        row.add_child(make_small_button("착용", func(): _equip(item_id)))
+    return card
+
 func _use(item_id: String) -> void:
     var msg := ItemDB.use_item(item_id, false)
     if msg == "":
         GameUI.toast("지금은 쓸 수 없어요.")
     else:
         GameUI.toast(msg, Color("#7FBF6A"))
+    _refresh_content()
+
+func _equip(item_id: String) -> void:
+    var item: Dictionary = ItemDB.get_item(item_id)
+    if PlayerStats.equip_item(item_id):
+        GameUI.toast("%s 착용!" % item.name, Color("#7FBF6A"))
+    _refresh_content()
+
+func _unequip(slot: String) -> void:
+    PlayerStats.unequip_slot(slot)
     _refresh_content()

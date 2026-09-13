@@ -11,6 +11,16 @@ const COL_MP := Color("#6C9BD4")
 const COL_EXP := Color("#F5D563")
 const COL_GOLD := Color("#F5D563")
 
+## 스킬별 고유 연출 — color: 파편 색, count/min_size/max_size: 파편 개수·크기, speed: 퍼지는 거리,
+## rise: true면 위로 떠오름/false면 사방으로 터짐, dur: 지속시간, flash: 피격 시 화면 플래시 색(없으면 "")
+const SKILL_FX := {
+    "laugh": {"color": "#FFE066", "count": 10, "min_size": 6.0, "max_size": 10.0, "speed": 90.0, "rise": false, "dur": 0.45, "flash": "#FFF6C4"},
+    "daydream": {"color": "#B9C6F5", "count": 8, "min_size": 8.0, "max_size": 14.0, "speed": 60.0, "rise": true, "dur": 1.0, "flash": "#D8E0FF"},
+    "hug": {"color": "#FF7FA0", "count": 14, "min_size": 10.0, "max_size": 16.0, "speed": 110.0, "rise": false, "dur": 0.55, "flash": "#FFC9D6"},
+    "breath": {"color": "#8FE0C6", "count": 10, "min_size": 6.0, "max_size": 10.0, "speed": 55.0, "rise": true, "dur": 1.1, "flash": ""},
+    "cheer": {"color": "#F5D563", "count": 10, "min_size": 8.0, "max_size": 12.0, "speed": 95.0, "rise": true, "dur": 0.6, "flash": ""},
+}
+
 var _root: Control
 var _backdrop: ColorRect
 var _flash: ColorRect
@@ -345,9 +355,11 @@ func _play_event(ev: Dictionary) -> void:
         "damage_enemy":
             if AudioManager:
                 AudioManager.play_sfx("confirm")
-            await _do_flash(0.5, 0.08)
+            var skill_id: String = ev.get("skill", "")
+            await _do_flash(0.5, 0.08, _skill_flash_color(skill_id))
             _shake = 18.0 if ev.get("crit", false) else 10.0
             _hit_sprite()
+            _play_skill_burst(skill_id, true)
             _spawn_damage_number(ev.amount, ev.get("crit", false), true)
             _refresh_bars()
             if ev.get("crit", false):
@@ -365,10 +377,12 @@ func _play_event(ev: Dictionary) -> void:
         "heal":
             if ev.amount > 0:
                 _spawn_float_text("+%d" % ev.amount, Color("#7FBF6A"), false)
+                _play_skill_burst(ev.get("skill", ""), false)
             _refresh_bars()
             await get_tree().create_timer(0.35).timeout
         "buff":
             _spawn_float_text("힘 +%d" % ev.amount, COL_GOLD, false)
+            _play_skill_burst(ev.get("skill", ""), false)
             await get_tree().create_timer(0.35).timeout
         "weakness":
             if AudioManager:
@@ -459,11 +473,46 @@ func _restore_field_bgm() -> void:
             AudioManager.play_bgm("indoor")
 
 # ── 연출 도우미 ──────────────────────────────────────
-func _do_flash(strength: float, dur: float) -> void:
-    _flash.color = Color(1, 1, 1, strength)
+func _do_flash(strength: float, dur: float, tint: Color = Color(1, 1, 1)) -> void:
+    _flash.color = Color(tint, strength)
     var t := create_tween()
     t.tween_property(_flash, "color:a", 0.0, dur)
     await t.finished
+
+func _skill_flash_color(skill_id: String) -> Color:
+    if SKILL_FX.has(skill_id) and SKILL_FX[skill_id].get("flash", "") != "":
+        return Color(SKILL_FX[skill_id].flash)
+    return Color(1, 1, 1)
+
+## 스킬별 고유 파편 연출 — on_enemy=true면 적 위치, false면 플레이어 위치에서 터진다
+func _play_skill_burst(skill_id: String, on_enemy: bool) -> void:
+    if not SKILL_FX.has(skill_id):
+        return
+    var fx: Dictionary = SKILL_FX[skill_id]
+    var origin := Vector2(540, 520) if on_enemy else Vector2(540, 1240)
+    _spawn_burst(origin, Color(fx.color), fx.count, fx.min_size, fx.max_size, fx.speed, fx.rise, fx.dur)
+
+func _spawn_burst(origin: Vector2, color: Color, count: int, min_size: float, max_size: float, speed: float, rise: bool, duration: float) -> void:
+    for i in range(count):
+        var p := ColorRect.new()
+        var s: float = randf_range(min_size, max_size)
+        p.size = Vector2(s, s)
+        p.color = color
+        p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        p.z_index = 45
+        p.position = origin + Vector2(randf_range(-16, 16), randf_range(-16, 16))
+        _root.add_child(p)
+        var target: Vector2
+        if rise:
+            target = p.position + Vector2(randf_range(-50, 50), -randf_range(speed * 0.7, speed))
+        else:
+            var angle := randf_range(0, TAU)
+            target = p.position + Vector2(cos(angle), sin(angle)) * randf_range(speed * 0.6, speed)
+        var t := create_tween()
+        t.set_parallel(true)
+        t.tween_property(p, "position", target, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+        t.tween_property(p, "modulate:a", 0.0, duration)
+        t.chain().tween_callback(p.queue_free)
 
 func _spawn_damage_number(amount: int, big: bool, on_enemy: bool) -> void:
     var color := Color("#FFF6E4") if on_enemy else COL_HP

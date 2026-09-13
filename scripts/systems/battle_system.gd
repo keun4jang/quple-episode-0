@@ -93,7 +93,7 @@ const ENEMIES := {
         "line": "\"쟤는 너보다 잘하잖아.\"",
         "hp": 34, "atk": 10, "def": 3,
         "exp": 22, "coins": 18,
-        "weak": "cheer",
+        "weak": "laugh",
         "drop": {"cookie": 0.3},
         "colors": {"X": "#C46C9E", "D": "#934973", "L": "#E4A0C6", "A": "#FFE0F0"},
         "art": [
@@ -117,7 +117,7 @@ const ENEMIES := {
         "line": "\"...아무것도 하기 싫어.\"",
         "hp": 56, "atk": 15, "def": 5,
         "exp": 40, "coins": 38,
-        "weak": "breath",
+        "weak": "hug",
         "drop": {"energy_drink": 0.4, "star_candy": 0.05},
         "colors": {"X": "#7A7A82", "D": "#4E4E56", "L": "#A6A6B0", "A": "#E86A4A"},
         "art": [
@@ -133,6 +133,102 @@ const ENEMIES := {
             "..X.XXXX.X..",
             "..X..XX..X..",
             "............",
+        ],
+    },
+    "loneliness": {
+        "name": "외로움",
+        "title": "아무도 없는 로비에 남은 메아리",
+        "line": "\"다들 집에 갔구나... 나만 아직 여기 남았어.\"",
+        "hp": 36, "atk": 10, "def": 3,
+        "exp": 24, "coins": 20,
+        "weak": "laugh",
+        "drop": {"cocoa": 0.3, "scarf": 0.1},
+        "colors": {"X": "#4E6478", "D": "#31404F", "L": "#7E96AC", "A": "#FFD9A0"},
+        "art": [
+            "....XXXX....",
+            "...XXXXXX...",
+            "..XXXXXXXX..",
+            ".XXXXXXXXXX.",
+            "XXXDDDDDXXXX",
+            "XXDDXXXXDDXX",
+            "XXXXXDDXXXXX",
+            ".XXXXXXXXXX.",
+            "..XXXXXXXX..",
+            "...XDDDDX...",
+            "....XXXX....",
+            "...A....A...",
+        ],
+    },
+    "impatience": {
+        "name": "조급함",
+        "title": "숨 돌릴 틈도 주지 않는 초침",
+        "line": "\"빨리, 빨리… 지금 아니면 늦어버릴 거야.\"",
+        "hp": 48, "atk": 13, "def": 3,
+        "exp": 34, "coins": 32,
+        "weak": "daydream",
+        "drop": {"energy_drink": 0.3, "clover": 0.12},
+        "colors": {"X": "#E8622E", "D": "#B8451C", "L": "#F5A467", "A": "#FFE066"},
+        "art": [
+            ".A..XXXX..A.",
+            ".XLXXXXXXXX.",
+            "XXXXDDDDXXXX",
+            "XXWWXXXXWWXX",
+            "XWKWXXXXWKWX",
+            "XXAXXDDXXAXX",
+            "XXXXXDDXXXXX",
+            ".XLXXXXXXXX.",
+            "AXXXXXXXXXX.",
+            "AAXXXXXXXX..",
+            "XX......XXX.",
+            "A.......XX..",
+        ],
+    },
+    "procrastination": {
+        "name": "미루기",
+        "title": "내일의 나에게 떠넘기는 손",
+        "line": "\"이건 내일의 내가 하면 돼.\"",
+        "hp": 40, "atk": 7, "def": 4,
+        "exp": 26, "coins": 22,
+        "weak": "daydream",
+        "drop": {"cocoa": 0.3, "cookie": 0.2},
+        "colors": {"X": "#6F8F5C", "D": "#4A6B3C", "L": "#9CBE86", "A": "#F0E3A8"},
+        "art": [
+            "............",
+            "...XXXXXX...",
+            "..XXXXXXXX..",
+            ".XXXXXXXXXX.",
+            ".XDDXXXXDDX.",
+            ".XWKXXXXWKX.",
+            ".XXXXXXXXXX.",
+            "XXXXXAAXXXXX",
+            "XXXXXAAXXXXX",
+            "XXXXXXXXXXXX",
+            ".XXXXXXXXXX.",
+            "..X..XX..X..",
+        ],
+    },
+    "obsession": {
+        "name": "강박",
+        "title": "몇 번을 확인해도 모자란 눈",
+        "line": "\"완벽하지 않으면, 아무 소용 없어.\"",
+        "hp": 52, "atk": 16, "def": 5,
+        "exp": 42, "coins": 36,
+        "weak": "hug",
+        "drop": {"energy_drink": 0.35, "clover": 0.12, "star_scarf": 0.06},
+        "colors": {"X": "#9B3FBF", "D": "#6B2287", "L": "#C97FE8", "A": "#FFF6E4"},
+        "art": [
+            "..X......X..",
+            "..X.XXXX.X..",
+            ".XXXXXXXXXX.",
+            ".XWWXXXXWWX.",
+            ".XWKXXXXWKX.",
+            ".XXXXXXXXXX.",
+            "XXAXAXAXAXXX",
+            "XXAXAXAXAXXX",
+            "XXXXXXXXXXXX",
+            ".XXXXXXXXXX.",
+            ".X.X....X.X.",
+            ".X.X....X.X.",
         ],
     },
     "overtime": {
@@ -254,7 +350,9 @@ func player_use_skill(skill_id: String) -> Array:
         events.append({"type": "text", "msg": "마음력이 부족해요."})
         return events
 
-    var hit_weakness: bool = ENEMIES[enemy_id].get("weak", "") == skill_id
+    # 약점 판정은 공격형 스킬에만 적용한다 — 회복/버프 스킬은 적에게 피해를 주지 않으므로
+    # 여기에 걸리면 "피해 0 + 적 턴 스킵"이 되어 무한 회복 악용이 가능해진다.
+    var hit_weakness: bool = skill.type == "attack" and ENEMIES[enemy_id].get("weak", "") == skill_id
 
     turn_count += 1
     match skill.type:
@@ -270,7 +368,7 @@ func player_use_skill(skill_id: String) -> Array:
             var dmg := _calc_player_damage(power)
             var crit: bool = dmg.crit
             enemy.hp = max(0, enemy.hp - dmg.amount)
-            events.append({"type": "damage_enemy", "amount": dmg.amount, "crit": crit, "weak": hit_weakness})
+            events.append({"type": "damage_enemy", "amount": dmg.amount, "crit": crit, "weak": hit_weakness, "skill": skill_id})
             if skill.has("enemy_atk_down"):
                 enemy.atk = max(1, enemy.atk - skill.enemy_atk_down)
                 events.append({"type": "text", "msg": "%s의 기세가 꺾였다! (공격 -%d)" % [enemy.name, skill.enemy_atk_down]})
@@ -278,11 +376,11 @@ func player_use_skill(skill_id: String) -> Array:
             var amount: int = skill.heal_base + PlayerStats.level * 3
             var healed := PlayerStats.heal(amount)
             events.append({"type": "text", "msg": "%s — 체력 %d 회복." % [skill.name, healed]})
-            events.append({"type": "heal", "amount": healed})
+            events.append({"type": "heal", "amount": healed, "skill": skill_id})
         "buff":
             atk_buff += skill.atk_buff
             events.append({"type": "text", "msg": "%s! 마음의 힘 +%d" % [skill.name, skill.atk_buff]})
-            events.append({"type": "buff", "amount": skill.atk_buff})
+            events.append({"type": "buff", "amount": skill.atk_buff, "skill": skill_id})
 
     if enemy.hp <= 0:
         events.append({"type": "enemy_defeated"})
