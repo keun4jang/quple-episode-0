@@ -10,8 +10,9 @@ extends Node
 ## effect: { "hp": n, "mp": n, "atk_buff": n, "def_buff": n, "revive": true }
 ##   (equipment 아이템의 effect는 "defense"/"attack"/"max_hp"/"max_mp" 중 하나 — 착용 시 그만큼 영구 증가)
 ## wear: { "color": 본체색, "accent": 포인트색, "style": 모양 }
-##   장비를 3D 캐릭터에 그릴 때 쓴다. slot이 모양 종류를 정하고(scarf=목에 두르는 링,
-##   hat=머리에 쓰는 것), style이 세부를 정한다(plain/star, beanie/cap).
+##   장비를 3D 캐릭터에 그릴 때 쓴다. slot이 붙는 자리와 모양 종류를 정하고
+##   (scarf=목에 두르는 링, hat=머리, gloves=양손, shoes=양발),
+##   style이 세부를 정한다(plain/star, beanie/cap, mitten/glove, slipper/sneaker).
 
 const PALETTE := {
     "k": "#2A211C",  # 외곽선(어두운 갈색)
@@ -171,6 +172,82 @@ const ITEMS := {
             "kkkkkkkk",
             ".dddddd.",
             "........",
+            "........",
+        ],
+    },
+    "mittens": {
+        "name": "벙어리장갑",
+        "desc": "손이 따뜻하면 마음에도 힘이 들어간다. 마음의 힘 +3 (상시 착용).",
+        "kind": "equipment",
+        "slot": "gloves",
+        "price": 80,
+        "effect": {"attack": 3},
+        "wear": {"color": "#E08CA0", "accent": "#FFF6E4", "style": "mitten"},
+        "art": [
+            "........",
+            "..pppp..",
+            ".pppppp.",
+            "ppppppp.",
+            "ppppppp.",
+            ".wwwwww.",
+            "..wwww..",
+            "........",
+        ],
+    },
+    "travel_gloves": {
+        "name": "여행 장갑",
+        "desc": "손끝까지 야무지게 감싼다. 마음의 힘 +5, 방어 +1 (상시 착용).",
+        "kind": "equipment",
+        "slot": "gloves",
+        "price": 160,
+        "effect": {"attack": 5, "defense": 1},
+        "wear": {"color": "#8A5A3A", "accent": "#5A4636", "style": "glove"},
+        "art": [
+            "........",
+            ".n.nn.n.",
+            "nnnnnnnn",
+            "nnnnnnnn",
+            "nnnnnnnn",
+            ".dddddd.",
+            "..dddd..",
+            "........",
+        ],
+    },
+    "slippers": {
+        "name": "푹신한 실내화",
+        "desc": "발이 편하면 덜 지친다. 체력 최대치 +12 (상시 착용).",
+        "kind": "equipment",
+        "slot": "shoes",
+        "price": 75,
+        "effect": {"max_hp": 12},
+        "wear": {"color": "#8FD8E0", "accent": "#FFF6E4", "style": "slipper"},
+        "art": [
+            "........",
+            "..cccc..",
+            ".cccccc.",
+            "cccccccc",
+            "cwwwwwwc",
+            "kkkkkkkk",
+            "........",
+            "........",
+        ],
+    },
+    "travel_shoes": {
+        "name": "여행 운동화",
+        "desc": "어디든 걸어갈 수 있을 것 같다. 체력 최대치 +20, 마음의 힘 +1 (상시 착용).",
+        "kind": "equipment",
+        "slot": "shoes",
+        "price": 170,
+        "effect": {"max_hp": 20, "attack": 1},
+        "wear": {"color": "#7FBF6A", "accent": "#FFF6E4", "style": "sneaker"},
+        "art": [
+            "........",
+            "...gg...",
+            "..gggg..",
+            ".gggggg.",
+            "gwgwgwgg",
+            "gggggggg",
+            "kkkkkkkk",
             "........",
         ],
     },

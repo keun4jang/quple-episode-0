@@ -22,9 +22,9 @@ var _left_eye_hl: MeshInstance3D
 var _right_eye_hl: MeshInstance3D
 var _tail_mesh: MeshInstance3D
 
-# 착용 장비를 붙이는 자리 (목/머리)
-var _scarf_root: Node3D
-var _hat_root: Node3D
+# 착용 장비를 붙이는 자리 — { 슬롯: [Node3D, ...] }
+# 손/발처럼 좌우 두 곳에 붙는 슬롯이 있어서 슬롯마다 배열로 들고 있는다.
+var _equip_roots: Dictionary = {}
 
 @onready var body_pivot: Node3D = $BodyPivot
 @onready var head_pivot: Node3D = $BodyPivot/HeadPivot
@@ -298,25 +298,39 @@ func _build_quokka(_unused, c: Dictionary) -> void:
 		$BodyPivot/BackpackPivot.add_child(matroll)
 
 # ── 장비 착용 표시 ────────────────────────────────────
-## 목/머리에 장비 메시를 붙일 빈 자리를 만든다. 위치는 쿼카 몸 비율에 맞춰 고정.
+## 슬롯마다 장비 메시를 붙일 빈 자리를 만든다. 위치는 쿼카 몸 비율에 맞춰 고정.
+## 손·발은 좌우 두 곳이라 자리도 두 개씩 만든다.
 func _setup_equipment_roots() -> void:
-	_scarf_root = Node3D.new()
-	_scarf_root.position = Vector3(0, 0.24, 0)
-	$BodyPivot.add_child(_scarf_root)
-	_hat_root = Node3D.new()
-	_hat_root.position = Vector3(0, 0.13, 0)
-	$BodyPivot/HeadPivot.add_child(_hat_root)
+	_equip_roots = {
+		"scarf": [_make_equip_root($BodyPivot, Vector3(0, 0.24, 0))],
+		"hat": [_make_equip_root($BodyPivot/HeadPivot, Vector3(0, 0.13, 0))],
+		"gloves": [
+			_make_equip_root($BodyPivot/LeftArmPivot, Vector3(0, -0.24, 0.01)),
+			_make_equip_root($BodyPivot/RightArmPivot, Vector3(0, -0.24, 0.01)),
+		],
+		"shoes": [
+			_make_equip_root($BodyPivot/LeftLegPivot, Vector3(0, -0.16, 0.05)),
+			_make_equip_root($BodyPivot/RightLegPivot, Vector3(0, -0.16, 0.05)),
+		],
+	}
+
+func _make_equip_root(parent: Node3D, pos: Vector3) -> Node3D:
+	var n = Node3D.new()
+	n.position = pos
+	parent.add_child(n)
+	return n
 
 ## PlayerStats.equipment 를 보고 실제 메시를 다시 만든다 (장비 변경 시마다 호출)
 func _refresh_equipment() -> void:
-	if _scarf_root == null or _hat_root == null:
+	if _equip_roots.is_empty():
 		return
-	for root in [_scarf_root, _hat_root]:
-		for c in root.get_children():
-			root.remove_child(c)
-			c.queue_free()
-	_build_worn(_scarf_root, String(PlayerStats.equipment.get("scarf", "")))
-	_build_worn(_hat_root, String(PlayerStats.equipment.get("hat", "")))
+	for slot in _equip_roots:
+		var item_id = String(PlayerStats.equipment.get(slot, ""))
+		for root in _equip_roots[slot]:
+			for c in root.get_children():
+				root.remove_child(c)
+				c.queue_free()
+			_build_worn(root, item_id)
 
 func _build_worn(root: Node3D, item_id: String) -> void:
 	if item_id == "":
@@ -333,6 +347,10 @@ func _build_worn(root: Node3D, item_id: String) -> void:
 			_build_worn_scarf(root, col, accent, style)
 		"hat":
 			_build_worn_hat(root, col, accent, style)
+		"gloves":
+			_build_worn_gloves(root, col, accent, style)
+		"shoes":
+			_build_worn_shoes(root, col, accent, style)
 
 func _build_worn_scarf(root: Node3D, col: Color, accent: Color, style: String) -> void:
 	# 목에 두르는 링
@@ -414,6 +432,57 @@ func _build_worn_hat(root: Node3D, col: Color, accent: Color, style: String) -> 
 		pom.material_override = _wear_mat(accent)
 		pom.position = Vector3(0, 0.16, 0)
 		root.add_child(pom)
+
+func _build_worn_gloves(root: Node3D, col: Color, accent: Color, style: String) -> void:
+	# 손을 감싸는 덩어리 (원래 손보다 한 겹 크게)
+	var mitt = MeshInstance3D.new()
+	var mm = SphereMesh.new()
+	mm.radius = 0.092
+	mm.height = 0.184
+	mitt.mesh = mm
+	mitt.material_override = _wear_mat(col)
+	if style == "glove":
+		# 장갑은 손 모양이 살아 있게 조금 갸름하게
+		mitt.scale = Vector3(0.92, 1.05, 1.0)
+	root.add_child(mitt)
+	# 손목 테두리
+	var cuff = MeshInstance3D.new()
+	var cm = CylinderMesh.new()
+	cm.top_radius = 0.088
+	cm.bottom_radius = 0.098
+	cm.height = 0.055
+	cuff.mesh = cm
+	cuff.material_override = _wear_mat(accent)
+	cuff.position = Vector3(0, 0.085, 0)
+	root.add_child(cuff)
+
+func _build_worn_shoes(root: Node3D, col: Color, accent: Color, style: String) -> void:
+	# 발등 (원래 발보다 한 겹 크게, 앞으로 길게)
+	var shoe = MeshInstance3D.new()
+	var sm = SphereMesh.new()
+	sm.radius = 0.098
+	sm.height = 0.15
+	shoe.mesh = sm
+	shoe.material_override = _wear_mat(col)
+	shoe.scale = Vector3(1.05, 0.8, 1.4)
+	root.add_child(shoe)
+	# 밑창
+	var sole = MeshInstance3D.new()
+	var bm = BoxMesh.new()
+	bm.size = Vector3(0.2, 0.035, 0.27)
+	sole.mesh = bm
+	sole.material_override = _wear_mat(accent if style == "slipper" else Color("#3A3630"))
+	sole.position = Vector3(0, -0.055, 0.02)
+	root.add_child(sole)
+	if style == "sneaker":
+		# 발등 끈
+		var lace = MeshInstance3D.new()
+		var lm = BoxMesh.new()
+		lm.size = Vector3(0.13, 0.02, 0.06)
+		lace.mesh = lm
+		lace.material_override = _wear_mat(accent)
+		lace.position = Vector3(0, 0.052, 0.05)
+		root.add_child(lace)
 
 func _wear_mat(col: Color) -> StandardMaterial3D:
 	var mat = StandardMaterial3D.new()
