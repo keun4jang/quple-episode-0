@@ -4,8 +4,10 @@ extends "res://scripts/ui/menu_panel.gd"
 
 ## 슬롯 순서와 표시 이름 (ItemDB 아이템의 slot 값과 맞춰야 한다)
 const SLOTS := [
-    {"id": "scarf", "name": "목"},
     {"id": "hat", "name": "머리"},
+    {"id": "scarf", "name": "목"},
+    {"id": "gloves", "name": "손"},
+    {"id": "shoes", "name": "발"},
 ]
 
 ## 장비 effect 키 → 화면에 보여줄 이름

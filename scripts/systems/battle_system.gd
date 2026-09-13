@@ -118,7 +118,7 @@ const ENEMIES := {
         "hp": 56, "atk": 15, "def": 5,
         "exp": 40, "coins": 38,
         "weak": "hug",
-        "drop": {"energy_drink": 0.4, "star_candy": 0.05},
+        "drop": {"energy_drink": 0.4, "star_candy": 0.05, "mittens": 0.1},
         "colors": {"X": "#7A7A82", "D": "#4E4E56", "L": "#A6A6B0", "A": "#E86A4A"},
         "art": [
             "..XXXXXXXX..",
@@ -190,7 +190,7 @@ const ENEMIES := {
         "hp": 40, "atk": 7, "def": 4,
         "exp": 26, "coins": 22,
         "weak": "daydream",
-        "drop": {"cocoa": 0.3, "cookie": 0.2},
+        "drop": {"cocoa": 0.3, "cookie": 0.2, "slippers": 0.1},
         "colors": {"X": "#6F8F5C", "D": "#4A6B3C", "L": "#9CBE86", "A": "#F0E3A8"},
         "art": [
             "............",
@@ -237,7 +237,7 @@ const ENEMIES := {
         "line": "\"오늘도... 못 가.\"",
         "hp": 220, "atk": 18, "def": 6,
         "exp": 140, "coins": 110,
-        "drop": {"star_candy": 0.6, "clover": 0.5},
+        "drop": {"star_candy": 0.6, "clover": 0.5, "travel_shoes": 0.5},
         "is_boss": true,
         "colors": {"X": "#2E2E3E", "D": "#1A1A26", "L": "#4E4E66", "A": "#FF5A4A"},
         "art": [
