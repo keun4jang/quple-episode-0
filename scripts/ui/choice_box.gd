@@ -24,12 +24,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event.is_action_pressed("ui_up") or event.is_action_pressed("ui_left"):
+		if _selected != 0 and AudioManager: AudioManager.ui_select()
 		_selected = 0
 		_update_highlight()
 	elif event.is_action_pressed("ui_down") or event.is_action_pressed("ui_right"):
+		if _selected != 1 and AudioManager: AudioManager.ui_select()
 		_selected = 1
 		_update_highlight()
 	elif event.is_action_pressed("ui_accept"):
+		if AudioManager: AudioManager.play_sfx("confirm")
 		_on_choice(_selected)
 
 func _update_highlight() -> void:

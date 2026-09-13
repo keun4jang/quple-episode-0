@@ -17,6 +17,11 @@ Episode0State="*res://scripts/systems/episode0_state.gd"
 SaveManager="*res://scripts/systems/save_manager.gd"
 SceneTransition="*res://scenes/systems/SceneTransition.tscn"
 AudioManager="*res://scripts/systems/audio_manager.gd"
+PlayerStats="*res://scripts/systems/player_stats.gd"
+ItemDB="*res://scripts/systems/item_db.gd"
+QuestSystem="*res://scripts/systems/quest_system.gd"
+BattleSystem="*res://scripts/systems/battle_system.gd"
+GameUI="*res://scripts/systems/game_ui.gd"
 
 [debug]
 
@@ -45,4 +50,12 @@ key_album={
 key_photo={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":70,"key_label":0,"unicode":102,"location":0,"echo":false,"script":null)]
+}
+key_bag={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":73,"key_label":0,"unicode":105,"location":0,"echo":false,"script":null)]
+}
+key_quest={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":81,"key_label":0,"unicode":113,"location":0,"echo":false,"script":null)]
 }

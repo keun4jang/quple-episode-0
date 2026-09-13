@@ -186,15 +186,19 @@ func _collect_item() -> void:
     match item_id:
         "camera":
             Episode0State.has_camera = true
+            PlayerStats.add_item("camera", 1)
             _show_and_remove("오래된 카메라를 챙겼다.")
         "notebook":
             Episode0State.has_notebook = true
+            PlayerStats.add_item("notebook", 1)
             _show_and_remove("비어 있는 여행 수첩을 챙겼다.")
         "travel_bag":
             Episode0State.has_travel_bag = true
+            PlayerStats.add_item("travel_bag", 1)
             _show_and_remove("작은 여행 가방을 챙겼다.")
         "badge":
             Episode0State.badge_returned = true
+            PlayerStats.remove_item("badge", 1)
             _show_and_remove("사원증을 반납했다.")
     if Episode0State.all_items_collected() and Episode0State.current_state == Episode0State.State.COLLECT_TRAVEL_ITEMS:
         Episode0State.advance_to(Episode0State.State.RETURN_BADGE)

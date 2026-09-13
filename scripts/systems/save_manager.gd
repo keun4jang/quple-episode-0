@@ -17,6 +17,10 @@ func save_game(scene_path: String, player_pos: Vector3) -> void:
     cfg.set_value("game", "first_photo_taken", Episode0State.first_photo_taken)
     cfg.set_value("game", "album_created", Episode0State.album_created)
     cfg.set_value("game", "episode0_cleared", Episode0State.episode0_cleared)
+    cfg.set_value("game", "memos_found", Episode0State.memos_found)
+    cfg.set_value("battle", "stats", PlayerStats.to_dict())
+    cfg.set_value("battle", "quests", QuestSystem.to_dict())
+    cfg.set_value("battle", "defeated", BattleSystem.to_dict())
     cfg.save(SAVE_PATH)
 
 func load_game() -> void:
@@ -32,3 +36,7 @@ func load_game() -> void:
     Episode0State.first_photo_taken = cfg.get_value("game", "first_photo_taken", false)
     Episode0State.album_created = cfg.get_value("game", "album_created", false)
     Episode0State.episode0_cleared = cfg.get_value("game", "episode0_cleared", false)
+    Episode0State.memos_found = cfg.get_value("game", "memos_found", [])
+    PlayerStats.from_dict(cfg.get_value("battle", "stats", {}))
+    QuestSystem.from_dict(cfg.get_value("battle", "quests", {}))
+    BattleSystem.from_dict(cfg.get_value("battle", "defeated", {}))

@@ -45,6 +45,9 @@ func _on_start() -> void:
     Episode0State.album_created = false
     Episode0State.episode0_cleared = false
     Episode0State.memos_found = []
+    PlayerStats.reset_new_game()
+    QuestSystem.reset_new_game()
+    BattleSystem.defeated_counts = {}
     SceneTransition.go_to("res://scenes/maps/CompanyFront3D.tscn", "hopeful")
 
 func _on_continue() -> void:

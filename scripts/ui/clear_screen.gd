@@ -68,7 +68,7 @@ func show_clear() -> void:
 		if am.has_method("stop_bgm"):
 			am.stop_bgm()
 		if am.has_method("play_sfx"):
-			am.play_sfx("ui_select")
+			am.play_sfx("clear_fanfare")
 
 	_prepare_nodes()
 
