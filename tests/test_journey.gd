@@ -89,6 +89,7 @@ func _ready() -> void:
 	await _minimap_kind_test()
 	await _shop_owner_identity_tests()
 	_shop_skin_test()
+	await _menu_button_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -1108,12 +1109,13 @@ func _camera_tests() -> void:
 	tp.say.close()
 	await get_tree().process_frame
 
-	# ⑤-2 저절로 열린 "이 마을에서" 도 **연 것으로 친다.**
+	# ⑤-2 **화면의 버튼이 제 칸을 편다.**
 	#
-	# 예전엔 `toggle_bag()` 이 `_tab` 만 4로 바꾸고 지나가서
-	# `quest_tab_opened` 가 안 울렸다. 길잡이 첫 줄이 그 신호를 기다리는데
-	# 영영 안 오니, 배낭을 열어 할 일을 다 읽은 사람도 안내가 그 줄에
-	# 멈춰 다음(걷기)으로 넘어가질 못했다.
+	# 넷(사진첩·편지·행복첩·이 마을)이 배낭 안 탭에만 있던 때는, 배낭을
+	# 열고 탭을 뒤져야 편지를 읽었다. 그래서 `toggle_bag()` 이 할 일이
+	# 남았으면 몰래 "이 마을" 칸부터 열어 주는 잔꾀를 부렸었다. 이제
+	# 넷이 제 버튼으로 화면에 나와 있으므로 그 잔꾀는 없앴다 —
+	# **배낭은 배낭(챙긴 것)을 열고**, 버튼은 제 칸을 연다.
 	var here_was: String = JourneyState.here
 	JourneyState.here = "잿마루"                  # 할 일이 남아 있는 곳
 	var seen := [false]
@@ -1122,8 +1124,27 @@ func _camera_tests() -> void:
 		tp.hud.toggle_bag()
 	tp.hud.toggle_bag()
 	await get_tree().process_frame
-	ok(tp.hud._tab == 4, "할 일이 남았으면 '이 마을에서' 부터 열린다")
-	ok(seen[0], "저절로 열려도 '할 일을 봤다' 는 신호가 온다")
+	ok(tp.hud._tab == 0, "배낭을 누르면 배낭 칸이 열린다 (%d)" % tp.hud._tab)
+	tp.hud.toggle_bag()
+	await get_tree().process_frame
+
+	# 닫힌 채로 "이 마을" 을 누르면 판이 열리면서 그 칸이 펴진다.
+	tp.hud.open_tab(4)
+	await get_tree().process_frame
+	ok(tp.hud.bag_open() and tp.hud._tab == 4,
+		"'이 마을' 버튼이 판을 열고 그 칸을 편다")
+	ok(seen[0], "버튼으로 열어도 '할 일을 봤다' 는 신호가 온다")
+	# 같은 버튼을 다시 누르면 닫힌다
+	tp.hud.open_tab(4)
+	await get_tree().process_frame
+	ok(not tp.hud.bag_open(), "같은 버튼을 다시 누르면 닫힌다")
+	# 다른 버튼은 칸만 갈아 끼운다
+	tp.hud.open_tab(2)
+	await get_tree().process_frame
+	tp.hud.open_tab(1)
+	await get_tree().process_frame
+	ok(tp.hud.bag_open() and tp.hud._tab == 1,
+		"열린 채로 다른 버튼을 누르면 칸만 바뀐다")
 	tp.hud.toggle_bag()
 	JourneyState.here = here_was
 	await get_tree().process_frame
@@ -6310,3 +6331,99 @@ func _folk_ids_that_send_postcards() -> Array:
 					continue
 				out.append(fid)
 	return out
+
+
+# ── 화면에 나와 있는 메뉴 버튼 ────────────────────────────────────────
+#
+# **넷이 배낭 안에 숨어 있었다.** 사진첩·편지·행복첩·이 마을은 배낭을
+# 열어야 탭으로 갈아 끼우는 구조라, 편지가 왔다는 점을 보고도 어디를
+# 눌러야 편지가 나오는지 몰랐다 — 이름이 화면에 없으면 그런 것이 있는
+# 줄도 모른다. 왼쪽 아래에 제 버튼으로 세웠다.
+func _menu_button_tests() -> void:
+	print("\n[화면 메뉴 버튼]")
+	JourneyState.reset()
+	JourneyState.here = "잿마루"                 # 할 일이 남아 있는 곳
+	var p: Place = load(GOAL_SCENES["잿마루"]).instantiate()
+	add_child(p)
+	var hud: JourneyHud = p.hud
+	await get_tree().process_frame
+
+	ok(hud._menu_btns.size() == 4, "버튼 넷이 서 있다 (%d)" % hud._menu_btns.size())
+	var names: Array = []
+	for b in hud._menu_btns:
+		names.append(String(b.text))
+	ok(names == ["사진첩", "편지", "행복첩", "이 마을"],
+		"이름이 화면에 그대로 적혀 있다 (%s)" % str(names))
+
+	# 손가락이 닿을 크기여야 한다. 배낭 탭과 같은 결로 124x56 을 쓴다.
+	var small := false
+	for b in hud._menu_btns:
+		if b.custom_minimum_size.x < 100.0 or b.custom_minimum_size.y < 48.0:
+			small = true
+	ok(not small, "누를 만한 크기다")
+
+	# 서로 겹치지 않고, 아래 카메라 버튼 자리(-128~-32)도 안 밟는다.
+	var overlap := false
+	for i in hud._menu_btns.size():
+		var a: Button = hud._menu_btns[i]
+		if a.offset_bottom > -148.0:
+			overlap = true              # 카메라 자리 침범
+		for j in range(i + 1, hud._menu_btns.size()):
+			var b: Button = hud._menu_btns[j]
+			if a.offset_top < b.offset_bottom and b.offset_top < a.offset_bottom:
+				overlap = true
+	ok(not overlap, "버튼끼리도, 사진 버튼과도 안 겹친다")
+
+	# 알림 점 — 편지는 편지 버튼에, 남은 할 일은 '이 마을' 버튼에.
+	# 하나짜리 배낭 점은 "뭔가 새것이 있다" 까지만 알렸다.
+	JourneyState.letters.append({"who": "엄마", "text": "밥은 먹고 다니니.", "read": false})
+	if hud.bag_open():
+		hud.toggle_bag()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(hud._dot_letter != null and hud._dot_letter.visible,
+		"안 읽은 편지가 있으면 편지 버튼에 점이 붙는다")
+	ok(hud._dot_task != null and hud._dot_task.visible,
+		"할 일이 남았으면 '이 마을' 버튼에 점이 붙는다")
+
+	# 편지 칸을 열면 읽은 것으로 친다 → 점이 꺼진다
+	hud.open_tab(2)
+	await get_tree().process_frame
+	hud.toggle_bag()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(hud._dot_letter != null and not hud._dot_letter.visible,
+		"읽고 나면 편지 점이 꺼진다")
+
+	# 대화 중에는 버튼도 점도 같이 치운다 — 대화창이 화면 아래를 덮는다
+	hud.set_buttons_visible(false)
+	await get_tree().process_frame
+	var any_shown := false
+	for b in hud._menu_btns:
+		if b.visible:
+			any_shown = true
+	ok(not any_shown, "대화 중에는 버튼이 치워진다")
+	ok(hud._dot_task == null or not hud._dot_task.visible,
+		"점도 같이 치워진다")
+	hud.set_buttons_visible(true)
+	await get_tree().process_frame
+
+	# 길잡이 고리는 이제 배낭이 아니라 '이 마을' 버튼을 두른다.
+	hud.point_at_tasks(true)
+	await get_tree().process_frame
+	ok(hud._hint_ring != null and hud._hint_ring.visible, "고리가 켜진다")
+	var town: Button = hud._menu_btns[3]
+	ok(hud._hint_ring.offset_left <= town.offset_left \
+		and hud._hint_ring.offset_right >= town.offset_right \
+		and hud._hint_ring.offset_top <= town.offset_top \
+		and hud._hint_ring.offset_bottom >= town.offset_bottom,
+		"고리가 '이 마을' 버튼을 감싼다")
+	# 판이 열려 있으면 가릴 것이 없다
+	hud.open_tab(4)
+	hud.point_at_tasks(true)
+	await get_tree().process_frame
+	ok(not hud._hint_ring.visible, "판이 열려 있으면 고리를 안 켠다")
+	hud.toggle_bag()
+	await get_tree().process_frame
+	p.queue_free()
+	await get_tree().process_frame

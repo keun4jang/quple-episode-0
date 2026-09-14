@@ -37,9 +37,13 @@ var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 행
 ## 있다" 는 것만 알리고, 무엇인지는 배낭을 열어야 안다 — 그게 탭 안의
 ## 내용(체크 표시·편지 목록)이 이미 하고 있는 일이다.
 var _dot: Control
+## 왼쪽 아래 세로 줄(사진첩·편지·행복첩·이 마을)과 그 위의 알림 점들.
+var _menu_btns: Array = []
+var _dot_letter: Control
+var _dot_task: Control
 ## 배낭이 어디 있는지 가리키는 고리. 길잡이가 "배낭을 열어 보세요" 줄을
 ## 띄우고 있는 동안만 켠다 — 글자로 "여기" 라고 쓰는 대신 **직접 그린다.**
-var _bag_ring: Control
+var _hint_ring: Control
 var _ring_t := 0.0
 ## 얻은 것을 그림과 함께 보여 주는 카드.
 var _got: Control
@@ -292,6 +296,50 @@ func _build() -> void:
 	_press_feedback(_cam_btn)
 	root.add_child(_cam_btn)
 
+	# ── 왼쪽 아래 세로 줄 — 사진첩 · 편지 · 행복첩 · 이 마을 ──
+	#
+	# **넷이 배낭 안에 숨어 있었다.** 배낭을 열어야 탭으로 갈아 끼우는
+	# 구조라, 편지가 왔다는 점을 보고도 어디를 눌러야 편지가 나오는지
+	# 몰랐다. 이름이 화면에 없으면 그런 것이 있는 줄도 모른다.
+	#
+	# 자리는 카메라 버튼 위로 쌓는다 — 왼쪽 아래는 원래 "내 것" 쪽이라
+	# (사진 찍기가 여기 있다) 사진첩·편지가 그 위에 서면 결이 맞고,
+	# 가로 화면에서 왼손 엄지가 닿는 자리다. 오른쪽 아래(배낭·선택
+	# 버튼)와 위(설정·작은 지도)는 이미 차 있다.
+	#
+	# 제일 자주 여는 "이 마을" 을 맨 아래(엄지에서 제일 가까운 자리)에
+	# 두고 위로 올라간다. 판 안의 탭 차례와 위아래가 같다.
+	var menu := [["사진첩", 1], ["편지", 2], ["행복첩", 3], ["이 마을", 4]]
+	for k in menu.size():
+		var name_i: String = String(menu[k][0])
+		var tab_i: int = int(menu[k][1])
+		var mb := Button.new()
+		mb.name = "MenuBtn%d" % tab_i
+		mb.text = name_i
+		mb.focus_mode = Control.FOCUS_NONE
+		# 배낭 탭과 같은 결. 폭은 "이 마을" 이 안 잘리게 잡는다.
+		mb.custom_minimum_size = Vector2(124, 56)
+		mb.add_theme_font_size_override("font_size", 24)
+		Paper.button(mb, Color("#F4EDE2"), Color("#8C7B68"), Color("#3A2C2C"), 12)
+		mb.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		mb.offset_left = 20
+		mb.offset_right = 144
+		# 카메라 버튼이 -128~-32 를 쓴다. 그 위 20px 부터 66px 씩 쌓는다.
+		var bottom := -148.0 - float(menu.size() - 1 - k) * 66.0
+		mb.offset_top = bottom - 56.0
+		mb.offset_bottom = bottom
+		mb.pressed.connect(open_tab.bind(tab_i))
+		_press_feedback(mb)
+		root.add_child(mb)
+		_menu_btns.append(mb)
+		# 편지와 이 마을에는 알림 점이 붙는다. 점은 버튼 오른쪽 위 모서리.
+		if tab_i == 2 or tab_i == 4:
+			var d := _make_menu_dot(root, mb)
+			if tab_i == 2:
+				_dot_letter = d
+			else:
+				_dot_task = d
+
 	# 안 읽은 편지나 남은 할 일이 있으면 배낭에 점이 하나 붙는다.
 	# 숫자도 느낌표도 안 쓴다. 점은 글자가 아니라 **직접 그린다.**
 	# 본문 폰트(PoorStory)에 ● 가 없어서 글자로 쓰면 폰에서 네모
@@ -401,23 +449,33 @@ func _build() -> void:
 	_cele_sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_cele.add_child(_cele_sub)
 
-	# 배낭을 가리키는 고리. 배낭 버튼과 같은 자리에 겹쳐 두고 테두리만 그린다.
-	_bag_ring = Control.new()
-	_bag_ring.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_bag_ring.offset_left = -136
-	_bag_ring.offset_top = -136
-	_bag_ring.offset_right = -24
-	_bag_ring.offset_bottom = -24
-	_bag_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bag_ring.visible = false
-	_bag_ring.draw.connect(func() -> void:
-		var mid := _bag_ring.size * 0.5
+	# "이 마을" 버튼을 가리키는 고리. 그 버튼과 같은 자리에 겹쳐 두고
+	# 테두리만 그린다.
+	#
+	# 예전엔 오른쪽 아래 배낭을 둘렀다 — 할 일이 배낭 안에 있었으니까.
+	# 이제 "이 마을" 이 제 버튼으로 나와 있으므로 그쪽을 가리킨다.
+	# 버튼이 동그라미가 아니라 가로로 긴 네모라, 원 대신 모서리 둥근
+	# 네모로 두른다 (원으로 두르면 버튼 양 끝이 고리 밖으로 나간다).
+	_hint_ring = Control.new()
+	_hint_ring.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_hint_ring.offset_left = 12
+	_hint_ring.offset_right = 152
+	_hint_ring.offset_top = -212
+	_hint_ring.offset_bottom = -140
+	_hint_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_ring.visible = false
+	var ring_box := StyleBoxFlat.new()
+	ring_box.bg_color = Color(0, 0, 0, 0)
+	ring_box.set_corner_radius_all(18)
+	_hint_ring.draw.connect(func() -> void:
 		# 숨쉬듯 굵기와 크기가 오간다. 깜빡이면 급해 보인다.
 		var p := 0.5 + 0.5 * sin(_ring_t * 3.0)
-		var rad: float = minf(mid.x, mid.y) - 6.0 + p * 5.0
-		_bag_ring.draw_arc(mid, rad, 0.0, TAU, 48,
-			Color(1.0, 0.82, 0.40, 0.45 + p * 0.45), 4.0 + p * 2.0, true))
-	root.add_child(_bag_ring)
+		ring_box.border_color = Color(1.0, 0.82, 0.40, 0.45 + p * 0.45)
+		ring_box.set_border_width_all(int(round(4.0 + p * 2.0)))
+		var grow := p * 4.0
+		_hint_ring.draw_style_box(ring_box, Rect2(
+			Vector2(-grow, -grow), _hint_ring.size + Vector2(grow, grow) * 2.0)))
+	root.add_child(_hint_ring)
 
 	# 사진 찍을 때 화면이 한 번 하얘진다
 	_flash = ColorRect.new()
@@ -487,6 +545,26 @@ func _build_bag(root: Control) -> void:
 	scroll.add_child(_bag_grid)
 
 
+## 메뉴 버튼 오른쪽 위에 붙는 알림 점. 배낭 점과 같은 모양으로 그린다
+## (글자가 아니라 도형이라 폰트를 안 탄다 — 배낭 점 주석 참고).
+func _make_menu_dot(root: Control, btn: Button) -> Control:
+	var d := Control.new()
+	d.custom_minimum_size = Vector2(20, 20)
+	d.size = Vector2(20, 20)
+	d.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	d.offset_left = btn.offset_right - 14
+	d.offset_right = btn.offset_right + 6
+	d.offset_top = btn.offset_top - 6
+	d.offset_bottom = btn.offset_top + 14
+	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	d.visible = false
+	d.draw.connect(func() -> void:
+		d.draw_circle(Vector2(10, 10), 10.0, Color(0.16, 0.13, 0.18))
+		d.draw_circle(Vector2(10, 10), 7.5, Color("#FFD166")))
+	root.add_child(d)
+	return d
+
+
 ## 누르면 살짝 눌리게 한다.
 ##
 ## `TextureButton` 에 pressed 그림이 따로 없어서, 지금까지 눌렸다는 걸
@@ -540,27 +618,32 @@ func _bag_line(text: String, size: int, col: Color) -> Label:
 	return l
 
 
+## 화면의 메뉴 버튼이 부르는 길. 판을 열고 그 칸을 편다.
+##
+## 이미 그 칸이 펴진 채 열려 있으면 닫는다 — 같은 버튼을 다시 누르면
+## 닫히는 게 버튼 하나짜리 창의 상식이다.
+func open_tab(i: int) -> void:
+	if _bag_panel.visible and _tab == i:
+		toggle_bag()
+		return
+	if not _bag_panel.visible:
+		AudioManager.page_turn()
+		_bag_panel.visible = true
+		bag_toggled.emit(true)
+	_pick_tab(i)
+
+
 func toggle_bag() -> void:
 	AudioManager.page_turn()
 	_bag_panel.visible = not _bag_panel.visible
 	if _bag_panel.visible:
-		# **막혔을 때 "행복첩을 보면 된다" 는 걸 몸에 남기려면, 배낭을
-		# 열었을 때 바로 그 화면이 보여야 한다.** 이 마을에 할 일이
-		# 남아 있으면 "이 마을에서" 탭으로 먼저 연다 — 다섯째 탭에
-		# 묻혀 있어서 못 찾겠다는 게 제일 큰 지적이었다.
-		var left := false
-		for q in Quests.quest_list(_quest_village()):
-			if not bool(q.get("done", false)):
-				left = true
-				break
-		_tab = 4 if left else 0
+		# **배낭은 배낭을 연다.** 여태는 할 일이 남아 있으면 "이 마을"
+		# 칸부터 열었다 — 그 칸이 다섯째 탭에 묻혀 못 찾겠다는 지적을
+		# 그렇게 막았었다. 이제 "이 마을" 이 화면에 제 버튼으로 나와
+		# 있으므로 숨길 것이 없고, 배낭을 눌렀는데 다른 칸이 열리는
+		# 쪽이 오히려 어리둥절하다.
+		_tab = 0
 		_refill_bag()
-		# **저절로 열린 것도 연 것이다.** 여기서 `_tab` 만 바꾸고 지나가는
-		# 바람에 `quest_tab_opened` 가 안 울렸다. 길잡이 첫 줄이 이 신호를
-		# 기다리는데 영영 안 오니, 배낭을 열어 할 일까지 다 읽은 사람도
-		# 안내가 그 줄에 멈춰 다음(걷기)으로 넘어가질 못했다.
-		if _tab == 4:
-			quest_tab_opened.emit()
 	bag_toggled.emit(_bag_panel.visible)
 
 
@@ -1129,13 +1212,13 @@ func _show_got_now(item: String) -> void:
 		_drain_center())
 
 
-## 배낭이 어디 있는지 가리킬까. 길잡이가 부른다.
-func point_at_bag(on: bool) -> void:
-	if _bag_ring == null:
+## 할 일이 어디 있는지 가리킬까. 길잡이가 부른다.
+func point_at_tasks(on: bool) -> void:
+	if _hint_ring == null:
 		return
 	if on and (_buttons_hidden or bag_open()):
-		on = false      # 배낭이 이미 열려 있거나 버튼이 치워졌으면 가릴 것이 없다
-	_bag_ring.visible = on
+		on = false      # 판이 이미 열려 있거나 버튼이 치워졌으면 가릴 것이 없다
+	_hint_ring.visible = on
 
 
 # ── 하나 마쳤을 때 ────────────────────────────────────────────────────
@@ -1326,9 +1409,9 @@ func _show_cele_now(next: Array) -> void:
 
 
 func _process(delta: float) -> void:
-	if _bag_ring != null and _bag_ring.visible:
+	if _hint_ring != null and _hint_ring.visible:
 		_ring_t += delta
-		_bag_ring.queue_redraw()
+		_hint_ring.queue_redraw()
 	if _clock != null:
 		_clock.text = "%s   %d일째" % [JourneyState.time_text(), JourneyState.day]
 	if (not _got_queue.is_empty() or not _cele_queue.is_empty()) \
@@ -1346,8 +1429,17 @@ func _process(delta: float) -> void:
 			if not bool(q.get("done", false)):
 				left = true
 				break
-		var news := JourneyState.unread_letters() > 0 or left
-		_dot.visible = news and not bag_open() and not _buttons_hidden
+		var unread := JourneyState.unread_letters() > 0
+		var news := unread or left
+		var show := not bag_open() and not _buttons_hidden
+		_dot.visible = news and show
+		# 이제 어느 버튼을 눌러야 하는지까지 알린다. 배낭 점 하나로
+		# "뭔가 새것이 있다" 만 알리던 때는, 그게 편지인지 할 일인지
+		# 알려면 배낭을 열어 탭을 뒤져야 했다.
+		if _dot_letter != null:
+			_dot_letter.visible = unread and show
+		if _dot_task != null:
+			_dot_task.visible = left and show
 	# 카메라를 받기 전엔 셔터 버튼이 없다 (`docs/quest-journey.md` 3.5절).
 	# 대화 중 버튼을 숨기는 `set_buttons_visible()` 와 겹쳐도, 여기서
 	# 매 프레임 다시 확인하므로 카메라 없는 사람에게 다시 뜨는 일이 없다.
@@ -1428,6 +1520,14 @@ func set_buttons_visible(on: bool) -> void:
 	for n in [_bag_btn, _cam_btn, _pad_bag, _pad_cam]:
 		if n != null:
 			n.visible = on
+	# 왼쪽 아래 메뉴 줄도 같이. 대화창이 화면 아래를 덮는데 버튼이
+	# 그 위에 남아 있으면 글을 가린다.
+	for b in _menu_btns:
+		if is_instance_valid(b):
+			b.visible = on
+	for d in [_dot_letter, _dot_task]:
+		if d != null and not on:
+			d.visible = false
 
 
 ## 지금 할 수 있는 일을 버튼에 적는다. 없으면 빈 문자열.

@@ -71,7 +71,7 @@ func _run() -> void:
 	intro.queue_free()
 	await _wait(4)
 
-	# ① 프롤로그 — 길잡이 첫 줄과 배낭 고리가 같이 보여야 한다
+	# ① 프롤로그 — 길잡이 첫 줄과 "이 마을" 고리가 같이 보여야 한다
 	var p := await _open("res://scenes/journey/Jaenmaru.tscn")
 	await _wait(30)                       # 도착 카드가 떠 있는 동안
 	await _shot("arrive-card")
@@ -86,8 +86,8 @@ func _run() -> void:
 	await _wait(20)
 	await _shot("got-shell")
 
-	# ② 프롤로그 배낭 — "이 마을에서" 가 먼저 열려야 한다
-	p.hud.toggle_bag()
+	# ② 프롤로그 — 왼쪽 아래 "이 마을" 버튼이 펴는 칸
+	p.hud.open_tab(4)
 	await _wait(6)
 	await _shot("prologue-quests")
 	p.hud.toggle_bag()

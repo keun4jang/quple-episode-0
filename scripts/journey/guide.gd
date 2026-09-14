@@ -42,7 +42,7 @@ const FADE := 0.35
 ## 마음을 다 채운 인연에게 받은 엽서를 넣는 곳이라 처음엔 늘 비어 있다.
 ## 할 일은 다섯째 칸 "이 마을에서" 에 있다 — 이름을 잘못 대는 바람에
 ## "행복첩이 어디 있고, 눌러도 아무것도 없다" 는 말을 들었다.
-## 그래서 칸 이름 대신 **배낭이 있는 자리**를 가리킨다(고리도 같이 켠다).
+## 그래서 칸 이름 대신 **그 버튼이 있는 자리**를 가리킨다(고리도 같이 켠다).
 ## **셋만 남긴다.** 예전엔 일곱이었다 — 떠나기·지도·배낭·잠자기까지
 ## 차례로 가르쳤는데, 시작하자마자 "잠자리에 서면 하루를 마쳐요" 같은
 ## **아직 쓸 데도 없는 말**이 흘러나왔다. 처음 5분에 알아야 할 건
@@ -56,7 +56,7 @@ const FADE := 0.35
 ## 확대도 아무도 안 알려 준다. 다만 앞의 세 실패를 되풀이하지 않는다:
 ## 각 줄은 `_step_ready()` 로 **그것이 실제로 있을 때만** 뜬다.
 const STEPS := [
-	["quests", "오른쪽 아래 배낭을 열면 여기서 해볼 일이 적혀 있어요."],
+	["quests", "왼쪽 아래 '이 마을' 을 누르면 여기서 해볼 일이 적혀 있어요."],
 	["walk", "가고 싶은 곳을 톡 누르면 천천히 걸어요."],
 	["talk", "인연을 톡 누르면 다가가서 저절로 말을 걸어요."],
 	["act", "가까이 가면 오른쪽에 버튼이 떠요. 눌러서 들어가거나 떠나요."],
@@ -187,20 +187,20 @@ func _process(_delta: float) -> void:
 	if mm != null and mm.has_method("is_big") and mm.is_big():
 		busy = true
 	_panel.visible = not busy
-	# 배낭을 열라는 줄일 때만 배낭에 고리를 씌운다. 어디를 눌러야 하는지
-	# 글자로 더 설명하는 대신, 눌러야 할 것을 눈에 띄게 한다.
-	_point_bag(hud, not busy and waiting_for() == "quests")
+	# 할 일을 보라는 줄일 때만 그 버튼에 고리를 씌운다. 어디를 눌러야
+	# 하는지 글자로 더 설명하는 대신, 눌러야 할 것을 눈에 띄게 한다.
+	_point_tasks(hud, not busy and waiting_for() == "quests")
 
 
-func _point_bag(hud, on: bool) -> void:
-	if hud != null and hud.has_method("point_at_bag"):
-		hud.point_at_bag(on)
+func _point_tasks(hud, on: bool) -> void:
+	if hud != null and hud.has_method("point_at_tasks"):
+		hud.point_at_tasks(on)
 
 
 ## 안내가 사라질 때 고리도 같이 끈다. 안 끄면 마지막 프레임 모양 그대로
-## 배낭에 고리가 남는다.
+## 버튼에 고리가 남는다.
 func _exit_tree() -> void:
-	_point_bag(get_tree().get_first_node_in_group("journey_hud"), false)
+	_point_tasks(get_tree().get_first_node_in_group("journey_hud"), false)
 
 
 func _show_step() -> void:
