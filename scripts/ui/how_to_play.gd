@@ -12,7 +12,7 @@ extends CanvasLayer
 ## 점을 찍는 편이 빠르다.
 ##
 ## 지키는 선은 `Guide` 와 같다 — 한 번만 나오고, 아무 벌이 없고,
-## 언제든 다시 볼 수 있다 (배낭 > 이 마을 > 길잡이 다시 보기).
+## 언제든 다시 볼 수 있다 ("이 마을" > 길잡이 다시 보기).
 
 const FLAG := "how_to_play_done"
 
@@ -27,7 +27,10 @@ signal closed
 ## 간 것이 없으면 행동 버튼도 없다 - 없는 자리에 고리만 뜨면 처음
 ## 잡은 사람은 없는 것을 찾아 누르게 된다 (`_visible_now`).
 const SPOTS := [
-	[Control.PRESET_TOP_LEFT, 56, 40, "지금 시각", "걷는 동안 하루가 흘러요"],
+	# 이름을 **옆에** 붙인다. 아래에 붙이면(y 78~126) 바로 밑에 선
+	# 메뉴 다섯의 테두리 안으로 들어가 "지금 시각" 이 메뉴를 가리키는
+	# 말처럼 읽힌다. 왼쪽 위는 오른쪽이 통째로 비어 있다.
+	[Control.PRESET_TOP_LEFT, 56, 40, "지금 시각", "걷는 동안 하루가 흘러요", true],
 	# **고리 옆에 붙인다.** 실제 설정 버튼(place.gd)의 중심은 -80 인데
 	# 여기 -60 이라 고리가 버튼과 어긋나 있었다(수치를 맞춰 고쳤다).
 	# 게다가 바로 아래 "작은 지도" 고리와 가로 97px 밖에 안 떨어져 있어
@@ -36,9 +39,12 @@ const SPOTS := [
 	# 쓴다: 아래 대신 옆에 붙인다.
 	[Control.PRESET_TOP_RIGHT, -80, 60, "설정", "소리와 되돌리기", true],
 	[Control.PRESET_TOP_RIGHT, -175, 155, "작은 지도", "누르면 크게 봐요", false, "map"],
-	# 배낭은 이름을 **고리 옆**에 붙인다. 위로 올리면 바로 위 "행동"
-	# 고리와 겹친다 (오른쪽 아래는 둘이 세로로 붙어 있다).
-	[Control.PRESET_BOTTOM_RIGHT, -80, -80, "배낭", "해볼 일과 가진 것", true],
+	# **메뉴 다섯은 동그란 고리로 못 두른다.** 배낭·사진첩·편지·행복첩·
+	# 이 마을이 왼쪽 위에 두 칸씩 세 줄(16~228, 54~358)로 서 있어서,
+	# 그걸 다 담는 원은 화면 왼쪽 밖으로 삐져나간다. 이 자리만 네모로
+	# 두른다 — 여덟째 칸에 반지름 대신 반쪽 크기를 적으면 그렇게 된다.
+	[Control.PRESET_TOP_LEFT, 122, 206, "메뉴", "가진 것 · 편지 · 해볼 일",
+		false, "", Vector2(106, 152)],
 	[Control.PRESET_BOTTOM_RIGHT, -107, -198, "행동", "가까이 가면 떠요", false, "act"],
 	[Control.PRESET_BOTTOM_LEFT, 80, -80, "사진", "카메라를 받으면 켜져요", false, "cam"],
 ]
@@ -143,7 +149,7 @@ func _build() -> void:
 		box.add_child(l)
 
 	var tail := Label.new()
-	tail.text = "배낭에서 언제든 다시 볼 수 있어요."
+	tail.text = "왼쪽 위 \"이 마을\" 에서 언제든 다시 볼 수 있어요."
 	tail.add_theme_font_size_override("font_size", 20)
 	tail.add_theme_color_override("font_color", Color("#A79A8A"))
 	tail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -204,7 +210,7 @@ func _find_minimap() -> Control:
 
 
 ## 그 자리가 지금 실제로 화면에 있나. "map"·"act"·"cam" 셋만 쓴다 -
-## 나머지(시계·설정·배낭)는 늘 있다.
+## 나머지(시계·설정·메뉴)는 늘 있다.
 func _visible_now(key: String) -> bool:
 	match key:
 		"map":
@@ -223,19 +229,36 @@ func _visible_now(key: String) -> bool:
 
 ## 귀퉁이 하나. **그 자리에** 고리를 그리고 곁에 이름을 붙인다.
 func _marker(s: Array) -> Control:
+	# 여덟째 칸이 있으면 그만한 **네모**로, 없으면 여느 때처럼 반지름
+	# 34 짜리 **동그라미**로 두른다. 왼쪽 위 메뉴처럼 가로세로가 다른
+	# 덩어리는 원으로 담으면 화면 밖으로 삐져나간다.
+	var half: Vector2 = s[7] if s.size() > 7 else Vector2(34, 34)
+	var box: bool = s.size() > 7
+	var pad := Vector2(6, 6)
 	var c := Control.new()
 	c.set_anchors_preset(int(s[0]))
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	c.offset_left = float(s[1]) - 40.0
-	c.offset_top = float(s[2]) - 40.0
-	c.offset_right = float(s[1]) + 40.0
-	c.offset_bottom = float(s[2]) + 40.0
+	c.offset_left = float(s[1]) - half.x - pad.x
+	c.offset_top = float(s[2]) - half.y - pad.y
+	c.offset_right = float(s[1]) + half.x + pad.x
+	c.offset_bottom = float(s[2]) + half.y + pad.y
 	# 폰트에 없는 그림글자는 못 쓴다 (`CLAUDE.md`). 고리는 직접 그린다.
 	c.draw.connect(func() -> void:
-		var mid := Vector2(40, 40)
-		# 어두운 판 위에 밝은 고리. 어느 바닥 위에서도 읽힌다.
-		c.draw_circle(mid, 34.0, Color(0.16, 0.13, 0.18, 0.55))
-		c.draw_arc(mid, 34.0, 0.0, TAU, 48, Color(1.0, 0.89, 0.60, 0.95), 3.0))
+		var mid := half + pad
+		var dark := Color(0.16, 0.13, 0.18, 0.55)
+		var glow := Color(1.0, 0.89, 0.60, 0.95)
+		if box:
+			var r := Rect2(pad, half * 2.0)
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = dark
+			sb.border_color = glow
+			sb.set_border_width_all(3)
+			sb.set_corner_radius_all(26)
+			c.draw_style_box(sb, r)
+		else:
+			# 어두운 판 위에 밝은 고리. 어느 바닥 위에서도 읽힌다.
+			c.draw_circle(mid, half.x, dark)
+			c.draw_arc(mid, half.x, 0.0, TAU, 48, glow, 3.0))
 
 
 	# **글자가 화면 밖으로 안 나가게** 고리 안쪽으로 붙인다. 왼쪽
@@ -248,18 +271,25 @@ func _marker(s: Array) -> Control:
 	var below: bool = int(s[0]) == Control.PRESET_TOP_LEFT \
 		or int(s[0]) == Control.PRESET_TOP_RIGHT
 	var w := 250.0
-	var lx: float = (40.0 - 22.0) if to_right else (40.0 + 22.0 - w)
+	var hx := half.x + pad.x
+	var hy := half.y + pad.y
+	var lx: float = (hx - 22.0) if to_right else (hx + 22.0 - w)
 	var align: int = HORIZONTAL_ALIGNMENT_LEFT if to_right \
 		else HORIZONTAL_ALIGNMENT_RIGHT
-	# 고리는 항상 반지름 34(로컬 y 6~74)로 그려진다. below=true 쪽은
-	# 54 로 잡혀 있어 고리 아래쪽 호와 20px 겹쳐 글자 위로 테두리가
-	# 지나갔다 - 고리 아래로 내린다.
-	var top_y: float = 78.0 if below else -74.0
+	# 테두리 아래쪽 선과 글자가 겹치지 않게 그 밖으로 내린다 (예전에
+	# 20px 겹쳐 글자 위로 테두리가 지나갔다).
+	var top_y: float = (hy + half.y + 4.0) if below else -(hy + half.y)
 	# 옆에 붙이라고 적힌 것은 고리 높이에 나란히 둔다
 	var beside: bool = s.size() > 5 and bool(s[5])
 	if beside:
-		lx = 40.0 - 52.0 - w
-		top_y = 14.0
+		if to_right:
+			# 왼쪽 귀퉁이면 고리 **오른쪽**으로 뻗는다. 두 줄(48px)이
+			# 고리 높이 안에 들어오게 조금 위에서 시작한다.
+			lx = hx + half.x + 18.0
+			top_y = hy - half.y
+		else:
+			lx = hx - (half.x + 18.0) - w
+			top_y = 14.0
 
 	var n := Label.new()
 	n.text = String(s[3])

@@ -276,3 +276,93 @@ BASE = (7, 13)
 for tip, col in [((7, 1), needle), ((1, 4), hi), ((13, 4), needle)]:
     line_to(BASE[0], BASE[1], tip[0], tip[1], col)
 save("p-pine-needle", px)
+
+
+# ══ 화면 왼쪽 위 메뉴 아이콘 넷 ══════════════════════════════════════
+#
+# 배낭(i-pack)만 그림이고 나머지 넷은 글자 버튼이었다. 글자를 그림으로
+# 바꾸면서 넷을 새로 그린다. 88px 로 크게 띄우는 것이라 **실루엣이
+# 서로 달라야** 한다 — 봉투(가로로 넓다) · 사진(네모 액자 두 장) ·
+# 책(세로로 길고 등이 있다) · 쪽지(세로로 길고 줄이 있다).
+
+def box(px, x0, y0, x1, y1, fill, line):
+    """외곽선 있는 네모. 끝값을 포함한다."""
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            edge = x in (x0, x1) or y in (y0, y1)
+            px[(x, y)] = line if edge else fill
+
+
+# ── 편지 — 봉투. 가로로 넓은 것은 넷 중 이것뿐이다 ──────────────────
+px = {}
+INK = hx("#6E5C48")
+CREAM = hx("#F7F1E4")
+FLAP = hx("#E2D3BA")
+box(px, 1, 4, 14, 12, CREAM, INK)
+# 뚜껑 — 양 위 모서리에서 내려와 가운데서 만난다
+for i in range(7):
+    px[(1 + i, 4 + i)] = INK
+    px[(14 - i, 4 + i)] = INK
+# 접힌 뚜껑 면을 한 겹 짙게 — 안 그러면 그냥 빈 네모에 V 자국이다
+for y in range(5, 11):
+    for x in range(2, 14):
+        if px.get((x, y)) == CREAM and (y - 4) < (x - 1) and (y - 4) < (14 - x):
+            px[(x, y)] = FLAP
+save("i-letter", px)
+
+
+# ── 사진첩 — 뒤에 한 장 비죽 나온 폴라로이드 ────────────────────────
+px = {}
+INK = hx("#6E5C48")
+BACK = hx("#D9CDBA")
+WHITE = hx("#FFFDF6")
+box(px, 4, 1, 14, 11, BACK, INK)        # 뒤에 겹쳐 둔 한 장
+box(px, 1, 4, 11, 14, WHITE, INK)       # 앞장
+box(px, 3, 6, 9, 11, hx("#A9D3E0"), INK)   # 속 그림 — 하늘
+for y in range(9, 11):                     # 언덕
+    for x in range(4, 9):
+        px[(x, y)] = hx("#7FB08A")
+for y in range(7, 9):                      # 해
+    for x in range(7, 9):
+        px[(x, y)] = hx("#FFE39A")
+save("i-album", px)
+
+
+# ── 행복첩 — 겉장에 하트가 박힌 책 ──────────────────────────────────
+px = {}
+INK = hx("#4A3038")
+COVER = hx("#C8788A")
+SPINE = hx("#A05C6E")
+PAGE = hx("#F6EFE2")
+box(px, 2, 1, 13, 14, COVER, INK)
+for y in range(2, 14):
+    px[(3, y)] = SPINE                  # 책등
+    px[(4, y)] = SPINE
+    px[(12, y)] = PAGE                  # 쪽 끝
+HEART = hx("#FFE9EC")
+ROWS = [(5, [7, 8, 10, 11]), (6, list(range(6, 13))), (7, list(range(6, 13))),
+        (8, list(range(7, 12))), (9, list(range(8, 11))), (10, [9])]
+for y, xs in ROWS:
+    for x in xs:
+        px[(x, y)] = HEART
+save("i-heartbook", px)
+
+
+# ── 이 마을 — 해볼 일 쪽지. 첫 칸은 이미 채워져 있다 ────────────────
+px = {}
+INK = hx("#6E5C48")
+PAPER = hx("#F4EDE2")
+PEN = hx("#8A7B6A")
+DONE = hx("#5E8C63")
+box(px, 2, 1, 13, 14, PAPER, INK)
+for k, r in enumerate([3, 7, 11]):
+    for x in range(4, 7):               # 네모 칸 위아래
+        px[(x, r)] = PEN
+        px[(x, r + 2)] = PEN
+    px[(4, r + 1)] = PEN                # 네모 칸 양옆
+    px[(6, r + 1)] = PEN
+    if k == 0:
+        px[(5, r + 1)] = DONE           # 첫 칸은 채워 둔다
+    for x in range(8, 12):              # 줄
+        px[(x, r + 1)] = PEN
+save("i-list", px)

@@ -115,17 +115,20 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.65))
 	l.add_theme_constant_override("outline_size", 6)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# **왼쪽 위, 시각 바로 아래.** 갈 데를 하나씩 지우고 남은 자리다 —
+	# **왼쪽, 메뉴 아래.** 갈 데를 하나씩 지우고 남은 자리다 —
 	#   오른쪽 위: 여행 화면의 설정 버튼과 겹친다
 	#   아래 가운데: 대화창이 화면 아래를 통째로 쓴다
-	#   아래 양 끝: 사진·배낭 버튼이 있다
+	#   아래 왼쪽 끝: 사진 버튼이 있다
 	#   위 가운데: 메인화면의 제목이 있다
-	# 왼쪽 위에는 여행 화면의 시각뿐이고, 그 한 줄 아래는 어디서나 빈다.
+	#   왼쪽 위: 시각(y 18~46)과 **메뉴 다섯**(y 54~358)이 찼다 —
+	#     예전엔 시각 바로 아래(y 68)에 뒀는데, 배낭·사진첩·편지·
+	#     행복첩·이 마을을 그리로 옮기면서 그 위에 겹치게 됐다
+	# 메뉴 아래(y 380~)는 여행 화면에서도 메인화면에서도 비어 있다.
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	l.anchor_left = 0.0; l.anchor_right = 0.0
 	l.anchor_top = 0.0;  l.anchor_bottom = 0.0
 	l.offset_left = 28.0; l.offset_right = 620.0
-	l.offset_top = 68.0; l.offset_bottom = 120.0
+	l.offset_top = 380.0; l.offset_bottom = 432.0
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(l)
 	var tw := create_tween()

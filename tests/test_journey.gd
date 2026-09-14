@@ -1601,7 +1601,7 @@ func _name_tag_overlap_tests() -> void:
 ## `add_theme_stylebox_override("normal", ...)` 를 안 부르면 엔진
 ## 기본 회색 사각형으로 뜬다 - 메인 메뉴 확인창 버튼 셋이 그래서
 ## 배경 없이 글자만 떠 보였다(실기기 스크린샷으로 확인). 같은 실수가
-## 다른 곳에도 있었다: 설정 버튼, 배낭 탭 다섯, "길잡이 다시 보기"·
+## 다른 곳에도 있었다: 설정 버튼, "길잡이 다시 보기"·
 ## "화면 보는 법"(배낭 안·길잡이 판 안 둘 다), 인트로 "건너뛰기".
 func _button_style_tests() -> void:
 	print("\n[버튼마다 배경이 있는가]")
@@ -1616,14 +1616,13 @@ func _button_style_tests() -> void:
 		ok(settings.has_theme_stylebox_override("normal"), "설정 버튼에 배경이 있다")
 
 	var hud: JourneyHud = p.hud
-	hud.toggle_bag()
-	hud._pick_tab(4)   # "이 마을" - 늘 있는 탭
+	hud.open_tab(4)    # "이 마을" - 늘 있는 칸
 	await get_tree().process_frame
-	var tab_ok := true
-	for c in hud._tabs.get_children():
-		if c is Button and not c.has_theme_stylebox_override("normal"):
-			tab_ok = false
-	ok(tab_ok, "배낭 탭 다섯에 다 배경이 있다")
+	# 탭 줄은 없앴다 - 판 머리에는 지금 보는 칸 이름 한 줄만 남는다.
+	# 배낭을 눌렀는데 다른 넷이 같이 딸려 나오면 배낭을 연 것이 아니라
+	# 메뉴를 연 것으로 보인다.
+	ok(String(hud._bag_title.text) == "이 마을",
+		"판 머리에 지금 칸 이름이 적힌다 (%s)" % hud._bag_title.text)
 
 	var gb := _find_button(hud._bag_grid, "길잡이 다시 보기")
 	ok(gb != null and gb.has_theme_stylebox_override("normal"),
@@ -3859,7 +3858,7 @@ func _how_to_play_tests() -> void:
 	var names: Array = []
 	for sp in HowToPlay.SPOTS:
 		names.append(String(sp[3]))
-	for must in ["배낭", "작은 지도", "설정"]:
+	for must in ["메뉴", "작은 지도", "설정"]:
 		ok(names.has(must), "%s 자리를 알려 준다" % must)
 	ok(HowToPlay.HOWS.size() == 3, "조작은 세 줄로 적는다")
 
@@ -3870,7 +3869,7 @@ func _how_to_play_tests() -> void:
 	ok(get_tree().get_first_node_in_group("how_to_play") == null,
 		"닫고 나면 남지 않는다")
 
-	# 그래도 언제든 다시 열 수 있다 (배낭 > 길잡이 다시 보기)
+	# 그래도 언제든 다시 열 수 있다 ("이 마을" > 길잡이 다시 보기)
 	var again := HowToPlay.open(get_tree())
 	ok(again != null, "본 뒤에도 다시 열 수 있다")
 	again.queue_free()
@@ -3912,9 +3911,37 @@ func _how_to_play_marker_overlap_tests() -> void:
 			"옆에 붙인 '설정' 이름이 고리(로컬 x 6~74) 왼쪽으로 안 겹친다 (%s)" % n.position)
 	ok(clock_mk != null, "'지금 시각' 고리를 찾았다")
 	if clock_mk != null:
+		# **아래가 아니라 옆이다.** 아래(로컬 y 78~126)에 붙이면 바로
+		# 밑에 선 메뉴 다섯의 네모 테두리 안으로 들어가, "지금 시각" 이
+		# 메뉴를 가리키는 말처럼 읽힌다.
 		var n2 := clock_mk.get_child(0) as Label
-		ok(n2.position.y >= 74.0,
-			"고리 아래에 붙인 '지금 시각' 이름이 고리(로컬 y 6~74) 아래로 안 겹친다 (%s)" % n2.position)
+		ok(n2.position.x >= 74.0,
+			"'지금 시각' 이름이 고리(로컬 x 6~74) 오른쪽으로 붙는다 (%s)" % n2.position)
+		ok(n2.position.y + 48.0 <= 78.0,
+			"두 줄이 고리 높이 안에 들어와 아래 메뉴와 안 겹친다 (%s)" % n2.position)
+
+	# 왼쪽 위 메뉴 다섯은 **네모**로 두른다 - 두 칸씩 세 줄이라 원으로
+	# 담으면 화면 왼쪽 밖으로 삐져나간다.
+	var menu_spot: Array = []
+	for sp in HowToPlay.SPOTS:
+		if String(sp[3]) == "메뉴":
+			menu_spot = sp
+	ok(menu_spot.size() > 7 and menu_spot[7] is Vector2,
+		"'메뉴' 자리는 네모로 두른다")
+	# 그 네모가 버튼 다섯을 실제로 다 담는가 (받침까지 16~228, 54~358)
+	if menu_spot.size() > 7:
+		var h: Vector2 = menu_spot[7]
+		var cx := float(menu_spot[1])
+		var cy := float(menu_spot[2])
+		ok(cx - h.x <= 16.0 and cx + h.x >= 228.0
+			and cy - h.y <= 54.0 and cy + h.y >= 358.0,
+			"네모가 버튼 다섯을 다 담는다 (%d~%d, %d~%d)"
+				% [int(cx - h.x), int(cx + h.x), int(cy - h.y), int(cy + h.y)])
+	var gone := false
+	for sp in HowToPlay.SPOTS:
+		if String(sp[3]) == "배낭":
+			gone = true
+	ok(not gone, "오른쪽 아래를 가리키던 '배낭' 자리는 없앴다 (거기 없다)")
 
 	card._close()
 	await get_tree().process_frame
@@ -6335,10 +6362,11 @@ func _folk_ids_that_send_postcards() -> Array:
 
 # ── 화면에 나와 있는 메뉴 버튼 ────────────────────────────────────────
 #
-# **넷이 배낭 안에 숨어 있었다.** 사진첩·편지·행복첩·이 마을은 배낭을
+# **다섯이 배낭 안에 숨어 있었다.** 사진첩·편지·행복첩·이 마을은 배낭을
 # 열어야 탭으로 갈아 끼우는 구조라, 편지가 왔다는 점을 보고도 어디를
-# 눌러야 편지가 나오는지 몰랐다 — 이름이 화면에 없으면 그런 것이 있는
-# 줄도 모른다. 왼쪽 아래에 제 버튼으로 세웠다.
+# 눌러야 편지가 나오는지 몰랐다. 넷을 왼쪽 아래에 글자 버튼으로 세웠다가,
+# 배낭만 그림이고 나머지는 글자라 한 줄로 안 읽혀 **다섯을 다 그림으로,
+# 왼쪽 위 한자리에** 모았다.
 func _menu_button_tests() -> void:
 	print("\n[화면 메뉴 버튼]")
 	JourneyState.reset()
@@ -6348,43 +6376,71 @@ func _menu_button_tests() -> void:
 	var hud: JourneyHud = p.hud
 	await get_tree().process_frame
 
-	ok(hud._menu_btns.size() == 4, "버튼 넷이 서 있다 (%d)" % hud._menu_btns.size())
-	var names: Array = []
+	ok(hud._menu_btns.size() == 5, "버튼 다섯이 서 있다 (%d)" % hud._menu_btns.size())
+	var all_pics := true
 	for b in hud._menu_btns:
-		names.append(String(b.text))
-	ok(names == ["사진첩", "편지", "행복첩", "이 마을"],
-		"이름이 화면에 그대로 적혀 있다 (%s)" % str(names))
+		if not (b is TextureButton) or b.texture_normal == null:
+			all_pics = false
+	ok(all_pics, "다섯이 다 그림이다 (글자 버튼이 섞여 있지 않다)")
 
-	# 손가락이 닿을 크기여야 한다. 배낭 탭과 같은 결로 124x56 을 쓴다.
+	# 왼쪽 위다. 가운데 위에 뜨는 안내(`_hint`, x -380~380)와 안 겹쳐야
+	# 한다 - 1280 폭 기준으로 그것들은 x 260 부터 시작한다.
+	var far_right := 0.0
+	var far_down := 0.0
+	for b in hud._menu_btns:
+		far_right = maxf(far_right, b.offset_right)
+		far_down = maxf(far_down, b.offset_bottom)
+	ok(far_right <= 260.0, "가운데 위 안내 자리까지 안 넘어온다 (%d)" % int(far_right))
+	ok(far_down <= 560.0, "아래 버튼 자리까지 안 내려간다 (%d)" % int(far_down))
+
+	# 손가락이 닿을 크기여야 한다. 배낭·사진 버튼(96)과 같은 결.
 	var small := false
 	for b in hud._menu_btns:
-		if b.custom_minimum_size.x < 100.0 or b.custom_minimum_size.y < 48.0:
+		if b.custom_minimum_size.x < 80.0 or b.custom_minimum_size.y < 80.0:
 			small = true
 	ok(not small, "누를 만한 크기다")
 
-	# 서로 겹치지 않고, 아래 카메라 버튼 자리(-128~-32)도 안 밟는다.
+	# 서로 겹치지 않는다
 	var overlap := false
 	for i in hud._menu_btns.size():
-		var a: Button = hud._menu_btns[i]
-		if a.offset_bottom > -148.0:
-			overlap = true              # 카메라 자리 침범
+		var a: TextureButton = hud._menu_btns[i]
 		for j in range(i + 1, hud._menu_btns.size()):
-			var b: Button = hud._menu_btns[j]
-			if a.offset_top < b.offset_bottom and b.offset_top < a.offset_bottom:
+			var b: TextureButton = hud._menu_btns[j]
+			if a.offset_left < b.offset_right and b.offset_left < a.offset_right \
+					and a.offset_top < b.offset_bottom and b.offset_top < a.offset_bottom:
 				overlap = true
-	ok(not overlap, "버튼끼리도, 사진 버튼과도 안 겹친다")
+	ok(not overlap, "버튼끼리 안 겹친다")
+
+	# **걷는 손가락과 다투지 않는다.** TextureButton 은 엔진이 첫 손가락
+	# 하나만 마우스로 흉내내 줘서, 걸으면서 다른 손가락으로 누르면
+	# 그냥 없던 일이 된다. `try_touch()` 가 대신 받아야 한다.
+	if hud.bag_open():
+		hud.toggle_bag()
+	await get_tree().process_frame
+	var town: TextureButton = hud._menu_btns[4]
+	ok(hud.try_touch(town.get_global_rect().get_center()),
+		"걷는 중에 눌러도 메뉴 버튼이 받는다")
+	await get_tree().process_frame
+	ok(hud.bag_open() and hud._tab == 4, "그 손가락으로 '이 마을' 이 열린다")
+	hud.toggle_bag()
+	await get_tree().process_frame
 
 	# 알림 점 — 편지는 편지 버튼에, 남은 할 일은 '이 마을' 버튼에.
 	# 하나짜리 배낭 점은 "뭔가 새것이 있다" 까지만 알렸다.
 	JourneyState.letters.append({"who": "엄마", "text": "밥은 먹고 다니니.", "read": false})
-	if hud.bag_open():
-		hud.toggle_bag()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	ok(hud._dot_letter != null and hud._dot_letter.visible,
 		"안 읽은 편지가 있으면 편지 버튼에 점이 붙는다")
 	ok(hud._dot_task != null and hud._dot_task.visible,
 		"할 일이 남았으면 '이 마을' 버튼에 점이 붙는다")
+	# 점은 제 버튼 모서리에 붙어 있다 (엉뚱한 버튼 옆에 뜨면 헛짚는다)
+	var lb: TextureButton = hud._menu_btns[2]
+	# 두 칸씩 놓은 배치라 점이 버튼 밖으로 나가면 옆 칸 것으로 읽힌다.
+	ok(hud._dot_letter.offset_left >= lb.offset_left
+		and hud._dot_letter.offset_right <= lb.offset_right + 8.0
+		and hud._dot_letter.offset_top >= lb.offset_top - 8.0,
+		"편지 점이 편지 버튼 안쪽 모서리에 붙는다")
 
 	# 편지 칸을 열면 읽은 것으로 친다 → 점이 꺼진다
 	hud.open_tab(2)
@@ -6395,24 +6451,26 @@ func _menu_button_tests() -> void:
 	ok(hud._dot_letter != null and not hud._dot_letter.visible,
 		"읽고 나면 편지 점이 꺼진다")
 
-	# 대화 중에는 버튼도 점도 같이 치운다 — 대화창이 화면 아래를 덮는다
+	# 대화 중에는 버튼도 받침도 점도 같이 치운다
 	hud.set_buttons_visible(false)
 	await get_tree().process_frame
 	var any_shown := false
 	for b in hud._menu_btns:
 		if b.visible:
 			any_shown = true
-	ok(not any_shown, "대화 중에는 버튼이 치워진다")
+	for c in hud._menu_pads:
+		if c.visible:
+			any_shown = true
+	ok(not any_shown, "대화 중에는 버튼과 받침이 치워진다")
 	ok(hud._dot_task == null or not hud._dot_task.visible,
 		"점도 같이 치워진다")
 	hud.set_buttons_visible(true)
 	await get_tree().process_frame
 
-	# 길잡이 고리는 이제 배낭이 아니라 '이 마을' 버튼을 두른다.
+	# 길잡이 고리는 "이 마을" 버튼을 두른다.
 	hud.point_at_tasks(true)
 	await get_tree().process_frame
 	ok(hud._hint_ring != null and hud._hint_ring.visible, "고리가 켜진다")
-	var town: Button = hud._menu_btns[3]
 	ok(hud._hint_ring.offset_left <= town.offset_left \
 		and hud._hint_ring.offset_right >= town.offset_right \
 		and hud._hint_ring.offset_top <= town.offset_top \
@@ -6423,6 +6481,31 @@ func _menu_button_tests() -> void:
 	hud.point_at_tasks(true)
 	await get_tree().process_frame
 	ok(not hud._hint_ring.visible, "판이 열려 있으면 고리를 안 켠다")
+
+	# 판 머리에 칸 이름이 적힌다 — 버튼이 그림뿐이라 여기서 배운다
+	ok(String(hud._bag_title.text) == "이 마을",
+		"판 머리가 지금 칸을 말해 준다 (%s)" % hud._bag_title.text)
+	hud.open_tab(1)
+	await get_tree().process_frame
+	ok(String(hud._bag_title.text) == "사진첩",
+		"칸을 바꾸면 이름도 바뀐다 (%s)" % hud._bag_title.text)
+	hud.toggle_bag()
+	await get_tree().process_frame
+
+	# **배낭 칸의 그림은 `ICONS` 를 거친다.** 주운 것은 제 이름이 곧
+	# 그림 이름이지만 받는 물건은 아니다 — 지도는 수첩 그림을 빌려 쓴다.
+	# 그 표를 안 보고 `map.png` 를 찾다 못 찾아 **지도·카메라 칸이 빈
+	# 채로** 떴었다.
+	JourneyState.pick("map")
+	JourneyState.pick("camera")
+	hud.open_tab(0)
+	await get_tree().process_frame
+	var blank := []
+	for cell in hud._bag_grid.get_children():
+		for n in cell.get_children():
+			if n is TextureRect and n.texture == null:
+				blank.append(cell.name)
+	ok(blank.is_empty(), "배낭 칸마다 그림이 있다 (%s)" % str(blank))
 	hud.toggle_bag()
 	await get_tree().process_frame
 	p.queue_free()

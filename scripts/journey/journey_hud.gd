@@ -23,26 +23,25 @@ var _arrive_task: Label
 ## 첫 마을 동안 화면 위에 늘 떠 있는 안내줄.
 var _task_strip: Label
 var _title_tw: Tween
-var _bag_btn: TextureButton
 var _bag_panel: PanelContainer
 var _bag_grid: GridContainer
 var _hint: Label
 var _cam_btn: TextureButton
-var _tabs: HBoxContainer
+var _bag_title: Label
 var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 이 마을에서
-## 배낭에 안 본 것이 있다는 표시(직접 그린 점, 편지든 할 일이든).
+## 화면 왼쪽 위 메뉴 버튼 다섯(배낭·사진첩·편지·행복첩·이 마을)과
+## 그 뒤에 깔리는 받침, 그리고 편지·할 일 위에 뜨는 알림 점.
 ##
-## 한동안 편지(주황)·할 일(초록) 점을 따로 뒀는데, 밖에서 신호 둘이
-## 뜨면 "뭐가 중요한 신호인지" 흐려진다는 지적을 받았다. 바깥은 "뭔가
-## 있다" 는 것만 알리고, 무엇인지는 배낭을 열어야 안다 — 그게 탭 안의
-## 내용(체크 표시·편지 목록)이 이미 하고 있는 일이다.
-var _dot: Control
-## 왼쪽 아래 세로 줄(사진첩·편지·행복첩·이 마을)과 그 위의 알림 점들.
-var _menu_btns: Array = []
+## 한동안 배낭 하나에 점 하나만 붙여 "뭔가 새것이 있다" 까지만 알렸다.
+## 신호 둘이 밖에 뜨면 흐려진다고 봤기 때문인데, 그건 **누를 것이 배낭
+## 하나뿐일 때** 맞는 말이었다. 이제 눌러야 할 자리가 다섯이라, 점이
+## 어느 버튼에 붙었는지가 곧 "어디를 눌러야 하는지" 다.
+var _menu_btns: Array = []      # 칸 번호 순서 그대로 (0 배낭 … 4 이 마을)
+var _menu_pads: Array = []
 var _dot_letter: Control
 var _dot_task: Control
-## 배낭이 어디 있는지 가리키는 고리. 길잡이가 "배낭을 열어 보세요" 줄을
-## 띄우고 있는 동안만 켠다 — 글자로 "여기" 라고 쓰는 대신 **직접 그린다.**
+## "이 마을" 버튼을 가리키는 고리. 길잡이가 그 줄을 띄우고 있는 동안만
+## 켠다 — 글자로 "여기" 라고 쓰는 대신 **직접 그린다.**
 var _hint_ring: Control
 var _ring_t := 0.0
 ## 얻은 것을 그림과 함께 보여 주는 카드.
@@ -61,7 +60,6 @@ var _got_tw: Tween
 var _flash: ColorRect
 var _root: Control
 var _pad_cam: Control
-var _pad_bag: Control
 var _act_btn: Button
 var _act_kind := ""
 var _act_shown := false
@@ -191,23 +189,6 @@ func _build() -> void:
 	_task_strip.visible = false
 	root.add_child(_task_strip)
 
-	# 배낭 — 오른쪽 아래. 엄지가 닿는 곳
-	_bag_btn = TextureButton.new()
-	_bag_btn.texture_normal = load("res://assets/sprites/i-pack.png")
-	_bag_btn.ignore_texture_size = true
-	_bag_btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-	_bag_btn.custom_minimum_size = Vector2(96, 96)
-	_bag_btn.size = Vector2(96, 96)
-	_bag_btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_bag_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_bag_btn.offset_left = -128
-	_bag_btn.offset_top = -128
-	_bag_btn.offset_right = -32
-	_bag_btn.offset_bottom = -32
-	_bag_btn.pressed.connect(toggle_bag)
-	_press_feedback(_bag_btn)
-	root.add_child(_bag_btn)
-
 	# ── 선택 버튼 ──
 	#
 	# 오른쪽 아래, 배낭 위. **하나로 여러 일을 한다** — 말 걸기, 자기,
@@ -268,7 +249,7 @@ func _build() -> void:
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_hint)
 
-	# 두 버튼 뒤에 받침을 깐다.
+	# 아이콘 버튼 뒤에 받침을 깐다.
 	#
 	# 카메라 아이콘이 어두운 갈색이라 윤슬 왼쪽 아래의 쓰러진 나무·우물과
 	# 겹치면 버튼인지 배경 소품인지 갈리지 않았다. 아이콘을 다시 그리는
@@ -278,7 +259,6 @@ func _build() -> void:
 	# 두 버튼이 서로 반대쪽으로 쏠려 더 어긋나 보였다.
 	# 버튼 중심은 좌우 다 화면 끝에서 80px, 위로 80px.
 	_pad_cam = _make_pad(root, Control.PRESET_BOTTOM_LEFT, 20, -140, 140, -20)
-	_pad_bag = _make_pad(root, Control.PRESET_BOTTOM_RIGHT, -140, -140, -20, -20)
 
 	# 사진 — 왼쪽 아래. 배낭과 반대쪽이라 헷갈리지 않는다
 	_cam_btn = TextureButton.new()
@@ -296,69 +276,7 @@ func _build() -> void:
 	_press_feedback(_cam_btn)
 	root.add_child(_cam_btn)
 
-	# ── 왼쪽 아래 세로 줄 — 사진첩 · 편지 · 행복첩 · 이 마을 ──
-	#
-	# **넷이 배낭 안에 숨어 있었다.** 배낭을 열어야 탭으로 갈아 끼우는
-	# 구조라, 편지가 왔다는 점을 보고도 어디를 눌러야 편지가 나오는지
-	# 몰랐다. 이름이 화면에 없으면 그런 것이 있는 줄도 모른다.
-	#
-	# 자리는 카메라 버튼 위로 쌓는다 — 왼쪽 아래는 원래 "내 것" 쪽이라
-	# (사진 찍기가 여기 있다) 사진첩·편지가 그 위에 서면 결이 맞고,
-	# 가로 화면에서 왼손 엄지가 닿는 자리다. 오른쪽 아래(배낭·선택
-	# 버튼)와 위(설정·작은 지도)는 이미 차 있다.
-	#
-	# 제일 자주 여는 "이 마을" 을 맨 아래(엄지에서 제일 가까운 자리)에
-	# 두고 위로 올라간다. 판 안의 탭 차례와 위아래가 같다.
-	var menu := [["사진첩", 1], ["편지", 2], ["행복첩", 3], ["이 마을", 4]]
-	for k in menu.size():
-		var name_i: String = String(menu[k][0])
-		var tab_i: int = int(menu[k][1])
-		var mb := Button.new()
-		mb.name = "MenuBtn%d" % tab_i
-		mb.text = name_i
-		mb.focus_mode = Control.FOCUS_NONE
-		# 배낭 탭과 같은 결. 폭은 "이 마을" 이 안 잘리게 잡는다.
-		mb.custom_minimum_size = Vector2(124, 56)
-		mb.add_theme_font_size_override("font_size", 24)
-		Paper.button(mb, Color("#F4EDE2"), Color("#8C7B68"), Color("#3A2C2C"), 12)
-		mb.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-		mb.offset_left = 20
-		mb.offset_right = 144
-		# 카메라 버튼이 -128~-32 를 쓴다. 그 위 20px 부터 66px 씩 쌓는다.
-		var bottom := -148.0 - float(menu.size() - 1 - k) * 66.0
-		mb.offset_top = bottom - 56.0
-		mb.offset_bottom = bottom
-		mb.pressed.connect(open_tab.bind(tab_i))
-		_press_feedback(mb)
-		root.add_child(mb)
-		_menu_btns.append(mb)
-		# 편지와 이 마을에는 알림 점이 붙는다. 점은 버튼 오른쪽 위 모서리.
-		if tab_i == 2 or tab_i == 4:
-			var d := _make_menu_dot(root, mb)
-			if tab_i == 2:
-				_dot_letter = d
-			else:
-				_dot_task = d
-
-	# 안 읽은 편지나 남은 할 일이 있으면 배낭에 점이 하나 붙는다.
-	# 숫자도 느낌표도 안 쓴다. 점은 글자가 아니라 **직접 그린다.**
-	# 본문 폰트(PoorStory)에 ● 가 없어서 글자로 쓰면 폰에서 네모
-	# 상자가 뜬다. 도형은 폰트를 안 탄다.
-	_dot = Control.new()
-	_dot.custom_minimum_size = Vector2(22, 22)
-	_dot.size = Vector2(22, 22)
-	_dot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	# 배낭 원 테두리 위 오른쪽 45도. 예전엔 위로 너무 떠 있었다.
-	_dot.offset_left = -57
-	_dot.offset_top = -125
-	_dot.offset_right = -35
-	_dot.offset_bottom = -103
-	_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_dot.visible = false
-	_dot.draw.connect(func() -> void:
-		_dot.draw_circle(Vector2(11, 11), 11.0, Color(0.16, 0.13, 0.18))
-		_dot.draw_circle(Vector2(11, 11), 8.5, Color("#FFD166")))
-	root.add_child(_dot)
+	_build_menu(root)
 
 	# ── 얻은 것 카드 ──
 	#
@@ -450,31 +368,24 @@ func _build() -> void:
 	_cele.add_child(_cele_sub)
 
 	# "이 마을" 버튼을 가리키는 고리. 그 버튼과 같은 자리에 겹쳐 두고
-	# 테두리만 그린다.
-	#
-	# 예전엔 오른쪽 아래 배낭을 둘렀다 — 할 일이 배낭 안에 있었으니까.
-	# 이제 "이 마을" 이 제 버튼으로 나와 있으므로 그쪽을 가리킨다.
-	# 버튼이 동그라미가 아니라 가로로 긴 네모라, 원 대신 모서리 둥근
-	# 네모로 두른다 (원으로 두르면 버튼 양 끝이 고리 밖으로 나간다).
+	# 테두리만 그린다. (예전엔 오른쪽 아래 배낭을 둘렀다 — 할 일이
+	# 배낭 안에 있었으니까.)
 	_hint_ring = Control.new()
-	_hint_ring.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_hint_ring.offset_left = 12
-	_hint_ring.offset_right = 152
-	_hint_ring.offset_top = -212
-	_hint_ring.offset_bottom = -140
+	_hint_ring.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	var ring_at := menu_rect(4).grow(8.0)
+	_hint_ring.offset_left = ring_at.position.x
+	_hint_ring.offset_top = ring_at.position.y
+	_hint_ring.offset_right = ring_at.end.x
+	_hint_ring.offset_bottom = ring_at.end.y
 	_hint_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint_ring.visible = false
-	var ring_box := StyleBoxFlat.new()
-	ring_box.bg_color = Color(0, 0, 0, 0)
-	ring_box.set_corner_radius_all(18)
 	_hint_ring.draw.connect(func() -> void:
+		var mid := _hint_ring.size * 0.5
 		# 숨쉬듯 굵기와 크기가 오간다. 깜빡이면 급해 보인다.
 		var p := 0.5 + 0.5 * sin(_ring_t * 3.0)
-		ring_box.border_color = Color(1.0, 0.82, 0.40, 0.45 + p * 0.45)
-		ring_box.set_border_width_all(int(round(4.0 + p * 2.0)))
-		var grow := p * 4.0
-		_hint_ring.draw_style_box(ring_box, Rect2(
-			Vector2(-grow, -grow), _hint_ring.size + Vector2(grow, grow) * 2.0)))
+		var rad: float = minf(mid.x, mid.y) - 6.0 + p * 5.0
+		_hint_ring.draw_arc(mid, rad, 0.0, TAU, 48,
+			Color(1.0, 0.82, 0.40, 0.45 + p * 0.45), 4.0 + p * 2.0, true))
 	root.add_child(_hint_ring)
 
 	# 사진 찍을 때 화면이 한 번 하얘진다
@@ -511,26 +422,20 @@ func _build_bag(root: Control) -> void:
 	box.add_theme_constant_override("separation", 14)
 	_bag_panel.add_child(box)
 
-	# 넷을 한 창에 모은다. 화면을 늘리지 않는다.
-	_tabs = HBoxContainer.new()
-	_tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-	_tabs.add_theme_constant_override("separation", 8)
-	box.add_child(_tabs)
-	# **다섯 칸이 판 밖으로 넘쳤다.** "이 마을에서" 는 여섯 글자라 제 칸을
-	# 넘겨 잡는데, 다섯을 나란히 놓으니 합이 판 안폭보다 넓어 **마지막
-	# 칸이 오른쪽으로 잘렸다** — 하필 할 일이 든, 제일 자주 열 칸이었다.
-	# 판을 넓히고 이름을 "이 마을" 로 줄인다.
-	for i in 5:
-		var b := Button.new()
-		b.text = ["배낭", "사진첩", "편지", "행복첩", "이 마을"][i]
-		b.custom_minimum_size = Vector2(112, 60)
-		b.add_theme_font_size_override("font_size", 24)
-		# 골랐는지는 `_refill_bag()` 이 modulate 로 밝기를 낮춰 보여 주지만,
-		# 그 바탕이 될 배경 자체가 없어서 엔진 기본 회색 버튼 다섯이
-		# 나란히 붕 떠 보였다.
-		Paper.button(b, Color("#F4EDE2"), Color("#8C7B68"), Color("#3A2C2C"), 12)
-		b.pressed.connect(_pick_tab.bind(i))
-		_tabs.add_child(b)
+	# **판 머리에는 지금 보고 있는 칸의 이름만 적는다.**
+	#
+	# 여태는 여기에 탭 다섯이 나란히 있었다. 배낭을 눌렀는데 사진첩·
+	# 편지·행복첩·이 마을이 같이 딸려 나오니, 배낭을 연 것이 아니라
+	# **메뉴를 연 것**처럼 보였다. 다섯은 이제 화면 왼쪽 위에 제 그림
+	# 버튼으로 나와 있으므로 판이 다시 들고 있을 까닭이 없다.
+	#
+	# 대신 이름은 있어야 한다 — 버튼이 그림뿐이라, 누른 것이 무엇이었는지
+	# 여기서 배운다.
+	_bag_title = Label.new()
+	_bag_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_bag_title.add_theme_font_size_override("font_size", 30)
+	_bag_title.add_theme_color_override("font_color", Color("#FFE39A"))
+	box.add_child(_bag_title)
 
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -545,22 +450,32 @@ func _build_bag(root: Control) -> void:
 	scroll.add_child(_bag_grid)
 
 
-## 메뉴 버튼 오른쪽 위에 붙는 알림 점. 배낭 점과 같은 모양으로 그린다
-## (글자가 아니라 도형이라 폰트를 안 탄다 — 배낭 점 주석 참고).
-func _make_menu_dot(root: Control, btn: Button) -> Control:
+## 메뉴 버튼 오른쪽 위에 붙는 알림 점.
+##
+## 숫자도 느낌표도 안 쓴다. 점은 글자가 아니라 **직접 그린다** — 본문
+## 폰트(PoorStory)에 ● 가 없어서 글자로 쓰면 폰에서 네모 상자가 뜬다.
+## 도형은 폰트를 안 탄다.
+##
+## 예전엔 배낭에 점 하나만 붙여 "뭔가 새것이 있다" 까지만 알렸다.
+## 그때는 편지든 할 일이든 배낭을 열어 탭을 뒤져야 무엇인지 알았다.
+## 이제 점이 붙은 자리가 곧 눌러야 할 자리다.
+func _make_menu_dot(root: Control, at: Rect2) -> Control:
 	var d := Control.new()
-	d.custom_minimum_size = Vector2(20, 20)
-	d.size = Vector2(20, 20)
-	d.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	d.offset_left = btn.offset_right - 14
-	d.offset_right = btn.offset_right + 6
-	d.offset_top = btn.offset_top - 6
-	d.offset_bottom = btn.offset_top + 14
+	d.custom_minimum_size = Vector2(22, 22)
+	d.size = Vector2(22, 22)
+	d.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	# **제 버튼 안쪽 모서리에 붙인다.** 버튼 밖으로 내밀었더니 점이
+	# 두 칸 사이에 떠서, 왼쪽 버튼 것인지 오른쪽 버튼 것인지 갈리지
+	# 않았다 (두 칸씩 놓은 배치라 옆 칸이 바로 붙어 있다).
+	d.offset_left = at.end.x - 20.0
+	d.offset_top = at.position.y - 4.0
+	d.offset_right = d.offset_left + 22.0
+	d.offset_bottom = d.offset_top + 22.0
 	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	d.visible = false
 	d.draw.connect(func() -> void:
-		d.draw_circle(Vector2(10, 10), 10.0, Color(0.16, 0.13, 0.18))
-		d.draw_circle(Vector2(10, 10), 7.5, Color("#FFD166")))
+		d.draw_circle(Vector2(11, 11), 11.0, Color(0.16, 0.13, 0.18))
+		d.draw_circle(Vector2(11, 11), 8.5, Color("#FFD166")))
 	root.add_child(d)
 	return d
 
@@ -584,6 +499,76 @@ func _pop(b: Control) -> void:
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 
+## ── 왼쪽 위 메뉴 다섯 ────────────────────────────────────────────────
+##
+## **다섯이 배낭 안에 숨어 있었다.** 배낭을 열어야 탭으로 갈아 끼우는
+## 구조라, 편지가 왔다는 점을 보고도 어디를 눌러야 편지가 나오는지
+## 몰랐다. 먼저 넷을 왼쪽 아래에 글자 버튼으로 세웠는데, 이번엔
+## **배낭만 그림이고 나머지는 글자**라 한 줄로 안 읽혔다.
+##
+## 이제 다섯을 **다 그림으로, 왼쪽 위 한자리에** 모은다.
+## 자리를 그렇게 잡은 이유:
+## - 가로 한 줄(다섯 나란히)은 가운데 위에 뜨는 안내·알림(`_hint`,
+##   길잡이 판)과 x 가 겹친다. 2칸씩 세 줄이면 x 는 210 에서 끝나고
+##   그것들은 260 부터 시작해 안 부딪힌다.
+## - 아래는 이미 차 있다 — 왼쪽 아래 사진, 오른쪽 아래 선택 버튼.
+## - 세로 한 줄(다섯)은 480px 이라 화면 왼쪽을 통째로 덮는다.
+##
+## 차례는 판 안 차례 그대로다(배낭·사진첩·편지·행복첩·이 마을).
+## 글자가 없으니 무엇이 무엇인지는 **열어 보면 판 머리에 이름이 적혀**
+## 알게 된다.
+const MENU := [
+	["배낭", "i-pack"], ["사진첩", "i-album"], ["편지", "i-letter"],
+	["행복첩", "i-heartbook"], ["이 마을", "i-list"],
+]
+const MENU_AT := Vector2(24, 62)   # 시계(28,18)와 안 겹치게 그 아래부터
+const MENU_BTN := 88.0             # 96 짜리 사진 버튼과 같은 결
+## 받침 원이 버튼보다 사방 8px 크다. 사이를 16 보다 좁게 두면 옆 받침과
+## 겹쳐서 다섯이 한 덩어리로 보인다 — 실제로 10 으로 뒀다가 그랬다.
+const MENU_GAP := 20.0
+const MENU_COLS := 2
+
+
+## i 번째 버튼이 앉을 자리. 고리·점도 같은 셈을 써서 어긋나지 않는다.
+func menu_rect(i: int) -> Rect2:
+	var col := i % MENU_COLS
+	var row := i / MENU_COLS
+	return Rect2(
+		MENU_AT + Vector2(float(col), float(row)) * (MENU_BTN + MENU_GAP),
+		Vector2(MENU_BTN, MENU_BTN))
+
+
+func _build_menu(root: Control) -> void:
+	for i in MENU.size():
+		var at := menu_rect(i)
+		_menu_pads.append(_make_pad(root, Control.PRESET_TOP_LEFT,
+			at.position.x - 8, at.position.y - 8, at.end.x + 8, at.end.y + 8))
+
+		var b := TextureButton.new()
+		b.name = "MenuBtn%d" % i
+		b.texture_normal = load("res://assets/sprites/%s.png" % MENU[i][1])
+		b.ignore_texture_size = true
+		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		b.custom_minimum_size = at.size
+		b.size = at.size
+		b.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		b.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		b.offset_left = at.position.x
+		b.offset_top = at.position.y
+		b.offset_right = at.end.x
+		b.offset_bottom = at.end.y
+		b.pressed.connect(open_tab.bind(i))
+		_press_feedback(b)
+		root.add_child(b)
+		_menu_btns.append(b)
+
+		# 편지와 이 마을에는 알림 점이 붙는다 — 오른쪽 위 모서리.
+		if i == 2:
+			_dot_letter = _make_menu_dot(root, at)
+		elif i == 4:
+			_dot_task = _make_menu_dot(root, at)
+
+
 func _make_pad(root: Control, preset: int, l: float, t: float,
 		r: float, b: float) -> Control:
 	var c := Control.new()
@@ -594,8 +579,12 @@ func _make_pad(root: Control, preset: int, l: float, t: float,
 	c.draw.connect(func() -> void:
 		var mid := c.size * 0.5
 		var rad: float = minf(mid.x, mid.y)
-		c.draw_circle(mid, rad, Color(0.16, 0.13, 0.18, 0.26))
-		c.draw_circle(mid, rad - 3.0, Color(1.0, 0.99, 0.94, 0.20)))
+		# **밝은 낮 배경 위에서 받침이 통째로 사라졌었다** (0.26/0.20).
+		# 어두운 밤 화면만 보고 맞춘 값이라, 윤슬 아침의 모랫길 위에서는
+		# 아이콘이 배경에 둥둥 뜬 그림이 됐다. 다섯이 나란히 선 지금은
+		# 더 잘 보인다 — 테두리를 진하게, 안쪽 종이를 두껍게 한다.
+		c.draw_circle(mid, rad, Color(0.16, 0.13, 0.18, 0.42))
+		c.draw_circle(mid, rad - 3.0, Color(1.0, 0.99, 0.94, 0.56)))
 	root.add_child(c)
 	return c
 
@@ -639,9 +628,9 @@ func toggle_bag() -> void:
 	if _bag_panel.visible:
 		# **배낭은 배낭을 연다.** 여태는 할 일이 남아 있으면 "이 마을"
 		# 칸부터 열었다 — 그 칸이 다섯째 탭에 묻혀 못 찾겠다는 지적을
-		# 그렇게 막았었다. 이제 "이 마을" 이 화면에 제 버튼으로 나와
-		# 있으므로 숨길 것이 없고, 배낭을 눌렀는데 다른 칸이 열리는
-		# 쪽이 오히려 어리둥절하다.
+		# 그렇게 막았었다. 이제 다섯이 다 화면에 제 버튼으로 나와 있으니
+		# 숨길 것이 없고, 배낭을 눌렀는데 다른 칸이 열리는 쪽이 오히려
+		# 어리둥절하다.
 		_tab = 0
 		_refill_bag()
 	bag_toggled.emit(_bag_panel.visible)
@@ -703,9 +692,7 @@ func bag_open() -> bool:
 func _refill_bag() -> void:
 	for c in _bag_grid.get_children():
 		c.queue_free()
-	for i in _tabs.get_child_count():
-		var b := _tabs.get_child(i) as Button
-		b.modulate = Color.WHITE if i == _tab else Color(0.7, 0.68, 0.74)
+	_bag_title.text = String(MENU[_tab][0]) if _tab < MENU.size() else ""
 
 	match _tab:
 		1: _fill_photos()
@@ -730,7 +717,9 @@ func _fit_bag_panel() -> void:
 	# 화면 높이를 따라가되 너무 커지진 않게 한다.
 	var vp := get_viewport().get_visible_rect().size
 	var content: float = _bag_grid.get_combined_minimum_size().y
-	var need: float = clampf(content + 168.0, 236.0, minf(vp.y * 0.82, 580.0))
+	# 머리에 있던 탭 줄(60px)이 빠지고 이름 한 줄만 남았다. 그만큼
+	# 덜 잡는다 — 안 줄이면 물건 둘짜리 배낭이 또 반쯤 빈 판이 된다.
+	var need: float = clampf(content + 110.0, 190.0, minf(vp.y * 0.82, 580.0))
 	_bag_panel.offset_top = -need * 0.5
 	_bag_panel.offset_bottom = need * 0.5
 
@@ -752,7 +741,13 @@ func _fill_bag() -> void:
 		var cell := VBoxContainer.new()
 		cell.alignment = BoxContainer.ALIGNMENT_CENTER
 		var pic := TextureRect.new()
-		pic.texture = load("res://assets/sprites/%s.png" % item)
+		# **`ICONS` 를 거쳐야 한다.** 주운 것(`p-*`)은 제 이름이 곧 그림
+		# 이름이지만 받는 물건은 아니다 — 지도는 `i-notebook` 을 빌려
+		# 쓰고 카메라는 `i-camera` 다. 여기서 그 표를 안 봐서
+		# `map.png` 를 찾다 못 찾고 **지도·카메라 칸이 빈 채로** 떴다
+		# (얻은 것 카드는 같은 표를 보고 제대로 그리고 있었다).
+		pic.texture = load("res://assets/sprites/%s.png"
+			% String(ICONS.get(item, item)))
 		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		pic.custom_minimum_size = Vector2(84, 84)
@@ -1423,23 +1418,19 @@ func _process(delta: float) -> void:
 	_maybe_explain_sides(list)
 	_watch_done(list)
 	_tick_task_strip()
-	if _dot != null:
-		var left := false
-		for q in list:
-			if not bool(q.get("done", false)):
-				left = true
-				break
-		var unread := JourneyState.unread_letters() > 0
-		var news := unread or left
-		var show := not bag_open() and not _buttons_hidden
-		_dot.visible = news and show
-		# 이제 어느 버튼을 눌러야 하는지까지 알린다. 배낭 점 하나로
-		# "뭔가 새것이 있다" 만 알리던 때는, 그게 편지인지 할 일인지
-		# 알려면 배낭을 열어 탭을 뒤져야 했다.
-		if _dot_letter != null:
-			_dot_letter.visible = unread and show
-		if _dot_task != null:
-			_dot_task.visible = left and show
+	# 점은 **어느 버튼을 눌러야 하는지까지** 알린다. 배낭에 점 하나로
+	# "뭔가 새것이 있다" 만 알리던 때는, 그게 편지인지 할 일인지 알려면
+	# 배낭을 열어 탭을 뒤져야 했다. 그 합친 점은 없앴다.
+	var left := false
+	for q in list:
+		if not bool(q.get("done", false)):
+			left = true
+			break
+	var show := not bag_open() and not _buttons_hidden
+	if _dot_letter != null:
+		_dot_letter.visible = JourneyState.unread_letters() > 0 and show
+	if _dot_task != null:
+		_dot_task.visible = left and show
 	# 카메라를 받기 전엔 셔터 버튼이 없다 (`docs/quest-journey.md` 3.5절).
 	# 대화 중 버튼을 숨기는 `set_buttons_visible()` 와 겹쳐도, 여기서
 	# 매 프레임 다시 확인하므로 카메라 없는 사람에게 다시 뜨는 일이 없다.
@@ -1510,21 +1501,22 @@ func _apply_safe_area() -> void:
 	inset_safe(_root)
 
 
-## 대화 중에는 배낭·사진 버튼을 치운다.
+## 대화 중에는 메뉴·사진 버튼을 치운다.
 ##
 ## 대화창이 화면 아래를 통째로 쓰기 때문에 버튼이 그 뒤에 숨어 있었고,
 ## 창이 탭을 먹어서 눌리지도 않았다. 안 보이는 버튼을 남겨 두느니
 ## 대화 동안은 아예 비켜 준다 — 대화 중에 사진을 찍을 일도 없다.
 func set_buttons_visible(on: bool) -> void:
 	_buttons_hidden = not on
-	for n in [_bag_btn, _cam_btn, _pad_bag, _pad_cam]:
+	for n in [_cam_btn, _pad_cam]:
 		if n != null:
 			n.visible = on
-	# 왼쪽 아래 메뉴 줄도 같이. 대화창이 화면 아래를 덮는데 버튼이
-	# 그 위에 남아 있으면 글을 가린다.
-	for b in _menu_btns:
-		if is_instance_valid(b):
-			b.visible = on
+	# 왼쪽 위 메뉴 다섯도 같이. 말풍선 위에 이름표가 뜨고 화면 위쪽까지
+	# 글이 올라오는 장면이 있어서, 버튼이 남아 있으면 그 글을 가린다.
+	for a in [_menu_btns, _menu_pads]:
+		for n in a:
+			if is_instance_valid(n):
+				n.visible = on
 	for d in [_dot_letter, _dot_task]:
 		if d != null and not on:
 			d.visible = false
@@ -1575,7 +1567,11 @@ func try_touch(pos: Vector2) -> bool:
 		return false
 	if _bag_panel != null and _bag_panel.visible:
 		return false                       # 배낭이 열려 있으면 창이 알아서 받는다
-	for b in [_act_btn, _cam_btn, _bag_btn]:
+	# 메뉴 다섯도 `TextureButton` 이라 여기 같이 들어와야 한다 — 안 그러면
+	# 걸으면서 다른 손가락으로 누른 것이 그냥 없던 일이 된다.
+	var targets: Array = [_act_btn, _cam_btn]
+	targets.append_array(_menu_btns)
+	for b in targets:
 		if b != null and b.visible and b.get_global_rect().has_point(pos):
 			b.pressed.emit()
 			b.scale = Vector2(0.88, 0.88)     # 손가락으로 직접 눌렀을 때도
