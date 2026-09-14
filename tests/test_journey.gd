@@ -693,6 +693,10 @@ func _extras_tests() -> void:
 	# 한 번을 못 봤다. "재회가 이 게임의 심장" 이라면서 그 상대의
 	# 편지가 죽은 콘텐츠였다.
 	JourneyState.reset()
+	# 이제 편지는 만난 사람에게서만 온다. 너구리는 첫 마을(윤슬)에
+	# 서 있으므로 실제로 걸으면 반드시 만나지만, 여기선 걷지 않고
+	# 도착만 세므로 만난 것으로 쳐 준다.
+	JourneyState.hearts["raccoon"] = 1
 	for v in Quests.ORDER:
 		JourneyState.visit(v)
 		JourneyState.maybe_letter()
@@ -744,6 +748,54 @@ func _extras_tests() -> void:
 		p.say.advance()
 	p.queue_free()
 	await get_tree().process_frame
+
+	# 엽서는 **그 사람이 쓴 것**이어야 한다. 여태는 공용 열두 줄을 받은
+	# 순서대로 돌려써서, 빵집 아주머니와 자전거 탄 아이가 같은 문장을
+	# 보냈다. 인연이 늘 때 문장 넣는 것을 잊지 않도록 여기서 잡는다.
+	var pc_ids := _folk_ids_that_send_postcards()
+	var no_line: Array = []
+	for fid in pc_ids:
+		if String(JourneyState.POSTCARD_BY_FOLK.get(fid, "")) == "":
+			no_line.append(fid)
+	ok(no_line.is_empty(), "엽서를 주는 인연 %d명이 다 제 문장을 갖는다%s"
+		% [pc_ids.size(), "" if no_line.is_empty() else " (없는 이: %s)" % str(no_line)])
+	var used: Dictionary = {}
+	var dup: Array = []
+	for fid in JourneyState.POSTCARD_BY_FOLK:
+		var line := String(JourneyState.POSTCARD_BY_FOLK[fid])
+		if used.has(line):
+			dup.append(line)
+		used[line] = true
+	ok(dup.is_empty(), "같은 문장을 두 사람이 쓰지 않는다")
+	# 붙잡는 말로 끝나면 이 게임의 편지가 아니다 (`docs/story-journey.md`).
+	var pushy: Array = []
+	for fid in JourneyState.POSTCARD_BY_FOLK:
+		var line := String(JourneyState.POSTCARD_BY_FOLK[fid])
+		for word in ["와 주세요", "와 줘요", "기다릴게", "기다리고 있을"]:
+			if line.contains(word):
+				pushy.append(fid)
+	ok(pushy.is_empty(), "붙잡는 말로 끝나는 엽서가 없다")
+
+	# 편지 보내는 이가 실제로 만날 수 있는 인연인가. 이름을 잘못 적으면
+	# `LETTER_NEEDS_MEET` 의 빗장이 조용히 풀려 모르는 사람이 편지를 보낸다.
+	var real_ids := _folk_ids_that_send_postcards()
+	var ghost: Array = []
+	for sender in JourneyState.LETTER_NEEDS_MEET:
+		var fid := String(JourneyState.LETTER_NEEDS_MEET[sender])
+		if not (fid in real_ids):
+			ghost.append("%s(%s)" % [sender, fid])
+	ok(ghost.is_empty(), "편지 빗장이 가리키는 인연이 다 실제로 있다%s"
+		% ("" if ghost.is_empty() else " (없는 이: %s)" % str(ghost)))
+	# 가족 말고는 다 빗장이 걸려 있어야 한다.
+	var family_who := ["엄마", "아빠", "동생"]
+	var unlocked: Array = []
+	for entry in JourneyState.LETTERS:
+		var w := String(entry.get("who", ""))
+		if w in family_who or JourneyState.LETTER_NEEDS_MEET.has(w):
+			continue
+		unlocked.append(w)
+	ok(unlocked.is_empty(), "가족 아닌 편지는 다 만나야 온다%s"
+		% ("" if unlocked.is_empty() else " (빠진 이: %s)" % str(unlocked)))
 
 	print("\n[프롤로그]")
 	var pro: Place = preload("res://scenes/journey/Jaenmaru.tscn").instantiate()
@@ -6226,3 +6278,35 @@ func _shade_spot_tests() -> void:
 	s2.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
+
+
+## 엽서를 줄 수 있는 인연의 folk_id. 마을 스크립트에서 직접 긁는다 —
+## 목록을 손으로 또 적어 두면 인연이 늘 때 그 목록만 안 늘어난다.
+func _folk_ids_that_send_postcards() -> Array:
+	var out: Array = []
+	var dirs := ["res://scripts/journey/places/",
+		"res://scripts/journey/places/interiors/"]
+	for d in dirs:
+		var dir := DirAccess.open(d)
+		if dir == null:
+			continue
+		for f in dir.get_files():
+			if not f.ends_with(".gd"):
+				continue
+			var txt := FileAccess.get_file_as_string(d + f)
+			for line in txt.split("\n"):
+				if not (line.contains("put_folk(") or line.contains("put_wanderer(")):
+					continue
+				var q: PackedStringArray = []
+				var parts := line.split("\"")
+				var i := 1
+				while i < parts.size():
+					q.append(parts[i])
+					i += 2
+				if q.size() < 3:
+					continue
+				var fid := q[2]
+				if fid in Place.FAMILY_IDS or fid in out:
+					continue
+				out.append(fid)
+	return out
