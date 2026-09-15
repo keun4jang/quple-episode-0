@@ -28,7 +28,7 @@ var _bag_grid: GridContainer
 var _hint: Label
 var _cam_btn: TextureButton
 var _bag_title: Label
-var _tab := 0                     # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 이 마을에서
+var _tab := 0        # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 이 마을 · 5 마음
 ## 화면 왼쪽 위 메뉴 버튼 다섯(배낭·사진첩·편지·행복첩·이 마을)과
 ## 그 뒤에 깔리는 받침, 그리고 편지·할 일 위에 뜨는 알림 점.
 ##
@@ -519,7 +519,7 @@ func _pop(b: Control) -> void:
 ## 알게 된다.
 const MENU := [
 	["배낭", "i-pack"], ["사진첩", "i-album"], ["편지", "i-letter"],
-	["행복첩", "i-heartbook"], ["이 마을", "i-list"],
+	["행복첩", "i-heartbook"], ["이 마을", "i-list"], ["마음", "i-mind"],
 ]
 const MENU_AT := Vector2(24, 62)   # 시계(28,18)와 안 겹치게 그 아래부터
 const MENU_BTN := 88.0             # 96 짜리 사진 버튼과 같은 결
@@ -699,6 +699,7 @@ func _refill_bag() -> void:
 		2: _fill_letters()
 		3: _fill_postcards()
 		4: _fill_quests()
+		5: _fill_mind()
 		_: _fill_bag()
 	_fit_bag_panel()
 
@@ -760,6 +761,36 @@ func _fill_bag() -> void:
 		name.add_theme_color_override("font_color", Color("#E4DCCF"))
 		cell.add_child(name)
 		_bag_grid.add_child(cell)
+
+
+## 마음 — 지금 어디까지 왔나, 무엇을 쓸 수 있나.
+##
+## **전투 밖에서 볼 자리가 있어야 한다.** 레벨과 배운 것이 전투 화면
+## 안에만 있으면, 다음에 무엇이 풀리는지 모른 채 그냥 싸우게 된다.
+## 잠긴 것도 흐리게 같이 적는 이유다 — 있다는 걸 알아야 기다린다.
+func _fill_mind() -> void:
+	_bag_grid.columns = 1
+	var need := Battle.xp_need() - Battle.xp
+	var tail := "다음까지 %d" % need if Battle.level < Battle.LEVEL_MAX else "끝까지 왔다"
+	_bag_grid.add_child(_bag_line("LV %d   ·   %s" % [Battle.level, tail],
+		30, Color("#FFE39A")))
+	_bag_grid.add_child(_bag_line("체력  %d / %d"
+		% [Battle.hp, Battle.hp_max()], 26, Color("#B4E6C0")))
+	_bag_grid.add_child(_bag_line("마음력  %d / %d"
+		% [Battle.mp, Battle.mp_max()], 26, Color("#B4CCE6")))
+	_bag_grid.add_child(_bag_line("마음의 힘 %d   ·   버팀 %d"
+		% [Battle.attack_power(), Battle.defense()], 24, Color("#E4DCCF")))
+	_bag_grid.add_child(_bag_line(" ", 12, Color("#A79A8A")))
+	for id in Battle.SKILL_ORDER:
+		var sk: Dictionary = Battle.SKILLS[id]
+		var lv := int(sk["lv"])
+		if lv <= Battle.level:
+			var cost := "   (마음력 %d)" % int(sk["mp"]) if int(sk["mp"]) > 0 else ""
+			_bag_grid.add_child(_bag_line("%s%s"
+				% [String(sk["name"]), cost], 25, Color("#E4DCCF")))
+		else:
+			_bag_grid.add_child(_bag_line("%s   —  LV %d 에"
+				% [String(sk["name"]), lv], 25, Color("#7E7468")))
 
 
 ## 사진첩. 그림을 저장하지 않는다 — **어디서 언제 무엇을 봤는지**만 적는다.
@@ -1520,6 +1551,18 @@ func set_buttons_visible(on: bool) -> void:
 	for d in [_dot_letter, _dot_task]:
 		if d != null and not on:
 			d.visible = false
+
+
+## 겨루기 화면이 떠 있는 동안 HUD 를 통째로 비운다.
+##
+## `set_buttons_visible(false)` 만으로는 시계와 안내줄이 남았다. 어두워진
+## 바닥 위에 그 글자들이 그대로 떠서, 정작 봐야 할 그늘 이름·수치와
+## 같은 자리를 다퉜다.
+func set_battle_mode(on: bool) -> void:
+	set_buttons_visible(not on)
+	for n in [_clock, _hint, _place_title, _arrive_task]:
+		if n != null:
+			n.visible = not on
 
 
 ## 지금 할 수 있는 일을 버튼에 적는다. 없으면 빈 문자열.

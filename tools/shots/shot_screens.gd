@@ -126,6 +126,40 @@ func _run() -> void:
 	await _wait(30)
 	await _shot("kkonnunbeol-minimap-big")
 
+	# ⑦-2 마음 겨루기 — 마을에 선 그늘, 고를 것, 그리고 마음 창
+	SaveManager.set_flag(Guide.FLAG, true)
+	Battle.reset()
+	Battle.level = 5
+	Battle.hp = Battle.hp_max()
+	Battle.mp = Battle.mp_max()
+	JourneyState.here = "갈밭머리"
+	p = await _open("res://scenes/journey/Galbatmeori.tscn")
+	await _wait(30)
+	p.hud._arrival_card_up = false
+	await _wait(6)
+	await _shot("shade-town")
+	p.hud.open_tab(5)
+	await _wait(8)
+	await _shot("mind-panel")
+	p.hud.toggle_bag()
+	await _wait(4)
+	var shade: Shade = p._shades[0] if not p._shades.is_empty() else null
+	if shade != null:
+		p.walker.global_position = shade.global_position + Vector2(14, 0)
+		p._near = shade
+		p.talk_to_near()
+		await _wait(30)
+		await _shot("battle")
+		var bui = get_tree().get_first_node_in_group("battle_ui")
+		if bui != null:
+			bui._open_skills()
+			await _wait(8)
+			await _shot("battle-skills")
+			bui._finish()
+			await _wait(6)
+	Battle.reset()
+	JourneyState.here = "꽃눈벌"
+
 	# ⑧ 여행판
 	p.board.open(p.place_name())
 	await _wait(20)

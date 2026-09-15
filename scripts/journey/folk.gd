@@ -151,8 +151,20 @@ func _process(delta: float) -> void:
 				1.0 / maxf(tint.b, 0.05))
 	if _talk_outline_on:
 		return
-	outline_color = QuoWalker.talk_pulse()
+	outline_color = pulse_color()
 	_sync_outline()
+
+
+## 멀리서 깜빡이는 색 / 가까이 왔을 때 멎는 색.
+##
+## 그늘(`Shade`)이 같은 금색으로 깜빡이면 저기 선 것이 말 걸 사람인지
+## 붙어 볼 그늘인지 멀리서 구별이 안 된다. 색을 갈라 쓰라고 빼 둔다.
+func pulse_color() -> Color:
+	return QuoWalker.talk_pulse()
+
+
+func near_color() -> Color:
+	return OUTLINE_TALK
 
 
 ## 말 걸 수 있다는 표시를 **두 단계**로 켠다.
@@ -165,7 +177,7 @@ func set_talk_near(on: bool) -> void:
 	if is_spot or _talk_outline_on == on:
 		return
 	_talk_outline_on = on
-	outline_color = OUTLINE_TALK if on else QuoWalker.talk_pulse()
+	outline_color = near_color() if on else pulse_color()
 	_sync_outline()
 
 

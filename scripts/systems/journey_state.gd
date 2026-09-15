@@ -638,6 +638,22 @@ func pick(item: String, count: int = 1) -> void:
 	picked.emit(item, bag[item])
 
 
+## 손에 쥐고 써 버린다 (전투에서 감을 먹고 들꽃을 들여다보는 것).
+##
+## **`pick(-1)` 로 대신하면 안 된다.** 그 길은 `picked` 를 울려서 방금
+## 쓴 것을 "얻었어요" 카드로 띄우고, 0 이 된 칸을 안 지워서 배낭에
+## "감 0" 이 남는다.
+func use(item: String, n: int = 1) -> bool:
+	var have := int(bag.get(item, 0))
+	if have < n:
+		return false
+	if have == n:
+		bag.erase(item)
+	else:
+		bag[item] = have - n
+	return true
+
+
 func count(item: String) -> int:
 	return int(bag.get(item, 0))
 
@@ -705,6 +721,10 @@ func to_dict() -> Dictionary:
 		"exit_tile": [exit_tile.x, exit_tile.y],
 		"quest_flags": quest_flags.duplicate(),
 		"quest_days": quest_days.duplicate(),
+		# 마음 겨루기(레벨·체력·오늘 걷어낸 자리)도 같은 꾸러미에 넣는다.
+		# `Battle` 은 오토로드가 아니라 정적 싱글턴이라 저장할 자리가
+		# 따로 없다 — 여행 기록에 얹는다.
+		"battle": Battle.to_dict(),
 	}
 
 
@@ -801,6 +821,12 @@ func from_dict(d: Dictionary) -> void:
 		if d.get("quest_flags") is Dictionary else {}
 	quest_days = d.get("quest_days", {}).duplicate() \
 		if d.get("quest_days") is Dictionary else {}
+	# 전투가 없던 시절 세이브에는 이 칸이 없다. 그때는 갓 시작한 것으로
+	# 친다 — 없는 값을 지어내기보다 LV1 부터가 낫다.
+	if d.get("battle") is Dictionary:
+		Battle.from_dict(d["battle"])
+	else:
+		Battle.reset()
 	_migrate_knots()
 	# **이 갱신 전에 만든 세이브는 지도·카메라 개념이 없었다** — 그때는
 	# 둘 다 처음부터 켜져 있었으니까. `quest_flags` 자체가 없다는 건 이
@@ -845,3 +871,4 @@ func reset() -> void:
 	quest_flags = {}
 	announced = {}
 	announce_ready = false
+	Battle.reset()

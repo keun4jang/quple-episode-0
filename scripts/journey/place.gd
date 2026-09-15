@@ -60,6 +60,15 @@ var _grid: Array = []            # 행 문자열
 var _tiles: Dictionary = {}      # 이름 → Texture2D
 var _loose: Array[Node2D] = []   # 아직 안 주운 것
 var _folk: Array[Folk] = []
+## 마을에 선 그늘. **`_folk` 와 따로 둔다.**
+##
+## `Shade` 가 `Folk` 를 물려받으니 한 배열에 담고 싶어지는데, 그렇게
+## 했더니 "인연" 을 훑는 자리마다 그늘이 딸려 들어갔다 — 마을을 다
+## 돌면 `_folk` 전원의 마음을 두 칸씩 올리는 곳(`_warm_all`)이 그늘의
+## 마음까지 올리고 엽서를 부쳤다. 앞으로 쓸 코드도 같은 덫에 걸린다.
+## 배열을 가르면 **인연을 훑는 코드는 아무것도 안 고쳐도 된다.**
+## 그늘이 끼어야 하는 곳은 셋뿐이다 — 탭 판정, 가까운 것 표시, 치우기.
+var _shades: Array[Shade] = []
 var _near: Folk = null
 var _mark: Label                     # 말 걸 수 있는 사람 위에 뜨는 표시
 var _prev_near: Folk
@@ -85,6 +94,10 @@ var minimap: MiniMap
 var guide: Guide
 ## 소품이 막고 있는 칸. 길찾기가 본다.
 var _blocked: Dictionary = {}
+## 설정 버튼이 사는 층. 겨루기 동안 통째로 치운다.
+var _settings_cl: CanvasLayer
+## 겨루기 중인가. 세계가 멈춘다 — 시간도, 걸음도, 이름표도.
+var _battling := false
 ## 대화가 걸리는 소품의 칸 → 그 소품의 금색 테두리 노드.
 ## `_update_near()` 가 가까워진 자리를 찾아 켠다.
 var _prop_outline_at: Dictionary = {}
@@ -186,6 +199,18 @@ const FOLIAGE := ["tree", "pine", "shrub", "beach-grass"]
 func pickups() -> Array:
 	return []
 
+## 이 마을에 설 그늘들 (`Battle.ENEMIES` 의 열쇠를 나열한다).
+##
+## **자리는 안 적는다.** 아홉 마을의 걸을 수 있는 칸을 손으로 골라 두면
+## 지도를 한 줄만 고쳐도 그늘이 나무 속에 박힌다. `_shade_spots()` 가
+## 실제로 걸을 수 있는 칸 중에서 고른다 — 날마다 자리가 바뀌지만
+## 날짜로 씨를 심어서 **같은 날 다시 들어오면 같은 자리**다.
+##
+## 마을별 목록은 `Battle.SPAWNS` 한 곳에 모아 둔다 — 아홉 파일에
+## 흩어 두면 난이도 곡선을 한눈에 볼 수가 없다.
+func shades() -> Array:
+	return Battle.SPAWNS.get(quest_village(), [])
+
 ## 주인공이 처음 서는 칸
 func spawn_tile() -> Vector2i:
 	return Vector2i(2, 2)
@@ -245,6 +270,8 @@ func _ready() -> void:
 	_build_ui()
 	_start_sound()
 	on_built()
+	# **인연을 다 세운 뒤에** 그늘을 세운다 — 사람 옆자리를 피해야 한다.
+	_build_shades()
 	_block_folk_tiles()
 	# **인연을 다 세운 뒤에** 도착 카드를 띄운다. `_build_ui()` 때는
 	# 아직 아무도 없어서 "지금 해볼 일" 이 엉뚱한 것을 짚었다 —
@@ -1065,6 +1092,195 @@ func _outline_sprite(s: Sprite2D) -> Node2D:
 ## 탑다운에서 작은 물건을 줍는 데 버튼을 요구하면, 지나갈 때마다 "여기
 ## 뭐 있었나" 하고 되돌아가게 된다. 밟으면 줍는 게 편하고, 벌이 없으니
 ## 실수로 주워도 손해가 없다.
+# ── 그늘 ──────────────────────────────────────────────────────────────
+#
+# 마을을 떠다니는 부정적인 마음이 형체를 얻은 것. **눈에 보이게 세워
+# 두고, 눌러야만 시작한다** — 걷다가 저절로 튀어나오면 쉬러 온 사람이
+# 방해받는다. 싸울지 말지는 매번 사람이 고른다.
+
+## 그늘끼리, 그리고 사람·문·잠자리·정류장에서 이만큼은 떨어뜨린다(칸).
+const SHADE_CLEAR := 4
+const SHADE_APART := 5
+
+func _build_shades() -> void:
+	# 실내에는 안 선다. 가게 안·집 안은 쉬는 자리다.
+	if is_indoors():
+		return
+	var want := shades()
+	if want.is_empty():
+		return
+	var place := place_name()
+	var spots := _shade_spots(want.size())
+	var put := 0
+	for i in mini(want.size(), spots.size()):
+		var t: Vector2i = spots[i]
+		if Battle.is_cleared(place, t):
+			continue        # 오늘 이미 걷어낸 자리
+		if put_shade(t, String(want[i])) != null:
+			put += 1
+	# **처음 한 번은 말해 준다.** 그늘이 뭔지 모르면 그냥 지나친다 —
+	# 인연과 테두리 색이 다르다는 것만으로는 눌러도 되는 건지 알 수 없다.
+	# 도착 카드가 덮고 있는 동안은 기다렸다 뜬다(patient).
+	if put > 0 and hud != null and not JourneyState.quest_done("그늘:첫안내"):
+		JourneyState.mark_quest("그늘:첫안내")
+		hud._say_hint("마을에 그늘이 서 있어요. 누르면 마음을 겨뤄요.", true, 2.4)
+
+
+## 걸을 수 있는 칸 중에서 고른다.
+##
+## **날짜로 씨를 심는다.** 그래야 가게에 들렀다 나와도 그늘이 제자리에
+## 있고(들어갔다 나오면 씬을 다시 짓는다), 다음 날이면 자리가 바뀐다.
+func _shade_spots(n: int) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%s|%d" % [place_name(), JourneyState.day])
+	var keep_off: Array = [spawn_tile(), sleep_tile(), depart_tile()]
+	for f in _folk:
+		if is_instance_valid(f):
+			keep_off.append(f.at_tile)
+	for d in _doors:
+		keep_off.append(Vector2i(d["tile"]))
+
+	# **소품 뒤에 숨은 칸은 뺀다.** 나무나 집이 몸을 덮으면 보이지도
+	# 않고 탭도 소품에 먹힌다 — 검사(`_placement_lint_tests`)가 인연에
+	# 대해 재는 것과 같은 셈이다. 소품 상자는 한 번만 만들어 둔다
+	# (칸마다 그림을 다시 읽으면 마을 하나에 수천 번이 된다).
+	var boxes: Array = []
+	for pr in props():
+		var tex := load("res://assets/sprites/%s.png" % pr[2]) as Texture2D
+		if tex == null:
+			continue
+		var pb: float = (float(pr[1]) + 1.0) * TILE
+		boxes.append([Rect2(float(pr[0]) * TILE + TILE * 0.5
+			- tex.get_width() / 2.0, pb - tex.get_height(),
+			tex.get_width(), tex.get_height()), pb])
+
+	var cands: Array = []
+	# **이어 붙인 여백은 뺀다.** 넓게 보기를 위해 오른쪽·아래로 늘린
+	# 자리라, 거기 세우면 지도 바깥에 홀로 선 것처럼 보인다.
+	var w: int = _orig_size.x if _orig_size.x > 0 else _size.x
+	var h: int = _orig_size.y if _orig_size.y > 0 else _size.y
+	for y in h:
+		for x in w:
+			var t := Vector2i(x, y)
+			if not _walkable(t):
+				continue
+			if _too_near(t, keep_off, SHADE_CLEAR):
+				continue
+			if _hidden_by_prop(t, boxes):
+				continue
+			cands.append(t)
+	if cands.is_empty():
+		return []
+
+	# 섞고 앞에서부터 집되, 서로 붙지 않게 거른다.
+	for i in range(cands.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = cands[i]
+		cands[i] = cands[j]
+		cands[j] = tmp
+	var out: Array = []
+	for t in cands:
+		if out.size() >= n:
+			break
+		if _too_near(t, out, SHADE_APART):
+			continue
+		out.append(t)
+	return out
+
+
+## 그늘 몸(20x24 쯤)이 소품에 얼마나 덮이나. 4분의 1을 넘으면 뺀다.
+func _hidden_by_prop(t: Vector2i, boxes: Array) -> bool:
+	var body := Vector2(20, 24)
+	var tb: float = (float(t.y) + 1.0) * TILE
+	var me := Rect2(float(t.x) * TILE + TILE * 0.5 - body.x * 0.5,
+		tb - body.y, body.x, body.y)
+	var area: float = body.x * body.y
+	for b in boxes:
+		if float(b[1]) <= tb:
+			continue          # 뒤에 그려지면 안 가린다
+		if (b[0] as Rect2).intersection(me).get_area() / area > 0.25:
+			return true
+	return false
+
+
+func _too_near(t: Vector2i, others: Array, gap: int) -> bool:
+	for o in others:
+		var v: Vector2i = o
+		if v.x < 0:
+			continue          # 없는 자리 (-1, -1)
+		if absi(v.x - t.x) <= gap and absi(v.y - t.y) <= gap:
+			return true
+	return false
+
+
+func put_shade(t: Vector2i, kind: String) -> Shade:
+	var e: Dictionary = Battle.ENEMIES.get(kind, {})
+	if e.is_empty():
+		push_warning("그런 그늘이 없다: %s" % kind)
+		return null
+	var s := Shade.new()
+	s.sheet = "res://assets/sprites/s-%s-walk.png" % String(e["sheet"])
+	s.who = String(e["name"])
+	s.folk_id = "shade:%s" % kind
+	s.shade_kind = kind
+	s.at_tile = t
+	s.position = world_of(t)
+	add_child(s)
+	_shades.append(s)
+	return s
+
+
+## 겨루기 동안 세계를 멈추고 화면을 비운다.
+##
+## **판만 덮어서는 모자랐다.** 미니맵·설정 버튼·목표 화살표·물건
+## 이름표가 어두워진 바닥 위에 그대로 떠서, 정작 봐야 할 그늘과 수치가
+## 그 사이에 묻혔다. 시간도 같이 멈춘다 — 한 대 주고받는 사이에 해가
+## 기울면 그것대로 급해진다.
+func set_world_ui(on: bool) -> void:
+	_battling = not on
+	if minimap != null:
+		minimap.visible = on
+	if _settings_cl != null:
+		_settings_cl.visible = on
+	if _goal_edge != null:
+		_goal_edge.visible = on
+	if hud != null:
+		hud.set_battle_mode(not on)
+	for f in _tappable():
+		if is_instance_valid(f):
+			f.set_tag_near(false)
+	for a in _loose:
+		if not is_instance_valid(a):
+			continue
+		var tg = a.get_node_or_null("Tag")
+		if tg != null:
+			tg.visible = on
+
+
+## 그늘 앞에 섰다. 화면을 띄운다.
+func start_shade(s: Shade) -> void:
+	if get_tree().get_first_node_in_group("battle_ui") != null:
+		return
+	walker.stop()
+	stop_walk_to()
+	set_world_ui(false)
+	var ui := BattleUI.new()
+	add_child(ui)
+	ui.open(s.shade_kind)
+	ui.closed.connect(func(won: bool) -> void:
+		set_world_ui(true)
+		if won and is_instance_valid(s):
+			Battle.mark_cleared(place_name(), s.at_tile)
+			_shades.erase(s)
+			s.dissolve()
+		# 졌거나 물러났으면 그늘은 그대로 선다. 한 걸음 물러나 둬야
+		# 판을 닫자마자 다시 붙는 일이 없다.
+		elif is_instance_valid(s):
+			var away := (walker.global_position - s.global_position).normalized()
+			walker.global_position += away * TILE * 1.5
+		SaveManager.save_now())
+
+
 func _build_pickups() -> void:
 	var place := place_name()
 	for entry in pickups():
@@ -1454,6 +1670,7 @@ func _add_settings() -> void:
 	var cl := CanvasLayer.new()
 	cl.layer = 6
 	add_child(cl)
+	_settings_cl = cl
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1796,7 +2013,8 @@ func _update_near() -> void:
 	var nearest_tag: Folk = null
 	var nearest_d := TAG_RANGE * TAG_RANGE
 	var talking := say != null and say.is_busy()
-	for f in _folk:
+	var all_near := _tappable()
+	for f in all_near:
 		if not is_instance_valid(f):
 			continue
 		var d := walker.global_position.distance_squared_to(f.global_position)
@@ -1806,7 +2024,7 @@ func _update_near() -> void:
 		if not talking and d < nearest_d:
 			nearest_d = d
 			nearest_tag = f
-	for f in _folk:
+	for f in all_near:
 		if is_instance_valid(f) and f.has_method("set_tag_near"):
 			f.set_tag_near(f == nearest_tag)
 	# 주울 것의 이름표도 같은 규칙 — 다가와야 스르르 보인다.
@@ -1988,6 +2206,10 @@ func go_to_sleep() -> void:
 	tw.tween_property(_fade, "color:a", 1.0, 0.6)
 	tw.tween_callback(func():
 		JourneyState.sleep()
+		# 하룻밤 자면 체력·마음력이 가득 찬다. 여행 중에 쉴 데가
+		# 마을마다 잠자리 하나뿐이라, 이만큼은 돌려줘야 다음 날
+		# 그늘에게 붙어 볼 마음이 난다.
+		Battle.rest_full()
 		for f in _folk:
 			if is_instance_valid(f):
 				f.reset_day()
@@ -2070,6 +2292,11 @@ func talk_to_near() -> void:
 	f.face(dir)
 	walker.face(-dir)
 	walker.stop()
+	# 그늘 앞이면 말이 아니라 겨루기다.
+	if f is Shade:
+		_near = null
+		start_shade(f as Shade)
+		return
 	# **대사를 먼저 고르고** 마음을 올린다. 순서를 바꾸면 처음 만난
 	# 사람이 두 칸째 대사를 하고, 첫인사를 영영 못 듣는다.
 	# 가게 선반은 대화 대신 **판**이 뜬다. 자리 표시를 그대로 쓰되
@@ -2526,7 +2753,11 @@ func _refresh_action() -> void:
 		hud.set_action("", "")
 		return
 	if _near != null:
-		hud.set_action("talk", "보기" if _near.is_spot else "말 걸기")
+		# 그늘 앞에서 "말 걸기" 라고 적으면 안 된다 — 누르면 겨루기가 열린다.
+		if _near is Shade:
+			hud.set_action("talk", "마음 겨루기")
+		else:
+			hud.set_action("talk", "보기" if _near.is_spot else "말 걸기")
 		return
 	# **사진 자리에서는 사진이 먼저다.** 등대곶은 등대 문 앞이기도 해서
 	# 버튼에 "등대 들어가기" 가 떴다 - 사진을 남겨야 넘어가는 자리인데
@@ -2720,6 +2951,19 @@ func _beside(f: Folk) -> Vector2:
 ##
 ## 화면에 그려진 크기가 아니라 **손가락 크기**를 기준으로 잡는다.
 ## 24px 짜리 쿼카를 정확히 눌러야 한다면 아무도 못 누른다.
+## 눌러서 만나는 것 전부 — 인연과 그늘.
+##
+## **`_folk + _shades` 로 이으면 안 된다.** `Array[Folk] + Array[Shade]`
+## 는 타입 없는 배열이 되고, 그걸 도는 쪽의 `f.global_position` 추론이
+## 통째로 깨져 파일이 컴파일에 실패한다.
+func _tappable() -> Array[Folk]:
+	var out: Array[Folk] = []
+	out.append_array(_folk)
+	for sh in _shades:
+		out.append(sh)
+	return out
+
+
 const TOUCH_SLACK := 14.0
 
 func _folk_at(at: Vector2) -> Folk:
@@ -2727,7 +2971,7 @@ func _folk_at(at: Vector2) -> Folk:
 		return null
 	var best := INF
 	var found: Folk = null
-	for f in _folk:
+	for f in _tappable():
 		if not is_instance_valid(f):
 			continue
 		# 발끝이 원점이라 몸통은 그 위에 있다.
@@ -3187,6 +3431,9 @@ func _tick_goto(delta: float) -> Vector2:
 
 
 func _process(delta: float) -> void:
+	# 겨루기 중에는 세계가 멈춘다. 시간도, 걸음도, 이름표도.
+	if _battling:
+		return
 	# **대화가 막 닫혔으면 잠깐은 다시 안 연다.** 대사는 타자 효과라
 	# 자연히 연타하게 되는데, 마지막 줄에서 대화가 닫히는 즉시 같은
 	# 자리 버튼이 "다음"→"말 걸기" 로 바뀌어(쿨다운 없이) 연타의

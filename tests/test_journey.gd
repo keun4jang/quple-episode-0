@@ -90,6 +90,8 @@ func _ready() -> void:
 	await _shop_owner_identity_tests()
 	_shop_skin_test()
 	await _menu_button_tests()
+	await _battle_tests()
+	await _shade_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -958,7 +960,20 @@ func _camera_tests() -> void:
 	ok(someone != null, "인연이 있다")
 	ok(tp._folk_at(someone.global_position + Vector2(0, -12)) == someone,
 		"몸을 누르면 그 사람이 잡힌다")
-	ok(tp._folk_at(someone.global_position + Vector2(90, 90)) == null,
+	# **"90px 떨어진 곳" 이 빈 땅이라는 보장이 없다.** 그늘이 마을에
+	# 서면서 하필 거기 선 날 이 검사가 깨졌다. 아무도 없는 자리를
+	# 직접 찾아서 잰다 — 재려는 건 거리가 아니라 "빈 땅이면 null" 이다.
+	var empty := Vector2.INF
+	for r in 24:
+		var cand: Vector2 = someone.global_position + Vector2(90.0 + r * 28.0, 90.0)
+		var clear := true
+		for c2 in tp._folk:
+			if is_instance_valid(c2) and c2.global_position.distance_to(cand) < 48.0:
+				clear = false
+		if clear:
+			empty = cand
+			break
+	ok(empty != Vector2.INF and tp._folk_at(empty) == null,
 		"멀리 빈 땅을 누르면 아무도 안 잡힌다")
 
 	# ①-1 누른 자리가 **지도 가장자리에서도** 맞아야 한다.
@@ -5456,7 +5471,12 @@ func _zone_note_tests() -> void:
 	for z in pl.quest_zones():
 		if String(z[0]) == "윤슬:부두끝":
 			pl.walker.global_position = pl.world_of(z[1])
+	# **차례줄까지 비운다.** 마을에 들어서면 "그늘이 서 있어요" 가 한 번
+	# 먼저 뜨는데(처음 한 번만), 그게 줄에 남아 있으면 여기서 재려는
+	# 말은 그 뒤에 서서 아직 화면에 없다.
 	pl.hud._hint.text = ""
+	pl.hud._hint_queue.clear()
+	pl.hud._hint_busy = false
 	pl._tick_quest_zones()
 	var said := String(pl.hud._hint.text)
 	ok(said.contains("저녁에 한 번 더"),
@@ -6362,7 +6382,7 @@ func _folk_ids_that_send_postcards() -> Array:
 
 # ── 화면에 나와 있는 메뉴 버튼 ────────────────────────────────────────
 #
-# **다섯이 배낭 안에 숨어 있었다.** 사진첩·편지·행복첩·이 마을은 배낭을
+# **다섯이 배낭 안에 숨어 있었다.** (전투가 들어오며 "마음" 이 여섯째로 붙었다.) 사진첩·편지·행복첩·이 마을은 배낭을
 # 열어야 탭으로 갈아 끼우는 구조라, 편지가 왔다는 점을 보고도 어디를
 # 눌러야 편지가 나오는지 몰랐다. 넷을 왼쪽 아래에 글자 버튼으로 세웠다가,
 # 배낭만 그림이고 나머지는 글자라 한 줄로 안 읽혀 **다섯을 다 그림으로,
@@ -6376,7 +6396,7 @@ func _menu_button_tests() -> void:
 	var hud: JourneyHud = p.hud
 	await get_tree().process_frame
 
-	ok(hud._menu_btns.size() == 5, "버튼 다섯이 서 있다 (%d)" % hud._menu_btns.size())
+	ok(hud._menu_btns.size() == 6, "버튼 여섯이 서 있다 (%d)" % hud._menu_btns.size())
 	var all_pics := true
 	for b in hud._menu_btns:
 		if not (b is TextureButton) or b.texture_normal == null:
@@ -6510,3 +6530,253 @@ func _menu_button_tests() -> void:
 	await get_tree().process_frame
 	p.queue_free()
 	await get_tree().process_frame
+
+
+# ── 마음 겨루기 ───────────────────────────────────────────────────────
+#
+# 규칙만 본다. 화면은 `BattleUI` 가 사건 배열을 재생만 하므로, 여기서
+# 잡아야 할 것은 **수와 차례**다.
+func _battle_tests() -> void:
+	print("\n[마음 겨루기 — 규칙]")
+	JourneyState.reset()
+	Battle.reset()
+
+	ok(Battle.hp == Battle.hp_max() and Battle.mp == Battle.mp_max(),
+		"시작은 가득 찬 채다 (%d/%d)" % [Battle.hp, Battle.hp_max()])
+	ok(Battle.skills() == ["smile", "breathe"],
+		"LV1 에는 둘만 쓸 수 있다 (%s)" % str(Battle.skills()))
+
+	# **약점에 회복·버프를 두면 안 된다.** 적에게 피해를 못 주는 스킬이
+	# 약점이 되면 "피해 0 + 적 턴 넘김" 이라, 그 스킬만 반복해 무한
+	# 회복이 된다 (쿼플 0편이 실제로 겪은 사고).
+	var bad: Array = []
+	for id in Battle.ENEMIES:
+		var w := String(Battle.ENEMIES[id].get("weak", ""))
+		if w != "" and String(Battle.SKILLS[w]["type"]) != "attack":
+			bad.append(id)
+	ok(bad.is_empty(), "약점은 공격 스킬뿐이다 (%s)" % str(bad))
+
+	# 약점은 모든 공격 스킬에 고르게 흩어져 있다 — 하나에 몰리면
+	# 나머지 둘은 영영 안 쓰인다.
+	var spread: Dictionary = {}
+	for id in Battle.ENEMIES:
+		var w := String(Battle.ENEMIES[id].get("weak", ""))
+		if w != "":
+			spread[w] = int(spread.get(w, 0)) + 1
+	ok(spread.size() >= 3, "약점이 공격 스킬 셋에 다 걸려 있다 (%s)" % str(spread))
+
+	# ① 때리면 줄어든다
+	Battle.start("worry")
+	ok(Battle.in_battle, "전투가 열렸다")
+	var before: int = int(Battle.enemy["hp"])
+	Battle.player_use_skill("smile")
+	ok(int(Battle.enemy["hp"]) < before, "때리면 그늘이 줄어든다")
+
+	# ② **행동 예고와 실제가 같아야 한다.** 무작위가 아니라 턴 수로만
+	# 정하므로(`_enemy_plan`) 어긋날 수가 없어야 한다.
+	Battle.reset()
+	Battle.start("regret")
+	for i in 5:
+		if not Battle.in_battle:
+			break
+		var told := Battle.expected_damage()
+		var hp_was := Battle.hp
+		Battle.player_use_skill("smile")
+		if not Battle.in_battle:
+			break
+		var lost := hp_was - Battle.hp
+		# 상태(온기 등)가 흐르면 총량이 달라질 수 있으니 예고가 0 일
+		# 때(상태만 거는 턴)와 때린 턴을 갈라 본다.
+		if told > 0:
+			ok(lost == told, "%d턴: %d 온다고 하고 %d 왔다" % [i + 1, told, lost])
+		else:
+			ok(lost == 0, "%d턴: 안 때린다고 하고 안 때렸다 (%d)" % [i + 1, lost])
+
+	# ③ 약점 턴 넘김은 **전투당 한 번**이다. 매번 통하면 마음력 0 짜리
+	# 웃어넘기기가 약점인 그늘은 영영 반격을 못 한다.
+	Battle.reset()
+	Battle.start("worry")
+	var hp0 := Battle.hp
+	Battle.player_use_skill("smile")      # 약점 — 이번엔 넘어간다
+	ok(Battle.hp == hp0, "처음 약점을 찌르면 그늘이 못 움직인다")
+	Battle.player_use_skill("smile")
+	ok(Battle.hp < hp0, "두 번째부터는 정상적으로 반격한다")
+	ok(Battle.found_weak, "찾아낸 약점을 기억한다")
+
+	# ④ 이기면 자란다
+	Battle.reset()
+	Battle.start("worry")
+	var guard := 0
+	while Battle.in_battle and guard < 40:
+		Battle.player_use_skill("smile")
+		guard += 1
+	ok(not Battle.in_battle, "언젠가 끝난다 (%d턴)" % guard)
+	ok(Battle.xp > 0 or Battle.level > 1, "이기면 마음이 자란다")
+
+	# ⑤ **져도 잃는 것이 없다.** 여행 게임에 되돌릴 수 없는 벌은 안 둔다.
+	Battle.reset()
+	var bag_was := JourneyState.bag.duplicate()
+	Battle.start("night")                 # 보스 — LV1 이 이길 수 없다
+	var g2 := 0
+	while Battle.in_battle and g2 < 60:
+		Battle.player_use_skill("smile")
+		g2 += 1
+	ok(not Battle.in_battle, "보스에게는 진다 (LV1)")
+	Battle.recover_after_loss()
+	ok(Battle.hp > 0, "쓰러져도 다시 일어난다 (%d)" % Battle.hp)
+	ok(JourneyState.bag == bag_was, "져도 배낭에서 없어지는 건 없다")
+
+	# ⑥ 손에 쥔 것 — 쓰면 배낭에서 준다. 0 이 되면 칸 자체가 사라진다
+	# (`pick(-1)` 로 대신하면 "감 0" 이 남는다).
+	Battle.reset()
+	JourneyState.pick("p-persimmon")
+	Battle.start("worry")
+	Battle.hp = 5
+	Battle.player_use_item("p-persimmon")
+	ok(Battle.hp > 5, "먹으면 체력이 는다 (%d)" % Battle.hp)
+	ok(not JourneyState.bag.has("p-persimmon"), "다 쓰면 배낭에서 칸이 사라진다")
+
+	# ⑦ 퀘스트가 쓰는 것은 전투에서 못 쓴다 — 써 버리면 매듭이 막힌다.
+	var clash: Array = []
+	for id in ["p-seaglass", "p-seaweed", "p-conch"]:
+		if Battle.FOODS.has(id):
+			clash.append(id)
+	ok(clash.is_empty(), "퀘스트 물건은 먹어 없앨 수 없다 (%s)" % str(clash))
+
+	# ⑧ 저장에 남는다
+	Battle.reset()
+	Battle.level = 4
+	Battle.xp = 7
+	Battle.hp = 30
+	var d := JourneyState.to_dict()
+	Battle.reset()
+	JourneyState.from_dict(d)
+	ok(Battle.level == 4 and Battle.xp == 7 and Battle.hp == 30,
+		"레벨·경험·체력이 저장된다 (LV%d %d %d)"
+			% [Battle.level, Battle.xp, Battle.hp])
+	# 전투가 없던 시절 세이브에는 이 칸이 아예 없다
+	var old_save := JourneyState.to_dict()
+	old_save.erase("battle")
+	JourneyState.from_dict(old_save)
+	ok(Battle.level == 1, "옛 세이브는 LV1 부터 시작한다")
+	Battle.reset()
+	JourneyState.reset()
+
+
+# ── 마을에 선 그늘 ───────────────────────────────────────────────────
+#
+# **눈에 보이게 서 있고 눌러야만 시작한다.** 걷다가 저절로 튀어나오면
+# 쉬러 온 사람이 방해받는다.
+func _shade_tests() -> void:
+	print("\n[마을에 선 그늘]")
+	JourneyState.reset()
+	Battle.reset()
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+
+	var found: Array = p._shades.duplicate()
+	ok(found.size() == Battle.SPAWNS["윤슬"].size(),
+		"윤슬에 그늘이 선다 (%d)" % found.size())
+
+	# 걸을 수 있는 칸이라야 한다 — 나무나 물 속에 박히면 닿을 수가 없다.
+	# **바닥으로만 본다.** 그늘도 `_folk` 라 제 칸을 스스로 막으니
+	# (`_block_folk_tiles`) `_walkable` 로 재면 전원이 걸린다 — 인연
+	# 검사가 같은 이유로 `_floor_solid` 를 쓴다.
+	var stuck: Array = []
+	for sh in found:
+		if p._floor_solid(sh.at_tile.x, sh.at_tile.y):
+			stuck.append(sh.at_tile)
+	ok(stuck.is_empty(), "다 걸어갈 수 있는 자리에 선다 (%s)" % str(stuck))
+
+	# 처음 서는 칸 바로 옆에 두면 도착하자마자 들이받는다.
+	var too_close := false
+	for sh in found:
+		var d: Vector2i = sh.at_tile - p.spawn_tile()
+		if absi(d.x) <= 2 and absi(d.y) <= 2:
+			too_close = true
+	ok(not too_close, "도착하는 자리에 붙어 서지 않는다")
+
+	# 인연 위에 겹쳐 서지 않는다
+	var on_folk := false
+	for sh in found:
+		for f in p._folk:
+			if is_instance_valid(f) and f.at_tile == sh.at_tile:
+				on_folk = true
+	ok(not on_folk, "인연과 같은 칸에 서지 않는다")
+
+	# **`_folk` 에 섞이지 않는다.** 한 배열에 담았더니 "인연" 을 훑는
+	# 자리마다(마을을 다 돌면 전원의 마음을 올리는 곳 같은) 그늘이
+	# 딸려 들어가 마음이 오르고 엽서까지 부쳐졌다.
+	var mixed := false
+	for f in p._folk:
+		if f is Shade:
+			mixed = true
+	ok(not mixed, "그늘은 인연 목록에 안 섞인다")
+
+	# **같은 날 다시 들어오면 같은 자리다.** 가게에 들렀다 나올 때마다
+	# 그늘이 순간이동하면 마을이 미덥지 않아진다.
+	var first: Array = []
+	for sh in found:
+		first.append(sh.at_tile)
+	first.sort()
+	p.queue_free()
+	await get_tree().process_frame
+	var p2: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p2)
+	await get_tree().process_frame
+	var again: Array = []
+	for c in p2._shades:
+		again.append(c.at_tile)
+	again.sort()
+	ok(again == first, "같은 날에는 같은 자리에 선다")
+
+	# 눌러서 다가가면 전투가 열린다 (인연과 같은 길로 간다)
+	var target: Shade = p2._shades[0] if not p2._shades.is_empty() else null
+	ok(target != null, "붙어 볼 그늘을 찾았다")
+	if target != null:
+		p2.walker.global_position = target.global_position + Vector2(10, 0)
+		p2._near = target
+		p2.talk_to_near()
+		await get_tree().process_frame
+		var ui = get_tree().get_first_node_in_group("battle_ui")
+		ok(ui != null, "그늘 앞에 서면 겨루기가 열린다")
+		ok(Battle.in_battle and Battle.kind == target.shade_kind,
+			"그 그늘과 붙는다 (%s)" % Battle.kind)
+		if ui != null:
+			# 이겨서 닫으면 그 자리는 오늘 하루 빈다
+			var t: Vector2i = target.at_tile
+			Battle.enemy["hp"] = 1
+			ui.step_secs = 0.0
+			ui._act_skill("smile")
+			await get_tree().process_frame
+			await get_tree().process_frame
+			ok(not Battle.in_battle, "쓰러뜨리면 전투가 끝난다")
+			ui._finish()
+			await get_tree().process_frame
+			ok(Battle.is_cleared("윤슬", t), "걷어낸 자리를 기억한다")
+	p2.queue_free()
+	await get_tree().process_frame
+
+	# 프롤로그(회사)와 고향에는 안 선다 — 거기서까지 싸우면 이 여행이
+	# 무엇이었는지가 흐려진다.
+	ok(not Battle.SPAWNS.has("잿마루") and not Battle.SPAWNS.has("고향"),
+		"회사와 집에는 그늘이 없다")
+	# 난이도는 여행 차례대로 는다
+	# **합이 아니라 제일 무거운 것으로 잰다.** 뒷마을은 수가 적고
+	# 하나하나가 무겁다 — 합으로 재면 그게 내리막으로 보인다.
+	var last := 0
+	var rising := true
+	var curve: Array = []
+	for v in Quests.ORDER:
+		var top := 0
+		for k in Battle.SPAWNS.get(v, []):
+			top = maxi(top, int(Battle.ENEMIES[k]["xp"]))
+		curve.append(top)
+		if top < last:
+			rising = false
+		last = top
+	ok(rising, "뒷마을일수록 무거운 그늘이 선다 (%s)" % str(curve))
+	Battle.reset()
+	JourneyState.reset()
