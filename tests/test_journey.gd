@@ -401,10 +401,32 @@ func _talk_tests() -> void:
 	ok(JourneyState.night_amount() > 0.9, "밤엔 어둡다")
 	ok(JourneyState.time_text().begins_with("오후"), "오후로 바뀐다")
 
+	# **자면 하루가 통째로 넘어가지 않는다 — 12시간만 지난다.**
+	# 밤이 아니어도 잘 수 있어서(`Place._can_sleep()` "낮잠도 여행이다"),
+	# 언제나 다음 날 아침 6시로 건너뛰면 낮잠 한 번에 거의 하루를
+	# 통째로 잃었다.
 	var d0 := JourneyState.day
-	JourneyState.sleep()
-	ok(JourneyState.day == d0 + 1, "자면 다음 날")
-	ok(JourneyState.minutes == JourneyState.DAY_START, "자면 아침으로")
+	JourneyState.sleep()          # 밤 9시에 누웠다 — 12시간 뒤는 다음 날 아침 9시
+	ok(JourneyState.day == d0 + 1, "자정을 넘기면 다음 날")
+	ok(JourneyState.minutes == 9 * 60,
+		"밤 9시에 자면 12시간 뒤 아침 9시다 (%f)" % JourneyState.minutes)
+
+	# 낮잠은 하루를 안 넘긴다.
+	var d1 := JourneyState.day
+	JourneyState.minutes = 8 * 60
+	JourneyState.sleep()          # 아침 8시 낮잠 — 12시간 뒤는 저녁 8시, 같은 날
+	ok(JourneyState.day == d1, "낮잠은 같은 날로 남는다 (%d)" % JourneyState.day)
+	ok(JourneyState.minutes == 20 * 60,
+		"아침 8시에 낮잠을 자면 저녁 8시다 (%f)" % JourneyState.minutes)
+
+	# 자정 언저리에 자면 다음 날로 넘어가되, 그 결과가 새벽이면
+	# 하루 시작 시각(아침 6시)으로 당긴다 — 이 세계엔 새벽이 없다.
+	var d2 := JourneyState.day
+	JourneyState.minutes = 14 * 60
+	JourneyState.sleep()          # 낮 2시 — 12시간 뒤는 새벽 2시(넘어감)
+	ok(JourneyState.day == d2 + 1, "자정을 넘기면 다음 날로 친다")
+	ok(JourneyState.minutes == JourneyState.DAY_START,
+		"넘어간 자리가 새벽이면 아침으로 당긴다 (%f)" % JourneyState.minutes)
 
 	# 자고 나면 다시 마음이 는다
 	var s0 := JourneyState.heart("sibling")

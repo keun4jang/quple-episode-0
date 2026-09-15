@@ -627,10 +627,23 @@ func day_is_over() -> bool:
 	return minutes >= DAY_END
 
 
+## 12시간이 지난다. **하루가 통째로 넘어가지 않는다.**
+##
+## 예전엔 언제 누웠든 늘 다음 날 아침 6시로 건너뛰었다. 그런데
+## "밤이 아니어도 잘 수 있다 — 낮잠도 여행이다" (`Place._can_sleep()`)
+## 라서, 정오에 잠깐 누워도 거의 하루를 통째로 잃는 꼴이었다.
+##
+## 지금 시각에 12시간을 더한다. 그 값이 자정(`DAY_END`)을 넘기면
+## 그만큼만 다음 날로 넘어간다 — **하루를 통째로 버리지 않는다.**
+## 넘어간 자리가 새벽(6시 이전)에 떨어지면 하루 시작 시각으로 당긴다
+## — 이 세계는 새벽 시간대를 그리지 않는다(`DAY_START` 이전이 없다).
 func sleep() -> void:
-	day += 1
-	minutes = DAY_START
-	day_passed.emit(day)
+	var t := minutes + 720.0
+	if t >= DAY_END:
+		day += 1
+		t = maxf(t - DAY_END, DAY_START)
+		day_passed.emit(day)
+	minutes = t
 
 
 func pick(item: String, count: int = 1) -> void:
