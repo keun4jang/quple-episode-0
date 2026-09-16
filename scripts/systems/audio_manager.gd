@@ -189,6 +189,28 @@ func water_ripple() -> void:
 func touch_tap() -> void:
 	_play("tap", -24.0, randf_range(0.94, 1.10))
 
+# ── 마음 겨루기 ─────────────────────────────────────────────────────────
+# 이 게임의 다른 소리들과 같은 규칙을 따른다 — 날카로운 고음이 없고,
+# 자기 전에 들어도 거슬리지 않는 낮은 "톡·퉁" 계열이다. 타격 소리를
+# 세게 만드는 대신, **닿는 느낌**만 준다.
+
+## 내가 그늘을 때렸다 — 부드럽게 퉁 하는 느낌
+func battle_hit() -> void:
+	_play("battle_hit", -11.0, randf_range(0.95, 1.06))
+
+## 약점을 찔렀다 — 같은 퉁 소리에 짧은 반짝임 꼬리가 붙는다
+func battle_weak_hit() -> void:
+	_play("battle_weak", -9.0, randf_range(0.97, 1.05))
+
+## 그늘에게 맞았다 — 더 낮고 뭉툭하다(때리는 소리가 아니라 마음이
+## 흔들리는 소리라서, 타격감보다 먹먹함을 준다)
+func battle_hurt() -> void:
+	_play("battle_hurt", -12.0, randf_range(0.93, 1.05))
+
+## 회복 스킬을 썼다 — 따뜻하게 오르는 두 음
+func battle_heal() -> void:
+	_play("battle_heal", -10.0)
+
 # ── 재생 ────────────────────────────────────────────────────────────────
 
 func _play(kind: String, db: float, pitch: float = 1.0) -> void:
@@ -227,6 +249,10 @@ func _build(kind: String) -> AudioStreamWAV:
 		"page_turn":    return _make_norm(0.45, _page_turn_wave, 0.66)
 		"water_drop":   return _make_norm(0.55, _water_drop_wave, 0.70)
 		"water_ripple": return _make_norm(0.80, _water_ripple_wave, 0.58)
+		"battle_hit":   return _make_norm(0.13, _battle_hit_wave, 0.66)
+		"battle_weak":  return _make_norm(0.30, _battle_weak_wave, 0.66)
+		"battle_hurt":  return _make_norm(0.18, _battle_hurt_wave, 0.62)
+		"battle_heal":  return _make(0.52, _battle_heal_wave)
 	return null
 
 ## 부드럽고 낮은 툭 소리 (발소리)
@@ -409,6 +435,50 @@ func _tap_wave(t: float, dur: float) -> float:
 	var f := 660.0 - 180.0 * (t / dur)          # 살짝 내려앉는 음
 	var env := exp(-t * 26.0) * (1.0 - t / dur)
 	return sin(TAU * f * t) * env * 0.55
+
+# ── 마음 겨루기 파형 ────────────────────────────────────────────────────
+
+## 내가 때렸다 — 낮은 몸통음 하나에 필터링한 잡음으로 "퉁" 하는
+## 닿는 느낌만 얹는다. 카메라 셔터처럼 날카로운 잡음(`randf()` 그대로)
+## 대신 `_soft_noise()` 로 걸러 부드럽게 뭉갠다.
+func _battle_hit_wave(t: float, dur: float) -> float:
+	var thump := sin(TAU * 150.0 * t) * exp(-t * 32.0) * 0.55
+	var touch := _soft_noise(0.20, 0.03) * 0.30 * exp(-t * 55.0)
+	return clampf(thump + touch, -1.0, 1.0)
+
+## 약점을 찔렀다 — 같은 "퉁" 뒤에 짧은 반짝임이 하나 더 붙는다.
+## 손맛을 강하게 넣는 대신 **꼬리 하나**로만 "제대로 닿았다"를 알린다.
+func _battle_weak_wave(t: float, dur: float) -> float:
+	var thump := sin(TAU * 150.0 * t) * exp(-t * 32.0) * 0.5
+	var touch := _soft_noise(0.20, 0.03) * 0.26 * exp(-t * 55.0)
+	var st := t - 0.045
+	var sparkle := 0.0
+	if st > 0.0:
+		var f := 1100.0 + 500.0 * (st / dur)
+		sparkle = sin(TAU * f * st) * exp(-st * 11.0) * 0.28
+	return clampf(thump + touch + sparkle, -1.0, 1.0)
+
+## 그늘에게 맞았다 — 더 낮고 뭉툭하다. 정확히 맞는 "타격음"이 아니라
+## **먹먹하게 눌리는 소리**라서, 몸통음을 낮추고 배음 없이 잡음만
+## 두툼하게 얹는다. `battle_hit` 보다 확실히 어둡게 들려야 "내가 맞았다"
+## 와 "내가 때렸다"가 소리만으로 갈린다.
+func _battle_hurt_wave(t: float, dur: float) -> float:
+	var body := sin(TAU * 98.0 * t) * exp(-t * 18.0) * 0.5
+	var muff := _soft_noise(0.05, 0.0) * 0.22 * exp(-t * 13.0)
+	return clampf(body + muff, -1.0, 1.0)
+
+## 회복 스킬 — 따뜻하게 오르는 두 음. 편지 도착음(`_chime_wave`)보다
+## 한 옥타브 가까이 낮춰서 "차분히 가라앉는" 쪽으로, 반짝이지 않게 한다.
+func _battle_heal_wave(t: float, dur: float) -> float:
+	var v := 0.0
+	var freqs := [523.25, 659.25]     # C5 → E5
+	for i in range(freqs.size()):
+		var start := float(i) * 0.11
+		if t < start:
+			continue
+		var lt := t - start
+		v += sin(TAU * float(freqs[i]) * lt) * exp(-lt * 6.0) * 0.32
+	return clampf(v, -1.0, 1.0)
 
 # ── 배경음악 합성 ───────────────────────────────────────────────────────
 #

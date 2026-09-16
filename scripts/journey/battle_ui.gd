@@ -8,6 +8,11 @@ extends CanvasLayer
 ## 일어난 일은 `Battle` 이 **사건 배열**로 돌려준다. 이 화면은 그걸
 ## 한 줄씩 재생만 한다 — 규칙과 그림을 갈라 두면 규칙을 고쳐도 화면이
 ## 안 깨지고, 검사도 화면 없이 규칙만 돌려볼 수 있다.
+##
+## **포켓몬 골드처럼** — 기술마다 마음력이 얼마나 드는지 한눈에 보이고,
+## 맞고 때리는 순간에 반응이 있어야 손맛이 난다. 그래서 여기엔 규칙과
+## 상관없는 "느낌" 만 모아 둔다: 맞으면 흔들리고, 옅어지면 스러지고,
+## 세게 닿으면 조각이 튄다. `Battle` 은 이런 걸 하나도 모른다.
 
 signal closed(won: bool)
 
@@ -40,6 +45,12 @@ const BAR_W := 360.0
 const MY_BAR_W := 300.0
 const INK := Color("#F4EDE2")
 const DIM := Color("#A79A8A")
+
+## 체력이 줄수록 색이 바뀐다(포켓몬 골드의 그 초록-노랑-빨강). 숫자를
+## 안 읽어도 "위험하다" 가 눈에 먼저 들어와야 한다.
+const HP_HIGH := Color("#7FB08A")
+const HP_MID := Color("#E3C15A")
+const HP_LOW := Color("#D9705A")
 
 
 func _ready() -> void:
@@ -108,8 +119,10 @@ func _build() -> void:
 	_pic.offset_bottom = 292
 	_root.add_child(_pic)
 
+	# 등급색과 시작 색을 맞춘다 — 첫 프레임부터 초록이어야 나중에
+	# 색이 바뀌는 게 "줄어든다" 는 뜻으로 읽힌다.
 	_e_bar = _bar(_root, Control.PRESET_CENTER_TOP, -BAR_W * 0.5, 300,
-		BAR_W, 22, Color("#C8788A"))
+		BAR_W, 22, HP_HIGH)
 	_e_fill = _e_bar.get_child(1)
 	_e_num = _e_bar.get_child(2)
 
@@ -241,10 +254,26 @@ func _bar(parent: Control, preset: int, x: float, y: float,
 	return box
 
 
-func _fill_to(fill: ColorRect, now: int, most: int, w: float) -> void:
+## `grade` 를 켜면 채움 색까지 체력 비율에 맞춰 바뀐다 — 마음력 막대는
+## 그대로 파랑이어야 해서(줄어든다고 위험 신호를 줄 일이 아니다) 기본은 끈다.
+func _fill_to(fill: ColorRect, now: int, most: int, w: float,
+		grade := false) -> void:
 	var k: float = clampf(float(now) / maxf(1.0, float(most)), 0.0, 1.0)
 	var tw := create_tween()
 	tw.tween_property(fill, "offset_right", w * k, 0.22)
+	if grade:
+		tw.parallel().tween_property(fill, "color", _hp_color(k), 0.22)
+
+
+## 절반 넘게 남았으면 초록, 5분의 1까지는 노랑으로 물들다가, 그 아래는
+## 빨강. 경계마다 뚝 끊기지 않게 두 구간을 각각 이어 붙인다.
+func _hp_color(k: float) -> Color:
+	k = clampf(k, 0.0, 1.0)
+	if k >= 0.5:
+		return HP_MID.lerp(HP_HIGH, (k - 0.5) / 0.5)
+	if k >= 0.2:
+		return HP_LOW.lerp(HP_MID, (k - 0.2) / 0.3)
+	return HP_LOW
 
 
 # ── 새로 고치기 ──────────────────────────────────────────────────────
@@ -252,10 +281,10 @@ func _fill_to(fill: ColorRect, now: int, most: int, w: float) -> void:
 func _refresh() -> void:
 	var e := Battle.enemy
 	if not e.is_empty():
-		_fill_to(_e_fill, int(e["hp"]), int(e["hp_max"]), BAR_W)
+		_fill_to(_e_fill, int(e["hp"]), int(e["hp_max"]), BAR_W, true)
 		_e_num.text = "%d / %d" % [int(e["hp"]), int(e["hp_max"])]
 		_e_st.text = _status_text(Battle.enemy_status, Battle.ENEMY_STATUSES)
-	_fill_to(_hp_fill, Battle.hp, Battle.hp_max(), MY_BAR_W)
+	_fill_to(_hp_fill, Battle.hp, Battle.hp_max(), MY_BAR_W, true)
 	_fill_to(_mp_fill, Battle.mp, Battle.mp_max(), MY_BAR_W)
 	_hp_num.text = "체력  %d / %d" % [Battle.hp, Battle.hp_max()]
 	_mp_num.text = "마음력  %d / %d" % [Battle.mp, Battle.mp_max()]
@@ -288,17 +317,50 @@ func _show_menu() -> void:
 func _open_skills() -> void:
 	_fill_list(func(box: VBoxContainer) -> void:
 		for id in Battle.skills():
-			var s: Dictionary = Battle.SKILLS[id]
-			var mark := "  ◆약점" if Battle.found_weak \
-				and Battle.weak_of(Battle.kind) == id else ""
-			var cost := "   (마음력 %d)" % int(s["mp"]) if int(s["mp"]) > 0 else ""
-			var b := _add_btn(box, "%s%s%s"
-				% [String(s["name"]), cost, mark], _act_skill.bind(id))
-			# 못 쓰는 것은 **지우지 않고 흐리게** 둔다. 목록에서 사라지면
-			# 그런 수가 있다는 것 자체를 잊는다.
-			if Battle.mp < int(s["mp"]):
-				b.disabled = true
-				b.modulate.a = 0.45)
+			_add_skill_btn(box, id))
+
+
+## 스킬 버튼 하나. 글자는 그대로("이름 (마음력 N) ◆약점") 두고, **버튼
+## 아래쪽에 얇은 띠**를 하나 더 얹는다 — 숫자만으로는 "이게 마음력을
+## 크게 쓰는 기술인지" 가 한눈에 안 들어온다. 마음력 최대치에서 이
+## 기술이 차지하는 몫이 클수록 길고 붉다(포켓몬 골드의 PP 칸과 같은 자리,
+## 다만 "몇 번 남았나" 대신 "얼마나 크게 쓰나" 를 보여 준다).
+func _add_skill_btn(box: VBoxContainer, id: String) -> Button:
+	var s: Dictionary = Battle.SKILLS[id]
+	var cost_n := int(s["mp"])
+	var mark := "  ◆약점" if Battle.found_weak 		and Battle.weak_of(Battle.kind) == id else ""
+	var cost := "   (마음력 %d)" % cost_n if cost_n > 0 else ""
+	var b := _add_btn(box, "%s%s%s" % [String(s["name"]), cost, mark],
+		_act_skill.bind(id))
+	# 못 쓰는 것은 **지우지 않고 흐리게** 둔다. 목록에서 사라지면
+	# 그런 수가 있다는 것 자체를 잊는다.
+	if Battle.mp < cost_n:
+		b.disabled = true
+		b.modulate.a = 0.45
+	if cost_n > 0:
+		_add_cost_gauge(b, cost_n)
+	return b
+
+
+## 마음력 최대치 대비 몫만큼 채운 얇은 띠. 버튼 안쪽 아래 여백에 붙는다
+## (mouse_filter 를 꺼서 누름은 그대로 버튼이 받는다).
+func _add_cost_gauge(btn: Button, cost: int) -> void:
+	var k: float = clampf(float(cost) / maxf(1.0, float(Battle.mp_max())),
+		0.0, 1.0)
+	var g := Control.new()
+	g.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	g.offset_left = 16
+	g.offset_right = -16
+	g.offset_top = -13
+	g.offset_bottom = -7
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 싸면 마음력 파랑, 크게 쓸수록 옅은 붉은빛으로 — 지출이 크다는
+	# 인상만 준다. 실제 판정은 여전히 숫자(마음력 부족 시 흐리게)다.
+	var col := Color("#7FA8D8").lerp(Color("#D9705A"), k)
+	g.draw.connect(func() -> void:
+		g.draw_rect(Rect2(Vector2.ZERO, g.size), Color(0, 0, 0, 0.24))
+		g.draw_rect(Rect2(0, 0, g.size.x * k, g.size.y), col))
+	btn.add_child(g)
 
 
 func _open_items() -> void:
@@ -397,19 +459,44 @@ func _one(e: Dictionary) -> void:
 			_log.text = String(e["text"])
 		"damage":
 			var to_enemy: bool = String(e["to"]) == "enemy"
+			var weak: bool = bool(e.get("weak", false))
 			_log.text = "%s %d" % ["그늘에게" if to_enemy else "나에게",
 				int(e["amount"])]
 			_pop(to_enemy, "-%d" % int(e["amount"]),
-				Color("#FFB4B4") if not to_enemy else Color("#FFE39A"),
-				bool(e.get("weak", false)))
+				Color("#FFB4B4") if not to_enemy else Color("#FFE39A"), weak)
 			if to_enemy:
+				# **때린 쪽 반응.** 하얗게 한 번 번쩍이고, 흔들리고,
+				# 파편이 튄다 — 약점을 찌른 것이면 다 조금씩 더 크게.
+				var finished_it: bool = int(Battle.enemy.get("hp", 1)) <= 0
+				# **번쩍임과 스러짐은 같은 속성(modulate)을 다툰다.**
+				# 마지막 한 방이면 번쩍이는 대신 곧장 스러지기 시작한다 —
+				# 뒤이어 "옅어졌다" 는 말이 뜨는 동안 그림도 같이 옅어져야
+				# 말과 그림이 따로 놀지 않는다.
+				if finished_it:
+					_defeat_enemy_visual()
+				else:
+					_flash_white(_pic)
 				_shake(_pic)
+				_burst(_pic.get_global_rect().get_center(),
+					Color("#FFE9A8") if weak else Color("#FFC8A0"),
+					10 if weak else 6, 58.0 if weak else 42.0)
+				if weak:
+					AudioManager.battle_weak_hit()
+				else:
+					AudioManager.battle_hit()
 			else:
+				# **맞은 쪽 반응.** 그늘이 화면 쪽으로 한 번 다가왔다
+				# 물러나고(공격 동작), 화면이 붉게 스치고, 살짝 흔들린다.
+				_lunge(_pic)
 				_flash()
-			AudioManager.touch_tap()
+				_shake_root()
+				AudioManager.battle_hurt()
 		"heal":
 			if int(e["amount"]) > 0:
 				_pop(false, "+%d" % int(e["amount"]), Color("#B4FFC8"), false)
+				_burst(Vector2(_root.size.x * 0.22, _root.size.y - 150.0),
+					Color("#B4FFC8"), 5, 26.0)
+				AudioManager.battle_heal()
 		"status":
 			_pop(String(e["to"]) == "enemy", String(e["text"]),
 				Color("#C8E6FF"), false)
@@ -460,6 +547,15 @@ func _shake(n: Control) -> void:
 	tw.tween_property(n, "offset_left", home, 0.04)
 
 
+## 하얗게 한 번 번쩍였다 돌아온다 — 맞았다는 걸 색으로도 알린다.
+## Godot 의 `modulate` 는 1을 넘겨도 잘려 나가지 않고 그만큼 밝아지므로,
+## 셰이더 없이 "번쩍"을 흉내 낼 수 있다.
+func _flash_white(n: CanvasItem) -> void:
+	var tw := create_tween()
+	tw.tween_property(n, "modulate", Color(2.6, 2.6, 2.6, 1.0), 0.045)
+	tw.tween_property(n, "modulate", Color.WHITE, 0.12)
+
+
 func _flash() -> void:
 	var f := ColorRect.new()
 	f.color = Color(1.0, 0.45, 0.45, 0.30)
@@ -469,6 +565,66 @@ func _flash() -> void:
 	var tw := create_tween()
 	tw.tween_property(f, "color:a", 0.0, 0.28)
 	tw.tween_callback(f.queue_free)
+
+
+## 그늘이 화면 쪽으로 한 번 다가섰다 물러난다 — 이 화면엔 그늘 그림
+## 하나뿐이라(내 쪽은 그림이 없다), "그늘이 나를 쳤다" 는 이 동작
+## 하나로 전해야 한다. `_shake()` 처럼 오프셋을 직접 민다 — Control 은
+## 앵커가 매겨진 rect 를 매 배치마다 오프셋으로 다시 계산하므로,
+## `position` 을 직접 트윈하면 다음 배치에서 되돌아갈 수 있다.
+func _lunge(n: Control) -> void:
+	var top := n.offset_top
+	var bottom := n.offset_bottom
+	var d := 20.0
+	var tw := create_tween()
+	tw.tween_property(n, "offset_top", top + d, 0.09).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(n, "offset_bottom", bottom + d, 0.09) 		.set_ease(Tween.EASE_OUT)
+	tw.tween_property(n, "offset_top", top, 0.16).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(n, "offset_bottom", bottom, 0.16) 		.set_ease(Tween.EASE_IN)
+
+
+## 화면 전체가 잠깐 떨린다 — 색 번쩍임(`_flash`)만으로는 "닿았다" 는
+## 느낌이 얕다. 두어 번, 몇 픽셀만 흔든다 - 놀이가 아니라 **느낌**만
+## 준다.
+func _shake_root() -> void:
+	var tw := create_tween()
+	for i in 2:
+		tw.tween_property(_root, "position",
+			Vector2(randf_range(-5.0, 5.0), randf_range(-3.0, 3.0)), 0.035)
+	tw.tween_property(_root, "position", Vector2.ZERO, 0.035)
+
+
+## 닿는 자리에서 조각 몇 개가 흩어진다. 그림(`.png`)을 새로 그리는 대신
+## 작은 사각형을 코드로 던진다 — 이 게임의 다른 화면들이 다 그렇게
+## 짓듯(막대·고리·점 전부 `_draw()`), 여기도 그림 파일을 안 늘린다.
+func _burst(at: Vector2, col: Color, n: int = 8, spread: float = 46.0) -> void:
+	for i in n:
+		var r := ColorRect.new()
+		var sz := randf_range(4.0, 8.0)
+		r.color = col
+		r.size = Vector2(sz, sz)
+		r.position = at - Vector2(sz, sz) * 0.5
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_root.add_child(r)
+		var ang := (TAU / float(n)) * float(i) + randf_range(-0.3, 0.3)
+		var dist := randf_range(spread * 0.5, spread)
+		var to := r.position + Vector2.from_angle(ang) * dist
+		var tw := create_tween()
+		tw.tween_property(r, "position", to, 0.32).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(r, "modulate:a", 0.0, 0.34)
+		tw.tween_callback(r.queue_free)
+
+
+## 마지막 한 방을 맞은 자리에서 그림이 스러진다. **세계에 선 그늘**
+## (`Shade.dissolve()`, `place.gd`)이 전투가 끝난 뒤 사라지는 것과는
+## 다른 자리다 — 이건 전투 화면 안 그림이 죽는 순간 옅어지는 것이고,
+## 그건 마을로 돌아갔을 때 그 자리가 빈 것이다. 둘 다 있어야 한다.
+func _defeat_enemy_visual() -> void:
+	_pic.pivot_offset = _pic.size * 0.5
+	var tw := create_tween()
+	tw.tween_property(_pic, "modulate:a", 0.0, 0.5).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(_pic, "scale", Vector2(1.1, 0.5), 0.5) 		.set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(_pic, "offset_top", _pic.offset_top + 26.0, 0.5)
 
 
 # ── 끝 ───────────────────────────────────────────────────────────────
