@@ -759,15 +759,12 @@ const OLD_QUO := {
 ##
 ## 그리고 **이미 윤슬을 떠난 사람**은 매듭을 통째로 마친 것으로 둔다 —
 ## 안 그러면 다음 마을이 도로 잠긴다.
+## 매듭·샛길 판정이 이제 **시간대 없는 열쇠**만 본다(`Quests.KNOT`
+## "시간대를 안 가린다" 주석) - "윤슬:등대"·"윤슬:부두끝" 을 찍은
+## 세이브는 이 갱신 전 것이라도 그대로 통한다. 채워 줘야 할 건 딱
+## 하나 남는다: **윤슬을 이미 지나간** 세이브. 마음매듭·샛길 체계가
+## 생기기 전이라 그 열쇠들이 통째로 없을 수 있다.
 func _migrate_knots() -> void:
-	if quest_done("윤슬:등대") and not quest_done("윤슬:등대@저녁"):
-		for ph in photos:
-			if String(ph.get("place", "")) == "윤슬":
-				mark_quest("윤슬:등대@저녁")
-				break
-	if quest_done("윤슬:부두끝"):
-		mark_quest("윤슬:부두끝@아침")
-		mark_quest("윤슬:부두끝@저녁")
 	var moved_on := false
 	for v in ["볕뉘", "가풀재", "하늬섬", "굽이나루", "방울못",
 			"갈밭머리", "솔은재", "꽃눈벌"]:
@@ -775,12 +772,11 @@ func _migrate_knots() -> void:
 			moved_on = true
 	if moved_on:
 		# **배낭은 건드리지 않는다.** 불러올 때 물건이 늘면 "저장하고
-		# 불러와도 그대로" 가 깨진다. 대신 매듭 첫 단계를 지났다는
+		# 불러와도 그대로" 가 깨진다. 대신 매듭·샛길을 지났다는
 		# 표시만 남긴다.
 		mark_quest("윤슬:매듭:1")
-		mark_quest("윤슬:등대@저녁")
-		mark_quest("윤슬:부두끝@아침")
-		mark_quest("윤슬:부두끝@저녁")
+		mark_quest("윤슬:등대")
+		mark_quest("윤슬:부두끝")
 		mark_quest("윤슬:매듭:3")
 		mark_quest("윤슬:샛길:고르기")
 

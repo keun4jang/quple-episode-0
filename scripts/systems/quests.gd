@@ -147,14 +147,24 @@ const KNOT := {
 		"steps": [
 			{"key": "윤슬:매듭:1", "kind": "talk", "map": "seal",
 				"label": "가게 할머니와 갈매기 소년에게 인사하기"},
+			# **시간대를 안 가린다.** 여태는 저녁에만 되는 일이라, 아침·낮에
+			# 도착한 사람은 등대곶에 서 있고도 "아직 안 됐다" 는 말만
+			# 들었다 - 언제 와도 그 자리에서 사진을 남기면 된다.
 			{"key": "윤슬:매듭:2", "kind": "visit", "map": "윤슬:등대",
-				"photo": true, "when": "저녁",
-				"label": "저녁에 등대곶에서 불 켜진 등대 사진 남기기"},
+				"photo": true,
+				"label": "등대곶에서 등대 사진 남기기"},
 			{"key": "윤슬:매듭:3", "kind": "talk", "map": "seagull",
 				"label": "다음 날 바다유리를 소년에게 보여 주기",
 				# 날짜 조건 - 이 열쇠의 날짜를 지난 뒤라야 된다. `when`
 				# (시간대)과는 다른 축이라 따로 둔다.
-				"after_day_of": "윤슬:등대@저녁"},
+				#
+				# **시간대 없는 열쇠를 본다.** 매듭 2가 저녁 전용이던
+				# 때는 "윤슬:등대@저녁" 을 봐도 됐다 - 그 시간에만
+				# 완료되니 늘 같이 찍혔다. 이제 매듭 2는 아무 때나
+				# 끝나서 저녁에 안 갔으면 그 표시가 영영 안 남는다.
+				# 그러면 `quest_day()` 가 "아직 안 함"(99999)을 돌려줘
+				# 이 단계가 **영영 안 열리는** 소프트락이 났다.
+				"after_day_of": "윤슬:등대"},
 		],
 	},
 }
@@ -165,8 +175,11 @@ const SIDE := {
 			"label": "가게에 들어가 물건 구경하기"},
 		{"key": "윤슬:샛길:등대안", "kind": "door", "map": "등대안",
 			"label": "등대 안에 올라가 보기"},
+		# **시간대를 안 가린다.** 여태는 같은 자리를 아침·저녁 두 번 봐야
+		# 끝났다 - 낮에 도착한 사람은 하루를 꼬박 기다려야 시작할 수
+		# 있었다. 한 번 걸어 나가 보면 된다.
 		{"key": "윤슬:샛길:부두", "kind": "visit", "map": "윤슬:부두끝",
-			"label": "부두 끝을 아침에도 저녁에도 보기"},
+			"label": "부두 끝까지 걸어 나가기"},
 		{"key": "윤슬:샛길:고르기", "kind": "talk", "map": "seal",
 			# **"골라" 가 아니다.** 선택 화면 없이 말 거는 순간 소지품으로
 			# 자동 판정된다(둘 다 있으면 적은 쪽) - "골라" 라고 적으면
@@ -196,8 +209,9 @@ static func knot_step_done(village: String, i: int) -> bool:
 			return (has_map() and has_camera()) \
 				or JourneyState.quest_done("윤슬:매듭:1")
 		"윤슬:매듭:2":
-			# **저녁에** 가야 한다. 등대에 불이 들어오는 시간이다
-			return JourneyState.quest_done("윤슬:등대@저녁") \
+			# `_tick_quest_zones()` 가 시간대와 상관없이 늘 남기는
+			# 시간대 없는 표시를 본다 - 언제 와도 된다.
+			return JourneyState.quest_done("윤슬:등대") \
 				and _photo_taken("윤슬")
 		"윤슬:매듭:3":
 			return JourneyState.quest_done("윤슬:매듭:3")
@@ -258,9 +272,7 @@ static func side_done(village: String, key: String) -> bool:
 		"윤슬:샛길:등대안":
 			return JourneyState.quest_done("윤슬:등대안")
 		"윤슬:샛길:부두":
-			# 같은 자리를 두 시간대에 — 그래야 "비교" 다
-			return JourneyState.quest_done("윤슬:부두끝@아침") \
-				and JourneyState.quest_done("윤슬:부두끝@저녁")
+			return JourneyState.quest_done("윤슬:부두끝")
 		"윤슬:샛길:자취":
 			return JourneyState.quest_done("윤슬:본:빛자리1") \
 				and JourneyState.quest_done("윤슬:본:빛자리2") \
@@ -283,13 +295,6 @@ static func side_done(village: String, key: String) -> bool:
 ## 그래서 **남은 쪽만** 적는다. 진행이 눈에 보여야 계속 하게 된다.
 static func side_note(village: String, key: String) -> String:
 	match key:
-		"윤슬:샛길:부두":
-			var m := JourneyState.quest_done("윤슬:부두끝@아침")
-			var e := JourneyState.quest_done("윤슬:부두끝@저녁")
-			if m and not e:
-				return "저녁에 한 번 더"
-			if e and not m:
-				return "아침에 한 번 더"
 		"윤슬:샛길:자취":
 			var n := 0
 			for i in 3:
@@ -304,17 +309,9 @@ static func side_note(village: String, key: String) -> String:
 ## 띄우면, 할 수 없는 것을 계속 시키는 셈이다 (`Place.current_goal`).
 ##
 ## 목록에서 지우지는 않는다 - 때가 오면 그리 가야 하니까.
+## 지금은 아무 항목도 시간대를 안 가린다 - 함수는 남겨 둔다. 나중에
+## 다른 마을 샛길이 다시 시간대를 걸면 여기 한 곳만 채우면 된다.
 static func side_waiting(village: String, key: String) -> bool:
-	if side_done(village, key):
-		return false
-	match key:
-		"윤슬:샛길:부두":
-			# 아침 몫을 이미 했으면 저녁까지는 더 할 것이 없다.
-			var part := JourneyState.day_part()
-			if JourneyState.quest_done("윤슬:부두끝@%s" % part):
-				return true
-			# 낮에는 아침도 저녁도 못 찍는다
-			return part != "아침" and part != "저녁"
 	return false
 
 
@@ -335,47 +332,23 @@ static func side_waiting(village: String, key: String) -> bool:
 ##
 ## **막지는 않는다.** 알고 자는 것과 모르고 자는 것만 가른다 -
 ## 벌이 없는 게임이니 "자면 안 된다" 가 되면 안 된다.
+## 자기 전에 "오늘 저녁에만 되는 일" 을 남겨 두고 자는 건 아닌지.
+##
+## 한동안 "윤슬:샛길:부두"(아침·저녁 두 번 보기)와 "윤슬:매듭:2"
+## (저녁에만 등대 사진)가 여기 걸려 있었다. 둘 다 시간대 요구를
+## 없앴으므로 - 지금은 어느 시간대에 자도 통째로 사라지는 저녁 전용
+## 할 일이 없다. 함수는 남겨 둔다: `Place._bed_note()` 가 그대로
+## 부르고, 나중에 다시 저녁 전용 할 일이 생기면 여기 채우면 된다.
 static func evening_left(village: String) -> String:
-	# **시간대로 안 가린다.** 여태는 지금이 저녁일 때만 봤는데, 그러면
-	# 아침·낮에 잠자리에 서는 하루의 2/3 시간대에서는 경고가 아예 안
-	# 떴다 - "알고 자는 것과 모르고 자는 것만 가른다" 는 뜻이 정작
-	# 대부분의 시간에는 작동하지 않았다. 아래 문구도 "오늘 저녁에만"
-	# 이라 언제 봐도 뜻이 통한다 (`Place._bed_note`).
-	for row in quest_list(village):
-		if bool(row.get("done", false)):
-			continue
-		var id := String(row.get("id", ""))
-		# 지금(저녁) 할 수 있는데 아직 안 한 것 중, **저녁이라야만**
-		# 되는 것을 고른다. 낮에도 되는 것은 내일 해도 그만이다.
-		if id == "윤슬:샛길:부두":
-			if not JourneyState.quest_done("윤슬:부두끝@저녁"):
-				return String(row.get("label", ""))
-		elif id == "윤슬:매듭:2":
-			return String(row.get("label", ""))
 	return ""
 
 
 static func zone_note(key: String) -> String:
 	match key:
-		"윤슬:부두끝":
-			var m := JourneyState.quest_done("윤슬:부두끝@아침")
-			var e := JourneyState.quest_done("윤슬:부두끝@저녁")
-			if m and e:
-				return ""
-			if m:
-				return "아침 바다는 봤어요. 저녁에 한 번 더 와 봐요."
-			if e:
-				return "저녁 바다는 봤어요. 아침에 한 번 더 와 봐요."
-			return "아침이나 저녁에 오면 바다 빛이 달라요."
 		"윤슬:등대":
-			if knot_step_done("윤슬", 1):
-				return ""
-			if JourneyState.day_part() != "저녁":
-				# **"다시 와 봐요" 라고 하면 안 된다.** 바로 이 자리에
-				# "기다리기" 버튼이 있다(`Place._can_wait`) - 떠나라는
-				# 말과 여기서 기다리라는 버튼이 같은 화면에서 반대말을
-				# 하고 있었다. 안내만 읽고 떠난 사람은 버튼을 영영 못 본다.
-				return "해가 지면 등대에 불이 들어와요. 여기서 기다려도 돼요."
+			# **시간대 요구를 없앴다.** 언제 와도 사진 한 장이면 된다 -
+			# 그 안내는 `_tick_quest_zones()` 의 사진 힌트가 이미 한다.
+			return ""
 	return ""
 
 

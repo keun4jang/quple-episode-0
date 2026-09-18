@@ -221,17 +221,22 @@ const ENEMIES := {
 ##
 ## 프롤로그(잿마루)와 고향에는 없다. 회사와 집에서까지 싸우게 하면
 ## 이 여행이 무엇이었는지가 흐려진다.
+# **초반부터 붙어 볼 것이 있어야 한다.** 첫 마을에 둘뿐이면 다음 마을
+# 까지 걷는 동안 한 번 붙고 끝이다 - 마을마다 셋 넷으로 늘리고, 뒷마을은
+# 그만큼 더 늘린다. 종류는 그대로 두고(약점·패턴은 안 바꾼다) **수만**
+# 늘린다 - 새 그늘을 만드는 것보다 지금 있는 일곱으로 자주 붙는 쪽이
+# 먼저다.
 const SPAWNS := {
-	"윤슬": ["worry", "worry"],
-	"볕뉘": ["worry", "hurry"],
-	"가풀재": ["hurry", "hurry", "worry"],
-	"하늬섬": ["lonely", "hurry", "worry"],
-	"굽이나루": ["lonely", "tired"],
-	"방울못": ["tired", "regret"],
-	"갈밭머리": ["regret", "envy"],
-	"솔은재": ["envy", "regret", "tired"],
+	"윤슬": ["worry", "worry", "worry", "hurry"],
+	"볕뉘": ["worry", "worry", "hurry", "hurry"],
+	"가풀재": ["hurry", "hurry", "worry", "lonely"],
+	"하늬섬": ["lonely", "lonely", "hurry", "worry", "tired"],
+	"굽이나루": ["lonely", "lonely", "tired", "tired"],
+	"방울못": ["tired", "tired", "regret", "regret"],
+	"갈밭머리": ["regret", "regret", "envy", "envy"],
+	"솔은재": ["envy", "envy", "regret", "tired", "tired"],
 	# 마지막 마을. 밤그늘 하나가 다른 그늘 둘보다 무겁다.
-	"꽃눈벌": ["envy", "night"],
+	"꽃눈벌": ["envy", "envy", "regret", "night"],
 }
 
 

@@ -65,6 +65,7 @@ func _ready() -> void:
 	await _big_map_cover_tests()
 	await _edge_arrow_visibility_tests()
 	await _goal_pointer_avoids_minimap_tests()
+	await _goal_pointer_avoids_menu_tests()
 	await _no_dead_end_tests()
 	await _first_board_tests()
 	await _photo_button_tests()
@@ -1860,15 +1861,14 @@ func _quest_tests() -> void:
 	JourneyState.pick("camera")
 	ok(Quests.knot_step_done("윤슬", 0), "둘에게 인사하면 매듭 첫 단계가 끝난다")
 	ok(not Quests.knot_done("윤슬"), "아직 매듭이 다 안 끝났다")
-	# 낮에 등대곶에 가 봐야 소용없다 — 저녁이어야 한다
+	# **시간대를 안 가린다.** 여태는 저녁에만 되던 일이라, 아침·낮에
+	# 도착한 사람은 등대곶에 서 있고도 안내를 못 받았다 - 언제 가도
+	# 사진 한 장이면 된다.
+	ok(not Quests.knot_step_done("윤슬", 1), "사진을 남기기 전엔 안 끝났다")
 	JourneyState.mark_quest("윤슬:등대")
 	JourneyState.mark_quest("윤슬:등대@낮")
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
-	ok(not Quests.knot_step_done("윤슬", 1),
-		"낮에 간 것으로는 둘째 단계가 안 끝난다")
-	JourneyState.day = 2
-	JourneyState.mark_quest("윤슬:등대@저녁")
-	ok(Quests.knot_step_done("윤슬", 1), "저녁에 가서 사진을 남기면 끝난다")
+	ok(Quests.knot_step_done("윤슬", 1), "낮에 가서 사진을 남겨도 끝난다")
 	ok(not Quests.village_cleared("윤슬"), "매듭 셋째 단계가 남았다")
 	JourneyState.mark_quest("윤슬:매듭:3")
 	ok(Quests.knot_done("윤슬"), "매듭 셋을 다 지났다")
@@ -2773,7 +2773,9 @@ func _yunseul_clear_tests() -> void:
 		p._tick_quest_zones()
 		ok(JourneyState.quest_done(String(z[0])), "%s 표시가 남는다" % z[0])
 
-	# ③-2 부두 끝은 **아침에도** 가 본다 — 샛길이 두 시간대를 본다.
+	# ③-2 부두 끝은 **아침에도** 가 본다 — `_tick_quest_zones()` 는
+	# 언제 왔는지를 시간대별로 늘 따로 남긴다(범용 기록). 다만 이제
+	# 샛길 자체는 **한 번이면** 끝난다 — 저녁 몫을 또 볼 필요가 없다.
 	JourneyState.minutes = 8.0 * 60.0
 	for z1 in p.quest_zones():
 		if String(z1[0]) != "윤슬:부두끝":
@@ -2788,7 +2790,9 @@ func _yunseul_clear_tests() -> void:
 					p._tick_quest_zones()
 	ok(JourneyState.quest_done("윤슬:부두끝@아침")
 		and JourneyState.quest_done("윤슬:부두끝@저녁"),
-		"부두 끝을 아침·저녁 두 번 본 것이 따로 남는다")
+		"부두 끝을 아침·저녁 두 번 본 것이 시간대별로도 따로 남는다")
+	ok(Quests.side_done("윤슬", "윤슬:샛길:부두"),
+		"이제 한 번만 봐도 이 샛길은 끝난다")
 
 	# ④ 사진을 찍는다.
 	p._take_photo()
@@ -2978,7 +2982,8 @@ func _seaglass_hint_tests() -> void:
 	JourneyState.pick("map")
 	JourneyState.pick("camera")
 	JourneyState.day = 2
-	JourneyState.mark_quest("윤슬:등대@저녁")
+	# 시간대 없는 열쇠를 본다 - 매듭 2가 이제 아무 때나 끝난다.
+	JourneyState.mark_quest("윤슬:등대")
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
 	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
 	add_child(p)
@@ -3156,8 +3161,10 @@ func _locked_reason_tests() -> void:
 	JourneyState.mark_quest("윤슬:등대")
 	JourneyState.mark_quest("윤슬:잠")
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
-	JourneyState.mark_quest("윤슬:부두끝")
-	JourneyState.mark_quest("윤슬:등대@저녁")
+	# **부두는 일부러 안 채운다.** 이제 한 번만 다녀와도 그 샛길이
+	# 끝나므로("윤슬:샛길:부두" 시간대 없는 판정), 여기서 채우면
+	# 샛길이 둘(가게+부두) 다 끝나 이 검사가 보려는 "하나만 남았다"
+	# 상황이 사라진다.
 	for i in Quests.PICKUP_TOTAL["윤슬"]:
 		JourneyState.taken["윤슬:%d,1" % i] = true
 	var two := b._blocking_line("볕뉘")
@@ -3852,7 +3859,9 @@ func _old_save_tests() -> void:
 	ok(Quests.village_cleared("윤슬"), "윤슬이 그대로 마친 상태다")
 	ok(Quests.is_unlocked("볕뉘"), "볕뉘가 도로 잠기지 않는다")
 
-	# ② 옛 판에서 윤슬을 하던 중이던 사람 — 낮에 등대를 봤다
+	# ② 옛 판에서 윤슬을 하던 중이던 사람 — 시간대 조건이 아예 없던
+	# 시절이라 "@저녁" 같은 표시 자체가 없다. **이제 판정도 시간대
+	# 없는 열쇠만 보므로** 따로 채워 줄 것 없이 그대로 통한다.
 	JourneyState.reset()
 	JourneyState.from_dict({
 		"here": "윤슬",
@@ -3860,10 +3869,10 @@ func _old_save_tests() -> void:
 		"quest_flags": {"윤슬:등대": true, "윤슬:부두끝": true},
 		"photos": [{"place": "윤슬", "subject": "등대"}],
 	})
-	ok(JourneyState.quest_done("윤슬:등대@저녁"),
-		"시간대 조건이 없던 시절의 등대 방문을 저녁으로 쳐 준다")
+	ok(Quests.knot_step_done("윤슬", 1),
+		"시간대 조건이 없던 시절의 등대 방문도 그대로 끝난 것으로 친다")
 	ok(Quests.side_done("윤슬", "윤슬:샛길:부두"),
-		"부두 끝도 아침·저녁 둘 다 본 것으로 쳐 준다")
+		"부두 끝도 한 번 다녀온 것으로 쳐 준다")
 	ok(not Quests.knot_done("윤슬"),
 		"그래도 새 마지막 단계(바다유리)는 남아 있다")
 
@@ -4107,7 +4116,9 @@ func _order_tests() -> void:
 			ok(kinds.find("pickup") == kinds.find("sleep") - 1,
 				"%s: 줍기가 잠 바로 앞이다" % v)
 
-	# 아직 때가 아닌 것은 "지금 해볼 일" 로 안 고른다
+	# **시간대와 상관없이 늘 "지금 해볼 일" 이다.** 여태는 등대곶
+	# 사진이 저녁 전용이라, 아침에 도착하면 "기다리는 중" 으로 적혀
+	# `current_goal()`(화살표)이 다른 걸 짚었다. 이제 언제 가도 된다.
 	JourneyState.reset()
 	JourneyState.pick("map")
 	JourneyState.pick("camera")
@@ -4116,19 +4127,16 @@ func _order_tests() -> void:
 	add_child(p)
 	await get_tree().process_frame
 	var head: Dictionary = Quests.quest_list("윤슬")[0]
-	ok(bool(head.get("waiting", false)),
-		"아침에는 '저녁에 등대곶' 이 기다리는 중으로 적힌다")
-	ok(String(head.get("label", "")).contains("저녁에"),
-		"언제 오면 되는지 줄에 적힌다 (%s)" % head.get("label", ""))
+	ok(not bool(head.get("waiting", false)),
+		"아침이어도 '기다리는 중' 으로 적히지 않는다")
 	var now: Dictionary = p.current_goal()
-	ok(not bool(now.get("waiting", false)),
-		"지금 해볼 일은 지금 할 수 있는 것으로 고른다 (%s)"
-			% now.get("label", ""))
-	# 저녁이 되면 그것이 지금 할 일이 된다
+	ok(String(now.get("label", "")).contains("등대곶"),
+		"아침에도 등대곶이 지금 할 일로 뽑힌다 (%s)" % now.get("label", ""))
+	# 저녁이 되어도 달라지지 않는다 — 시간대가 그 할 일을 바꾸지 않는다.
 	JourneyState.minutes = 19.0 * 60.0
 	var now2: Dictionary = p.current_goal()
 	ok(String(now2.get("label", "")).contains("등대곶"),
-		"저녁이 되면 등대곶을 짚는다 (%s)" % now2.get("label", ""))
+		"저녁에도 등대곶을 짚는다 (%s)" % now2.get("label", ""))
 	p.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
@@ -4626,6 +4634,39 @@ func _goal_pointer_avoids_minimap_tests() -> void:
 	JourneyState.reset()
 
 
+## 왼쪽 위 메뉴 그리드(배낭·사진첩·편지·행복첩·이 마을·마음, 두 칸씩
+## 세 줄)가 `EDGE`(118px) 보다 훨씬 아래·오른쪽까지 내려온다 - 안전
+## 사각형이 그 위까지 파고들어 화살표가 아이콘을 덮었다.
+func _goal_pointer_avoids_menu_tests() -> void:
+	print("\n[가장자리 화살표가 왼쪽 위 메뉴를 피하는가]")
+	JourneyState.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var g := GoalPointer.new()
+	add_child(g)
+	await get_tree().process_frame
+	var grid: Rect2 = (p.hud._menu_btns[0] as Control).get_global_rect()
+	for b in p.hud._menu_btns:
+		grid = grid.merge((b as Control).get_global_rect())
+	var safe := g._safe_rect()
+	ok(not safe.intersects(grid),
+		"안전 사각형이 메뉴 그리드와 안 겹친다 (안전 %s, 메뉴 %s)" % [safe, grid])
+
+	# 대화 중이라 메뉴가 숨었으면 그때는 안 민다 - 가릴 것이 없다.
+	p.hud.set_buttons_visible(false)
+	await get_tree().process_frame
+	var safe2 := g._safe_rect()
+	ok(safe2.position.x < grid.end.x,
+		"메뉴가 숨으면 안전 사각형이 그만큼 다시 넓어진다")
+	p.hud.set_buttons_visible(true)
+
+	g.queue_free()
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+
+
 ## 목표 칸까지 실제로 걸어서(`Place.walk_to()`, 진짜 길찾기) 가 본다.
 ## `tools/shots/sim_journey.gd::_walk_to()` 의 검증된 패턴을 그대로 쓴다.
 func _walk_real(place: Place, t: Vector2i, secs: float) -> bool:
@@ -5116,32 +5157,23 @@ func _guide_tests() -> void:
 	JourneyState.reset()
 	var pier := _side_row("윤슬:샛길:부두")
 	ok(not pier.contains("한 번 더"), "아무것도 안 했으면 군말이 없다 (%s)" % pier)
-	JourneyState.mark_quest("윤슬:부두끝@아침")
-	pier = _side_row("윤슬:샛길:부두")
-	ok(pier.contains("저녁에 한 번 더"),
-		"아침 몫을 마치면 저녁이 남았다고 적는다 (%s)" % pier)
 
 	# 반짝이는 자리는 몇 개 찾았는지 센다
 	JourneyState.mark_quest("윤슬:본:빛자리1")
 	var tr := _side_row("윤슬:샛길:자취")
 	ok(tr.contains("1/3"), "찾은 개수를 적는다 (%s)" % tr)
 
-	# ④ 아침 몫을 마쳤으면 아침 내내 그것만 시키지 않는다
-	#
-	# 5일째 아침 6:34 에 "부두 끝을 아침에도 저녁에도 보기" 가 떠 있는
-	# 화면을 받았다. 이미 아침에 다녀왔는데 저녁까지 할 것이 없었다.
+	# ④ **시간대를 안 가린다.** 여태는 "부두 끝을 아침에도 저녁에도
+	# 보기" 라, 6시 34분에 아침 몫을 마쳐도 저녁까지 하루의 3분의 2를
+	# 기다려야 했다 - 5일째 아침까지 이 샛길 하나가 안 끝난 화면을
+	# 받았다. 이제 언제 가든 한 번이면 끝난다.
 	JourneyState.minutes = 6 * 60 + 34
 	ok(JourneyState.day_part() == "아침", "6시 34분은 아침이다")
-	ok(Quests.side_waiting("윤슬", "윤슬:샛길:부두"),
-		"아침 몫을 마쳤으면 저녁까지 기다린다")
-	var yun2: Place = load(GOAL_SCENES["윤슬"]).instantiate()
-	add_child(yun2)
-	await get_tree().process_frame
-	var now: Dictionary = yun2.current_goal()
-	ok(not String(now.get("label", "")).contains("부두"),
-		"그때는 다른 할 일을 짚는다 (%s)" % now.get("label", ""))
-	yun2.queue_free()
-	await get_tree().process_frame
+	JourneyState.mark_quest("윤슬:부두끝")
+	ok(Quests.side_done("윤슬", "윤슬:샛길:부두"),
+		"아침에 한 번만 가도 끝난다")
+	ok(not Quests.side_waiting("윤슬", "윤슬:샛길:부두"),
+		"더 기다릴 몫이 없다")
 	JourneyState.reset()
 
 
@@ -5183,10 +5215,12 @@ const STUCK_STATES := [
 	["막 도착", []],
 	["인사 둘 끝", ["윤슬:매듭:1"]],
 	["가게 다녀옴", ["윤슬:매듭:1", "윤슬:가게"]],
-	["부두 아침만", ["윤슬:매듭:1", "윤슬:가게", "윤슬:부두끝@아침"]],
-	["등대 안까지", ["윤슬:매듭:1", "윤슬:가게", "윤슬:부두끝@아침",
+	# **시간대 상관없이 한 번이면 끝나므로** 이제 "부두를 아침에만
+	# 다녀왔다" 같은 반쪽 상태는 없다 - 다녀왔으면 그걸로 끝이다.
+	["부두 다녀옴", ["윤슬:매듭:1", "윤슬:가게", "윤슬:부두끝"]],
+	["등대 안까지", ["윤슬:매듭:1", "윤슬:가게", "윤슬:부두끝",
 		"윤슬:등대안"]],
-	["자취 둘", ["윤슬:매듭:1", "윤슬:가게", "윤슬:부두끝@아침",
+	["자취 둘", ["윤슬:매듭:1", "윤슬:가게", "윤슬:부두끝",
 		"윤슬:등대안", "윤슬:본:빛자리1", "윤슬:본:빛자리2"]],
 ]
 
@@ -5379,9 +5413,10 @@ func _speaker_name_tests() -> void:
 	await get_tree().process_frame
 	JourneyState.pick("p-seaglass")
 	JourneyState.pick("p-shell")
-	JourneyState.mark_quest("윤슬:등대@저녁")
+	# 시간대 없는 열쇠를 본다 - 매듭 2가 이제 아무 때나 끝난다.
+	JourneyState.mark_quest("윤슬:등대")
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
-	JourneyState.day = JourneyState.quest_day("윤슬:등대@저녁") + 1
+	JourneyState.day = JourneyState.quest_day("윤슬:등대") + 1
 	for f7 in yn._folk:
 		if is_instance_valid(f7) and not f7.is_spot:
 			as_name += _bad_names(yn._knot_on_talk(f7), f7.who)
@@ -5455,31 +5490,30 @@ func _row_id_tests() -> void:
 
 # ── 자리에 닿았을 때 말해 주나 ────────────────────────────────────────
 #
-# 부두 끝까지 걸어 나가도 `윤슬:부두끝@아침` 이 **조용히** 찍히고 끝이었다.
-# 잔치는 줄 전체가 끝나야 뜨므로, 반만 채운 사람은 화면에서 아무 변화를
-# 못 본다. "왔는데 안 됐네" 로 읽고 다시 안 온다. 5일이 흐른 방식이 이것이다.
+# **시간대 요구를 걷어냈다.** 부두 끝도 등대곶도 여태는 "아침·저녁을
+# 둘 다 봐야" · "저녁에만" 이라, 낮에 도착한 사람은 헛걸음을 하거나
+# 하루를 통째로 기다려야 했다. 이제 언제 가도 그 자리에서 끝난다 -
+# 시간대를 캐묻는 말 자체가 없다.
 
 func _zone_note_tests() -> void:
 	print("\n[자리에서 하는 말]")
 	JourneyState.reset()
-	ok(Quests.zone_note("윤슬:부두끝").contains("아침이나 저녁"),
-		"처음 닿으면 언제 오면 되는지 말한다")
-	JourneyState.mark_quest("윤슬:부두끝@아침")
-	ok(Quests.zone_note("윤슬:부두끝").contains("저녁에 한 번 더"),
-		"아침을 채우면 저녁이 남았다고 말한다")
-	JourneyState.mark_quest("윤슬:부두끝@저녁")
-	ok(Quests.zone_note("윤슬:부두끝") == "", "둘 다 채우면 아무 말도 안 한다")
+	ok(Quests.zone_note("윤슬:부두끝") == "",
+		"부두 끝은 언제 가도 그걸로 끝이라 캐묻지 않는다")
+	JourneyState.mark_quest("윤슬:부두끝")
+	ok(Quests.zone_note("윤슬:부두끝") == "", "다녀온 뒤에도 조용하다")
 
-	# 등대는 저녁에만 불이 들어온다. 매듭 1단계를 안 끝냈어도 말해 준다 -
-	# 여태 그 조건에 묶여 있어서, 먼저 등대에 가 본 사람은 못 들었다.
+	# 등대도 마찬가지 — 매듭 1단계를 안 끝냈어도, 낮이어도 조용하다.
+	# (사진을 남기라는 권유는 `Place._tick_quest_zones()` 의 사진
+	# 힌트가 따로 한다.)
 	JourneyState.reset()
 	JourneyState.minutes = 13 * 60
-	ok(Quests.zone_note("윤슬:등대").contains("해가 지면"),
-		"낮에 등대에 가면 저녁에 오라고 말한다")
+	ok(Quests.zone_note("윤슬:등대") == "", "낮에 가도 캐묻지 않는다")
 	JourneyState.minutes = 19 * 60
-	ok(Quests.zone_note("윤슬:등대") == "", "저녁에는 그 말을 안 한다")
+	ok(Quests.zone_note("윤슬:등대") == "", "저녁에도 마찬가지다")
 
-	# 실제로 걸어가 닿으면 그 말이 힌트로 나오나.
+	# 실제로 걸어가 닿으면 그 자리에서 표시가 남고, 시간대를 캐묻는
+	# 말은 뜨지 않는다.
 	JourneyState.reset()
 	JourneyState.pick("map")
 	JourneyState.pick("camera")
@@ -5488,8 +5522,6 @@ func _zone_note_tests() -> void:
 	var pl: Place = load(GOAL_SCENES["윤슬"]).instantiate()
 	add_child(pl)
 	await get_tree().process_frame
-	# `_say_hint` 는 차례줄에 넣자마자 바로 띄운다 - 줄 길이로는
-	# 못 잰다. 실제로 화면에 뜬 글을 본다.
 	for z in pl.quest_zones():
 		if String(z[0]) == "윤슬:부두끝":
 			pl.walker.global_position = pl.world_of(z[1])
@@ -5500,17 +5532,12 @@ func _zone_note_tests() -> void:
 	pl.hud._hint_queue.clear()
 	pl.hud._hint_busy = false
 	pl._tick_quest_zones()
-	var said := String(pl.hud._hint.text)
-	ok(said.contains("저녁에 한 번 더"),
-		"부두 끝에 닿으면 남은 쪽을 말해 준다 (%s)" % said)
-	# 되풀이하지 않는다 - 힌트 줄은 우선순위가 없어서, 매 프레임
-	# 밀어 넣으면 다른 안내가 영영 안 나온다.
-	pl.hud._hint.text = ""
-	pl.hud._hint_queue.clear()
-	for i in 30:
-		pl._tick_quest_zones()
+	ok(JourneyState.quest_done("윤슬:부두끝"),
+		"낮 8시에 걸어가도 그 자리에서 표시가 남는다")
 	ok(String(pl.hud._hint.text) == "" and pl.hud._hint_queue.is_empty(),
-		"같은 자리에 서 있어도 되풀이하지 않는다 (%s)" % pl.hud._hint.text)
+		"시간대를 캐묻는 말이 안 뜬다 (%s)" % pl.hud._hint.text)
+	ok(Quests.side_done("윤슬", "윤슬:샛길:부두"),
+		"낮에 한 번 다녀온 것으로 이 샛길이 끝난다")
 	pl.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
@@ -5572,27 +5599,22 @@ func _postcard_notice_tests() -> void:
 	JourneyState.reset()
 
 
+## 예전엔 여기서 "오늘 저녁에만 되는 일" 을 지금이 저녁일 때만
+## 봐서, 아침·낮에 잠자리에 서는 하루의 2/3 시간대에서는 경고가
+## 아예 안 떴다. **이제 저녁에만 되는 할 일 자체가 없다** - 매듭
+## 2(등대 사진)도 샛길(부두 끝)도 언제 가든 그 자리에서 끝난다.
+## `evening_left()` 는 함수를 남겨 둔 채(나중에 다시 저녁 전용 할
+## 일이 생기면 채울 자리) 늘 조용하다는 것만 지킨다.
 func _bed_note_tests() -> void:
 	print("\n[자기 전에]")
 	JourneyState.reset()
-	# **시간대를 안 가린다.** 여태는 지금이 저녁일 때만 봐서, 아침·낮에
-	# 잠자리에 서는 하루의 2/3 시간대에서는 경고가 아예 안 떴다 - 알고
-	# 자는 것과 모르고 자는 것만 가른다는 뜻이 대부분 안 작동했다.
-	JourneyState.minutes = 9 * 60
-	ok(Quests.evening_left("윤슬") != "",
-		"아침에도 저녁 몫이 남았으면 알아챈다")
-	JourneyState.minutes = 13 * 60
-	ok(Quests.evening_left("윤슬") != "",
-		"낮에도 마찬가지다")
-	JourneyState.minutes = 19 * 60
-	ok(Quests.evening_left("윤슬") != "", "저녁에 남은 것이 있으면 알아챈다")
-	# 저녁 몫을 다 채우면 조용해진다
-	JourneyState.mark_quest("윤슬:부두끝@저녁")
-	JourneyState.mark_quest("윤슬:등대@저녁")
-	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
-	ok(Quests.evening_left("윤슬") == "", "저녁 몫을 다 하면 조용해진다")
+	for m in [9 * 60, 13 * 60, 19 * 60]:
+		JourneyState.minutes = m
+		ok(Quests.evening_left("윤슬") == "",
+			"저녁 전용 할 일이 없으니 어느 시간대에도 조용하다 (%d시)"
+				% int(m / 60.0))
 
-	# 실제로 잠자리에 서면 그 말이 나오나
+	# 실제로 잠자리에 서도 그 경고가 안 뜬다.
 	JourneyState.reset()
 	JourneyState.pick("map")
 	JourneyState.pick("camera")
@@ -5603,18 +5625,10 @@ func _bed_note_tests() -> void:
 	await get_tree().process_frame
 	pl.hud._hint.text = ""
 	pl.hud._hint_queue.clear()
-	# 다른 안내(샛길 설명 등)가 마침 이 프레임에 떠 있을 수 있다 -
-	# 바쁜 상태까지 같이 지워야 바로 이어서 뜬다.
 	pl.hud._hint_busy = false
 	pl._bed_note()
-	ok(String(pl.hud._hint.text).contains("오늘 저녁에만"),
-		"잠자리에 서면 알려 준다 (%s)" % pl.hud._hint.text)
-	# 하루에 한 번만 - 잠자리 앞은 오래 서 있게 되는 자리다
-	pl.hud._hint.text = ""
-	pl.hud._hint_queue.clear()
-	for i in 30:
-		pl._bed_note()
-	ok(String(pl.hud._hint.text) == "", "하루에 한 번만 말한다")
+	ok(String(pl.hud._hint.text) == "" and pl.hud._hint_queue.is_empty(),
+		"잠자리에 서도 조용하다 (%s)" % pl.hud._hint.text)
 	pl.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
@@ -5641,9 +5655,6 @@ func _knot_arrow_tests() -> void:
 	JourneyState.reset()
 
 
-## 등대곶 "저녁에 다시 오세요" 를 실시간으로 서서 기다리게 했더니
-## 무리라는 말을 들었다. 그 자리에 서 있으면 **곧장 저녁으로 건너뛸
-## 수 있게** 했다 (`Place._can_wait` / `_do_wait` / `JourneyState.skip_to_day_part`).
 ## "샛길은 둘만 해도 열려요" 를 한 번은 알려 주고, 다음 마을이 실제로
 ## 열리는 순간엔 알림이 뜨는가.
 ##
@@ -5694,7 +5705,7 @@ func _unlock_notice_tests() -> void:
 	JourneyState.pick("map")
 	JourneyState.pick("camera")
 	JourneyState.day = 2
-	JourneyState.mark_quest("윤슬:등대@저녁")
+	JourneyState.mark_quest("윤슬:등대")
 	JourneyState.photos.append({"place": "윤슬", "subject": "등대"})
 	JourneyState.mark_quest("윤슬:매듭:3")
 	JourneyState.mark_quest("윤슬:가게")
@@ -5723,59 +5734,40 @@ func _unlock_notice_tests() -> void:
 	JourneyState.reset()
 
 
+## 예전엔 여기서 등대곶 "저녁에 다시 오세요" 를 실시간으로 서서
+## 기다리게 했더니 무리라는 말을 들어서, 그 자리에 서면 **곧장
+## 저녁으로 건너뛸 수 있게** 했다(`Place._can_wait`/`_do_wait`/
+## `JourneyState.skip_to_day_part`).
+##
+## **이제 시간대를 요구하는 할 일이 하나도 없다** - 매듭 2(등대 사진)도
+## 샛길(부두 끝)도 언제 가든 그 자리에서 끝난다. 그러니 "기다리기"
+## 가 뜰 일도 이제 없다. 그 기계는 다치지 않고 그대로 있다 - 나중에
+## 다시 시간대를 요구하는 할 일이 생기면 그대로 켜진다. 지금은 그게
+## **아무 데서도 켜지지 않는다**는 것만 지킨다.
 func _wait_action_tests() -> void:
 	print("\n[기다리기]")
 	JourneyState.reset()
 	JourneyState.pick("map")
 	JourneyState.pick("camera")
 	JourneyState.here = "윤슬"
-	JourneyState.minutes = 9 * 60  # 아침 - 아직 등대곶에 불이 안 켜졌다
+	JourneyState.minutes = 9 * 60
 	var pl: Place = load(GOAL_SCENES["윤슬"]).instantiate()
 	add_child(pl)
 	await get_tree().process_frame
 
-	# 매듭 2단계 "저녁에 등대곶에서 사진 남기기" 가 지금 때가 아니라
-	# 목록에는 있지만 `current_goal()`(화살표)은 다른 걸 짚는다 — 못 할
-	# 일을 안 가리키는 게 그 규칙이다. `_can_wait()` 은 그 규칙과 반대로
-	# **바로 그 기다리는 항목**을 찾아야 한다 (`Place._current_wait`).
-	var listed := false
+	# 등대곶 사진은 이제 시간대를 안 캐물으니, 목록에 "아직 때가
+	# 아님"(waiting) 으로 남는 항목이 없다.
+	var waiting_any := false
 	for q in pl.open_goals():
-		if String(q.get("key", "")) == "윤슬:등대" and bool(q.get("waiting", false)):
-			listed = true
-	ok(listed, "등대곶 사진이 '아직 때가 아님'으로 목록에 남아 있다")
+		if bool(q.get("waiting", false)):
+			waiting_any = true
+	ok(not waiting_any, "때를 기다리는 할 일이 이제 하나도 없다")
 
-	# 등대곶에서 멀리 있으면 기다릴 수 없다.
-	pl.walker.global_position = pl.world_of(Vector2i(2, 2))
-	ok(not pl._can_wait(), "등대곶에서 멀면 기다리기가 안 뜬다")
-
-	# 등대곶 안, 문(31,6)과는 떨어진 자리에 서면 기다릴 수 있고, 눌렀을
-	# 때 저녁이 된다. 문 바로 앞이면 "등대 들어가기" 가 먼저 뜬다.
+	# 등대곶 안에 서도 기다리기가 뜨지 않는다 — 기다릴 일이 없으니까.
 	pl.walker.global_position = pl.world_of(Vector2i(32, 3))
-	ok(pl._can_wait(), "등대곶에 서면 기다리기가 뜬다")
-
-	# **버튼과 안내가 같은 말을 해야 한다.** 여태는 안내가 "그때 다시
-	# 와 봐요" 라며 떠나라고 하는데, 같은 화면에 여기서 기다리는
-	# 버튼이 있었다 - 안내만 읽고 떠난 사람은 버튼을 영영 못 봤다.
-	var note := Quests.zone_note("윤슬:등대")
-	ok(not note.contains("다시 와"), "안내가 떠나라고 하지 않는다 (%s)" % note)
-	ok(note.contains("기다려도"), "여기서 기다려도 된다고 말한다 (%s)" % note)
+	ok(not pl._can_wait(), "등대곶에 서도 기다리기가 안 뜬다")
 	pl._refresh_action()
-	ok(pl.hud.action_kind() == "wait", "버튼도 기다리기로 뜬다")
-	ok(String(pl.hud._act_btn.text).contains("저녁"),
-		"버튼이 언제까지인지도 적는다 (%s)" % pl.hud._act_btn.text)
-
-	pl._do_wait()
-	ok(JourneyState.day_part() == "저녁", "기다리면 곧장 저녁이 된다")
-	# **불이 실제로 켜져 있어야 한다.** 정확히 17시로 건너뛰면 등대
-	# 불빛(`_tick_lamps` 의 `night_amount` 문턱)이 아직 하나도 안 켜져서,
-	# "불 켜진 등대 사진" 이라는 약속의 장면을 못 본 채 끝났다.
-	ok(JourneyState.night_amount() > 0.125,
-		"등대에 불이 들어올 만큼 저물었다 (night_amount=%.2f)"
-			% JourneyState.night_amount())
-
-	# 아침으로 되돌리진 않는다 - 이미 지난 시간대는 그대로 둔다.
-	JourneyState.minutes = 22 * 60
-	ok(not pl._can_wait(), "저녁을 이미 지났으면 더 기다릴 게 없다")
+	ok(pl.hud.action_kind() != "wait", "버튼도 기다리기로 안 뜬다")
 
 	pl.queue_free()
 	await get_tree().process_frame

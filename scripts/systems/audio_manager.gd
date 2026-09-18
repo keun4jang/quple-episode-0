@@ -211,6 +211,12 @@ func battle_hurt() -> void:
 func battle_heal() -> void:
 	_play("battle_heal", -10.0)
 
+## 그늘이 스러졌다 — 슬프게 잦아드는 한 소리. **무섭게 만들지 않는다.**
+## 이 그늘은 적이 아니라 부정적인 마음이 형체를 얻은 것이라, 없앤
+## 순간이 통쾌한 "처치"보다는 **가라앉는 것을 지켜보는** 쪽에 가깝다.
+func battle_defeat() -> void:
+	_play("battle_defeat", -8.0)
+
 # ── 재생 ────────────────────────────────────────────────────────────────
 
 func _play(kind: String, db: float, pitch: float = 1.0) -> void:
@@ -253,6 +259,7 @@ func _build(kind: String) -> AudioStreamWAV:
 		"battle_weak":  return _make_norm(0.30, _battle_weak_wave, 0.66)
 		"battle_hurt":  return _make_norm(0.18, _battle_hurt_wave, 0.62)
 		"battle_heal":  return _make(0.52, _battle_heal_wave)
+		"battle_defeat": return _make_norm(0.85, _battle_defeat_wave, 0.60)
 	return null
 
 ## 부드럽고 낮은 툭 소리 (발소리)
@@ -479,6 +486,16 @@ func _battle_heal_wave(t: float, dur: float) -> float:
 		var lt := t - start
 		v += sin(TAU * float(freqs[i]) * lt) * exp(-lt * 6.0) * 0.32
 	return clampf(v, -1.0, 1.0)
+
+## 그늘이 스러진다 — 낮은 음이 아래로 미끄러지며 숨결 같은 잡음에
+## 묻혀 사라진다. 짧은 "퉁" 계열과 다르게 **길게 잦아든다**(0.85초) -
+## 이 소리만은 통쾌함이 아니라 여운을 준다.
+func _battle_defeat_wave(t: float, dur: float) -> float:
+	var x := t / dur
+	var f := 220.0 * pow(0.4, x)          # 220Hz 에서 미끄러져 내려간다
+	var tone := sin(TAU * f * t) * exp(-t * 3.2) * 0.5
+	var breath := _soft_noise(0.04, 0.0) * (1.0 - x) * 0.22
+	return clampf(tone + breath, -1.0, 1.0)
 
 # ── 배경음악 합성 ───────────────────────────────────────────────────────
 #

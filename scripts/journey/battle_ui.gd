@@ -40,6 +40,17 @@ var _list_box: VBoxContainer
 var _busy := false
 var _over := false
 var _won := false
+## **악당을 고르면 저절로 붙는다.** 매 턴 마음을 직접 고르지 않아도
+## 기본 공격(웃어넘기기, 마음력 0)을 자동으로 반복한다 - 그러면서도
+## 마음을 쓰고 싶으면 언제든 "마음을 쓴다" 로 끼어들 수 있다. 자동은
+## 그 사이사이를 메울 뿐, 사람이 고르는 걸 대신 막지 않는다.
+var _auto := true
+const AUTO_SKILL := "smile"
+## 주인공 쪽 그림. 여태 이 화면엔 그늘 그림만 있었다 — 때리는 쪽이
+## 안 보이니 손맛이 반쪽이었다. 새 그림을 그리는 대신 세계에서 이미
+## 쓰는 `hero-walk.png` 한 칸을 오려 쓴다.
+var _hero: TextureRect
+var _hero_tex: Texture2D
 
 const BAR_W := 360.0
 const MY_BAR_W := 300.0
@@ -151,6 +162,23 @@ func _build() -> void:
 	_root.add_child(_log)
 
 	# ── 나 (왼쪽 아래) ──
+	#
+	# LV·체력·마음력 판 위에 작게 선다. 적수(그늘)는 위 가운데에 큰
+	# 그림이 있는데 내 쪽엔 그림이 하나도 없었다 - 때리는 게 누군지
+	# 안 보이니 얻어맞는 그늘만 일방적으로 보이는 셈이었다.
+	_hero = TextureRect.new()
+	_hero.texture = _hero_frame(2, 0)
+	_hero.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_hero.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_hero.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_hero.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hero.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_hero.offset_left = 30
+	_hero.offset_right = 30 + 84
+	_hero.offset_top = -278
+	_hero.offset_bottom = -182
+	_root.add_child(_hero)
+
 	_lv = _label(24, Color("#FFE39A"), HORIZONTAL_ALIGNMENT_LEFT)
 	_lv.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_lv.offset_left = 26
@@ -291,6 +319,11 @@ func _refresh() -> void:
 	_lv.text = "LV %d" % Battle.level
 	_my_st.text = _status_text(Battle.my_status, Battle.STATUSES)
 	_intent.text = ("▸ " + Battle.intent()) if Battle.in_battle else ""
+	# 자동 사냥 중이면 같은 줄에 덧붙인다 - 줄을 늘리면(`\n`) 바로
+	# 아래 `_log` 와 겹친다. 버튼 글자("자동 사냥 끄기") 만으로는
+	# 지나치기 쉬워 한마디 더한다.
+	if Battle.in_battle and _auto:
+		_intent.text += "   ·   자동으로 붙는 중"
 
 
 func _status_text(held: Dictionary, table: Dictionary) -> String:
@@ -309,9 +342,32 @@ func _show_menu() -> void:
 	for c in _menu.get_children():
 		c.queue_free()
 	_menu.visible = true
+	_add_btn(_menu, "자동 사냥 끄기" if _auto else "자동 사냥 켜기", _toggle_auto)
 	_add_btn(_menu, "마음을 쓴다", _open_skills)
 	_add_btn(_menu, "손에 쥔다", _open_items)
 	_add_btn(_menu, "물러난다", _act_flee)
+	_refresh()
+	if _auto and not _over:
+		_queue_auto()
+
+
+func _toggle_auto() -> void:
+	_auto = not _auto
+	AudioManager.ui_click()
+	_show_menu()
+
+
+## 자동일 때 잠깐 뒤 스스로 기본 공격을 날린다. 사람이 그사이 목록을
+## 펼쳐 고르는 중이면(`_list.visible`) 끼어들지 않는다 - 고르다 말고
+## 화면이 저절로 넘어가면 뺏긴 느낌이 든다. 그때는 조용히 건너뛴다 -
+## 어차피 사람이 고른 다음 `_show_menu()` 가 다시 예약한다.
+func _queue_auto() -> void:
+	var tw := create_tween()
+	tw.tween_interval(0.7)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(self) and _auto and not _busy and not _over \
+				and not _list.visible:
+			_act_skill(AUTO_SKILL))
 
 
 func _open_skills() -> void:
@@ -465,8 +521,10 @@ func _one(e: Dictionary) -> void:
 			_pop(to_enemy, "-%d" % int(e["amount"]),
 				Color("#FFB4B4") if not to_enemy else Color("#FFE39A"), weak)
 			if to_enemy:
-				# **때린 쪽 반응.** 하얗게 한 번 번쩍이고, 흔들리고,
+				# **때린 쪽 반응.** 주인공이 앞으로 나서고(위쪽 그늘
+				# 쪽으로), 그늘은 하얗게 한 번 번쩍이고 흔들리고
 				# 파편이 튄다 — 약점을 찌른 것이면 다 조금씩 더 크게.
+				_hero_attack()
 				var finished_it: bool = int(Battle.enemy.get("hp", 1)) <= 0
 				# **번쩍임과 스러짐은 같은 속성(modulate)을 다툰다.**
 				# 마지막 한 방이면 번쩍이는 대신 곧장 스러지기 시작한다 —
@@ -484,10 +542,17 @@ func _one(e: Dictionary) -> void:
 					AudioManager.battle_weak_hit()
 				else:
 					AudioManager.battle_hit()
+				# **죽는소리.** 마지막 한 방이면 타격음 위에 스러지는
+				# 소리를 얹는다 - 통쾌한 "처치음" 이 아니라 잦아드는
+				# 여운을 준다(그늘은 적이 아니라 마음의 그림자다).
+				if finished_it:
+					AudioManager.battle_defeat()
 			else:
 				# **맞은 쪽 반응.** 그늘이 화면 쪽으로 한 번 다가왔다
-				# 물러나고(공격 동작), 화면이 붉게 스치고, 살짝 흔들린다.
+				# 물러나고(공격 동작), 주인공은 움츠러들며 흔들리고,
+				# 화면이 붉게 스치고 살짝 떨린다.
 				_lunge(_pic)
+				_hero_hurt()
 				_flash()
 				_shake_root()
 				AudioManager.battle_hurt()
@@ -545,6 +610,55 @@ func _shake(n: Control) -> void:
 		tw.tween_property(n, "offset_left", home + 7.0, 0.04)
 		tw.tween_property(n, "offset_left", home - 7.0, 0.04)
 	tw.tween_property(n, "offset_left", home, 0.04)
+
+
+## `hero-walk.png` 시트에서 한 칸을 오린다. `QuoSprite` 와 같은 규칙
+## (가로 4프레임 x 세로 3방향) — 여기선 위를 보는 줄(2)만 쓴다.
+## 적이 위쪽에 있으니 그쪽을 보고 서야 마주 선 그림이 된다.
+func _hero_frame(row: int, frame: int) -> AtlasTexture:
+	if _hero_tex == null:
+		_hero_tex = load("res://assets/sprites/hero-walk.png")
+	var fw := _hero_tex.get_width() / 4.0
+	var fh := _hero_tex.get_height() / 3.0
+	var at := AtlasTexture.new()
+	at.atlas = _hero_tex
+	at.region = Rect2(float(frame) * fw, float(row) * fh, fw, fh)
+	return at
+
+
+## 주인공이 때린다 — 적 쪽(위)으로 한 번 다가섰다 물러나며, 내딛는
+## 걸음 그림으로 잠깐 바뀐다. 그늘의 `_lunge()` 와 대칭이다(그쪽은
+## 아래로, 이쪽은 위로).
+func _hero_attack() -> void:
+	if _hero == null:
+		return
+	var top := _hero.offset_top
+	var bottom := _hero.offset_bottom
+	var d := -20.0
+	_hero.texture = _hero_frame(2, 2)
+	var tw := create_tween()
+	tw.tween_property(_hero, "offset_top", top + d, 0.08).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(_hero, "offset_bottom", bottom + d, 0.08) \
+		.set_ease(Tween.EASE_OUT)
+	tw.tween_property(_hero, "offset_top", top, 0.16).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(_hero, "offset_bottom", bottom, 0.16) \
+		.set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		if is_instance_valid(_hero):
+			_hero.texture = _hero_frame(2, 0))
+
+
+## 주인공이 맞는다 — 살짝 움츠러드는 그림으로 바뀌고 흔들린다.
+func _hero_hurt() -> void:
+	if _hero == null:
+		return
+	_hero.texture = _hero_frame(2, 1)
+	_shake(_hero)
+	var tw := create_tween()
+	tw.tween_interval(0.28)
+	tw.tween_callback(func():
+		if is_instance_valid(_hero):
+			_hero.texture = _hero_frame(2, 0))
 
 
 ## 하얗게 한 번 번쩍였다 돌아온다 — 맞았다는 걸 색으로도 알린다.

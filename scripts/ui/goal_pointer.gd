@@ -155,6 +155,25 @@ func _safe_rect() -> Rect2:
 		top = maxf(top, mr.end.y + 8.0)
 		right = minf(right, mr.position.x - 8.0)
 
+	# **왼쪽 위 메뉴 그리드도 피한다.** 여섯 자리(배낭·사진첩·편지·
+	# 행복첩·이 마을·마음)가 두 칸씩 세 줄로 서는데, `EDGE`(118)는
+	# 그 절반도 못 가린다 - 아랫줄 아이콘 위로 화살표가 그려져 가렸다.
+	# 미니맵과 같은 수로 잰다: 좌표를 다시 계산하지 않고 **실제 버튼의
+	# `get_global_rect()`** 를 그대로 쓴다 - 안전영역 밀림(펀치홀 등)
+	# 까지 이미 반영된 진짜 화면 자리라서 따로 더할 게 없다. 대화
+	# 중이라 메뉴가 숨어 있으면 그때는 안 민다.
+	var hud := get_tree().get_first_node_in_group("journey_hud")
+	if hud != null:
+		var btns: Array = hud.get("_menu_btns")
+		if btns != null and not btns.is_empty() \
+				and is_instance_valid(btns[0]) and (btns[0] as Control).visible:
+			var grid: Rect2 = (btns[0] as Control).get_global_rect()
+			for b in btns:
+				if is_instance_valid(b):
+					grid = grid.merge((b as Control).get_global_rect())
+			left = maxf(left, grid.end.x + 8.0)
+			top = maxf(top, grid.end.y + 8.0)
+
 	return Rect2(Vector2(left, top), Vector2(right - left, bottom - top))
 
 

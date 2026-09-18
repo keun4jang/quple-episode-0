@@ -1864,10 +1864,13 @@ func _knot_on_talk(f: Folk) -> Array:
 			# 나오고 왜 매듭이 안 끝나는지 알 길이 없었다 - 사실상
 			# 소프트락이다. 어디서 구하는지 소년이 직접 알려 준다.
 			return [
-				"저녁에 등대 밑에 가 보면",
+				"등대 밑에 가 보면",
 				"바다유리가 반짝일 거예요.",
 			]
-		if JourneyState.day <= JourneyState.quest_day("윤슬:등대@저녁"):
+		# **시간대 없는 열쇠를 본다.** 매듭 2(등대 사진)가 이제 아무
+		# 때나 끝나서, 저녁에 안 갔으면 "@저녁" 표시가 영영 안 남는다
+		# (`Quests.KNOT` 의 `after_day_of` 주석과 같은 이유).
+		if JourneyState.day <= JourneyState.quest_day("윤슬:등대"):
 			# **오늘은 아직 안 된다.** "다음 날" 조건인데 말을 걸어도
 			# 조용히 실패해 고장으로 읽혔다 - 왜 안 되는지 말해 준다.
 			return [
