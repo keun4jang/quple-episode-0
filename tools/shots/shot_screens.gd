@@ -113,7 +113,7 @@ func _run() -> void:
 	await _wait(6)
 	await _shot("yunseul-quests")
 
-	# ⑥ 길잡이 다시 보기
+	# ⑥ 조작 안내 다시 보기
 	p.hud._open_guide_recap()
 	await _wait(8)
 	await _shot("guide-recap")

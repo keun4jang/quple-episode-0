@@ -1189,7 +1189,7 @@ func _camera_tests() -> void:
 
 	# ⑤-3 화면을 덮는 것은 **뒤로가기로 닫혀야 한다.**
 	#
-	# "길잡이 다시 보기" 판은 배낭까지 숨기고 화면을 통째로 덮는데,
+	# "조작 안내 다시 보기" 판은 배낭까지 숨기고 화면을 통째로 덮는데,
 	# `back_handler` 가 찾는 그룹 어디에도 없었다. 그래서 폰에서 뒤로가기를
 	# 누르면 아무것도 안 닫히고, 그 누름이 종료 카운터에 쌓여 **두 번째
 	# 누름에 앱이 꺼졌다** (`back_handler.gd` 가 위에서 경고하는 그 사고).
@@ -1639,7 +1639,7 @@ func _name_tag_overlap_tests() -> void:
 ## `add_theme_stylebox_override("normal", ...)` 를 안 부르면 엔진
 ## 기본 회색 사각형으로 뜬다 - 메인 메뉴 확인창 버튼 셋이 그래서
 ## 배경 없이 글자만 떠 보였다(실기기 스크린샷으로 확인). 같은 실수가
-## 다른 곳에도 있었다: 설정 버튼, "길잡이 다시 보기"·
+## 다른 곳에도 있었다: 설정 버튼, "조작 안내 다시 보기"·
 ## "화면 보는 법"(배낭 안·길잡이 판 안 둘 다), 인트로 "건너뛰기".
 func _button_style_tests() -> void:
 	print("\n[버튼마다 배경이 있는가]")
@@ -1662,9 +1662,9 @@ func _button_style_tests() -> void:
 	ok(String(hud._bag_title.text) == "이 마을",
 		"판 머리에 지금 칸 이름이 적힌다 (%s)" % hud._bag_title.text)
 
-	var gb := _find_button(hud._bag_grid, "길잡이 다시 보기")
+	var gb := _find_button(hud._bag_grid, "조작 안내 다시 보기")
 	ok(gb != null and gb.has_theme_stylebox_override("normal"),
-		"배낭 안 '길잡이 다시 보기' 에 배경이 있다")
+		"배낭 안 '조작 안내 다시 보기' 에 배경이 있다")
 	var hb := _find_button(hud._bag_grid, "화면 보는 법")
 	ok(hb != null and hb.has_theme_stylebox_override("normal"),
 		"배낭 안 '화면 보는 법' 에 배경이 있다")
@@ -1793,7 +1793,7 @@ func _bag_row_distinction_tests() -> void:
 	var labels := 0
 	var gold := Color("#FFE39A")
 	for c in hud._bag_grid.get_children():
-		if c is Button and String(c.text) not in ["길잡이 다시 보기", "화면 보는 법"]:
+		if c is Button and String(c.text) not in ["조작 안내 다시 보기", "화면 보는 법"]:
 			buttons += 1
 			ok(c.get_theme_color("font_color") == gold,
 				"누를 수 있는 줄은 금색이다 (%s)" % c.text)
@@ -3915,7 +3915,7 @@ func _how_to_play_tests() -> void:
 	ok(get_tree().get_first_node_in_group("how_to_play") == null,
 		"닫고 나면 남지 않는다")
 
-	# 그래도 언제든 다시 열 수 있다 ("이 마을" > 길잡이 다시 보기)
+	# 그래도 언제든 다시 열 수 있다 ("이 마을" > 조작 안내 다시 보기)
 	var again := HowToPlay.open(get_tree())
 	ok(again != null, "본 뒤에도 다시 열 수 있다")
 	again.queue_free()

@@ -713,7 +713,7 @@ func _fit_bag_panel() -> void:
 	await get_tree().process_frame
 	if _bag_panel == null or not _bag_panel.visible:
 		return
-	# 위 한계가 440 이라 항목이 일곱만 돼도 "길잡이 다시 보기" 가 접힌
+	# 위 한계가 440 이라 항목이 일곱만 돼도 "조작 안내 다시 보기" 가 접힌
 	# 자리 아래로 밀렸다 — 막힌 사람이 찾아올 버튼인데 안 보였다.
 	# 화면 높이를 따라가되 너무 커지진 않게 한다.
 	var vp := get_viewport().get_visible_rect().size
@@ -858,13 +858,14 @@ func _place() -> Node:
 ## 누르면 배낭을 닫는다 — 표시가 미니맵에 뜨는데 배낭이 덮고 있으면
 ## 아무 일도 안 일어난 것처럼 보인다. "여기로 가세요" 라고 시키지 않고
 ## **접어 뒀다**고만 말한다.
-func _quest_row(text: String, col: Color, item: Dictionary, place: Node) -> Button:
+func _quest_row(text: String, col: Color, item: Dictionary, place: Node,
+		size: int = 28) -> Button:
 	var b := Button.new()
 	b.flat = true
 	b.focus_mode = Control.FOCUS_NONE
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.custom_minimum_size = Vector2(BAG_LINE_WIDTH, 0)
-	b.add_theme_font_size_override("font_size", 28)
+	b.add_theme_font_size_override("font_size", size)
 	Wrap.put(b, text)
 	for st in ["normal", "hover", "pressed", "focus"]:
 		b.add_theme_color_override("font_%s_color" % st, col)
@@ -888,14 +889,35 @@ func _quest_row(text: String, col: Color, item: Dictionary, place: Node) -> Butt
 
 func _fill_quests() -> void:
 	_bag_grid.columns = 1
-	var list := Quests.quest_list(_quest_village())
+	var village := _quest_village()
+	var list := Quests.quest_list(village)
 	if list.is_empty():
 		_empty("여기서는 딱히 할 일이 없어요")
+	else:
+		# **"해야 하는 이유를 모르겠다"는 말을 들었다.** 목록만 있고
+		# 마치면 뭐가 되는지가 어디에도 안 적혀 있었다. 마을 종류에 따라
+		# 답이 다르니 한 줄로만 답한다 - 숫자(3/5)는 여전히 안 보여 준다
+		# (`docs/quest-journey.md` 2절), 그래서 정확한 개수 대신
+		# "몇 가지"·"둘" 처럼 이미 다른 곳에서도 알려 준 말만 쓴다
+		# (`_maybe_explain_sides` 의 "둘만 골라도" 와 같은 말).
+		var why := "여기 있는 할 일을 마치면 다음 마을이 열려요."
+		if Quests.KNOT.has(village):
+			why = "이야기를 이어가고 샛길을 둘만 골라도 다음 마을이 열려요."
+		elif not Quests.ORDER.has(village):
+			why = "다 안 해도 괜찮아요 - 그냥 둘러보면 돼요."
+		_bag_grid.add_child(_bag_line(why, 22, Color("#A79A8A")))
 	var place := _place()
 	var tappable := false
 	for q in list:
 		var done: bool = q.get("done", false)
 		var label := String(q.get("label", ""))
+		# **"이야기"와 "샛길" 줄이 똑같이 생겨 체크리스트로 읽혔다.**
+		# 이야기는 지금 이어가는 단 한 걸음이라 도드라져야 하고, 샛길은
+		# 위에서 이미 한 번 설명했으니 줄마다 또 "샛길 · " 를 반복하지
+		# 않는다 - 다만 목록 줄이라는 표시로 옅은 점 하나만 남긴다.
+		var is_story := label.begins_with("이야기 ")
+		if not is_story and label.begins_with("샛길 · "):
+			label = "· " + label.substr("샛길 · ".length())
 		var text := label + ("  (다 했어요)" if done else "")
 		# **아직 안 한 것은 눌러서 지도에 접어 둘 수 있다.** 목록과 지도가
 		# 서로 남이면 "무엇을" 은 알아도 "어디로" 를 모른다. 다 한 것은
@@ -908,11 +930,12 @@ func _fill_quests() -> void:
 		# 같은 금색을 쓴다.
 		var col := Color("#A79A8A") if done else \
 			(Color("#FFE39A") if can_tap else Color("#FFF2C8"))
+		var size := 30 if is_story else 26
 		if can_tap:
 			tappable = true
-			_bag_grid.add_child(_quest_row(text, col, q, place))
+			_bag_grid.add_child(_quest_row(text, col, q, place, size))
 		else:
-			_bag_grid.add_child(_bag_line(text, 28, col))
+			_bag_grid.add_child(_bag_line(text, size, col))
 	# 눌러도 된다는 걸 아무도 모른다 — 줄이 그냥 글자로 보인다. 한 번만
 	# 조용히 알려 준다. 시키는 말이 아니라 그렇게 할 수 있다는 말로.
 	if tappable:
@@ -921,8 +944,12 @@ func _fill_quests() -> void:
 	# **길잡이를 다시 볼 곳.** 처음 안내는 한 줄, 한 번만 뜨고 사라진다 —
 	# 놓치면 못 본다는 게 친구들 피드백이었다. 여기, 막혔을 때 오는
 	# 바로 그 탭에 다시 볼 수 있는 버튼을 둔다.
+	# **이름은 "길잡이" 가 아니라 "조작 안내" 로 적는다.** "길잡이가
+	# 뭔지 모르겠다"는 말을 들었다 - 게임 안 어디에도 그 낱말을 설명한
+	# 적이 없다. 걷기·말 걸기·상호작용 같은 **조작을 알려 주는 것**이라고
+	# 있는 그대로 적으면 처음 보는 사람도 뭘 누르는지 안다.
 	var gb := Button.new()
-	gb.text = "길잡이 다시 보기"
+	gb.text = "조작 안내 다시 보기"
 	gb.custom_minimum_size = Vector2(0, 64)
 	gb.add_theme_font_size_override("font_size", 24)
 	# **배경이 없었다.** 배낭 목록의 다른 줄들은 색·정렬을 다 맞췄는데
@@ -944,7 +971,7 @@ func _fill_quests() -> void:
 	_bag_grid.add_child(hb)
 
 
-## "길잡이 다시 보기" 판. 처음 봤던 안내를 순서대로 다시 보여준다.
+## "조작 안내 다시 보기" 판. 처음 봤던 안내를 순서대로 다시 보여준다.
 ## 지금 막힌 사람에게는 **아직 안 한 것 중 가장 앞선 줄**이 먼저,
 ## 그 아래 전체 목록이 따라온다 — "지금 뭐부터?" 와 "전체 흐름" 을
 ## 한 화면에 같이 준다.
@@ -1005,7 +1032,7 @@ func _open_guide_recap() -> void:
 	panel.add_child(box)
 
 	var title := Label.new()
-	title.text = "길잡이"
+	title.text = "조작 안내"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 32)
 	title.add_theme_color_override("font_color", Color("#3A2C2C"))
