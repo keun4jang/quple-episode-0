@@ -2323,6 +2323,9 @@ func talk_to_near() -> void:
 	# 떠나거나 앱을 껐다 켠 사람은 그 대본을 영영 못 본다
 	# (`JourneyState.tell_reunion` 주석).
 	var was_reunion := f.wanderer and not f.once.is_empty()
+	# **무거운 줄인가.** 재회 대본에만 있고, `once` 를 비우는 `f.lines()`
+	# 보다 먼저 읽어 둬야 한다.
+	var weight_at := f.once_weight_at if was_reunion else -1
 	var what := f.lines()
 	if was_reunion:
 		JourneyState.tell_reunion(place_name())
@@ -2343,6 +2346,7 @@ func talk_to_near() -> void:
 			JourneyState.warm(f.folk_id)
 	if not extra.is_empty():
 		what = extra
+		weight_at = -1        # 재회 대본이 아니라 말 전하기로 갈아탔다
 	f.on_talked()
 	# 소품(spot)은 마음이 안 늘어서(`put_spot` 의 folk_id 가 빈 값) "봤다"는
 	# 기록이 어디에도 안 남는다. 프롤로그처럼 **소품을 들여다보는 것 자체가
@@ -2357,7 +2361,7 @@ func talk_to_near() -> void:
 	# 다섯 칸을 다 채워야 했을 땐 아무도 못 받았다 (`HEART_CLOSE` 주석).
 	if f.heart() >= JourneyState.HEART_CLOSE and not FAMILY_IDS.has(f.folk_id):
 		JourneyState.give_postcard(f.folk_id, f.who)
-	say.say(f.who, what)
+	say.say(f.who, what, weight_at)
 	_did("talk")
 	# 인연을 직접 탭해서 말을 건 것도 "오른쪽 버튼" 이 가르치려던 것과
 	# 같은 일이다. 버튼을 한 번도 안 눌러도 길잡이의 "act" 단계가
@@ -3832,13 +3836,24 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 			script = REUNION[nth]
 		else:
 			script = REUNION_LATER[(nth - REUNION.size()) % REUNION_LATER.size()]
+		# **셋째 재회만 제목이 놓인다.** 그 뒤에 이 마을 자랑(flavour)이
+		# 바로 따라붙으면 "나는 이런 게 진짜 행복인 것 같아" 가 그냥
+		# 지나가는 말이 된다 — 게임을 통틀어 두 번뿐인 문장이 앉을 마지막
+		# 자리를 flavour 가 가로채는 셈이다. 이번 한 번만 flavour 를
+		# 안 붙이고, 그 줄을 대화의 끝으로 남긴다.
+		var is_title_reunion := nth == REUNION.size() - 1
 		var once: Array = []
 		for pair in script:
 			once.append([who if String(pair[0]) == "그" else "나", pair[1]])
-		# 그 자리에서만 할 수 있는 말 한 줄. 여기가 어딘지가 드러난다.
-		for l in flavour:
-			once.append([who, l])
+		if not is_title_reunion:
+			# 그 자리에서만 할 수 있는 말 한 줄. 여기가 어딘지가 드러난다.
+			for l in flavour:
+				once.append([who, l])
 		f.once = once
+		# **그 줄만 무겁게 다룬다.** 대사창이 그 줄에서만 숨을 죽인다
+		# (배경음이 잦아들고, 글자가 천천히 앉고, 종이 한 번 운다) —
+		# `JourneySay._enter_weight()` 참고.
+		f.once_weight_at = once.size() - 1 if is_title_reunion else -1
 		# 다시 만난 것 자체가 사건이다. 말을 안 걸어도 한 칸 는다.
 		# **마을마다 한 번만.** 지도를 다시 깔 때(가게에 들락거릴 때)마다
 		# 오르면 안 된다 — 여태는 `last_met` 이 그걸 겸했는데, 그 줄이

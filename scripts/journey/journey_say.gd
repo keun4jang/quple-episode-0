@@ -16,6 +16,10 @@ const SPEED := 0.028          # 한 글자에 걸리는 시간
 const MAX_WIDTH := 560.0
 ## 이보다 좁으면 "이전" 버튼과 이름이 부딪혀 오히려 어색해진다.
 const MIN_WIDTH := 150.0
+## **무거운 줄**(`_weight_at`)은 이만큼 천천히 앉는다. 평소 속도로
+## 찍히면 다른 잡담과 똑같이 지나가 버린다 — 세 번째 재회의 제목
+## 대사가 그렇게 흘러가면 안 된다 (`Place.put_wanderer` 참고).
+const WEIGHT_SPEED_MULT := 1.9
 
 var _panel: PanelContainer
 var _who: Label
@@ -33,6 +37,11 @@ var _shown := 0
 var _t := 0.0
 var _busy := false
 var _size_tw: Tween
+## `_said` 안에서 무겁게 다룰 줄의 자리. 없으면 -1 (`Folk.once_weight_at`).
+var _weight_at := -1
+## 지금 그 줄을 보여 주는 중인가 — 들어오고 나가는 순간에 한 번씩만
+## 배경음을 다루기 위한 상태다.
+var _weight_active := false
 
 
 func _ready() -> void:
@@ -202,7 +211,7 @@ func _fit() -> void:
 ## 두 번째가 필요한 이유: 재회도 인사도 **주고받는 말**인데, 이름 하나만
 ## 찍혀 있으면 혼잣말로 읽힌다. 경비 아저씨의 "오늘도 늦었네" 와
 ## 쿼카의 "…네. 근데 오늘이 마지막이에요." 는 서로 다른 사람이 해야 한다.
-func say(who: String, lines: Array) -> void:
+func say(who: String, lines: Array, weight_at: int = -1) -> void:
 	_said.clear()
 	for l in lines:
 		if l is Array and l.size() >= 2:
@@ -213,6 +222,8 @@ func say(who: String, lines: Array) -> void:
 		return
 	_at = -1
 	_busy = true
+	_weight_at = weight_at
+	_weight_active = false
 	visible = true
 	var hud := get_tree().get_first_node_in_group("journey_hud")
 	if hud != null and hud.has_method("set_buttons_visible"):
@@ -232,6 +243,9 @@ func close() -> void:
 
 
 func _finish() -> void:
+	# **마지막 줄이 무거운 줄이면** `_go()` 를 다시 안 거치고 곧장
+	# 끝나므로, 여기서도 닫아 줘야 배경음이 낮은 채로 안 남는다.
+	_exit_weight()
 	_busy = false
 	visible = false
 	var hud := get_tree().get_first_node_in_group("journey_hud")
@@ -240,11 +254,32 @@ func _finish() -> void:
 	finished.emit()
 
 
+## 무거운 줄로 들어선다 — 배경음이 잦아들고 종이 한 번 조용히 운다.
+## 대사창을 새로 안 만든다, 그 안에서 딱 한 줄만 다르게 흐를 뿐이다.
+func _enter_weight() -> void:
+	_weight_active = true
+	AudioManager.duck_bgm(true)
+	AudioManager.warm_swell()
+
+
+## 무거운 줄에서 벗어난다 — 배경음을 되돌린다.
+func _exit_weight() -> void:
+	if not _weight_active:
+		return
+	_weight_active = false
+	AudioManager.duck_bgm(false)
+
+
 ## i 번째 말을 띄운다. 이미 지나온 말은 찍는 시늉 없이 통째로 보여 준다 —
 ## 되돌아가서 다시 읽는 사람을 기다리게 할 이유가 없다.
 func _go(i: int, instant := false) -> void:
 	var back := i <= _at
 	_at = clampi(i, 0, _said.size() - 1)
+	if _at == _weight_at:
+		if not _weight_active:
+			_enter_weight()
+	elif _weight_active:
+		_exit_weight()
 	var m: Dictionary = _said[_at]
 	_who.text = String(m.get("who", ""))
 	_full = String(m.get("text", ""))
@@ -294,8 +329,9 @@ func _process(delta: float) -> void:
 	if not _busy or _shown >= _full.length():
 		return
 	_t += delta
-	while _t >= SPEED and _shown < _full.length():
-		_t -= SPEED
+	var speed := SPEED * (WEIGHT_SPEED_MULT if _weight_active else 1.0)
+	while _t >= speed and _shown < _full.length():
+		_t -= speed
 		_shown += 1
 	_line.text = _wrapped.substr(0, _shown)
 

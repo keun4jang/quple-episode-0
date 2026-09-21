@@ -128,6 +128,15 @@ func _fade_bgm_to(db: float, dur: float) -> void:
 	_bgm_tween = create_tween()
 	_bgm_tween.tween_property(_bgm_player, "volume_db", db, dur)
 
+## 대사 한 줄에 무게를 실을 때 배경음이 숨을 죽인다 - 끝나면 다시 차오른다.
+## 새 채널을 안 만든다, 지금 트는 곡의 볼륨만 잠깐 낮췄다 되돌린다
+## (`JourneySay._enter_weight`/`_exit_weight`).
+const DUCK_DB := 6.0
+func duck_bgm(on: bool) -> void:
+	if _bgm_player == null:
+		return
+	_fade_bgm_to(_bgm_db() - (DUCK_DB if on else 0.0), 0.5)
+
 # ── 공개 API ────────────────────────────────────────────────────────────
 
 func footstep() -> void:
@@ -147,6 +156,11 @@ func message_arrive() -> void:
 
 func souvenir_get() -> void:
 	_play("sparkle", -8.0)
+
+## 세 번째 재회, 제목이 놓이는 그 한 줄에서만 운다. 게임 전체에서
+## 두 번뿐인 소리다 (`Place.REUNION` 셋째 대본).
+func warm_swell() -> void:
+	_play("warm_swell", -10.0)
 
 # ── 촉감 효과음 ─────────────────────────────────────────────────────────
 # 아래 소리들은 전부 낮은 음역(대체로 1kHz 아래)에 머문다.
@@ -247,6 +261,7 @@ func _build(kind: String) -> AudioStreamWAV:
 		"confirm":      return _make(0.22, _confirm_wave)
 		"chime":        return _make(0.55, _chime_wave)
 		"sparkle":      return _make(0.45, _sparkle_wave)
+		"warm_swell":   return _make(1.35, _warm_swell_wave)
 		"door_open":    return _make_norm(0.75, _door_open_wave, 0.72)
 		"door_close":   return _make_norm(0.50, _door_close_wave, 0.72)
 		"pickup":       return _make_norm(0.30, _pickup_wave, 0.68)
@@ -304,6 +319,21 @@ func _sparkle_wave(t: float, dur: float) -> float:
 	var env := exp(-t * 9.0) * (1.0 - t / dur)
 	var shimmer := sin(TAU * sweep * t) + sin(TAU * sweep * 1.5 * t) * 0.4
 	return clampf(shimmer * env * 0.5, -1.0, 1.0)
+
+## 셋째 재회의 제목 대사 — 낮은 화음 넷이 느리게 쌓였다 천천히 잦아든다.
+## `_chime_wave`/`_battle_heal_wave` 와 같은 결이지만 한 옥타브 낮고
+## (자기 전에 켜는 게임이라 고음을 안 쓴다), 훨씬 오래 앉아 있는다 —
+## 종소리처럼 알리는 게 아니라 **숨을 고르는 소리**라서다.
+func _warm_swell_wave(t: float, dur: float) -> float:
+	var v := 0.0
+	var freqs := [261.63, 329.63, 392.00, 523.25]     # C4 · E4 · G4 · C5
+	for i in range(freqs.size()):
+		var start := float(i) * 0.16
+		if t < start:
+			continue
+		var lt := t - start
+		v += sin(TAU * float(freqs[i]) * lt) * exp(-lt * 2.6) * 0.3
+	return clampf(v * (1.0 - t / dur), -1.0, 1.0)
 
 # ── 촉감 효과음 파형 ────────────────────────────────────────────────────
 #
