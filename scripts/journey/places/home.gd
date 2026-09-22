@@ -185,7 +185,15 @@ func on_built() -> void:
 
 	# 평상. 여기 앉으면 모아 둔 엽서를 한 장씩 넘겨 본다
 	# (`docs/story-journey.md` 6절) — 떠나서 만난 것들을, 떠나온 자리에서.
-	put_spot(Vector2i(26, 13), "평상", _deck_lines())
+	#
+	# **마지막 줄("혼자 떠났는데, 진짜 행복이 이만큼이었다")에 무게를
+	# 싣는다.** 제목과 만나는 두 번째이자 마지막 줄인데, 여태는 그냥
+	# 위 엽서들과 똑같은 속도·소리로 지나갔다 - 셋째 재회의 제목 대사와
+	# 같은 처지였다(`Place.put_wanderer` 참고). 엽서가 있을 때만 건다 -
+	# 아직 아무도 안 왔으면 그 줄 자체가 안 나온다.
+	var deck := _deck_lines()
+	var deck_weight := deck.size() - 1 if not JourneyState.postcards.is_empty() else -1
+	put_spot(Vector2i(26, 13), "평상", deck, deck_weight)
 	# 엄마는 마당에서 뭘 널고 있고, 아빠는 밭 옆에서 뭘 고치고 있고,
 	# 동생은 평상에 앉아 있다. 셋이 흩어져 있어야 마당이 넓어 보인다.
 	#

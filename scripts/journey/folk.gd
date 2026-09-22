@@ -44,10 +44,11 @@ var schedule: Dictionary = {}
 ## 배열이 대입되지 않고 조용히 실패했다 — **재회 대사가 통째로 안 붙었다.**
 ## 오류는 로그에만 남고 화면에서는 그냥 평소 인사를 했다.
 var once: Array = []
-## `once` 안에서 유난히 무겁게 다뤄야 할 줄의 자리. 없으면 -1.
-## 세 번째 재회의 "나는 이런 게 진짜 행복인 것 같아" 같은, 게임을 통틀어
-## 두 번뿐인 대사에만 쓴다 (`Place.put_wanderer`).
-var once_weight_at := -1
+## `lines()` 가 다음에 낼 대사 중 유난히 무겁게 다뤄야 할 줄의 자리.
+## 없으면 -1. `once`(재회 대본) 뿐 아니라 `lines_by_heart`(평상)에도
+## 쓴다 - 게임을 통틀어 제목과 만나는 두 번, 세 번째 재회와 평상의
+## 마지막 줄에만 건다 (`Place.put_wanderer`/`Place.put_spot`).
+var weight_at := -1
 
 var _talked := false
 ## 오늘 노을을 같이 봤나. 하루에 한 번이다.
@@ -194,7 +195,7 @@ func lines() -> Array:
 	if not once.is_empty():
 		var l := once.duplicate()
 		once.clear()
-		once_weight_at = -1
+		weight_at = -1
 		return l
 	if lines_by_heart.is_empty():
 		return ["…"]

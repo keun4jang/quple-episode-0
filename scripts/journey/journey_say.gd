@@ -37,7 +37,7 @@ var _shown := 0
 var _t := 0.0
 var _busy := false
 var _size_tw: Tween
-## `_said` 안에서 무겁게 다룰 줄의 자리. 없으면 -1 (`Folk.once_weight_at`).
+## `_said` 안에서 무겁게 다룰 줄의 자리. 없으면 -1 (`Folk.weight_at`).
 var _weight_at := -1
 ## 지금 그 줄을 보여 주는 중인가 — 들어오고 나가는 순간에 한 번씩만
 ## 배경음을 다루기 위한 상태다.

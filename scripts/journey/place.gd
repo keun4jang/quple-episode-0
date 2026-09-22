@@ -2323,9 +2323,10 @@ func talk_to_near() -> void:
 	# 떠나거나 앱을 껐다 켠 사람은 그 대본을 영영 못 본다
 	# (`JourneyState.tell_reunion` 주석).
 	var was_reunion := f.wanderer and not f.once.is_empty()
-	# **무거운 줄인가.** 재회 대본에만 있고, `once` 를 비우는 `f.lines()`
-	# 보다 먼저 읽어 둬야 한다.
-	var weight_at := f.once_weight_at if was_reunion else -1
+	# **무거운 줄인가.** 재회 대본과 평상(`Folk.weight_at` 참고)
+	# 둘 다 여기 걸린다 - `once` 를 비우는 `f.lines()` 보다 먼저 읽어
+	# 둬야 한다. 아무도 안 걸어 두면 그냥 -1 이라 손댈 일이 없다.
+	var weight_at := f.weight_at
 	var what := f.lines()
 	if was_reunion:
 		JourneyState.tell_reunion(place_name())
@@ -3861,7 +3862,7 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 		# **그 줄만 무겁게 다룬다.** 대사창이 그 줄에서만 숨을 죽인다
 		# (배경음이 잦아들고, 글자가 천천히 앉고, 종이 한 번 운다) —
 		# `JourneySay._enter_weight()` 참고.
-		f.once_weight_at = once.size() - 1 if is_title_reunion else -1
+		f.weight_at = once.size() - 1 if is_title_reunion else -1
 		# 다시 만난 것 자체가 사건이다. 말을 안 걸어도 한 칸 는다.
 		# **마을마다 한 번만.** 지도를 다시 깔 때(가게에 들락거릴 때)마다
 		# 오르면 안 된다 — 여태는 `last_met` 이 그걸 겸했는데, 그 줄이
@@ -3923,12 +3924,18 @@ func _tick_traces() -> void:
 			g.queue_redraw()
 
 
-func put_spot(t: Vector2i, what: String, lines: Array) -> Folk:
+## `weight_at`: `lines` 안에서 무겁게 다룰 줄의 자리 (없으면 -1).
+## 평상의 마지막 줄("혼자 떠났는데, 진짜 행복이 이만큼이었다")에
+## 쓴다 - 재회와 달리 **한 번 쓰고 안 지운다**, 앉을 때마다 그 줄이면
+## 늘 같은 무게로 남는다 (`Home._deck_lines()`).
+func put_spot(t: Vector2i, what: String, lines: Array,
+		weight_at: int = -1) -> Folk:
 	var f := Folk.new()
 	f.who = what
 	f.is_spot = true
 	f.folk_id = ""            # 마음이 안 는다 — 물건이니까
 	f.lines_by_heart = [lines]
+	f.weight_at = weight_at
 	f.at_tile = t
 	f.position = world_of(t)
 	add_child(f)
