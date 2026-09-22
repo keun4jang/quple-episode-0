@@ -19,6 +19,8 @@ var _place_title: Label
 ## 프레임 재는 것보다 또렷하다.
 var _arrival_card_up := false
 ## 도착하자마자 가운데 크게 뜨는 "지금 해볼 일" 한 줄.
+## "해볼 일" 딱지 — `_arrive_task`(실제 문장)보다 옅은 색이라 구별된다.
+var _arrive_task_tag: Label
 var _arrive_task: Label
 ## 첫 마을 동안 화면 위에 늘 떠 있는 안내줄.
 var _task_strip: Label
@@ -152,6 +154,27 @@ func _build() -> void:
 	root.add_child(_place_title)
 
 	# 마을 이름 바로 아래. 이름표와 같이 떴다 같이 사라진다.
+	#
+	# **"해볼 일" 딱지와 그 뒤 문장이 한 색이라 구별이 안 됐다.** 딱지가
+	# 문장의 일부처럼 읽혀서 "해볼 일 · 나루 가게 아저씨와 인사하기"가
+	# 전부 한 덩어리 문장처럼 보였다. 딱지는 옅은 색으로 한 줄 따로
+	# 올리고, 진짜 문장만 도드라진 금색으로 그 아래 둔다.
+	_arrive_task_tag = Label.new()
+	_arrive_task_tag.add_theme_font_size_override("font_size", 22)
+	_arrive_task_tag.add_theme_color_override("font_color", Color("#A79A8A"))
+	_arrive_task_tag.add_theme_color_override("font_outline_color",
+		Color(0.16, 0.13, 0.18))
+	_arrive_task_tag.add_theme_constant_override("outline_size", 8)
+	_arrive_task_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_arrive_task_tag.set_anchors_preset(Control.PRESET_CENTER)
+	_arrive_task_tag.offset_left = -420
+	_arrive_task_tag.offset_right = 420
+	_arrive_task_tag.offset_top = 38
+	_arrive_task_tag.offset_bottom = 64
+	_arrive_task_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_arrive_task_tag.modulate.a = 0.0
+	root.add_child(_arrive_task_tag)
+
 	_arrive_task = Label.new()
 	_arrive_task.add_theme_font_size_override("font_size", 32)
 	_arrive_task.add_theme_color_override("font_color", Color("#FFE39A"))
@@ -163,8 +186,8 @@ func _build() -> void:
 	_arrive_task.set_anchors_preset(Control.PRESET_CENTER)
 	_arrive_task.offset_left = -420
 	_arrive_task.offset_right = 420
-	_arrive_task.offset_top = 40
-	_arrive_task.offset_bottom = 140
+	_arrive_task.offset_top = 66
+	_arrive_task.offset_bottom = 166
 	_arrive_task.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_arrive_task.modulate.a = 0.0
 	root.add_child(_arrive_task)
@@ -660,7 +683,14 @@ func announce_place(text: String) -> void:
 		var goal := _first_task()
 		# 한글은 음절 사이가 다 줄바꿈 자리라 라벨에 맡기면 낱말이
 		# 갈린다 (`Wrap` 주석). 띄어쓰기에서만 끊는다.
-		Wrap.put(_arrive_task, ("해볼 일 · " + goal) if goal != "" else "")
+		#
+		# **딱지("해볼 일")와 문장을 따로 둔다.** 한 줄에 이어 붙이면
+		# 색을 나눠도 딱지만 옅어질 뿐 여전히 한 문장으로 읽힌다 -
+		# 아예 줄을 갈라야 "이건 안내, 이건 내용"이 눈에 들어온다.
+		if _arrive_task_tag != null:
+			_arrive_task_tag.text = "해볼 일" if goal != "" else ""
+			_arrive_task_tag.visible = goal != ""
+		Wrap.put(_arrive_task, goal)
 		_arrive_task.visible = goal != ""
 	_place_title.text = text
 	if _title_tw != null and _title_tw.is_valid():
@@ -668,13 +698,19 @@ func announce_place(text: String) -> void:
 	_place_title.modulate.a = 0.0
 	# 할 일을 읽을 시간이 있어야 하니 이름만 띄울 때보다 조금 더 머문다.
 	_arrive_task.modulate.a = 0.0
+	if _arrive_task_tag != null:
+		_arrive_task_tag.modulate.a = 0.0
 	_arrival_card_up = true
 	_title_tw = create_tween().set_parallel(true)
 	_title_tw.tween_property(_place_title, "modulate:a", 1.0, 0.5)
 	_title_tw.tween_property(_arrive_task, "modulate:a", 1.0, 0.5)
+	if _arrive_task_tag != null:
+		_title_tw.tween_property(_arrive_task_tag, "modulate:a", 1.0, 0.5)
 	_title_tw.chain().tween_interval(2.4)
 	_title_tw.chain().tween_property(_place_title, "modulate:a", 0.0, 0.7)
 	_title_tw.tween_property(_arrive_task, "modulate:a", 0.0, 0.7)
+	if _arrive_task_tag != null:
+		_title_tw.tween_property(_arrive_task_tag, "modulate:a", 0.0, 0.7)
 	_title_tw.chain().tween_callback(func(): _arrival_card_up = false)
 
 
