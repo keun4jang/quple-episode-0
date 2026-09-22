@@ -300,6 +300,15 @@ func quest_done(key: String) -> bool:
 ## 이미 몇 통 보냈나
 var letters_sent := 0
 
+## 셋째 재회(제목 대사, `Place.REUNION` 마지막 대본)를 지난 뒤 딱 한 통.
+## 보통 편지 순서(`LETTERS`/`letters_sent`) 밖에서 온다 - 그 순서를
+## 밀어 넣으면 언제 올지 다른 편지들과 뒤섞여 짚을 수 없다. "진짜
+## 행복" 이라는 말은 안 쓴다 - 그 말은 게임 전체에서 딱 두 번뿐이고
+## 이건 그중 하나가 아니다 (`docs/world-quo.md` 1절). 대신 엄마의
+## 말투로, 이유를 대지 않고 넌지시 - 이 게임의 편지들이 늘 그래왔듯.
+const TITLE_LETTER := {"who": "엄마", "text": "왠지 요즘은 걱정이 좀 덜 된다."}
+var title_letter_sent := false
+
 ## 여행지 세 곳마다 한 통. 짧다. 엄마가 먼저고(원래 있던 다섯 통,
 ## 순서를 안 바꾼다), 그다음은 마을에서 만난 이들과 가족이 한 통씩
 ## 보낸다(`docs/planning/content_brainstorm_plan.md` 2-4절) — 붙잡는
@@ -386,6 +395,15 @@ func _letter_ok(entry: Dictionary) -> bool:
 
 
 func maybe_letter() -> void:
+	# **정한 순서 밖의 편지가 먼저다.** 이건 도착 횟수(`due`)가 아니라
+	# 재회 자체가 방아쇠라, 평소 순서 계산보다 앞에서 따로 본다.
+	if not title_letter_sent and reunions >= 3:
+		title_letter_sent = true
+		var tw: String = String(TITLE_LETTER.get("who", "엄마"))
+		var tt: String = String(TITLE_LETTER.get("text", ""))
+		letters.append({"who": tw, "text": tt, "day": day, "read": false})
+		letter_came.emit(tt)
+		AudioManager.message_arrive()
 	var due := arrivals
 	while letters_sent < due and letters_sent < LETTERS.size():
 		# 다음 보낼 것을 고른다. 아직 못 보낼 것(안 만난 이의 것)은
@@ -722,6 +740,7 @@ func to_dict() -> Dictionary:
 		"letters": letters.duplicate(true),
 		"letters_sent": letters_sent,
 		"letters_skipped": letters_skipped,
+		"title_letter_sent": title_letter_sent,
 		"postcards": postcards.duplicate(true),
 		"arrivals": arrivals,
 		"departures": departures,
@@ -813,6 +832,7 @@ func from_dict(d: Dictionary) -> void:
 	letters = d.get("letters", []).duplicate(true) if d.get("letters") is Array else []
 	letters_sent = int(d.get("letters_sent", 0))
 	letters_skipped = d.get("letters_skipped", [])
+	title_letter_sent = bool(d.get("title_letter_sent", false))
 	postcards = d.get("postcards", {}).duplicate(true) \
 		if d.get("postcards") is Dictionary else {}
 	arrivals = maxi(0, int(d.get("arrivals", 0)))
@@ -863,6 +883,7 @@ func reset() -> void:
 	letters = []
 	letters_sent = 0
 	letters_skipped = []
+	title_letter_sent = false
 	postcards = {}
 	photos = []
 	arrivals = 0
