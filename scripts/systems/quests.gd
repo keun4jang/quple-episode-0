@@ -910,6 +910,52 @@ static func quest_list(village: String) -> Array:
 	return []
 
 
+## ── 그늘 퇴치 ─────────────────────────────────────────────────────────
+##
+## "말 걸기·줍기 말고 **퇴치하는 퀘스트**도 많아야 한다" 는 요청.
+## 마을마다 다섯 안팎 - 그늘 몇 마리, 종류마다 몇 마리, 우두머리.
+##
+## **다음 마을을 잠그지 않는다.** 그늘은 피해 갈 수 있고 져도 잃는 게
+## 없다는 게 전투의 약속이다 (`Battle` 주석). 싸우지 않는 사람도 여행은
+## 이어 가야 한다 - 그래서 `quest_list()` 와 `village_cleared()` 밖에
+## 따로 두고, 보상(`Rewards`)만 붙인다.
+##
+## 수는 **날을 넘겨 쌓인다** (`JourneyState.defeats`). 그늘은 날마다 다시
+## 서니, 오늘 못 채우면 내일 채우면 된다.
+const HUNT_ANY := [6, 15]
+const HUNT_MAIN := 4
+const HUNT_OTHER := 3
+
+## `[{key, label, kind, need, have, done}]`. 그늘이 없는 곳(고향·잿마루)은 빈 배열.
+static func hunt_list(village: String) -> Array:
+	var base: Array = Battle.SPAWNS.get(village, [])
+	if base.is_empty():
+		return []
+	var out: Array = []
+	var kinds: Array = []
+	for k in base:
+		if not kinds.has(k):
+			kinds.append(k)
+	out.append(_hunt(village, "", HUNT_ANY[0], "그늘 %d마리 걷어내기" % HUNT_ANY[0]))
+	for i in kinds.size():
+		var k := String(kinds[i])
+		var e: Dictionary = Battle.ENEMIES.get(k, {})
+		if bool(e.get("boss", false)):
+			out.append(_hunt(village, k, 1, "우두머리 %s 걷어내기" % String(e["name"])))
+			continue
+		var need := HUNT_MAIN if i == 0 else HUNT_OTHER
+		out.append(_hunt(village, k, need, "%s %d마리 걷어내기" % [String(e["name"]), need]))
+	out.append(_hunt(village, "", HUNT_ANY[1], "그늘 %d마리 걷어내기" % HUNT_ANY[1]))
+	return out
+
+
+static func _hunt(village: String, kind: String, need: int, label: String) -> Dictionary:
+	var have := mini(need, JourneyState.defeated(village, kind))
+	return {"key": "퇴치:%s:%d" % [kind if kind != "" else "전체", need],
+		"label": label, "kind": kind, "need": need, "have": have,
+		"done": have >= need}
+
+
 ## 이 마을에 지금 갈 수 있나. 다녀온 곳은 언제나 그렇다 — 잠그는 건
 ## **아직 안 가 본 다음 마을**뿐이다 (`docs/quest-journey.md` 0절).
 static func is_unlocked(village: String) -> bool:

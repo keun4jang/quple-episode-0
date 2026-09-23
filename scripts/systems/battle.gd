@@ -242,6 +242,30 @@ const SPAWNS := {
 	"꽃눈벌": ["envy", "envy", "regret", "night"],
 }
 
+## **여섯 배.** "그늘이 더 많아야 붙어 볼 맛이 난다" 는 요청. 위 표는
+## 마을마다의 **비율**로 두고, 실제로 서는 수는 여기서 곱한다 - 표를
+## 스물넷씩 늘어놓으면 난이도 곡선을 한눈에 못 본다.
+## 우두머리(`boss`)는 곱하지 않는다. 밤그늘 여섯은 쉬러 온 마을이 아니다.
+const SPAWN_MULT := 6
+
+## 그 마을에 실제로 서는 그늘들. **섞어서** 늘어놓는다 - 자리가 모자라
+## 뒤가 잘려도 한 종류만 남지 않게.
+static func spawns(village: String) -> Array:
+	var base: Array = SPAWNS.get(village, [])
+	var out: Array = []
+	for i in SPAWN_MULT:
+		for k in base:
+			if i > 0 and bool(ENEMIES.get(String(k), {}).get("boss", false)):
+				continue
+			out.append(String(k))
+	return out
+
+
+## 걷어냈을 때 얻는 경험의 몫. 그늘이 여섯 배가 되면서 표의 경험을
+## 그대로 주면 첫 두 마을에서 LV9 가 된다 - 뒷마을이 아무 긴장 없이
+## 지나간다. 경험은 줄이는 대신 **남기는 것**(먹을 것)은 그대로 준다.
+const KILL_XP_MULT := 0.5
+
 
 # ── 손에 쥐고 쓰는 것 ────────────────────────────────────────────────
 #
@@ -685,7 +709,7 @@ static func _give_enemy(id: String, evs: Array) -> void:
 static func _win(evs: Array) -> void:
 	in_battle = false
 	evs.append({"kind": "line", "text": "%s이(가) 옅어졌다" % String(enemy["name"])})
-	var got := int(ENEMIES[kind]["xp"])
+	var got := maxi(1, int(round(float(ENEMIES[kind]["xp"]) * KILL_XP_MULT)))
 	evs.append({"kind": "xp", "amount": got})
 	evs.append_array(gain_xp(got))
 	# **그늘이 남기는 것.** 무작위가 아니다 - 그늘마다 늘 같은 것을 남긴다.

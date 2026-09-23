@@ -35,6 +35,8 @@ var _tab := 0        # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 �
 var _bag_sel := ""
 ## 배낭 대신 도감을 보고 있나.
 var _bag_dex := false
+## 배낭(도감) 몇째 쪽을 보고 있나. 굴리지 않고 방향 버튼으로 넘긴다.
+var _bag_page := 0
 ## 화면 왼쪽 위 메뉴 버튼 다섯(배낭·사진첩·편지·행복첩·이 마을)과
 ## 그 뒤에 깔리는 받침, 그리고 편지·할 일 위에 뜨는 알림 점.
 ##
@@ -265,19 +267,20 @@ func _build() -> void:
 	# 밀려 있어서, 아이콘이 원 안에서 한쪽으로 치우쳐 보였다 — 좌우
 	# 두 버튼이 서로 반대쪽으로 쏠려 더 어긋나 보였다.
 	# 버튼 중심은 좌우 다 화면 끝에서 80px, 위로 80px.
-	_pad_cam = _make_pad(root, Control.PRESET_BOTTOM_LEFT, 20, -140, 140, -20)
+	# **작게 줄였다** (96 → 72). "왼쪽 버튼들이 맵을 가린다" 는 말을 들었다.
+	_pad_cam = _make_pad(root, Control.PRESET_BOTTOM_LEFT, 20, -116, 116, -20)
 
 	# 사진 — 왼쪽 아래. 배낭과 반대쪽이라 헷갈리지 않는다
 	_cam_btn = TextureButton.new()
 	_cam_btn.texture_normal = load("res://assets/sprites/i-camera.png")
 	_cam_btn.ignore_texture_size = true
 	_cam_btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-	_cam_btn.custom_minimum_size = Vector2(96, 96)
+	_cam_btn.custom_minimum_size = Vector2(72, 72)
 	_cam_btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_cam_btn.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_cam_btn.offset_left = 32
-	_cam_btn.offset_top = -128
-	_cam_btn.offset_right = 128
+	_cam_btn.offset_top = -104
+	_cam_btn.offset_right = 104
 	_cam_btn.offset_bottom = -32
 	_cam_btn.pressed.connect(func(): shutter.emit())
 	_press_feedback(_cam_btn)
@@ -529,10 +532,16 @@ const MENU := [
 	["행복첩", "i-heartbook"], ["이 마을", "i-list"], ["마음", "i-mind"],
 ]
 const MENU_AT := Vector2(24, 62)   # 시계(28,18)와 안 겹치게 그 아래부터
-const MENU_BTN := 88.0             # 96 짜리 사진 버튼과 같은 결
-## 받침 원이 버튼보다 사방 8px 크다. 사이를 16 보다 좁게 두면 옆 받침과
-## 겹쳐서 다섯이 한 덩어리로 보인다 — 실제로 10 으로 뒀다가 그랬다.
-const MENU_GAP := 20.0
+## **88 에서 64 로 줄였다.** 여섯이 두 칸씩 세 줄로 서면 화면 왼쪽
+## 위가 통째로 가려져 "버튼 때문에 맵이 안 보인다" 는 말을 들었다.
+## 폭 220 → 164, 높이 366 → 288. 손끝 기준(`Paper` 의 48dp)보다는 작지만
+## 그림 버튼이라 받침 원까지 눌리는 자리로 친다 (아래 `_make_pad`).
+const MENU_BTN := 64.0
+## 받침 원이 버튼보다 사방 `MENU_PAD` 만큼 크다. 사이가 받침 둘을 합친
+## 것보다 좁으면 옆 받침과 겹쳐서 여섯이 한 덩어리로 보인다 — 10/8 로
+## 뒀다가 그랬다. 버튼을 줄이면서 받침도 같이 줄였다 (12 > 5+5).
+const MENU_GAP := 12.0
+const MENU_PAD := 5.0
 const MENU_COLS := 2
 
 
@@ -549,7 +558,8 @@ func _build_menu(root: Control) -> void:
 	for i in MENU.size():
 		var at := menu_rect(i)
 		_menu_pads.append(_make_pad(root, Control.PRESET_TOP_LEFT,
-			at.position.x - 8, at.position.y - 8, at.end.x + 8, at.end.y + 8))
+			at.position.x - MENU_PAD, at.position.y - MENU_PAD,
+			at.end.x + MENU_PAD, at.end.y + MENU_PAD))
 
 		var b := TextureButton.new()
 		b.name = "MenuBtn%d" % i
@@ -641,6 +651,7 @@ func toggle_bag() -> void:
 		_tab = 0
 		_bag_sel = ""
 		_bag_dex = false
+		_bag_page = 0
 		_refill_bag()
 	bag_toggled.emit(_bag_panel.visible)
 
@@ -649,6 +660,7 @@ func _pick_tab(i: int) -> void:
 	_tab = i
 	_bag_sel = ""
 	_bag_dex = false
+	_bag_page = 0
 	if i == 2:
 		# 열어 봤으면 읽은 것이다
 		JourneyState.read_letters()
@@ -717,6 +729,10 @@ func _refill_bag() -> void:
 	for c in _bag_grid.get_children():
 		c.queue_free()
 	_bag_title.text = String(MENU[_tab][0]) if _tab < MENU.size() else ""
+	# 배낭만 옆으로 넓다 (`BAG_WIDE` 주석). 채우기 전에 폭부터 정한다.
+	var half := (BAG_WIDE if _tab == 0 else BAG_NARROW) * 0.5
+	_bag_panel.offset_left = -half
+	_bag_panel.offset_right = half
 
 	match _tab:
 		1: _fill_photos()
@@ -744,9 +760,23 @@ func _fit_bag_panel() -> void:
 	var content: float = _bag_grid.get_combined_minimum_size().y
 	# 머리에 있던 탭 줄(60px)이 빠지고 이름 한 줄만 남았다. 그만큼
 	# 덜 잡는다 — 안 줄이면 물건 둘짜리 배낭이 또 반쯤 빈 판이 된다.
-	var need: float = clampf(content + 110.0, 190.0, minf(vp.y * 0.82, 580.0))
+	# 배낭은 **굴리지 않고 쪽을 넘기므로** 한 쪽이 통째로 들어갈 만큼
+	# 더 잡는다 - 설명 판 + 칸 세 줄 + 쪽 넘기기 줄.
+	var cap := 760.0 if _tab == 0 else 580.0
+	var need: float = clampf(content + 110.0, 190.0, minf(vp.y * 0.82, cap))
 	_bag_panel.offset_top = -need * 0.5
 	_bag_panel.offset_bottom = need * 0.5
+	# 110 은 어림이다 - 제목 줄 높이가 폰트마다 몇 px 씩 달라 한 쪽이
+	# 4px 모자라 굴림막대가 떴다. 자리를 잡은 뒤 모자란 만큼만 더 편다.
+	await get_tree().process_frame
+	if _bag_panel == null or not _bag_panel.visible:
+		return
+	var scroll := _bag_grid.get_parent() as Control
+	var short: float = _bag_grid.get_combined_minimum_size().y - scroll.size.y
+	if short > 0.0:
+		var h: float = minf(_bag_panel.size.y + short, minf(vp.y * 0.82, cap))
+		_bag_panel.offset_top = -h * 0.5
+		_bag_panel.offset_bottom = h * 0.5
 
 
 func _empty(text: String) -> void:
@@ -765,6 +795,37 @@ func _empty(text: String) -> void:
 ## 그 자리에서 **먹을 수 있다** (전투 밖에서도).
 ##
 ## 차례는 쓸모 순이다 - 먹을 것, 기념품, 도장, 조각, 도구, 주운 것.
+##
+## **굴리지 않고 쪽을 넘긴다.** 칸이 150x128 에 넷씩이라 물건이 스무 개만
+## 넘어도 판 아래로 밀려 손가락으로 굴려야 했다 - 폰에서는 칸을 누르려다
+## 굴러가고, 굴리려다 칸이 눌렸다. 칸을 줄여 한 쪽(`bag_page_size`)을 다
+## 보이게 하고, 나머지는 아래 방향 버튼으로 넘긴다.
+##
+## 폰을 눕혀 쓰므로 **높이가 모자라고 너비는 남는다.** 그래서 배낭 칸일
+## 때만 판을 옆으로 넓혀(`BAG_WIDE`) 한 줄에 여덟 칸을 두고, 줄 수는 화면
+## 높이에서 설명 판·쪽 넘기기 줄을 빼고 남는 만큼만(`_bag_rows`) 둔다.
+## 설명 판 자리는 **늘 같은 높이로 비워 둔다** - 칸을 누를 때마다 줄 수가
+## 바뀌면 같은 쪽에 있던 물건이 딴 쪽으로 가 버린다.
+const BAG_COLS := 8
+const BAG_CELL := Vector2(100, 100)
+const BAG_GAP := 8
+const BAG_CARD_H := 128.0
+const BAG_WIDE := 920.0
+const BAG_NARROW := 720.0
+
+
+## 한 쪽에 몇 줄. 판 최대 높이 - 제목·여백(98) - 설명 판 - 쪽 넘기기 줄(64)
+## - 사이 간격 셋(14씩).
+func _bag_rows() -> int:
+	var vp := get_viewport().get_visible_rect().size
+	var room: float = minf(vp.y * 0.82, 760.0) - 98.0 - BAG_CARD_H - 64.0 - 42.0
+	return clampi(int((room + BAG_GAP) / (BAG_CELL.y + BAG_GAP)), 2, 4)
+
+
+func bag_page_size() -> int:
+	return BAG_COLS * _bag_rows()
+
+
 func _fill_bag() -> void:
 	_bag_grid.columns = 1
 	if _bag_dex:
@@ -772,23 +833,90 @@ func _fill_bag() -> void:
 		return
 	if JourneyState.bag.is_empty():
 		_empty("아직 아무것도 없어요")
+		return
 	elif _bag_sel != "" and JourneyState.count(_bag_sel) > 0:
 		_bag_grid.add_child(_item_card(_bag_sel, true))
 	else:
-		_bag_grid.add_child(_bag_line("칸을 누르면 무엇인지 볼 수 있어요.", 20,
-			Color("#A79A8A")))
+		_bag_grid.add_child(_card_box(_bag_line("칸을 누르면 무엇인지 볼 수 있어요.",
+			22, Color("#A79A8A"))))
+	var items := _bag_sorted()
+	var per := bag_page_size()
+	var pages := maxi(1, ceili(float(items.size()) / per))
+	_bag_page = clampi(_bag_page, 0, pages - 1)
 	var cells := GridContainer.new()
-	cells.columns = 4
-	cells.add_theme_constant_override("h_separation", 10)
-	cells.add_theme_constant_override("v_separation", 10)
-	for item in _bag_sorted():
-		cells.add_child(_bag_cell(String(item)))
+	cells.name = "BagCells"
+	cells.columns = BAG_COLS
+	cells.add_theme_constant_override("h_separation", BAG_GAP)
+	cells.add_theme_constant_override("v_separation", BAG_GAP)
+	var from := _bag_page * per
+	for i in range(from, mini(from + per, items.size())):
+		cells.add_child(_bag_cell(String(items[i])))
 	_bag_grid.add_child(cells)
-	_bag_grid.add_child(_paper_btn("도감 보기", func() -> void:
+	_bag_grid.add_child(_pager(pages, _paper_btn("도감 보기", func() -> void:
 		AudioManager.page_turn()
 		_bag_dex = true
 		_bag_sel = ""
-		_refill_bag()))
+		_bag_page = 0
+		_refill_bag())))
+
+
+## 쪽 넘기기 줄: [왼쪽] 1 / 3 [오른쪽] ...... [덧붙일 버튼].
+##
+## 화살표는 **글자가 아니라 그린다** - 본문 폰트에 ◀ ▶ 가 없어 폰에서
+## 네모 상자가 뜬다 (알림 점과 같은 까닭).
+func _pager(pages: int, extra: Control = null) -> Control:
+	var row := HBoxContainer.new()
+	row.name = "Pager"
+	row.add_theme_constant_override("separation", 12)
+	row.custom_minimum_size = Vector2(BAG_LINE_WIDTH, 0)
+	var prev := _arrow_btn(-1, _bag_page > 0)
+	prev.name = "PagePrev"
+	row.add_child(prev)
+	var at := Label.new()
+	at.name = "PageAt"
+	at.text = "%d / %d" % [_bag_page + 1, pages]
+	at.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	at.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	at.custom_minimum_size = Vector2(96, 0)
+	at.add_theme_font_size_override("font_size", 26)
+	at.add_theme_color_override("font_color", Color("#E4DCCF"))
+	row.add_child(at)
+	var next := _arrow_btn(1, _bag_page < pages - 1)
+	next.name = "PageNext"
+	row.add_child(next)
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(gap)
+	if extra != null:
+		extra.custom_minimum_size = Vector2(180, 64)
+		row.add_child(extra)
+	return row
+
+
+## 방향 버튼 하나. `dir` -1 은 앞 쪽, 1 은 뒤 쪽. 갈 데가 없으면 흐리다.
+func _arrow_btn(dir: int, can: bool) -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(88, 64)
+	Paper.button(b, Color("#F4EDE2"), Color("#8C7B68"), Color("#3A2C2C"))
+	b.disabled = not can
+	b.modulate.a = 1.0 if can else 0.35
+	var tri := Control.new()
+	tri.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tri.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tri.draw.connect(func() -> void:
+		var c := tri.size * 0.5
+		var w := 14.0 * dir
+		tri.draw_colored_polygon(PackedVector2Array([
+			c + Vector2(w, 0), c + Vector2(-w, -16), c + Vector2(-w, 16)]),
+			Color("#3A2C2C")))
+	b.add_child(tri)
+	b.pressed.connect(func() -> void:
+		AudioManager.page_turn()
+		_bag_page += dir
+		_bag_sel = ""
+		_refill_bag())
+	return b
 
 
 ## 배낭 속 물건을 쓸모 순으로.
@@ -809,17 +937,18 @@ func _bag_cell(item: String) -> Button:
 	var b := Button.new()
 	b.flat = true
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(150, 128)
+	b.custom_minimum_size = BAG_CELL
 	var sel := item == _bag_sel
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(1, 1, 1, 0.10 if sel else 0.0)
-	sb.set_corner_radius_all(12)
+	sb.bg_color = Color(1, 1, 1, 0.14 if sel else 0.05)
+	sb.set_corner_radius_all(10)
 	sb.border_color = Color("#FFE39A")
 	sb.set_border_width_all(2 if sel else 0)
 	for st in ["normal", "hover", "pressed", "focus"]:
 		b.add_theme_stylebox_override(st, sb)
 	var cell := VBoxContainer.new()
 	cell.alignment = BoxContainer.ALIGNMENT_CENTER
+	cell.add_theme_constant_override("separation", 0)
 	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cell.set_anchors_preset(Control.PRESET_FULL_RECT)
 	b.add_child(cell)
@@ -831,18 +960,35 @@ func _bag_cell(item: String) -> Button:
 	pic.texture = load(Catalog.icon_path(item))
 	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	pic.custom_minimum_size = Vector2(72, 72)
+	pic.custom_minimum_size = Vector2(52, 52)
 	pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cell.add_child(pic)
 	var name := Label.new()
 	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name.add_theme_font_size_override("font_size", 19)
+	name.add_theme_font_size_override("font_size", 15)
 	name.add_theme_color_override("font_color", Color("#E4DCCF"))
-	name.custom_minimum_size = Vector2(146, 0)
+	name.custom_minimum_size = Vector2(BAG_CELL.x - 6, 0)
 	name.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Wrap.put(name, "%s %d" % [Catalog.name_of(item), JourneyState.count(item)])
+	Wrap.put(name, Catalog.name_of(item))
 	cell.add_child(name)
+	# 개수는 그림 오른쪽 아래에 따로 - 이름과 이어 붙이면 두 줄로 접혀
+	# 칸이 들쭉날쭉해진다.
+	var n := JourneyState.count(item)
+	if n > 1:
+		var cnt := Label.new()
+		cnt.text = "%d" % n
+		cnt.add_theme_font_size_override("font_size", 18)
+		cnt.add_theme_color_override("font_color", Color("#FFE39A"))
+		cnt.add_theme_color_override("font_outline_color", Color("#1A1418"))
+		cnt.add_theme_constant_override("outline_size", 5)
+		cnt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cnt.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		cnt.offset_left = -34
+		cnt.offset_right = -6
+		cnt.offset_top = 2
+		cnt.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		b.add_child(cnt)
 	b.pressed.connect(func() -> void:
 		AudioManager.ui_click()
 		_bag_sel = "" if _bag_sel == item else item
@@ -852,7 +998,8 @@ func _bag_cell(item: String) -> Button:
 
 ## 물건 설명 판. 배낭(`can_use`)에서는 먹을 것에 [먹기] 가 붙고, 도감에서는
 ## 설명만 보여 준다.
-func _item_card(item: String, can_use: bool) -> Control:
+## 설명 판의 틀. 배낭에서는 늘 같은 높이(`BAG_CARD_H`)라 칸이 들썩이지 않는다.
+func _card_box(inner: Control = null) -> PanelContainer:
 	var panel := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(1, 1, 1, 0.07)
@@ -862,7 +1009,16 @@ func _item_card(item: String, can_use: bool) -> Control:
 	sb.content_margin_top = 10
 	sb.content_margin_bottom = 10
 	panel.add_theme_stylebox_override("panel", sb)
-	panel.custom_minimum_size = Vector2(BAG_LINE_WIDTH, 0)
+	panel.custom_minimum_size = Vector2(BAG_LINE_WIDTH, BAG_CARD_H)
+	if inner != null:
+		if inner is Label:
+			(inner as Label).vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		panel.add_child(inner)
+	return panel
+
+
+func _item_card(item: String, can_use: bool) -> Control:
+	var panel := _card_box()
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	panel.add_child(row)
@@ -878,6 +1034,11 @@ func _item_card(item: String, can_use: bool) -> Control:
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(col)
 	var w := BAG_LINE_WIDTH - 88.0 - 14.0 - 28.0
+	if can_use and Catalog.edible(item):
+		w -= 164.0
+	# 넓은 배낭 판에서는 글줄도 그만큼 넓게 - 좁게 접으면 판 높이를 넘는다.
+	if _tab == 0:
+		w += BAG_WIDE - BAG_NARROW
 	var kind := Catalog.kind_of(item)
 	var at := String(Catalog.of(item).get("at", ""))
 	var head := Label.new()
@@ -908,10 +1069,13 @@ func _item_card(item: String, can_use: bool) -> Control:
 		var pre := "지니고 있으면 · " if kind in ["keep", "stamp", "shade"] else "먹으면 · "
 		Wrap.put(l3, pre + eff)
 		col.add_child(l3)
+	# [먹기] 는 글 밑이 아니라 **오른쪽에** - 밑에 달면 판이 64px 커져
+	# 아래 칸들이 한 줄 밀린다.
 	if can_use and Catalog.edible(item):
 		var eat := _paper_btn("먹기", func() -> void: _eat(item))
-		eat.custom_minimum_size = Vector2(160, 64)
-		col.add_child(eat)
+		eat.custom_minimum_size = Vector2(150, 64)
+		eat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(eat)
 	return panel
 
 
@@ -940,26 +1104,30 @@ func _fill_dex() -> void:
 		else:
 			_bag_grid.add_child(_bag_line("아직 못 만난 것이에요. 여행을 하다 보면 만나요.",
 				20, Color("#A79A8A")))
-	for kind in Catalog.KIND_ORDER:
-		var ids := Catalog.ids_of(String(kind))
-		var got := 0
-		for id in ids:
-			if Catalog.found(String(id)):
-				got += 1
-		_bag_grid.add_child(_bag_line("%s  ·  %d가지 중 %d" % [
-			String(Catalog.KIND_NAME[kind]), ids.size(), got], 24, Color("#FFE39A")))
-		var cells := GridContainer.new()
-		cells.columns = 8
-		cells.add_theme_constant_override("h_separation", 8)
-		cells.add_theme_constant_override("v_separation", 8)
-		for id in ids:
-			cells.add_child(_dex_cell(String(id)))
-		_bag_grid.add_child(cells)
-	_bag_grid.add_child(_paper_btn("배낭 보기", func() -> void:
+	# 한 쪽에 한 종류. 일곱 종류를 한 판에 늘어놓으니 굴려야만 끝이 보였다.
+	var pages: int = Catalog.KIND_ORDER.size()
+	_bag_page = clampi(_bag_page, 0, pages - 1)
+	var kind: String = Catalog.KIND_ORDER[_bag_page]
+	var ids := Catalog.ids_of(kind)
+	var got := 0
+	for id in ids:
+		if Catalog.found(String(id)):
+			got += 1
+	_bag_grid.add_child(_bag_line("%s  ·  %d가지 중 %d" % [
+		String(Catalog.KIND_NAME[kind]), ids.size(), got], 24, Color("#FFE39A")))
+	var cells := GridContainer.new()
+	cells.columns = 8
+	cells.add_theme_constant_override("h_separation", 8)
+	cells.add_theme_constant_override("v_separation", 8)
+	for id in ids:
+		cells.add_child(_dex_cell(String(id)))
+	_bag_grid.add_child(cells)
+	_bag_grid.add_child(_pager(pages, _paper_btn("배낭 보기", func() -> void:
 		AudioManager.page_turn()
 		_bag_dex = false
 		_bag_sel = ""
-		_refill_bag()))
+		_bag_page = 0
+		_refill_bag())))
 
 
 func _dex_cell(id: String) -> Button:
@@ -1210,6 +1378,21 @@ func _fill_quests() -> void:
 				% ([Catalog.name_of(String(stamp["item"]))] if cleared
 					else [Catalog.name_of(String(stamp["item"])), int(stamp["xp"])]),
 			22, Color("#7E7468") if cleared else Color("#E8C46A")))
+	# **그늘 퇴치.** 따로 한 칸 - 다음 마을을 잠그지 않는다는 걸 머리에
+	# 적어 둔다 (`Quests.hunt_list` 주석). 수는 날을 넘겨 쌓인다.
+	var hunts := Quests.hunt_list(village)
+	if not hunts.is_empty():
+		_bag_grid.add_child(_bag_line(" ", 8, Color("#A79A8A")))
+		_bag_grid.add_child(_bag_line("그늘 퇴치  ·  안 해도 다음 마을은 열려요", 24,
+			Color("#F2A0A0")))
+		for h in hunts:
+			var hd: bool = bool(h["done"])
+			var ht := "%s  (%s)" % [String(h["label"]),
+				"다 했어요" if hd else "%d/%d" % [int(h["have"]), int(h["need"])]]
+			_bag_grid.add_child(_bag_line(ht, 26,
+				Color("#A79A8A") if hd else Color("#FFD0C0")))
+			_reward_line(village, {"item": Rewards.item_for(village, String(h["key"])),
+				"xp": Rewards.xp_for(village, String(h["key"]))}, hd)
 	# 눌러도 된다는 걸 아무도 모른다 — 줄이 그냥 글자로 보인다. 한 번만
 	# 조용히 알려 준다. 시키는 말이 아니라 그렇게 할 수 있다는 말로.
 	if tappable:
@@ -1749,6 +1932,8 @@ func claim_rewards() -> void:
 		elif String(e["key"]) == Rewards.VILLAGE_KEY:
 			_celebrate("여행 도장을 받았어요!",
 				Catalog.name_of(String(e["item"])))
+		elif bool(e.get("hunt", false)):
+			_celebrate("퇴치 완료!", String(e["label"]))
 		for ev in evs:
 			if String(ev.get("kind", "")) == "level_up" and not quiet:
 				var sk := String(ev.get("skill", ""))

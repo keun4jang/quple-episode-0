@@ -209,7 +209,7 @@ func pickups() -> Array:
 ## 마을별 목록은 `Battle.SPAWNS` 한 곳에 모아 둔다 — 아홉 파일에
 ## 흩어 두면 난이도 곡선을 한눈에 볼 수가 없다.
 func shades() -> Array:
-	return Battle.SPAWNS.get(quest_village(), [])
+	return Battle.spawns(quest_village())
 
 ## 주인공이 처음 서는 칸
 func spawn_tile() -> Vector2i:
@@ -1099,8 +1099,8 @@ func _outline_sprite(s: Sprite2D) -> Node2D:
 # 방해받는다. 싸울지 말지는 매번 사람이 고른다.
 
 ## 그늘끼리, 그리고 사람·문·잠자리·정류장에서 이만큼은 떨어뜨린다(칸).
-const SHADE_CLEAR := 4
-const SHADE_APART := 5
+const SHADE_CLEAR := 3
+const SHADE_APART := 2
 
 func _build_shades() -> void:
 	# 실내에는 안 선다. 가게 안·집 안은 쉬는 자리다.
@@ -1179,12 +1179,16 @@ func _shade_spots(n: int) -> Array:
 		cands[i] = cands[j]
 		cands[j] = tmp
 	var out: Array = []
-	for t in cands:
-		if out.size() >= n:
-			break
-		if _too_near(t, out, SHADE_APART):
-			continue
-		out.append(t)
+	# **두 번 훑는다.** 그늘이 여섯 배가 되면서 좁은 마을(윤슬·하늬섬)은
+	# 넉넉한 간격으로는 다 안 들어갔다. 먼저 띄엄띄엄 세우고, 모자라면
+	# 바로 옆 칸만 비운 채 한 번 더 채운다 - 딱 붙어 서지는 않는다.
+	for gap in [SHADE_APART, 1]:
+		for t in cands:
+			if out.size() >= n:
+				break
+			if out.has(t) or _too_near(t, out, gap):
+				continue
+			out.append(t)
 	return out
 
 
@@ -1269,6 +1273,10 @@ func start_shade(s: Shade) -> void:
 	ui.open(s.shade_kind)
 	ui.closed.connect(func(won: bool) -> void:
 		set_world_ui(true)
+		if won:
+			# 퇴치 할 일(`Quests.hunt_list`)이 세는 기록. 날이 바뀌어도
+			# 안 지워진다 - 그늘은 다시 서도 걷어낸 수는 쌓인다.
+			JourneyState.add_defeat(quest_village(), s.shade_kind)
 		if won and is_instance_valid(s):
 			Battle.mark_cleared(place_name(), s.at_tile)
 			_shades.erase(s)

@@ -305,6 +305,24 @@ func quest_done(key: String) -> bool:
 	return quest_flags.get(key, false)
 
 
+## 걷어낸 그늘의 수. "마을" 과 "마을:종류" 두 가지로 센다 (`Quests.hunt_list`).
+## `Battle.cleared` 와 다르다 - 그건 오늘 비운 **자리**라 날마다 지워지고,
+## 이건 퇴치 할 일이 세는 **수**라 계속 쌓인다.
+var defeats: Dictionary = {}
+
+
+func add_defeat(village: String, kind: String) -> void:
+	if village == "":
+		return
+	defeats[village] = int(defeats.get(village, 0)) + 1
+	var k := "%s:%s" % [village, kind]
+	defeats[k] = int(defeats.get(k, 0)) + 1
+
+
+func defeated(village: String, kind: String = "") -> int:
+	return int(defeats.get(village if kind == "" else "%s:%s" % [village, kind], 0))
+
+
 ## 이미 몇 통 보냈나
 var letters_sent := 0
 
@@ -766,6 +784,7 @@ func to_dict() -> Dictionary:
 		"quest_flags": quest_flags.duplicate(),
 		"quest_days": quest_days.duplicate(),
 		"seen_items": seen_items.duplicate(),
+		"defeats": defeats.duplicate(),
 		# 마음 겨루기(레벨·체력·오늘 걷어낸 자리)도 같은 꾸러미에 넣는다.
 		# `Battle` 은 오토로드가 아니라 정적 싱글턴이라 저장할 자리가
 		# 따로 없다 — 여행 기록에 얹는다.
@@ -869,6 +888,7 @@ func from_dict(d: Dictionary) -> void:
 		if d.get("seen_items") is Dictionary else {}
 	for k in bag:
 		seen_items[String(k)] = true
+	defeats = d.get("defeats", {}).duplicate() if d.get("defeats") is Dictionary else {}
 	# 전투가 없던 시절 세이브에는 이 칸이 없다. 그때는 갓 시작한 것으로
 	# 친다 — 없는 값을 지어내기보다 LV1 부터가 낫다.
 	if d.get("battle") is Dictionary:
@@ -916,6 +936,7 @@ func reset() -> void:
 	pending_spawn = Vector2i(-1, -1)
 	quest_days = {}
 	seen_items = {}
+	defeats = {}
 	# 이게 빠져 있었다. 기록을 지워도 "가게에 들어가 봤다"·"능을 걸었다"
 	# 같은 표시가 그대로 남아, 새로 시작해도 그 퀘스트가 이미 done 이었다.
 	quest_flags = {}

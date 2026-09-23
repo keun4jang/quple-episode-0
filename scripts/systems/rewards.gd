@@ -87,6 +87,8 @@ const VILLAGE_KEY := "마을"
 
 ## 그 줄(열쇠)을 마치면 무엇을 받나. 없으면 "".
 static func item_for(village: String, key: String) -> String:
+	if key.begins_with("퇴치:"):
+		return _hunt_item(key)
 	var sp: Dictionary = SPECIAL.get(village, {})
 	if sp.has(key):
 		return String(sp[key])
@@ -111,8 +113,37 @@ static func item_for(village: String, key: String) -> String:
 	return ""
 
 
+## 퇴치 할 일의 보상 (`Quests.hunt_list`).
+##   그늘 몇 마리      → 넉넉한 먹을 것 (많이 걷어낼수록 더 든든한 것)
+##   그 종류 몇 마리   → 그 그늘이 남기는 것과 같은 것
+##   우두머리          → 엄마 도시락
+static func _hunt_item(key: String) -> String:
+	var parts := key.split(":")
+	if parts.size() < 3:
+		return ""
+	var kind := parts[1]
+	if kind == "전체":
+		return "b-lunchbox" if int(parts[2]) >= 15 else "b-yakgwa"
+	if bool(Battle.ENEMIES.get(kind, {}).get("boss", false)):
+		return "b-lunchbox"
+	return String(Battle.ENEMIES.get(kind, {}).get("drop", ""))
+
+
+static func _hunt_xp(key: String) -> int:
+	var parts := key.split(":")
+	if parts.size() < 3:
+		return XP_LIGHT
+	if parts[1] == "전체":
+		return 25 if int(parts[2]) >= 15 else 12
+	if bool(Battle.ENEMIES.get(parts[1], {}).get("boss", false)):
+		return 40
+	return 10
+
+
 ## 경험. 받는 것의 무게를 따른다.
 static func xp_for(village: String, key: String) -> int:
+	if key.begins_with("퇴치:"):
+		return _hunt_xp(key)
 	if key == VILLAGE_KEY:
 		return XP_VILLAGE
 	var k := Catalog.kind_of(item_for(village, key))
@@ -151,6 +182,11 @@ static func entries(village: String) -> Array:
 	if VILLAGE.has(village):
 		out.append(_entry(village, VILLAGE_KEY, "이 마을을 다 돌기",
 			Quests.village_cleared(village), false))
+	for h in Quests.hunt_list(village):
+		var e := _entry(village, String(h["key"]), String(h["label"]),
+			bool(h["done"]), false)
+		e["hunt"] = true
+		out.append(e)
 	return out
 
 

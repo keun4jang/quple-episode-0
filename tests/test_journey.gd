@@ -99,6 +99,7 @@ func _ready() -> void:
 	_item_save_tests()
 	await _bag_ui_tests()
 	await _shelf_everywhere_tests()
+	await _hunt_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -6433,10 +6434,11 @@ func _menu_button_tests() -> void:
 	ok(far_right <= 260.0, "가운데 위 안내 자리까지 안 넘어온다 (%d)" % int(far_right))
 	ok(far_down <= 560.0, "아래 버튼 자리까지 안 내려간다 (%d)" % int(far_down))
 
-	# 손가락이 닿을 크기여야 한다. 배낭·사진 버튼(96)과 같은 결.
+	# 손가락이 닿을 크기여야 한다. "왼쪽 버튼이 맵을 가린다" 는 말에
+	# 64 로 줄였다 - 그 아래로는 안 내려간다.
 	var small := false
 	for b in hud._menu_btns:
-		if b.custom_minimum_size.x < 80.0 or b.custom_minimum_size.y < 80.0:
+		if b.custom_minimum_size.x < 60.0 or b.custom_minimum_size.y < 60.0:
 			small = true
 	ok(not small, "누를 만한 크기다")
 
@@ -6700,7 +6702,7 @@ func _shade_tests() -> void:
 	await get_tree().process_frame
 
 	var found: Array = p._shades.duplicate()
-	ok(found.size() == Battle.SPAWNS["윤슬"].size(),
+	ok(found.size() == Battle.spawns("윤슬").size(),
 		"윤슬에 그늘이 선다 (%d)" % found.size())
 
 	# 걸을 수 있는 칸이라야 한다 — 나무나 물 속에 박히면 닿을 수가 없다.
@@ -6779,6 +6781,9 @@ func _shade_tests() -> void:
 			ui._finish()
 			await get_tree().process_frame
 			ok(Battle.is_cleared("윤슬", t), "걷어낸 자리를 기억한다")
+			ok(JourneyState.defeated("윤슬") == 1
+				and JourneyState.defeated("윤슬", target.shade_kind) == 1,
+				"걷어낸 수를 센다 (퇴치 할 일)")
 	p2.queue_free()
 	await get_tree().process_frame
 
@@ -7112,13 +7117,18 @@ func _bag_ui_tests() -> void:
 	hud._bag_sel = ""
 	hud._refill_bag()
 	await get_tree().process_frame
+	# 도감은 한 쪽에 한 종류 - 방향 버튼으로 끝까지 넘기며 센다
 	var pics := 0
 	var dark := 0
-	for n in _all_nodes(hud._bag_grid):
-		if n is TextureRect:
-			pics += 1
-			if (n as TextureRect).modulate.a < 1.0:
-				dark += 1
+	for pg in Catalog.KIND_ORDER.size():
+		hud._bag_page = pg
+		hud._refill_bag()
+		await get_tree().process_frame
+		for n in _all_nodes(hud._bag_grid):
+			if n is TextureRect:
+				pics += 1
+				if (n as TextureRect).modulate.a < 1.0:
+					dark += 1
 	ok(pics == Catalog.ITEMS.size(), "도감에 물건이 다 있다 (%d/%d)" % [pics, Catalog.ITEMS.size()])
 	var unfound := 0
 	for id in Catalog.ITEMS:
@@ -7126,6 +7136,53 @@ func _bag_ui_tests() -> void:
 			unfound += 1
 	ok(dark == unfound and dark < pics, "못 만난 것만 어둡다 (%d)" % dark)
 	ok(_find_button(hud._bag_grid, "배낭 보기") != null, "도감에서 배낭으로 돌아갈 수 있다")
+
+	# **굴리지 않고 쪽을 넘긴다.** 물건이 한 쪽보다 많으면 방향 버튼으로
+	hud._bag_dex = false
+	hud._bag_sel = ""
+	hud._bag_page = 0
+	var many := 0
+	for id in Catalog.ITEMS:
+		if Catalog.kind_of(String(id)) in ["snack", "keep"]:
+			JourneyState.pick(String(id), 1, true)
+			many += 1
+	hud._refill_bag()
+	await get_tree().process_frame
+	var cells: GridContainer = hud._bag_grid.find_child("BagCells", true, false)
+	var per := hud.bag_page_size()
+	ok(cells != null and cells.get_child_count() == per,
+		"한 쪽에 %d칸씩 (%d)" % [per,
+			cells.get_child_count() if cells != null else -1])
+	var nxt: Button = hud._bag_grid.find_child("PageNext", true, false)
+	var prv: Button = hud._bag_grid.find_child("PagePrev", true, false)
+	ok(nxt != null and not nxt.disabled and prv != null and prv.disabled,
+		"첫 쪽에서는 뒤로만 넘길 수 있다")
+	var first_cell := ""
+	if cells != null and cells.get_child_count() > 0:
+		first_cell = str(cells.get_child(0).get_instance_id())
+	if nxt != null:
+		nxt.pressed.emit()
+	await get_tree().process_frame
+	ok(hud._bag_page == 1, "방향 버튼을 누르면 다음 쪽 (%d)" % hud._bag_page)
+	var at: Label = hud._bag_grid.find_child("PageAt", true, false)
+	var pages := ceili(float(JourneyState.bag.size()) / per)
+	ok(at != null and at.text == "2 / %d" % pages, "몇째 쪽인지 적는다 (%s)"
+		% (at.text if at != null else "-"))
+	# 마지막 쪽 뒤로는 안 간다
+	hud._bag_page = 99
+	hud._refill_bag()
+	await get_tree().process_frame
+	ok(hud._bag_page == pages - 1, "쪽 번호가 끝을 넘지 않는다")
+	nxt = hud._bag_grid.find_child("PageNext", true, false)
+	ok(nxt != null and nxt.disabled, "마지막 쪽에서는 다음이 흐리다")
+	# 판이 한 쪽을 굴리지 않고 담는다
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var scroll: ScrollContainer = hud._bag_grid.get_parent()
+	var vbar := scroll.get_v_scroll_bar()
+	ok(not vbar.visible or vbar.max_value <= scroll.size.y + 1.0,
+		"한 쪽이 굴리지 않고 다 보인다 (%d / %d)" % [vbar.max_value, scroll.size.y])
+	ok(many > per, "여러 쪽을 만들 만큼 넣었다 (%d)" % many)
 	hud.toggle_bag()
 	p.queue_free()
 	await get_tree().process_frame
@@ -7178,3 +7235,118 @@ func _shelf_everywhere_tests() -> void:
 	shop.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
+
+
+# ── 그늘 퇴치 할 일 ───────────────────────────────────────────────────
+#
+# 할 일이 말 걸기·줍기뿐이라 그늘과 붙을 이유가 레벨 하나였다. 마을마다
+# "몇 마리 걷어내기" 를 두되, **다음 마을을 막지 않는다** - 그늘은 피해
+# 갈 수 있다는 약속 그대로다.
+
+func _hunt_tests() -> void:
+	print("\n[그늘 퇴치 할 일]")
+	JourneyState.reset()
+	Battle.reset()
+	# 그늘은 여섯 배. 우두머리만 하나 그대로.
+	var bad: Array = []
+	for v in Battle.SPAWNS:
+		var base: Array = Battle.SPAWNS[v]
+		var sp := Battle.spawns(String(v))
+		var bosses := 0
+		var normal := 0
+		for k in base:
+			if bool(Battle.ENEMIES[k].get("boss", false)):
+				bosses += 1
+			else:
+				normal += 1
+		if sp.size() != normal * Battle.SPAWN_MULT + bosses:
+			bad.append("%s:%d" % [v, sp.size()])
+	ok(bad.is_empty(), "그늘이 여섯 배로 선다 (우두머리는 하나) %s" % str(bad))
+
+	# 마을마다 퇴치 할 일이 있고, 받는 것이 다 표에 있다
+	var missing: Array = []
+	var count := 0
+	for v in Quests.ORDER:
+		var hl := Quests.hunt_list(String(v))
+		if Battle.SPAWNS.has(v) and hl.size() < 3:
+			missing.append("적음:" + String(v))
+		for h in hl:
+			count += 1
+			var it := Rewards.item_for(String(v), String(h["key"]))
+			if it == "" or not Catalog.has(it):
+				missing.append("보상:%s:%s" % [v, h["key"]])
+			# 서는 그늘보다 많이 잡으라고 하지 않는다 (하루에 다 채울 수 있다)
+			if String(h["kind"]) != "":
+				var there := Battle.spawns(String(v)).count(String(h["kind"]))
+				if there < int(h["need"]):
+					missing.append("못채움:%s:%s" % [v, h["kind"]])
+			elif int(h["need"]) > Battle.spawns(String(v)).size():
+				missing.append("못채움:%s:전체" % v)
+	ok(missing.is_empty() and count >= 30, "퇴치 할 일 %d줄, 다 채울 수 있고 보상이 있다 %s"
+		% [count, str(missing)])
+	ok(Quests.hunt_list("고향").is_empty() and Quests.hunt_list("잿마루").is_empty(),
+		"회사와 집에는 퇴치 할 일이 없다")
+
+	# 세고, 채우면 받는다
+	var v := "볕뉘"
+	var hl := Quests.hunt_list(v)
+	var kind := String(hl[1]["kind"])
+	for i in int(hl[1]["need"]):
+		JourneyState.add_defeat(v, kind)
+	hl = Quests.hunt_list(v)
+	ok(bool(hl[1]["done"]) and int(hl[1]["have"]) == int(hl[1]["need"]),
+		"%s 을 채웠다" % hl[1]["label"])
+	var un := Rewards.unclaimed(v)
+	var hunt_un: Array = un.filter(func(e) -> bool: return bool(e.get("hunt", false)))
+	ok(not hunt_un.is_empty(), "다 한 퇴치는 받을 것에 오른다")
+	var before := JourneyState.count(String(hunt_un[0]["item"])) if not hunt_un.is_empty() else 0
+	if not hunt_un.is_empty():
+		Rewards.claim(v, hunt_un[0], true)
+		ok(JourneyState.count(String(hunt_un[0]["item"])) == before + 1, "퇴치 보상을 받는다")
+		ok(Rewards.claim(v, hunt_un[0], true).is_empty()
+			and JourneyState.count(String(hunt_un[0]["item"])) == before + 1,
+			"두 번 받지 않는다")
+	# 퇴치는 다음 마을을 막지 않는다 (목록·마을 다 돌기에 안 섞인다)
+	var mixed := false
+	for q in Quests.quest_list(v):
+		if String(Quests.row_id(q)).begins_with("퇴치:"):
+			mixed = true
+	ok(not mixed, "퇴치는 해야 할 일 목록에 안 섞인다 (안 해도 다음 마을이 열린다)")
+
+	# 저장에 남는다
+	var d := JourneyState.to_dict()
+	JourneyState.reset()
+	ok(JourneyState.defeated(v) == 0, "처음부터면 0")
+	JourneyState.from_dict(d)
+	ok(JourneyState.defeated(v, kind) == int(Quests.hunt_list(v)[1]["need"]),
+		"걷어낸 수가 저장된다")
+
+	# 자동 사냥은 기본으로 꺼져 있다 - 버튼을 눌러야 켜진다
+	var bu := BattleUI.new()
+	ok(not bu._auto, "자동 사냥은 처음에 꺼져 있다")
+	bu.free()
+
+	# 그늘은 몸으로 길을 막지 않는다
+	var sh := Shade.new()
+	add_child(sh)
+	await get_tree().process_frame
+	ok(sh.collision_layer == 0 and sh.collision_mask == 0, "그늘은 부딪히지 않는다")
+	sh.queue_free()
+
+	# 이 마을 칸에 퇴치가 따로 보인다
+	JourneyState.reset()
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	p.hud.open_tab(4)
+	await get_tree().process_frame
+	var shown := false
+	for n in _all_nodes(p.hud._bag_grid):
+		if n is Label and String((n as Label).text).contains("걷어내기"):
+			shown = true
+	ok(shown, "이 마을 칸에 퇴치 할 일이 보인다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+	Battle.reset()

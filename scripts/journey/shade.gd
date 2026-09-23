@@ -19,6 +19,17 @@ var shade_kind := ""
 const SHADE_TALK := Color(0.88, 0.44, 0.50, 0.92)
 
 
+## **몸으로 길을 막지 않는다.** 그늘이 여섯 배(`Battle.SPAWN_MULT`)가
+## 되면서 좁은 다리·부두 위에 하나만 서도 지나갈 길이 끊길 수 있었다 -
+## 길찾기는 그늘을 모르니 주인공이 그 앞에서 비비적대며 멈춘다. 그늘은
+## "피해 갈 수 있다" 가 전투의 약속이다 (`Battle` 주석). 부딪히지 않게
+## 두고, 붙어 볼지는 누를지 말지로만 정한다.
+func _ready() -> void:
+	super._ready()
+	collision_layer = 0
+	collision_mask = 0
+
+
 func pulse_color() -> Color:
 	var t := float(Time.get_ticks_msec()) / 1000.0
 	var k: float = 0.5 + 0.5 * sin(t * TAU / QuoWalker.TALK_PULSE_SECS)

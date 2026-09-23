@@ -40,11 +40,13 @@ var _list_box: VBoxContainer
 var _busy := false
 var _over := false
 var _won := false
-## **악당을 고르면 저절로 붙는다.** 매 턴 마음을 직접 고르지 않아도
-## 기본 공격(웃어넘기기, 마음력 0)을 자동으로 반복한다 - 그러면서도
-## 마음을 쓰고 싶으면 언제든 "마음을 쓴다" 로 끼어들 수 있다. 자동은
-## 그 사이사이를 메울 뿐, 사람이 고르는 걸 대신 막지 않는다.
-var _auto := true
+## 자동 사냥 - 켜 두면 기본 공격(웃어넘기기, 마음력 0)을 저절로 반복한다.
+## **처음엔 꺼 둔다.** 늘 켜져 있으니 스킬을 고를 틈도 없이 전투가
+## 흘러가 버린다는 말을 들었다 - 사람이 [자동 사냥 켜기] 를 눌렀을 때만
+## 돈다. 켜 둔 채로도 "마음을 쓴다" 로 언제든 끼어들 수 있다.
+var _auto := false
+## 지금 쓰고 있는 스킬 - 맞는 순간의 연출 색을 고른다 (`SKILL_FX`).
+var _cur_skill := ""
 const AUTO_SKILL := "smile"
 ## 주인공 쪽 그림. 여태 이 화면엔 그늘 그림만 있었다 — 때리는 쪽이
 ## 안 보이니 손맛이 반쪽이었다. 새 그림을 그리는 대신 세계에서 이미
@@ -213,6 +215,9 @@ func _build() -> void:
 	_menu.offset_right = -26
 	_menu.offset_top = -250
 	_menu.offset_bottom = -26
+	# 버튼이 넷(자동 사냥 켜기가 늘 붙는다)이면 250 을 넘는다 - 아래로
+	# 자라면 맨 끝 "물러난다" 가 화면 밖으로 잘렸다. 위로 자라게 한다.
+	_menu.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_root.add_child(_menu)
 
 	# **목록은 아래에서 위로 자란다.** 높이를 못 박아 뒀더니 스킬 여섯에
@@ -480,7 +485,13 @@ func _act_skill(id: String) -> void:
 	if _busy:
 		return
 	AudioManager.ui_confirm()
-	_play(Battle.player_use_skill(id))
+	var evs := Battle.player_use_skill(id)
+	# 마음력이 모자라 한 줄만 돌아왔으면 연출하지 않는다.
+	if evs.size() > 1:
+		_cur_skill = id
+		_cast(id)
+	await _play(evs)
+	_cur_skill = ""
 
 
 func _act_item(id: String) -> void:
@@ -541,6 +552,8 @@ func _one(e: Dictionary) -> void:
 				_burst(_pic.get_global_rect().get_center(),
 					Color("#FFE9A8") if weak else Color("#FFC8A0"),
 					10 if weak else 6, 58.0 if weak else 42.0)
+				if _cur_skill != "":
+					_skill_fx(_cur_skill, _pic.get_global_rect().get_center(), weak)
 				if weak:
 					AudioManager.battle_weak_hit()
 				else:
@@ -562,12 +575,17 @@ func _one(e: Dictionary) -> void:
 		"heal":
 			if int(e["amount"]) > 0:
 				_pop(false, "+%d" % int(e["amount"]), Color("#B4FFC8"), false)
+				_skill_fx(_cur_skill if _cur_skill != "" else "item", _hero_center(), false)
 				_burst(Vector2(_root.size.x * 0.22, _root.size.y - 150.0),
 					Color("#B4FFC8"), 5, 26.0)
 				AudioManager.battle_heal()
 		"status":
 			_pop(String(e["to"]) == "enemy", String(e["text"]),
 				Color("#C8E6FF"), false)
+			# 버프(응원·단단히)는 맞는 데가 없어 여기서 내 쪽에 터뜨린다.
+			if String(e["to"]) == "me" and _cur_skill != "" \
+					and String(Battle.SKILLS.get(_cur_skill, {}).get("type", "")) == "buff":
+				_skill_fx(_cur_skill, _hero_center(), false)
 		"xp":
 			_log.text = "마음이 조금 자랐다  (+%d)" % int(e["amount"])
 		"level_up":
@@ -730,6 +748,173 @@ func _burst(at: Vector2, col: Color, n: int = 8, spread: float = 46.0) -> void:
 		tw.tween_property(r, "position", to, 0.32).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(r, "modulate:a", 0.0, 0.34)
 		tw.tween_callback(r.queue_free)
+
+
+# ── 스킬 연출 — 형형색색 ─────────────────────────────────────────────
+#
+# "스킬이 더 화려하게, 형형색색" 이라는 요청. 여태는 어느 스킬이든
+# 같은 연노랑 조각 몇 개가 튀었다 - 웃어넘기기와 그래도 걷는다(가장 센
+# 스킬)가 똑같아 보였다. 스킬마다 **제 빛깔 한 벌**을 주고, 네 겹으로
+# 터뜨린다:
+#   1) 화면이 그 스킬 색으로 한 번 물든다
+#   2) 색이 다른 고리 둘이 번져 나간다
+#   3) 빛줄기가 돌며 퍼진다
+#   4) 여러 색 조각과 별이 흩어진다
+# 셋째 스킬부터(좋았던 기억·그래도 걷는다)는 조각이 더 많고 무지개빛이다.
+# 그림 파일은 안 늘린다 - 전부 코드로 그린다 (`_burst` 와 같은 결).
+const SKILL_FX := {
+	"smile": {"cols": ["#FFE066", "#FFB347", "#FF8FB1", "#FFFFFF"], "n": 16, "rays": 8},
+	"breathe": {"cols": ["#8FF5D2", "#7FDBFF", "#C8FFF0", "#FFFFFF"], "n": 14, "rays": 6},
+	"remember": {"cols": ["#FF9AA2", "#FFDAC1", "#E2F0CB", "#B5EAD7", "#C7CEEA", "#F8B5FF"],
+		"n": 26, "rays": 12},
+	"cheer": {"cols": ["#FFD700", "#FF7B54", "#FFB26B", "#FFF3B0"], "n": 18, "rays": 10},
+	"steady": {"cols": ["#7AA2FF", "#B28DFF", "#E0C3FC", "#FFFFFF"], "n": 18, "rays": 8},
+	"walk_on": {"cols": ["#FF5A5A", "#FFA94D", "#FFE066", "#69DB7C", "#4DABF7",
+		"#9775FA", "#F783AC"], "n": 36, "rays": 16},
+	"item": {"cols": ["#B4FFC8", "#FFFFFF", "#E8FFB0"], "n": 10, "rays": 0},
+}
+
+
+func _hero_center() -> Vector2:
+	if _hero != null:
+		return _hero.get_global_rect().get_center()
+	return Vector2(_root.size.x * 0.22, _root.size.y - 200.0)
+
+
+## 스킬 이름이 그 빛깔로 크게 떴다 사라진다 - 무엇을 썼는지 한눈에.
+func _cast(id: String) -> void:
+	var fx: Dictionary = SKILL_FX.get(id, SKILL_FX["item"])
+	var cols: Array = fx["cols"]
+	var l := _label(44, Color(String(cols[0])))
+	l.add_theme_constant_override("outline_size", 12)
+	l.text = String(Battle.SKILLS.get(id, {}).get("name", ""))
+	l.size = Vector2(700, 60)
+	# 적 대사 줄(가운데 조금 아래) 밑에 띄운다 - 겹치면 둘 다 안 읽힌다.
+	l.position = Vector2(_root.size.x * 0.5 - 350.0, _root.size.y * 0.5 + 100.0)
+	l.pivot_offset = l.size * 0.5
+	l.scale = Vector2(0.6, 0.6)
+	_root.add_child(l)
+	var tw := create_tween()
+	tw.tween_property(l, "scale", Vector2(1.08, 1.08), 0.16).set_ease(Tween.EASE_OUT) \
+		.set_trans(Tween.TRANS_BACK)
+	# 글자 색이 그 스킬의 빛깔을 한 바퀴 돈다.
+	for c in cols:
+		tw.tween_property(l, "theme_override_colors/font_color", Color(String(c)), 0.07)
+	tw.tween_property(l, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(l.queue_free)
+
+
+func _skill_fx(id: String, at: Vector2, strong: bool) -> void:
+	var fx: Dictionary = SKILL_FX.get(id, SKILL_FX["item"])
+	var cols: Array = fx["cols"]
+	var n: int = int(fx["n"]) + (10 if strong else 0)
+	# 1) 물든다
+	var tint := ColorRect.new()
+	var c0 := Color(String(cols[0]))
+	tint.color = Color(c0.r, c0.g, c0.b, 0.22)
+	tint.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(tint)
+	var tw := create_tween()
+	tw.tween_property(tint, "color:a", 0.0, 0.4)
+	tw.tween_callback(tint.queue_free)
+	# 2) 고리 둘
+	for i in 2:
+		_ring(at, Color(String(cols[(i + 1) % cols.size()])), 0.08 * float(i),
+			110.0 if strong else 86.0)
+	# 3) 빛줄기
+	if int(fx["rays"]) > 0:
+		_rays(at, cols, int(fx["rays"]) + (4 if strong else 0))
+	# 4) 조각과 별
+	for i in n:
+		var col := Color(String(cols[i % cols.size()]))
+		if i % 4 == 0:
+			_star(at, col, strong)
+		else:
+			_chip(at, col, strong)
+
+
+func _ring(at: Vector2, col: Color, delay: float, radius: float) -> void:
+	var r := Control.new()
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.size = Vector2(radius * 2.0, radius * 2.0)
+	r.position = at - r.size * 0.5
+	r.pivot_offset = r.size * 0.5
+	r.scale = Vector2(0.15, 0.15)
+	r.draw.connect(func() -> void:
+		r.draw_arc(r.size * 0.5, radius - 4.0, 0.0, TAU, 48, col, 6.0))
+	_root.add_child(r)
+	var tw := create_tween()
+	tw.tween_interval(delay)
+	tw.tween_property(r, "scale", Vector2.ONE, 0.34).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(r, "modulate:a", 0.0, 0.4).set_delay(0.08)
+	tw.tween_callback(r.queue_free)
+
+
+func _rays(at: Vector2, cols: Array, count: int) -> void:
+	var g := Control.new()
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	g.size = Vector2(320, 320)
+	g.position = at - g.size * 0.5
+	g.pivot_offset = g.size * 0.5
+	g.draw.connect(func() -> void:
+		var c := g.size * 0.5
+		for i in count:
+			var a := TAU * float(i) / float(count)
+			var col := Color(String(cols[i % cols.size()]))
+			g.draw_line(c + Vector2.from_angle(a) * 30.0,
+				c + Vector2.from_angle(a) * 150.0, col, 5.0))
+	g.scale = Vector2(0.3, 0.3)
+	_root.add_child(g)
+	var tw := create_tween()
+	tw.tween_property(g, "scale", Vector2(1.1, 1.1), 0.3).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(g, "rotation", 0.6, 0.45)
+	tw.parallel().tween_property(g, "modulate:a", 0.0, 0.45)
+	tw.tween_callback(g.queue_free)
+
+
+func _chip(at: Vector2, col: Color, strong: bool) -> void:
+	var r := ColorRect.new()
+	var sz := randf_range(5.0, 12.0 if strong else 9.0)
+	r.color = col
+	r.size = Vector2(sz, sz)
+	r.position = at - r.size * 0.5
+	r.pivot_offset = r.size * 0.5
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(r)
+	var to := r.position + Vector2.from_angle(randf() * TAU) \
+		* randf_range(50.0, 150.0 if strong else 110.0)
+	var tw := create_tween()
+	tw.tween_property(r, "position", to, 0.5).set_ease(Tween.EASE_OUT) \
+		.set_trans(Tween.TRANS_CUBIC)
+	tw.parallel().tween_property(r, "rotation", randf_range(-4.0, 4.0), 0.5)
+	tw.parallel().tween_property(r, "modulate:a", 0.0, 0.55).set_delay(0.12)
+	tw.tween_callback(r.queue_free)
+
+
+## 네 갈래 별 - 반짝임. 폰트에 별 글자가 없어 직접 그린다.
+func _star(at: Vector2, col: Color, strong: bool) -> void:
+	var s := Control.new()
+	s.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var k := randf_range(8.0, 16.0 if strong else 12.0)
+	s.size = Vector2(k * 2.0, k * 2.0)
+	s.position = at - s.size * 0.5
+	s.pivot_offset = s.size * 0.5
+	s.draw.connect(func() -> void:
+		var c := s.size * 0.5
+		var pts := PackedVector2Array([c + Vector2(0, -k), c + Vector2(k * 0.28, -k * 0.28),
+			c + Vector2(k, 0), c + Vector2(k * 0.28, k * 0.28), c + Vector2(0, k),
+			c + Vector2(-k * 0.28, k * 0.28), c + Vector2(-k, 0),
+			c + Vector2(-k * 0.28, -k * 0.28)])
+		s.draw_colored_polygon(pts, col))
+	_root.add_child(s)
+	var to := s.position + Vector2.from_angle(randf() * TAU) * randf_range(40.0, 130.0)
+	var tw := create_tween()
+	tw.tween_property(s, "position", to, 0.55).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(s, "rotation", randf_range(1.5, 3.5), 0.55)
+	tw.parallel().tween_property(s, "scale", Vector2(0.3, 0.3), 0.6)
+	tw.parallel().tween_property(s, "modulate:a", 0.0, 0.6).set_delay(0.15)
+	tw.tween_callback(s.queue_free)
 
 
 ## 마지막 한 방을 맞은 자리에서 그림이 스러진다. **세계에 선 그늘**
