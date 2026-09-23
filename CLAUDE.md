@@ -97,6 +97,20 @@ python3 tools/pixel/check-font-glyphs.py    # 화면에 뜨는 글자 전부 검
 된다 — 그때 **문간은 뚫어 둘 것.** 안 뚫으면 들어온 자리와 나가는 문이
 둘 다 벽 속에 박힌다 (`ShopInterior.ground_map()` 참고).
 
+## 물건은 `Catalog` 한 곳에 적는다
+
+이름 · 그림 · 종류 · 설명 · 효과가 전부 `scripts/systems/catalog.gd` 에 있다
+(`docs/items-rewards.md`). 다른 데(배낭·전투·선반·도감)는 여기서 묻기만 한다.
+새 물건을 넣을 때:
+
+1. `Catalog.ITEMS` 에 한 줄 (값·재고 같은 칸은 없다 - 테스트가 검사한다)
+2. 그림은 `tools/pixel/make-bulk-icons.py` 에 모양만 적고 돌린다 — 외곽선·명암은 저절로 입는다
+3. 할 일 보상이면 `Rewards` 표에, 선반이면 `Items.SHELF` 에
+4. `python3 tools/pixel/check-font-glyphs.py` — 이름·설명에 폰트에 없는 글자가 없는지
+
+기념품·도장은 **장착하지 않는다** — 배낭에 있기만 하면 힘이 붙는다(`Catalog.bonus`).
+하나에 1~3 을 넘기지 않는다 (레벨을 대신하면 안 된다).
+
 ## 화면을 덮는 것은 `overlay` 그룹에 넣는다
 
 안드로이드 뒤로가기는 열려 있는 것을 하나씩 닫고, **더 닫을 게 없으면

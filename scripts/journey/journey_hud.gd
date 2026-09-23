@@ -31,6 +31,10 @@ var _hint: Label
 var _cam_btn: TextureButton
 var _bag_title: Label
 var _tab := 0        # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 이 마을 · 5 마음
+## 배낭에서 눌러 본 물건. 위에 설명 판이 뜬다.
+var _bag_sel := ""
+## 배낭 대신 도감을 보고 있나.
+var _bag_dex := false
 ## 화면 왼쪽 위 메뉴 버튼 다섯(배낭·사진첩·편지·행복첩·이 마을)과
 ## 그 뒤에 깔리는 받침, 그리고 편지·할 일 위에 뜨는 알림 점.
 ##
@@ -67,30 +71,10 @@ var _act_kind := ""
 var _act_shown := false
 var _act_tw: Tween
 var _buttons_hidden := false
+var _reward_t := 0.0
 
-## 아이템 이름 → 사람이 읽는 이름
-const NAMES := {
-	"p-persimmon": "감", "p-pebble": "조약돌", "p-flower": "들꽃",
-	"p-pinecone": "솔방울", "p-acorn": "도토리", "p-feather": "깃털",
-	"p-shell": "조개", "p-seaglass": "바다유리",
-	"p-seaweed": "미역", "p-conch": "소라",
-	"p-reed-leaf": "갈댓잎", "p-reed-plume": "갈꽃",
-	"p-tangerine": "귤", "p-citrus-leaf": "귤잎",
-	"p-persimmon-leaf": "감잎",
-	"p-mushroom": "버섯", "p-pine-needle": "솔잎",
-	"map": "지도", "camera": "카메라",
-	# 마을 선반에서 챙긴 기념품 (`Items.SHELF`)
-	"k-marble": "유리구슬",
-}
-
-## 얻은 것을 보여 줄 그림. 주울 것(`p-*`)은 제 그림을 그대로 쓰고,
-## 받는 물건만 여기 적는다.
-## **지도 그림이 아직 없다** — 수첩으로 대신한다. 진짜 지도 그림이
-## 생기면 여기만 바꾸면 된다.
-const ICONS := {
-	"map": "i-notebook", "camera": "i-camera",
-	"k-marble": "i-marble",
-}
+## 물건 이름·그림은 `Catalog` 한 곳에 있다. 여기 따로 두던 표(NAMES/
+## ICONS)는 옮겼다 - 백 가지가 넘으면 두 곳을 맞춰 두다 한쪽이 빠진다.
 
 
 func _ready() -> void:
@@ -655,12 +639,16 @@ func toggle_bag() -> void:
 		# 숨길 것이 없고, 배낭을 눌렀는데 다른 칸이 열리는 쪽이 오히려
 		# 어리둥절하다.
 		_tab = 0
+		_bag_sel = ""
+		_bag_dex = false
 		_refill_bag()
 	bag_toggled.emit(_bag_panel.visible)
 
 
 func _pick_tab(i: int) -> void:
 	_tab = i
+	_bag_sel = ""
+	_bag_dex = false
 	if i == 2:
 		# 열어 봤으면 읽은 것이다
 		JourneyState.read_letters()
@@ -769,34 +757,256 @@ func _empty(text: String) -> void:
 	_bag_grid.add_child(l)
 
 
+## 배낭 — 가진 것. **칸을 누르면 무엇인지 위에 뜬다.**
+##
+## 여태 칸은 그림과 개수뿐이라 눌러도 아무 일이 없었다. 백 가지 가까이
+## 되면 이름만으로는 무엇에 쓰는지 모른다 - 설명 판에 어디서 난 것인지,
+## 먹으면 무엇이 되는지, 지니면 어떤 힘이 붙는지를 적는다. 먹을 것이면
+## 그 자리에서 **먹을 수 있다** (전투 밖에서도).
+##
+## 차례는 쓸모 순이다 - 먹을 것, 기념품, 도장, 조각, 도구, 주운 것.
 func _fill_bag() -> void:
-	_bag_grid.columns = 4
+	_bag_grid.columns = 1
+	if _bag_dex:
+		_fill_dex()
+		return
 	if JourneyState.bag.is_empty():
 		_empty("아직 아무것도 없어요")
+	elif _bag_sel != "" and JourneyState.count(_bag_sel) > 0:
+		_bag_grid.add_child(_item_card(_bag_sel, true))
+	else:
+		_bag_grid.add_child(_bag_line("칸을 누르면 무엇인지 볼 수 있어요.", 20,
+			Color("#A79A8A")))
+	var cells := GridContainer.new()
+	cells.columns = 4
+	cells.add_theme_constant_override("h_separation", 10)
+	cells.add_theme_constant_override("v_separation", 10)
+	for item in _bag_sorted():
+		cells.add_child(_bag_cell(String(item)))
+	_bag_grid.add_child(cells)
+	_bag_grid.add_child(_paper_btn("도감 보기", func() -> void:
+		AudioManager.page_turn()
+		_bag_dex = true
+		_bag_sel = ""
+		_refill_bag()))
+
+
+## 배낭 속 물건을 쓸모 순으로.
+func _bag_sorted() -> Array:
+	var out: Array = JourneyState.bag.keys()
+	var order := ["snack", "keep", "stamp", "shade", "tool", "pick", "food"]
+	out.sort_custom(func(a, b) -> bool:
+		var ka := order.find(Catalog.kind_of(String(a)))
+		var kb := order.find(Catalog.kind_of(String(b)))
+		if ka != kb:
+			return (ka if ka >= 0 else 99) < (kb if kb >= 0 else 99)
+		return String(a) < String(b))
+	return out
+
+
+## 배낭 한 칸 - 그림과 이름·개수. 누르면 위 설명 판이 그 물건으로 바뀐다.
+func _bag_cell(item: String) -> Button:
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(150, 128)
+	var sel := item == _bag_sel
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1, 0.10 if sel else 0.0)
+	sb.set_corner_radius_all(12)
+	sb.border_color = Color("#FFE39A")
+	sb.set_border_width_all(2 if sel else 0)
+	for st in ["normal", "hover", "pressed", "focus"]:
+		b.add_theme_stylebox_override(st, sb)
+	var cell := VBoxContainer.new()
+	cell.alignment = BoxContainer.ALIGNMENT_CENTER
+	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.set_anchors_preset(Control.PRESET_FULL_RECT)
+	b.add_child(cell)
+	var pic := TextureRect.new()
+	# **그림 이름은 `Catalog` 를 거친다.** 주운 것(`p-*`)은 제 이름이 곧
+	# 그림 이름이지만 받는 물건은 아니다 — 지도는 `i-notebook` 을 빌려
+	# 쓴다. 표를 안 보고 `map.png` 를 찾다 못 찾아 **지도·카메라 칸이
+	# 빈 채로** 뜬 적이 있다.
+	pic.texture = load(Catalog.icon_path(item))
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.custom_minimum_size = Vector2(72, 72)
+	pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(pic)
+	var name := Label.new()
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name.add_theme_font_size_override("font_size", 19)
+	name.add_theme_color_override("font_color", Color("#E4DCCF"))
+	name.custom_minimum_size = Vector2(146, 0)
+	name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Wrap.put(name, "%s %d" % [Catalog.name_of(item), JourneyState.count(item)])
+	cell.add_child(name)
+	b.pressed.connect(func() -> void:
+		AudioManager.ui_click()
+		_bag_sel = "" if _bag_sel == item else item
+		_refill_bag())
+	return b
+
+
+## 물건 설명 판. 배낭(`can_use`)에서는 먹을 것에 [먹기] 가 붙고, 도감에서는
+## 설명만 보여 준다.
+func _item_card(item: String, can_use: bool) -> Control:
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1, 0.07)
+	sb.set_corner_radius_all(14)
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 10
+	sb.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.custom_minimum_size = Vector2(BAG_LINE_WIDTH, 0)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	panel.add_child(row)
+	var pic := TextureRect.new()
+	pic.texture = load(Catalog.icon_path(item))
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.custom_minimum_size = Vector2(88, 88)
+	pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	row.add_child(pic)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(col)
+	var w := BAG_LINE_WIDTH - 88.0 - 14.0 - 28.0
+	var kind := Catalog.kind_of(item)
+	var at := String(Catalog.of(item).get("at", ""))
+	var head := Label.new()
+	head.add_theme_font_size_override("font_size", 26)
+	head.add_theme_color_override("font_color", Color("#FFE39A"))
+	head.text = Catalog.name_of(item)
+	col.add_child(head)
+	var sub := String(Catalog.KIND_NAME.get(kind, ""))
+	if at != "":
+		sub += "  ·  %s에서" % at
+	var l1 := Label.new()
+	l1.add_theme_font_size_override("font_size", 18)
+	l1.add_theme_color_override("font_color", Color("#A79A8A"))
+	l1.text = sub
+	col.add_child(l1)
+	var l2 := Label.new()
+	l2.add_theme_font_size_override("font_size", 20)
+	l2.add_theme_color_override("font_color", Color("#E4DCCF"))
+	l2.custom_minimum_size = Vector2(w, 0)
+	Wrap.put(l2, String(Catalog.of(item).get("desc", "")))
+	col.add_child(l2)
+	var eff := Catalog.effect_text(item)
+	if eff != "":
+		var l3 := Label.new()
+		l3.add_theme_font_size_override("font_size", 20)
+		l3.add_theme_color_override("font_color", Color("#B4E6C0"))
+		l3.custom_minimum_size = Vector2(w, 0)
+		var pre := "지니고 있으면 · " if kind in ["keep", "stamp", "shade"] else "먹으면 · "
+		Wrap.put(l3, pre + eff)
+		col.add_child(l3)
+	if can_use and Catalog.edible(item):
+		var eat := _paper_btn("먹기", func() -> void: _eat(item))
+		eat.custom_minimum_size = Vector2(160, 64)
+		col.add_child(eat)
+	return panel
+
+
+## 배낭에서 먹는다. 다 차 있으면 안 먹는다 - 먹어 봤자 없어지기만 한다.
+func _eat(item: String) -> void:
+	var said := Battle.eat(item)
+	if said == "":
+		_say_hint("지금은 배가 불러요.", false, 1.6)
 		return
-	for item in JourneyState.bag:
-		var cell := VBoxContainer.new()
-		cell.alignment = BoxContainer.ALIGNMENT_CENTER
-		var pic := TextureRect.new()
-		# **`ICONS` 를 거쳐야 한다.** 주운 것(`p-*`)은 제 이름이 곧 그림
-		# 이름이지만 받는 물건은 아니다 — 지도는 `i-notebook` 을 빌려
-		# 쓰고 카메라는 `i-camera` 다. 여기서 그 표를 안 봐서
-		# `map.png` 를 찾다 못 찾고 **지도·카메라 칸이 빈 채로** 떴다
-		# (얻은 것 카드는 같은 표를 보고 제대로 그리고 있었다).
-		pic.texture = load("res://assets/sprites/%s.png"
-			% String(ICONS.get(item, item)))
-		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		pic.custom_minimum_size = Vector2(84, 84)
-		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		cell.add_child(pic)
-		var name := Label.new()
-		name.text = "%s %d" % [NAMES.get(item, item), JourneyState.count(item)]
-		name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name.add_theme_font_size_override("font_size", 24)
-		name.add_theme_color_override("font_color", Color("#E4DCCF"))
-		cell.add_child(name)
-		_bag_grid.add_child(cell)
+	AudioManager.battle_heal()
+	_say_hint(said, false, 2.0)
+	if JourneyState.count(item) <= 0:
+		_bag_sel = ""
+	_refill_bag()
+
+
+## 도감 — 이 게임의 물건 전부. 얻은 적 있는 것은 그림, 아직인 것은 어두운 칸.
+##
+## "12가지 중 5" 를 적는다. 퀘스트 진행률을 숫자로 안 보여 주는 원칙
+## (`docs/quest-journey.md` 2절)은 **해야 할 일 목록**에 대한 것이다 - 도감은
+## 할 일이 아니라 모은 것의 기록이다 (`docs/items-rewards.md` 4절).
+func _fill_dex() -> void:
+	if _bag_sel != "":
+		if Catalog.found(_bag_sel):
+			_bag_grid.add_child(_item_card(_bag_sel, false))
+		else:
+			_bag_grid.add_child(_bag_line("아직 못 만난 것이에요. 여행을 하다 보면 만나요.",
+				20, Color("#A79A8A")))
+	for kind in Catalog.KIND_ORDER:
+		var ids := Catalog.ids_of(String(kind))
+		var got := 0
+		for id in ids:
+			if Catalog.found(String(id)):
+				got += 1
+		_bag_grid.add_child(_bag_line("%s  ·  %d가지 중 %d" % [
+			String(Catalog.KIND_NAME[kind]), ids.size(), got], 24, Color("#FFE39A")))
+		var cells := GridContainer.new()
+		cells.columns = 8
+		cells.add_theme_constant_override("h_separation", 8)
+		cells.add_theme_constant_override("v_separation", 8)
+		for id in ids:
+			cells.add_child(_dex_cell(String(id)))
+		_bag_grid.add_child(cells)
+	_bag_grid.add_child(_paper_btn("배낭 보기", func() -> void:
+		AudioManager.page_turn()
+		_bag_dex = false
+		_bag_sel = ""
+		_refill_bag()))
+
+
+func _dex_cell(id: String) -> Button:
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(68, 68)
+	var sel := id == _bag_sel
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1, 0.06)
+	sb.set_corner_radius_all(10)
+	sb.border_color = Color("#FFE39A")
+	sb.set_border_width_all(2 if sel else 0)
+	for st in ["normal", "hover", "pressed", "focus"]:
+		b.add_theme_stylebox_override(st, sb)
+	var pic := TextureRect.new()
+	pic.texture = load(Catalog.icon_path(id))
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pic.offset_left = 6
+	pic.offset_top = 6
+	pic.offset_right = -6
+	pic.offset_bottom = -6
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 아직 못 만난 것은 **그림자만** - 무엇인지 모르게, 있다는 것만 알게.
+	if not Catalog.found(id):
+		pic.modulate = Color(0, 0, 0, 0.45)
+	b.add_child(pic)
+	b.pressed.connect(func() -> void:
+		AudioManager.ui_click()
+		_bag_sel = "" if _bag_sel == id else id
+		_refill_bag())
+	return b
+
+
+## 판 안의 종이 버튼 (조작 안내 다시 보기와 같은 결).
+func _paper_btn(text: String, fn: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(0, 64)
+	b.add_theme_font_size_override("font_size", 24)
+	Paper.button(b, Color("#F4EDE2"), Color("#8C7B68"), Color("#3A2C2C"))
+	b.pressed.connect(fn)
+	return b
 
 
 ## 마음 — 지금 어디까지 왔나, 무엇을 쓸 수 있나.
@@ -816,6 +1026,23 @@ func _fill_mind() -> void:
 		% [Battle.mp, Battle.mp_max()], 26, Color("#B4CCE6")))
 	_bag_grid.add_child(_bag_line("마음의 힘 %d   ·   버팀 %d"
 		% [Battle.attack_power(), Battle.defense()], 24, Color("#E4DCCF")))
+	# **지닌 것이 보태는 힘.** 기념품·도장은 장착하지 않는다 - 배낭에
+	# 있기만 하면 된다. 그 몫이 어디서 왔는지 여기서 보인다.
+	var parts: Array = []
+	for st in ["hp", "mp", "atk", "def"]:
+		var n := Catalog.bonus(st)
+		if n > 0:
+			parts.append("%s +%d" % [String(Catalog.STAT_NAME[st]), n])
+	if not parts.is_empty():
+		_bag_grid.add_child(_bag_line("지닌 것 덕분에 · " + " · ".join(parts),
+			21, Color("#B4E6C0")))
+	var pieces := 0
+	for id in Catalog.ids_of("shade"):
+		if JourneyState.count(String(id)) > 0:
+			pieces += 1
+	if pieces > 0:
+		_bag_grid.add_child(_bag_line("그늘 조각 %d가지 · 그 그늘들이 주는 피해가 줄어든다"
+			% pieces, 21, Color("#B4CCE6")))
 	_bag_grid.add_child(_bag_line(" ", 12, Color("#A79A8A")))
 	for id in Battle.SKILL_ORDER:
 		var sk: Dictionary = Battle.SKILLS[id]
@@ -825,7 +1052,7 @@ func _fill_mind() -> void:
 			_bag_grid.add_child(_bag_line("%s%s"
 				% [String(sk["name"]), cost], 25, Color("#E4DCCF")))
 		else:
-			_bag_grid.add_child(_bag_line("%s   —  LV %d 에"
+			_bag_grid.add_child(_bag_line("%s   -  LV %d 에"
 				% [String(sk["name"]), lv], 25, Color("#7E7468")))
 
 
@@ -972,6 +1199,17 @@ func _fill_quests() -> void:
 			_bag_grid.add_child(_quest_row(text, col, q, place, size))
 		else:
 			_bag_grid.add_child(_bag_line(text, size, col))
+		_reward_line(village, Rewards.for_row(village, q), done)
+	# 마을을 다 돌면 받는 도장. 목록 끝에 한 줄 - 끝까지 가 볼 이유가 된다.
+	if Rewards.VILLAGE.has(village) and not list.is_empty():
+		var stamp := {"item": Rewards.item_for(village, Rewards.VILLAGE_KEY),
+			"xp": Rewards.XP_VILLAGE}
+		var cleared := Rewards.claimed(village, Rewards.VILLAGE_KEY)
+		_bag_grid.add_child(_bag_line(
+			("받았어요 · %s" if cleared else "다 돌면 · %s · 경험 %d")
+				% ([Catalog.name_of(String(stamp["item"]))] if cleared
+					else [Catalog.name_of(String(stamp["item"])), int(stamp["xp"])]),
+			22, Color("#7E7468") if cleared else Color("#E8C46A")))
 	# 눌러도 된다는 걸 아무도 모른다 — 줄이 그냥 글자로 보인다. 한 번만
 	# 조용히 알려 준다. 시키는 말이 아니라 그렇게 할 수 있다는 말로.
 	if tappable:
@@ -1005,6 +1243,27 @@ func _fill_quests() -> void:
 		toggle_bag()
 		HowToPlay.open(get_tree()))
 	_bag_grid.add_child(hb)
+
+
+## 할 일 줄 밑에 붙는 **받는 것** 한 줄 (`Rewards`).
+##
+## 뭘 받는지 알아야 하고 싶어진다 - 여태 할 일을 마쳐도 받는 게 없어
+## "왜 해야 하는지 모르겠다" 는 말을 들었다. 다 한 줄은 받은 것을 적는다.
+func _reward_line(village: String, r: Dictionary, done: bool) -> void:
+	var item := String(r.get("item", ""))
+	if item == "" and int(r.get("xp", 0)) <= 0:
+		return
+	var nm := Catalog.name_of(item) if item != "" else ""
+	var text := ""
+	if done:
+		text = "    받았어요 · %s" % nm if nm != "" else ""
+	else:
+		text = "    받는 것 · %s · 경험 %d" % [nm, int(r["xp"])] if nm != "" \
+			else "    받는 것 · 경험 %d" % int(r["xp"])
+	if text == "":
+		return
+	_bag_grid.add_child(_bag_line(text, 20,
+		Color("#7E7468") if done else Color("#C9B37A")))
 
 
 ## "조작 안내 다시 보기" 판. 처음 봤던 안내를 순서대로 다시 보여준다.
@@ -1278,11 +1537,11 @@ func _center_covered() -> bool:
 
 func _show_got_now(item: String) -> void:
 	_got_busy = true
-	var art := String(ICONS.get(item, item))
+	var art := Catalog.icon_of(item)
 	var path := "res://assets/sprites/%s.png" % art
 	_got_art.texture = load(path) as Texture2D if ResourceLoader.exists(path) else null
 	_got_art.visible = _got_art.texture != null
-	var nm := String(NAMES.get(item, item))
+	var nm := Catalog.name_of(item)
 	var verb := "주웠어요" if item.begins_with("p-") else "받았어요"
 	_got_text.text = "%s %s" % [_with_josa(nm), verb]
 	if _got_tw != null and _got_tw.is_valid():
@@ -1466,6 +1725,41 @@ func _watch_done(list: Array) -> void:
 				"%s 갈 수 있어요" % Wrap.with_josa(nxt, Wrap.Josa.TO) if nxt != "" else "")
 
 
+## 마친 일의 보상을 받는다 (`Rewards`).
+##
+## 목록 줄이 끝나면 "다 했어요!" 는 `_watch_done` 이 이미 띄운다 - 여기선
+## 받은 것 카드(`JourneyState.pick` 이 저절로 띄운다)만 뒤따른다. 목록 줄이
+## 아닌 것(이야기 단계, 마을 다 돌기)은 여기서 잔치도 같이 띄운다.
+##
+## 마을마다 **이번 실행에서 처음 볼 때**는 밀린 것을 조용히 챙긴다 -
+## 옛 세이브로 들어서자마자 카드가 우르르 뜨지 않게, 한 줄로만 알린다.
+func claim_rewards() -> void:
+	var v := _quest_village()
+	if v == "":
+		return
+	var quiet := not JourneyState.reward_base.has(v)
+	JourneyState.reward_base[v] = true
+	var got_quiet := 0
+	for e in Rewards.unclaimed(v):
+		var evs := Rewards.claim(v, e, quiet)
+		if quiet:
+			got_quiet += 1
+		elif bool(e.get("step", false)):
+			_celebrate("이야기 한 걸음!", String(e["label"]))
+		elif String(e["key"]) == Rewards.VILLAGE_KEY:
+			_celebrate("여행 도장을 받았어요!",
+				Catalog.name_of(String(e["item"])))
+		for ev in evs:
+			if String(ev.get("kind", "")) == "level_up" and not quiet:
+				var sk := String(ev.get("skill", ""))
+				_celebrate("LV %d!" % int(ev["level"]),
+					("%s을(를) 쓸 수 있게 됐어요" % sk) if sk != "" else "마음이 한 뼘 자랐어요")
+	if got_quiet > 0:
+		_say_hint("지난 여행에서 받을 것을 배낭에 챙겨 뒀어요.", true, 2.6)
+		if _bag_panel != null and _bag_panel.visible:
+			_refill_bag()
+
+
 func _celebrate(big: String, sub: String) -> void:
 	if _cele == null:
 		return
@@ -1511,6 +1805,12 @@ func _process(delta: float) -> void:
 	var list := Quests.quest_list(_quest_village())
 	_maybe_explain_sides(list)
 	_watch_done(list)
+	# 보상은 매 프레임이 아니라 조금씩 끊어 본다 - 목록을 한 번 더 셈해야
+	# 해서다. 0.3초 늦게 받아도 잔치 뒤에 오니 모른다.
+	_reward_t += delta
+	if _reward_t >= 0.3:
+		_reward_t = 0.0
+		claim_rewards()
 	_tick_task_strip()
 	# 점은 **어느 버튼을 눌러야 하는지까지** 알린다. 배낭에 점 하나로
 	# "뭔가 새것이 있다" 만 알리던 때는, 그게 편지인지 할 일인지 알려면

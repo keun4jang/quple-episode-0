@@ -1314,7 +1314,7 @@ func _build_pickups() -> void:
 		# 이름을 달아 준다. 16px 짜리 그림으로는 조개인지 도토리인지
 		# 갈리지 않는다 — 주우러 갈지 말지 보고 정할 수 있어야 한다.
 		var tag := Label.new()
-		tag.text = String(JourneyHud.NAMES.get(item, item))
+		tag.text = Catalog.name_of(item)
 		tag.add_theme_font_size_override("font_size", 10)
 		tag.add_theme_color_override("font_color", Color(1.0, 0.95, 0.80, 0.85))
 		tag.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))

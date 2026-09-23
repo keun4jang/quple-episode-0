@@ -60,20 +60,23 @@ const DEF_PER := 1
 const LEVEL_MAX := 12
 
 
+## **지닌 것이 보태는 힘**(`Catalog.bonus`)이 여기 한 곳에서 더해진다.
+## 기념품·도장은 장착하지 않는다 - 배낭에 있기만 하면 된다. 고를 것이
+## 없으니 잘못 고를 일도 없다 (위의 "성장은 레벨 하나로만" 과 같은 결).
 static func hp_max() -> int:
-	return HP_BASE + (level - 1) * HP_PER
+	return HP_BASE + (level - 1) * HP_PER + Catalog.bonus("hp")
 
 
 static func mp_max() -> int:
-	return MP_BASE + (level - 1) * MP_PER
+	return MP_BASE + (level - 1) * MP_PER + Catalog.bonus("mp")
 
 
 static func attack_power() -> int:
-	return ATK_BASE + (level - 1) * ATK_PER + _atk_buff
+	return ATK_BASE + (level - 1) * ATK_PER + _atk_buff + Catalog.bonus("atk")
 
 
 static func defense() -> int:
-	return DEF_BASE + (level - 1) * DEF_PER
+	return DEF_BASE + (level - 1) * DEF_PER + Catalog.bonus("def")
 
 
 ## 다음 레벨까지 필요한 것. 뒤로 갈수록 늘지만 가파르지는 않다 —
@@ -169,43 +172,43 @@ const ENEMY_STATUSES := {
 const ENEMIES := {
 	"worry": {
 		"name": "걱정", "hp": 34, "atk": 8, "def": 1, "xp": 9,
-		"weak": "smile", "sheet": "worry",
+		"weak": "smile", "sheet": "worry", "drop": "b-barleytea",
 		"pattern": {"kind": "multi", "times": 2, "mult": 0.55},
 		"line": "…아까 그 말, 잘못한 거 아닐까.",
 	},
 	"hurry": {
 		"name": "조급함", "hp": 40, "atk": 9, "def": 2, "xp": 12,
-		"weak": "remember", "sheet": "hurry",
+		"weak": "remember", "sheet": "hurry", "drop": "b-sikhye",
 		"pattern": {"kind": "escalate", "step": 0.18, "cap": 2.2},
 		"line": "이러고 있을 때가 아닌데.",
 	},
 	"lonely": {
 		"name": "외로움", "hp": 44, "atk": 10, "def": 2, "xp": 14,
-		"weak": "walk_on", "sheet": "lonely",
+		"weak": "walk_on", "sheet": "lonely", "drop": "b-honeycake",
 		"pattern": {"kind": "lonely"},
 		"line": "아무도 없는 데까지 와서 뭘 하고 있나.",
 	},
 	"tired": {
 		"name": "지침", "hp": 52, "atk": 9, "def": 3, "xp": 16,
-		"weak": "smile", "sheet": "tired",
+		"weak": "smile", "sheet": "tired", "drop": "b-sweetpotato",
 		"pattern": {"kind": "burst", "rest": 2, "mult": 2.0, "inflict": "numb"},
 		"line": "…조금만 더 누워 있고 싶다.",
 	},
 	"regret": {
 		"name": "후회", "hp": 58, "atk": 11, "def": 3, "xp": 19,
-		"weak": "remember", "sheet": "regret",
+		"weak": "remember", "sheet": "regret", "drop": "b-citron-tea",
 		"pattern": {"kind": "inflict", "every": 3, "status": "shrink"},
 		"line": "그때 그러지 말았어야 했는데.",
 	},
 	"envy": {
 		"name": "부러움", "hp": 62, "atk": 12, "def": 4, "xp": 22,
-		"weak": "walk_on", "sheet": "envy",
+		"weak": "walk_on", "sheet": "envy", "drop": "b-yakgwa",
 		"pattern": {"kind": "reflect", "back": 0.35},
 		"line": "남들은 다 잘 지내는 것 같은데.",
 	},
 	"night": {
 		"name": "밤그늘", "hp": 120, "atk": 14, "def": 5, "xp": 60,
-		"sheet": "night", "boss": true,
+		"sheet": "night", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "heavy", "every": 4, "mult": 2.1},
 		"line": "밤이 길다. 아직 한참 남았다.",
 	},
@@ -266,13 +269,51 @@ const FOODS := {
 }
 
 
+## 전투에서 꺼내 먹을 수 있는 것. 주운 것 중 몇몇(`FOODS`)과, 할 일·
+## 그늘에게서 받은 먹을 것(`Catalog` 의 snack) 전부.
 static func usable_items() -> Array:
 	var out: Array = []
-	for id in FOODS.keys():
-		if JourneyState.count(id) > 0:
-			out.append(id)
+	for id in JourneyState.bag.keys():
+		if Catalog.edible(String(id)) and JourneyState.count(String(id)) > 0:
+			out.append(String(id))
 	out.sort()
 	return out
+
+
+## 먹으면 무엇이 되나. 주운 것은 `FOODS`, 받은 먹을 것은 `Catalog` 에 적혀 있다.
+static func food_effect(id: String) -> Dictionary:
+	if FOODS.has(id):
+		return FOODS[id]
+	return Catalog.of(id)
+
+
+## **전투 밖에서 먹는다.** 배낭 설명 판의 [먹기]가 부른다. 체력·마음력이
+## 다 차 있으면 안 먹는다 - 먹어 봤자 없어지기만 한다. 먹은 뒤 한 줄을
+## 돌려준다 (빈 문자열이면 못 먹은 것).
+static func eat(id: String) -> String:
+	if in_battle or not Catalog.edible(id) or JourneyState.count(id) <= 0:
+		return ""
+	var f := food_effect(id)
+	var full := bool(f.get("full", false))
+	var need_hp := hp < hp_max() and (full or int(f.get("hp", 0)) > 0)
+	var need_mp := mp < mp_max() and (full or int(f.get("mp", 0)) > 0)
+	if not need_hp and not need_mp:
+		return ""
+	JourneyState.use(id)
+	var hp0 := hp
+	var mp0 := mp
+	if full:
+		hp = hp_max()
+		mp = mp_max()
+	else:
+		hp = mini(hp_max(), hp + int(f.get("hp", 0)))
+		mp = mini(mp_max(), mp + int(f.get("mp", 0)))
+	var parts: Array = []
+	if hp > hp0:
+		parts.append("체력 +%d" % (hp - hp0))
+	if mp > mp0:
+		parts.append("마음력 +%d" % (mp - mp0))
+	return "%s, %s" % [Catalog.name_of(id), " · ".join(parts)]
 
 
 # ── 지금 벌어지고 있는 전투 ──────────────────────────────────────────
@@ -289,7 +330,7 @@ static var _last_dealt := 0                  # 부러움이 되돌리는 데 쓴
 ## 0 짜리 웃어넘기기가 약점인 그늘은 그 스킬만 반복해 영영 반격을
 ## 못 하게 된다.
 static var _weak_used := false
-## 이 전투에서 밝혀진 약점. 스킬 목록에 ◆ 로 표시된다.
+## 이 전투에서 밝혀진 약점. 스킬 목록에 * 로 표시된다 (◆ 는 폰트에 없다).
 static var found_weak := false
 
 
@@ -394,25 +435,39 @@ static func player_use_skill(id: String) -> Array:
 
 
 static func player_use_item(id: String) -> Array:
-	if not in_battle or not FOODS.has(id) or JourneyState.count(id) <= 0:
+	if not in_battle or not Catalog.edible(id) or JourneyState.count(id) <= 0:
 		return []
-	var f: Dictionary = FOODS[id]
+	var f := food_effect(id)
 	JourneyState.use(id)
-	var nm := String(JourneyHud.NAMES.get(id, id))
+	var nm := Catalog.name_of(id)
+	var verb := String(f.get("verb", "먹었다"))
 	var evs: Array = [{"kind": "line",
-		"text": "%s을(를) %s" % [nm, String(f["verb"])]}]
+		"text": "%s을(를) %s" % [nm, verb]}]
 	turn += 1
-	if f.has("hp"):
+	var full := bool(f.get("full", false))
+	if full or int(f.get("hp", 0)) > 0:
 		var before := hp
 		# **먹먹함은 아이템 회복을 안 막는다.** 막으면 대응할 길이
 		# 통째로 사라진다 — 스킬 회복만 절반으로 준다.
-		hp = mini(hp_max(), hp + int(f["hp"]))
+		hp = hp_max() if full else mini(hp_max(), hp + int(f["hp"]))
 		evs.append({"kind": "heal", "to": "me", "amount": hp - before})
-	if f.has("mp"):
+	if full or int(f.get("mp", 0)) > 0:
 		var before_mp := mp
-		mp = mini(mp_max(), mp + int(f["mp"]))
+		mp = mp_max() if full else mini(mp_max(), mp + int(f["mp"]))
 		evs.append({"kind": "status", "to": "me",
 			"text": "마음력 +%d" % (mp - before_mp)})
+	# **풀기**는 나쁜 상태(위축·먹먹함)를 지운다. 대응할 길이 하나 더
+	# 생긴다 - 스킬로는 못 푸는 것들이다.
+	if bool(f.get("cure", false)):
+		var cleared := false
+		for bad in my_status.keys():
+			if not bool(STATUSES[bad].get("good", false)):
+				my_status.erase(bad)
+				cleared = true
+		if cleared:
+			evs.append({"kind": "status", "to": "me", "text": "마음이 풀렸다"})
+	if bool(f.get("warm", false)):
+		_give_me("warm", evs)
 	_after_player(evs, false)
 	return evs
 
@@ -507,7 +562,12 @@ static func _enemy_plan(t: int) -> Dictionary:
 ## 누그러짐은 **여기 한 곳에서만** 곱한다. 실제 행동과 예고가 같은
 ## 함수를 쓰므로 예고 수치가 계속 실제와 맞는다.
 static func _enemy_out() -> float:
-	return 0.75 if enemy_has("soften") else 1.0
+	var m := 0.75 if enemy_has("soften") else 1.0
+	# **그늘 조각.** 한 번 걷어낸 마음은 다음엔 덜 아프다. 여기 한 곳에서
+	# 곱하므로 행동 예고(`expected_damage`)도 같이 맞는다.
+	if Catalog.guards(kind):
+		m *= Catalog.GUARD_MULT
+	return m
 
 
 static func _hit_me(raw: float, evs: Array) -> void:
@@ -546,9 +606,9 @@ static func intent() -> String:
 			return "늘어져 있다"
 		"inflict":
 			var nm := String(STATUSES[String(plan["status"])]["name"])
-			return "무언가를 걸려 한다 — %s" % nm
+			return "무언가를 걸려 한다 - %s" % nm
 		"reflect":
-			return "맞은 만큼 되돌리려 한다 — %d" % expected_damage()
+			return "맞은 만큼 되돌리려 한다 - %d" % expected_damage()
 	var times := int(plan.get("times", 1))
 	var one := expected_damage() / maxi(1, times)
 	if times > 1:
@@ -626,8 +686,26 @@ static func _win(evs: Array) -> void:
 	in_battle = false
 	evs.append({"kind": "line", "text": "%s이(가) 옅어졌다" % String(enemy["name"])})
 	var got := int(ENEMIES[kind]["xp"])
-	xp += got
 	evs.append({"kind": "xp", "amount": got})
+	evs.append_array(gain_xp(got))
+	# **그늘이 남기는 것.** 무작위가 아니다 - 그늘마다 늘 같은 것을 남긴다.
+	var drop := String(ENEMIES[kind].get("drop", ""))
+	if drop != "":
+		JourneyState.pick(drop)
+		evs.append({"kind": "line", "text": "%s을(를) 얻었다" % Catalog.name_of(drop)})
+	# 처음 걷어낸 종류면 조각 하나. 두 번은 안 준다 - 도감 기록을 본다.
+	var piece := "m-" + kind
+	if Catalog.has(piece) and not JourneyState.seen_items.has(piece):
+		JourneyState.pick(piece)
+		evs.append({"kind": "line", "text": "%s을(를) 얻었다" % Catalog.name_of(piece)})
+	evs.append({"kind": "victory"})
+
+
+## 경험을 얻는다. 전투에서도, 할 일을 마쳐도(`Rewards`) 같은 길로 온다.
+## 레벨이 오른 만큼 `level_up` 사건을 돌려준다.
+static func gain_xp(got: int) -> Array:
+	var evs: Array = []
+	xp += maxi(0, got)
 	while level < LEVEL_MAX and xp >= xp_need():
 		xp -= xp_need()
 		level += 1
@@ -638,7 +716,7 @@ static func _win(evs: Array) -> void:
 		mp = mp_max()
 		evs.append({"kind": "level_up", "level": level,
 			"skill": String(SKILLS.get(_skill_at(level), {}).get("name", ""))})
-	evs.append({"kind": "victory"})
+	return evs
 
 
 static func _skill_at(lv: int) -> String:

@@ -93,6 +93,12 @@ func _ready() -> void:
 	await _menu_button_tests()
 	await _battle_tests()
 	await _shade_tests()
+	_catalog_tests()
+	await _reward_tests()
+	_item_battle_tests()
+	_item_save_tests()
+	await _bag_ui_tests()
+	await _shelf_everywhere_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -6535,11 +6541,14 @@ func _menu_button_tests() -> void:
 	hud.open_tab(0)
 	await get_tree().process_frame
 	var blank := []
-	for cell in hud._bag_grid.get_children():
-		for n in cell.get_children():
-			if n is TextureRect and n.texture == null:
-				blank.append(cell.name)
-	ok(blank.is_empty(), "배낭 칸마다 그림이 있다 (%s)" % str(blank))
+	var pics := 0
+	for n in _all_nodes(hud._bag_grid):
+		if n is TextureRect:
+			pics += 1
+			if n.texture == null:
+				blank.append(n.get_parent().name)
+	ok(pics >= 2 and blank.is_empty(), "배낭 칸마다 그림이 있다 (%d칸, 빈 것 %s)"
+		% [pics, str(blank)])
 	hud.toggle_bag()
 	await get_tree().process_frame
 	p.queue_free()
@@ -6793,4 +6802,379 @@ func _shade_tests() -> void:
 		last = top
 	ok(rising, "뒷마을일수록 무거운 그늘이 선다 (%s)" % str(curve))
 	Battle.reset()
+	JourneyState.reset()
+
+
+
+## 아래 노드 전부 (자기 자신 빼고).
+func _all_nodes(root: Node) -> Array:
+	var out: Array = []
+	for c in root.get_children():
+		out.append(c)
+		out.append_array(_all_nodes(c))
+	return out
+
+
+# ── 물건과 보상 (`docs/items-rewards.md`) ─────────────────────────────
+#
+# 물건이 백 가지를 넘으면 **한 곳이 빠지는 순간** 이름 없는 칸이나 빈
+# 그림이 뜬다. 표 하나(`Catalog`)에 모았으니, 그 표가 스스로 맞는지를
+# 여기서 다 본다.
+
+func _catalog_tests() -> void:
+	print("\n[물건 표]")
+	JourneyState.reset()
+	Battle.reset()
+	var ids: Array = Catalog.ITEMS.keys()
+	ok(ids.size() >= 100, "물건이 백 가지를 넘는다 (%d)" % ids.size())
+	var bad: Array = []
+	for id in ids:
+		var e: Dictionary = Catalog.ITEMS[id]
+		if String(e.get("name", "")) == "" or String(e.get("desc", "")) == "":
+			bad.append("이름·설명:" + String(id))
+		if not Catalog.KIND_NAME.has(String(e.get("kind", ""))):
+			bad.append("종류:" + String(id))
+		if not ResourceLoader.exists(Catalog.icon_path(String(id))):
+			bad.append("그림:" + String(id))
+	ok(bad.is_empty(), "물건마다 이름·설명·종류·그림이 있다%s"
+		% ("" if bad.is_empty() else " — " + str(bad)))
+
+	ok(Catalog.ids_of("snack").size() >= 25,
+		"먹을 것이 스물다섯 가지 넘는다 (%d)" % Catalog.ids_of("snack").size())
+	ok(Catalog.ids_of("keep").size() >= 28,
+		"기념품이 스물여덟 가지 넘는다 (%d)" % Catalog.ids_of("keep").size())
+	ok(Catalog.ids_of("stamp").size() == Quests.ORDER.size(),
+		"마을마다 도장이 하나씩 (%d)" % Catalog.ids_of("stamp").size())
+	ok(Catalog.ids_of("shade").size() == Battle.ENEMIES.size(),
+		"그늘마다 조각이 하나씩 (%d)" % Catalog.ids_of("shade").size())
+
+	# 먹을 것은 먹으면 무엇이든 된다
+	var dud: Array = []
+	for id in Catalog.ids_of("snack"):
+		if Catalog.effect_text(String(id)) == "":
+			dud.append(id)
+	ok(dud.is_empty(), "먹을 것은 다 효과가 있다%s" % ("" if dud.is_empty() else " — " + str(dud)))
+
+	# 지닌 힘은 **작다** - 레벨을 대신하지 않는다
+	var big: Array = []
+	for id in Catalog.ids_of("keep") + Catalog.ids_of("stamp"):
+		var b: Dictionary = Catalog.of(String(id)).get("bonus", {})
+		var n := 0
+		for k in b:
+			n += int(b[k])
+		if n < 1 or n > 3:
+			big.append(id)
+	ok(big.is_empty(), "기념품·도장의 힘은 하나에 1~3 (%s)" % str(big))
+
+	# 그늘이 남기는 것이 표에 있다
+	var nodrop: Array = []
+	for en in Battle.ENEMIES:
+		var d := String(Battle.ENEMIES[en].get("drop", ""))
+		if Catalog.kind_of(d) != "snack" or not Catalog.has("m-" + String(en)):
+			nodrop.append(en)
+	ok(nodrop.is_empty(), "그늘마다 남기는 먹을 것과 조각이 있다 (%s)" % str(nodrop))
+
+	# 전투에서 먹던 주운 것도 표에 이름이 있다
+	var noname: Array = []
+	for id in Battle.FOODS:
+		if not Catalog.has(String(id)):
+			noname.append(id)
+	ok(noname.is_empty(), "전투에서 쥐는 주운 것도 표에 있다 (%s)" % str(noname))
+
+	# 값이 없다 - 물건 표에도
+	var src := FileAccess.open("res://scripts/systems/catalog.gd", FileAccess.READ).get_as_text()
+	var banned: Array = []
+	for w in ["price", "cost", "sell_value", "stock", "balance"]:
+		if src.contains('"%s"' % w):
+			banned.append(w)
+	ok(banned.is_empty(), "물건 표에 값·재고가 없다 (%s)" % str(banned))
+
+
+func _reward_tests() -> void:
+	print("\n[할 일 보상]")
+	JourneyState.reset()
+	Battle.reset()
+	# 마을마다, 할 일마다 받는 것이 있고 그게 표에 있다
+	var missing: Array = []
+	for v in Quests.ORDER + ["잿마루", "고향"]:
+		for e in Rewards.entries(String(v)):
+			var it := String(e["item"])
+			if it == "" or not Catalog.has(it):
+				missing.append("%s/%s" % [v, e["key"]])
+	ok(missing.is_empty(), "할 일마다 받는 것이 있다%s"
+		% ("" if missing.is_empty() else " — " + str(missing)))
+	# 목록 줄에 보이는 것과 실제로 받는 것이 같다 (미리보기가 거짓말하면 안 된다)
+	var lie: Array = []
+	for v in Quests.ORDER:
+		var by_key := {}
+		for e in Rewards.entries(String(v)):
+			by_key[String(e["key"])] = String(e["item"])
+		for q in Quests.quest_list(String(v)):
+			var shown := String(Rewards.for_row(String(v), q)["item"])
+			var key := Quests.row_id(q)
+			if by_key.has(key) and String(by_key[key]) != shown:
+				lie.append("%s/%s" % [v, key])
+	ok(lie.is_empty(), "목록에 보이는 보상이 실제 보상과 같다 (%s)" % str(lie))
+
+	for v in Quests.ORDER:
+		var st := Rewards.item_for(String(v), Rewards.VILLAGE_KEY)
+		if Catalog.kind_of(st) != "stamp":
+			missing.append(v)
+	ok(missing.is_empty(), "마을을 다 돌면 도장이다")
+	ok(Catalog.kind_of(Rewards.item_for("굽이나루", "visit:굽이나루:데크")) == "keep",
+		"방문+사진은 기념품이다")
+	ok(Catalog.kind_of(Rewards.item_for("굽이나루", "talk:cap_guinaru")) == "snack",
+		"인사는 먹을 것이다")
+	var steps := 0
+	for e in Rewards.entries("윤슬"):
+		if bool(e["step"]):
+			steps += 1
+	ok(steps == 3, "윤슬 이야기는 단계마다 따로 받는다 (%d)" % steps)
+
+	# 받는다 - 한 번만
+	var cards: Array = []
+	var cb := func(item: String, _t: int) -> void: cards.append(item)
+	JourneyState.picked.connect(cb)
+	var e1 := {"key": "talk:cap_guinaru", "item": "b-corn", "xp": 6}
+	Rewards.claim("굽이나루", e1)
+	ok(JourneyState.count("b-corn") == 1, "받으면 배낭에 들어간다")
+	ok(Battle.xp == 6, "경험도 받는다 (%d)" % Battle.xp)
+	Rewards.claim("굽이나루", e1)
+	ok(JourneyState.count("b-corn") == 1 and cards.size() == 1, "두 번 받지 않는다")
+	Rewards.claim("굽이나루", {"key": "door:가게", "item": "b-riceball", "xp": 6}, true)
+	ok(JourneyState.count("b-riceball") == 1 and cards.size() == 1,
+		"조용히 받으면 카드가 안 뜬다")
+	JourneyState.picked.disconnect(cb)
+	var need := Battle.xp_need() - Battle.xp
+	var lv := Battle.level
+	var evs := Battle.gain_xp(need)
+	ok(Battle.level == lv + 1 and not evs.is_empty(), "할 일 경험으로도 레벨이 오른다")
+
+	# HUD - 처음 보는 마을은 조용히, 그 뒤로 마친 것은 카드와 함께
+	JourneyState.reset()
+	Battle.reset()
+	var p: Place = load(GOAL_SCENES["굽이나루"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	JourneyState.reward_base.clear()
+	JourneyState.hearts["cap_guinaru"] = 1      # 이미 인사해 둔 옛 세이브
+	var hud: JourneyHud = p.hud
+	hud._got_queue.clear()
+	hud.claim_rewards()
+	ok(JourneyState.count("b-corn") == 1, "밀린 보상을 챙긴다")
+	ok(hud._got_queue.is_empty(), "밀린 보상은 카드 없이 한 줄로")
+	JourneyState.mark_quest("굽이나루:가게")
+	hud.claim_rewards()
+	ok(JourneyState.count("b-riceball") == 1, "새로 마친 것도 받는다")
+	ok(not hud._got_queue.is_empty() or hud._got_busy, "새로 마친 것은 카드가 뜬다")
+	# 목록에 받는 것이 보인다
+	hud.open_tab(4)
+	await get_tree().process_frame
+	var seen_reward := false
+	var seen_stamp := false
+	for n in _all_nodes(hud._bag_grid):
+		if n is Label:
+			var t := String((n as Label).text)
+			if t.contains("받는 것") or t.contains("받았어요"):
+				seen_reward = true
+			if t.contains("도장"):
+				seen_stamp = true
+	ok(seen_reward, "이 마을 목록에 받는 것이 적혀 있다")
+	ok(seen_stamp, "다 돌면 받는 도장도 적혀 있다")
+	hud.toggle_bag()
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+	Battle.reset()
+
+
+func _item_battle_tests() -> void:
+	print("\n[먹을 것 · 지닌 힘 · 그늘이 남긴 것]")
+	JourneyState.reset()
+	Battle.reset()
+	var hp0 := Battle.hp_max()
+	JourneyState.pick("k-rope")
+	ok(Battle.hp_max() == hp0 + 3, "기념품을 지니면 체력 최대가 는다 (%d)" % Battle.hp_max())
+	JourneyState.pick("k-rope")
+	ok(Battle.hp_max() == hp0 + 3, "같은 것을 둘 가져도 한 번만 친다")
+
+	Battle.hp = 5
+	JourneyState.pick("b-riceball")
+	var said := Battle.eat("b-riceball")
+	ok(said != "" and Battle.hp == 40, "배낭에서 먹으면 체력이 찬다 (%d, %s)" % [Battle.hp, said])
+	ok(JourneyState.count("b-riceball") == 0, "먹으면 없어진다")
+	Battle.hp = Battle.hp_max()
+	Battle.mp = Battle.mp_max()
+	JourneyState.pick("b-riceball")
+	ok(Battle.eat("b-riceball") == "" and JourneyState.count("b-riceball") == 1,
+		"다 차 있으면 안 먹는다")
+	Battle.hp = 1
+	Battle.mp = 0
+	JourneyState.pick("b-lunchbox")
+	Battle.eat("b-lunchbox")
+	ok(Battle.hp == Battle.hp_max() and Battle.mp == Battle.mp_max(), "도시락은 가득 채운다")
+
+	Battle.start("regret")
+	Battle.my_status["shrink"] = 3
+	JourneyState.pick("b-citron-tea")
+	Battle.player_use_item("b-citron-tea")
+	ok(not Battle.has_status("shrink"), "유자차는 위축을 푼다")
+	JourneyState.pick("b-honeycake")
+	Battle.player_use_item("b-honeycake")
+	ok(Battle.has_status("warm"), "꿀떡은 온기를 남긴다")
+	Battle.in_battle = false
+
+	# 그늘 조각 - 예고와 실제가 같이 준다 (`_enemy_out` 한 곳)
+	JourneyState.reset()
+	Battle.reset()
+	Battle.start("worry")
+	var before := Battle.expected_damage()
+	JourneyState.pick("m-worry")
+	var after := Battle.expected_damage()
+	ok(after < before, "걱정 조각을 지니면 걱정이 덜 아프다 (%d → %d)" % [before, after])
+	Battle.in_battle = false
+
+	# 걷어내면 남긴다 - 조각은 처음 한 번만
+	JourneyState.reset()
+	Battle.reset()
+	Battle.start("worry")
+	Battle.enemy["hp"] = 1
+	Battle.player_use_skill("smile")
+	ok(JourneyState.count("b-barleytea") == 1, "걱정은 보리차를 남긴다")
+	ok(JourneyState.count("m-worry") == 1, "처음 걷어내면 조각을 준다")
+	Battle.start("worry")
+	Battle.enemy["hp"] = 1
+	Battle.player_use_skill("smile")
+	ok(JourneyState.count("b-barleytea") == 2 and JourneyState.count("m-worry") == 1,
+		"조각은 한 번뿐이다")
+	ok(Battle.usable_items().has("b-barleytea"), "받은 먹을 것을 전투에서 꺼낼 수 있다")
+	JourneyState.reset()
+	Battle.reset()
+
+
+func _item_save_tests() -> void:
+	print("\n[도감 기록 저장]")
+	JourneyState.reset()
+	JourneyState.pick("b-corn")
+	JourneyState.use("b-corn")
+	ok(Catalog.found("b-corn") and JourneyState.count("b-corn") == 0,
+		"먹어 없앤 것도 도감에 남는다")
+	var d := JourneyState.to_dict()
+	JourneyState.reset()
+	JourneyState.from_dict(d)
+	ok(Catalog.found("b-corn"), "도감 기록이 저장된다")
+	# 도감 기록이 없던 옛 세이브는 배낭에서 되짚는다
+	d.erase("seen_items")
+	d["bag"] = {"k-rope": 1}
+	JourneyState.reset()
+	JourneyState.from_dict(d)
+	ok(Catalog.found("k-rope"), "옛 세이브는 배낭에서 도감을 채운다")
+	JourneyState.reset()
+
+
+func _bag_ui_tests() -> void:
+	print("\n[배낭 설명 · 먹기 · 도감]")
+	JourneyState.reset()
+	Battle.reset()
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var hud: JourneyHud = p.hud
+	JourneyState.pick("b-riceball")
+	JourneyState.pick("k-rope")
+	hud.open_tab(0)
+	await get_tree().process_frame
+	hud._bag_sel = "b-riceball"
+	hud._refill_bag()
+	await get_tree().process_frame
+	var eat := _find_button(hud._bag_grid, "먹기")
+	ok(eat != null, "먹을 것을 누르면 [먹기] 가 있다")
+	hud._bag_sel = "k-rope"
+	hud._refill_bag()
+	await get_tree().process_frame
+	ok(_find_button(hud._bag_grid, "먹기") == null, "기념품에는 [먹기] 가 없다")
+	var power := false
+	for n in _all_nodes(hud._bag_grid):
+		if n is Label and String((n as Label).text).contains("지니고 있으면"):
+			power = true
+	ok(power, "기념품은 지닌 힘을 적는다")
+	Battle.hp = 1
+	hud._bag_sel = "b-riceball"
+	hud._refill_bag()
+	await get_tree().process_frame
+	eat = _find_button(hud._bag_grid, "먹기")
+	if eat != null:
+		eat.pressed.emit()
+	await get_tree().process_frame
+	ok(JourneyState.count("b-riceball") == 0 and Battle.hp > 1, "[먹기] 를 누르면 먹는다")
+
+	hud._bag_dex = true
+	hud._bag_sel = ""
+	hud._refill_bag()
+	await get_tree().process_frame
+	var pics := 0
+	var dark := 0
+	for n in _all_nodes(hud._bag_grid):
+		if n is TextureRect:
+			pics += 1
+			if (n as TextureRect).modulate.a < 1.0:
+				dark += 1
+	ok(pics == Catalog.ITEMS.size(), "도감에 물건이 다 있다 (%d/%d)" % [pics, Catalog.ITEMS.size()])
+	var unfound := 0
+	for id in Catalog.ITEMS:
+		if not Catalog.found(String(id)):
+			unfound += 1
+	ok(dark == unfound and dark < pics, "못 만난 것만 어둡다 (%d)" % dark)
+	ok(_find_button(hud._bag_grid, "배낭 보기") != null, "도감에서 배낭으로 돌아갈 수 있다")
+	hud.toggle_bag()
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.reset()
+	Battle.reset()
+
+
+func _shelf_everywhere_tests() -> void:
+	print("\n[가게 선반 아홉 곳]")
+	JourneyState.reset()
+	var bad: Array = []
+	for v in Quests.ORDER:
+		if not Items.has(String(v)):
+			bad.append("선반없음:" + String(v))
+			continue
+		var d: Dictionary = Items.of(String(v))
+		for f in d.get("food", []):
+			if Catalog.kind_of(String(f["id"])) != "food":
+				bad.append("먹거리:" + String(f["id"]))
+		for k in d.get("keep", []):
+			if Catalog.kind_of(String(k["id"])) != "keep":
+				bad.append("기념품:" + String(k["id"]))
+			elif Items.unlocked(String(v), k):
+				bad.append("처음부터열림:" + String(k["id"]))
+		for sh in d.get("show", []):
+			if Catalog.kind_of(String(sh["id"])) != "pick":
+				bad.append("기억선반:" + String(sh["id"]))
+	ok(bad.is_empty(), "아홉 마을 선반이 다 표와 맞는다%s"
+		% ("" if bad.is_empty() else " — " + str(bad)))
+	# 조건은 **한 일**이다 - 그 마을 가 볼 곳에 다녀오면 선반에 놓인다
+	var hat: Dictionary = Items.of("굽이나루")["keep"][0]
+	JourneyState.mark_quest("굽이나루:데크")
+	ok(Items.unlocked("굽이나루", hat), "가 볼 곳에 다녀오면 기념품이 선반에 놓인다")
+
+	# 2탄 가게 안 주인도 밖의 그 사람이다
+	JourneyState.reset()
+	JourneyState.here = "굽이나루"
+	JourneyState.exit_scene = "res://scenes/journey/Gubinaru.tscn"
+	JourneyState.exit_tile = Vector2i(39, 16)
+	var shop: Place = load("res://scenes/journey/interiors/ShopInterior.tscn").instantiate()
+	add_child(shop)
+	await get_tree().process_frame
+	var owner: Folk = null
+	for f in shop._folk:
+		if is_instance_valid(f) and not f.is_spot and f.who == "나루 가게 아저씨":
+			owner = f
+	ok(owner != null and owner.folk_id == "cap_guinaru",
+		"굽이나루 가게 안 주인이 밖의 아저씨와 같다 (%s)"
+			% (owner.folk_id if owner != null else "?"))
+	shop.queue_free()
+	await get_tree().process_frame
 	JourneyState.reset()

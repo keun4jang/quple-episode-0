@@ -14,6 +14,9 @@ signal photo_taken(photo: Dictionary)
 
 ## 아이템 이름 → 개수
 var bag: Dictionary = {}
+## 한 번이라도 손에 넣은 것. 도감이 이걸로 칸을 채운다 — 먹어 없앤
+## 것도 "얻은 적 있다" 로 남아야 빈칸으로 되돌아가지 않는다.
+var seen_items: Dictionary = {}
 ## 이미 주운 자리. "고향:12,7" 같은 문자열
 var taken: Dictionary = {}
 ## 지금 어느 여행지에 있나
@@ -174,6 +177,11 @@ var departures := 0
 var announced: Dictionary = {}
 ## 첫 한 번은 조용히 기준만 잡는다 (앱을 켜자마자 우르르 뜨지 않게).
 var announce_ready := false
+## 이번 실행에서 보상 기준을 이미 잡은 마을 (`Rewards`). **저장 안 한다.**
+## 마을마다 처음 한 번은 밀린 보상을 조용히 챙기고, 그 뒤로 마친 것만
+## 잔치와 카드를 띄운다 - 옛 세이브로 들어서자마자 카드가 스무 장
+## 우르르 뜨지 않게.
+var reward_base: Dictionary = {}
 ## 몇 번 다시 만났나. 재회 대사의 단계가 이걸 따라간다.
 var reunions := 0
 ## 마지막 재회(혹은 첫 만남) 뒤로 몇 번 떠났나.
@@ -664,9 +672,13 @@ func sleep() -> void:
 	minutes = t
 
 
-func pick(item: String, count: int = 1) -> void:
+## `quiet` 는 카드를 안 띄운다 - 옛 세이브에 밀린 보상을 한꺼번에
+## 챙겨 줄 때(`Rewards.claim`), 스무 장이 우르르 뜨지 않게.
+func pick(item: String, count: int = 1, quiet := false) -> void:
 	bag[item] = int(bag.get(item, 0)) + count
-	picked.emit(item, bag[item])
+	seen_items[item] = true
+	if not quiet:
+		picked.emit(item, bag[item])
 
 
 ## 손에 쥐고 써 버린다 (전투에서 감을 먹고 들꽃을 들여다보는 것).
@@ -753,6 +765,7 @@ func to_dict() -> Dictionary:
 		"exit_tile": [exit_tile.x, exit_tile.y],
 		"quest_flags": quest_flags.duplicate(),
 		"quest_days": quest_days.duplicate(),
+		"seen_items": seen_items.duplicate(),
 		# 마음 겨루기(레벨·체력·오늘 걷어낸 자리)도 같은 꾸러미에 넣는다.
 		# `Battle` 은 오토로드가 아니라 정적 싱글턴이라 저장할 자리가
 		# 따로 없다 — 여행 기록에 얹는다.
@@ -850,6 +863,12 @@ func from_dict(d: Dictionary) -> void:
 		if d.get("quest_flags") is Dictionary else {}
 	quest_days = d.get("quest_days", {}).duplicate() \
 		if d.get("quest_days") is Dictionary else {}
+	# 도감 기록이 없던 세이브는 **지금 배낭에서** 되짚는다. 이미 먹어
+	# 없앤 것까지는 알 길이 없지만, 들고 있는 것이 빈칸으로 뜨지는 않는다.
+	seen_items = d.get("seen_items", {}).duplicate() \
+		if d.get("seen_items") is Dictionary else {}
+	for k in bag:
+		seen_items[String(k)] = true
 	# 전투가 없던 시절 세이브에는 이 칸이 없다. 그때는 갓 시작한 것으로
 	# 친다 — 없는 값을 지어내기보다 LV1 부터가 낫다.
 	if d.get("battle") is Dictionary:
@@ -896,9 +915,11 @@ func reset() -> void:
 	exit_tile = Vector2i(-1, -1)
 	pending_spawn = Vector2i(-1, -1)
 	quest_days = {}
+	seen_items = {}
 	# 이게 빠져 있었다. 기록을 지워도 "가게에 들어가 봤다"·"능을 걸었다"
 	# 같은 표시가 그대로 남아, 새로 시작해도 그 퀘스트가 이미 done 이었다.
 	quest_flags = {}
 	announced = {}
 	announce_ready = false
+	reward_base = {}
 	Battle.reset()

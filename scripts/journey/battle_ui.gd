@@ -318,7 +318,7 @@ func _refresh() -> void:
 	_mp_num.text = "마음력  %d / %d" % [Battle.mp, Battle.mp_max()]
 	_lv.text = "LV %d" % Battle.level
 	_my_st.text = _status_text(Battle.my_status, Battle.STATUSES)
-	_intent.text = ("▸ " + Battle.intent()) if Battle.in_battle else ""
+	_intent.text = ("> " + Battle.intent()) if Battle.in_battle else ""
 	# 자동 사냥 중이면 같은 줄에 덧붙인다 - 줄을 늘리면(`\n`) 바로
 	# 아래 `_log` 와 겹친다. 버튼 글자("자동 사냥 끄기") 만으로는
 	# 지나치기 쉬워 한마디 더한다.
@@ -376,7 +376,7 @@ func _open_skills() -> void:
 			_add_skill_btn(box, id))
 
 
-## 스킬 버튼 하나. 글자는 그대로("이름 (마음력 N) ◆약점") 두고, **버튼
+## 스킬 버튼 하나. 글자는 그대로("이름 (마음력 N) *약점") 두고, **버튼
 ## 아래쪽에 얇은 띠**를 하나 더 얹는다 — 숫자만으로는 "이게 마음력을
 ## 크게 쓰는 기술인지" 가 한눈에 안 들어온다. 마음력 최대치에서 이
 ## 기술이 차지하는 몫이 클수록 길고 붉다(포켓몬 골드의 PP 칸과 같은 자리,
@@ -384,7 +384,7 @@ func _open_skills() -> void:
 func _add_skill_btn(box: VBoxContainer, id: String) -> Button:
 	var s: Dictionary = Battle.SKILLS[id]
 	var cost_n := int(s["mp"])
-	var mark := "  ◆약점" if Battle.found_weak 		and Battle.weak_of(Battle.kind) == id else ""
+	var mark := "  *약점" if Battle.found_weak 		and Battle.weak_of(Battle.kind) == id else ""
 	var cost := "   (마음력 %d)" % cost_n if cost_n > 0 else ""
 	var b := _add_btn(box, "%s%s%s" % [String(s["name"]), cost, mark],
 		_act_skill.bind(id))
@@ -427,12 +427,15 @@ func _open_items() -> void:
 			l.text = "손에 쥘 것이 없다"
 			box.add_child(l)
 			return
+		# **받은 먹을 것이 앞에 온다.** 할 일과 그늘에게서 받은 것(`b-*`)이
+		# 주운 것보다 훨씬 잘 듣는다 - 쓸 만한 것이 목록 아래에 묻히면 안 된다.
+		got.sort_custom(func(a: String, b: String) -> bool:
+			return (a.begins_with("b-") and not b.begins_with("b-")) \
+				or (a.begins_with("b-") == b.begins_with("b-") and a < b))
 		for id in got:
-			var f: Dictionary = Battle.FOODS[id]
-			var what := "체력 +%d" % int(f["hp"]) if f.has("hp") \
-				else "마음력 +%d" % int(f["mp"])
+			var what := Catalog.effect_text(id)
 			_add_btn(box, "%s x%d   (%s)" % [
-				String(JourneyHud.NAMES.get(id, id)),
+				Catalog.name_of(id),
 				JourneyState.count(id), what], _act_item.bind(id)))
 
 
@@ -570,7 +573,7 @@ func _one(e: Dictionary) -> void:
 		"level_up":
 			_log.text = "LV %d" % int(e["level"])
 			if String(e.get("skill", "")) != "":
-				_log.text += " — '%s' 를 쓸 수 있게 됐다" % String(e["skill"])
+				_log.text += " - '%s' 를 쓸 수 있게 됐다" % String(e["skill"])
 			AudioManager.souvenir_get()
 		"victory":
 			_over = true

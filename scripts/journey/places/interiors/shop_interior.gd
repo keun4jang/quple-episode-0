@@ -281,6 +281,11 @@ func _owner_sheet(v: String) -> String:
 	match v:
 		"윤슬", "볕뉘", "가풀재", "하늬섬":
 			return "seal"
+		# 2탄은 카피바라 셋이 마을마다 돌아가며 선다 - 밖의 그 얼굴과 맞춘다.
+		"방울못", "꽃눈벌":
+			return "capybara-b"
+		"갈밭머리", "솔은재":
+			return "capybara-c"
 	return "capybara-a"
 
 
@@ -292,7 +297,10 @@ func _owner_folk_id(v: String) -> String:
 		"볕뉘": return "ju_seal"
 		"가풀재": return "san_seal"
 		"하늬섬": return "do_seal"
-	return ""
+	# 2탄 가게 주인은 그 마을 인사 목록의 첫째다 (선반이 아홉 마을로
+	# 넓어지면서 안쪽에 서게 됐다 - 비워 두면 또 다른 사람 취급이 된다).
+	var ids: Array = Quests.TALK_FOLK.get(v, [])
+	return String(ids[0]) if not ids.is_empty() else ""
 
 
 ## 누를 수 있는 선반 하나. 자리 표시를 그대로 쓴다 —

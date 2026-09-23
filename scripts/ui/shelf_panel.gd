@@ -225,7 +225,7 @@ func _row(it: Dictionary) -> Control:
 	row.add_child(names)
 
 	var n := Label.new()
-	n.text = String(it.get("name", JourneyHud.NAMES.get(String(it["id"]), it["id"])))
+	n.text = String(it.get("name", Catalog.name_of(String(it["id"]))))
 	n.add_theme_font_size_override("font_size", 24)
 	n.add_theme_color_override("font_color",
 		Color("#3A2C2C") if ready_now else Color("#8C7B68"))
