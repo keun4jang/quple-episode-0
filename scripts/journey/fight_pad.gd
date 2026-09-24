@@ -24,6 +24,9 @@ var _skills: Dictionary = {}     # id → Button
 var _slot_ids: Array = []
 var _vitals: Control
 var _lv: Label
+## 연타 수 - 공격 버튼 위에 크게. 이어질수록 빛깔이 달아오른다.
+var _combo: Label
+var _combo_seen := 0
 
 
 func _ready() -> void:
@@ -42,6 +45,21 @@ func _ready() -> void:
 	al.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_rebuild()
 	_build_vitals()
+	_combo = Label.new()
+	_combo.name = "Combo"
+	_combo.add_theme_font_size_override("font_size", 40)
+	_combo.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	_combo.add_theme_constant_override("outline_size", 12)
+	_combo.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_combo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_combo.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_combo.offset_left = -520
+	_combo.offset_right = -EDGE
+	_combo.offset_top = -EDGE - ATTACK - 110
+	_combo.offset_bottom = -EDGE - ATTACK - 50
+	_combo.pivot_offset = Vector2(460, 30)
+	_combo.visible = false
+	add_child(_combo)
 
 
 ## 스킬 칸을 다시 세운다 - 배운 스킬이 바뀌었을 때만 (레벨업·전직).
@@ -205,6 +223,7 @@ func _process(_delta: float) -> void:
 	# 박자를 정하므로 매 프레임 불러도 된다.
 	if _attack.is_pressed():
 		press("tap")
+	_tick_combo()
 	if Battle.slot_skills().slice(0, SLOT_MAX) != _slot_ids:
 		_rebuild()
 	_vitals.get_node("Bars").queue_redraw()
@@ -216,6 +235,29 @@ func _process(_delta: float) -> void:
 		b.get_node("Cooldown").queue_redraw()
 		# 마음력이 모자라면 흐리게 - 눌러도 안 된다는 걸 먼저 보여 준다.
 		b.modulate.a = 0.45 if Battle.mp < int(Battle.SKILLS[id]["mp"]) else 1.0
+
+
+func _tick_combo() -> void:
+	var n := Loop.combo
+	_combo.visible = n >= 2
+	if n < 2:
+		_combo_seen = 0
+		return
+	var bonus := Loop.combo_bonus()
+	_combo.text = "%d 연타%s" % [n, ("  경험 x%s" % str(bonus)) if bonus > 1.0 else ""]
+	var col := Color("#FFFDF6")
+	if n >= 50:
+		col = Color.from_hsv(fmod(Time.get_ticks_msec() / 600.0, 1.0), 0.6, 1.0)
+	elif n >= 30:
+		col = Color("#FF8A5C")
+	elif n >= 10:
+		col = Color("#FFD43B")
+	_combo.add_theme_color_override("font_color", col)
+	if n != _combo_seen:
+		_combo_seen = n
+		_combo.scale = Vector2(1.35, 1.35)
+		var tw := create_tween()
+		tw.tween_property(_combo, "scale", Vector2.ONE, 0.15)
 
 
 func _place() -> Node:

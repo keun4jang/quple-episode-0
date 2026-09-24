@@ -130,14 +130,18 @@ static func _give_me(id: String, evs: Array) -> void:
 # ── 몬스터 쪽 ────────────────────────────────────────────────────────
 
 ## 마을에 선 몬스터 하나의 몸. `Shade` 가 들고 있는다.
-static func new_foe(kind: String, lv: int = 1) -> Dictionary:
+static func new_foe(kind: String, lv: int = 1, elite: bool = false) -> Dictionary:
 	var e: Dictionary = Battle.ENEMIES.get(kind, Battle.ENEMIES["drop"])
 	var st := Battle.foe_stats(kind, lv)
+	var boss := bool(e.get("boss", false))
+	var el := elite and not boss
+	var hp := int(st["hp"] * (Loop.ELITE_HP if el else 1.0))
 	return {
 		"kind": kind, "lv": lv, "elem": String(e.get("elem", "none")),
-		"hp": int(st["hp"]), "hp_max": int(st["hp"]), "atk": int(st["atk"]),
-		"def": int(st["def"]), "xp": int(st["xp"]),
-		"boss": bool(e.get("boss", false)),
+		"hp": hp, "hp_max": hp,
+		"atk": int(st["atk"] * (Loop.ELITE_ATK if el else 1.0)),
+		"def": int(st["def"]), "xp": int(st["xp"] * (Loop.ELITE_XP if el else 1.0)),
+		"boss": boss, "elite": el,
 		"turn": 0, "dealt": 0, "status": {}, "staggered": false,
 	}
 
@@ -318,6 +322,8 @@ static func defeat(foe: Dictionary) -> Array:
 	var kind := String(foe["kind"])
 	var e: Dictionary = Battle.ENEMIES.get(kind, {})
 	var got := int(foe.get("xp", Battle.foe_stats(kind, int(foe.get("lv", 1)))["xp"]))
+	# 연타가 길면 더 준다 (`Loop.combo_bonus`).
+	got = int(round(got * Loop.combo_bonus()))
 	var evs: Array = [{"kind": "xp", "amount": got}]
 	evs.append_array(Battle.gain_xp(got))
 	var drop := String(e.get("drop", ""))
@@ -326,7 +332,8 @@ static func defeat(foe: Dictionary) -> Array:
 	var piece := "m-" + kind
 	if Catalog.has(piece) and not JourneyState.seen_items.has(piece):
 		JourneyState.pick(piece)
-	var loot := Gear.roll_drops(kind, int(foe.get("lv", 1)), bool(foe.get("boss", false)))
+	var loot := Gear.roll_drops(kind, int(foe.get("lv", 1)), bool(foe.get("boss", false)),
+		bool(foe.get("elite", false)))
 	Gear.take(loot)
 	evs.append({"kind": "loot", "drops": loot})
 	return evs

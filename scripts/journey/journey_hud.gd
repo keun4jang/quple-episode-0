@@ -1315,6 +1315,11 @@ func _fill_stats() -> void:
 		_refill_bag())
 	auto.name = "AutoAP"
 	_bag_grid.add_child(auto)
+	# 칭호·연타 기록 - 모은 것이 보여야 더 모은다.
+	if not Loop.titles.is_empty() or Loop.best_combo > 0:
+		_bag_grid.add_child(_bag_line("칭호 %d개%s   ·   가장 긴 연타 %d" % [Loop.titles.size(),
+			("  (%s)" % Loop.title) if Loop.title != "" else "", Loop.best_combo], 19,
+			Color("#FFD43B")))
 	# 지닌 기념품·도장이 보태는 힘도 여기서 보인다.
 	var parts: Array = []
 	for st2 in ["hp", "mp", "atk", "def"]:
@@ -1527,6 +1532,8 @@ func _gear_card(it: Dictionary) -> Control:
 		var eb := _small_btn("강화 (%d · 강화석 1 · %d 퍼센트)" % [Gear.plus_cost(it),
 			int(Gear.plus_rate(it) * 100.0)], func() -> void:
 				var r := Gear.enhance(uid)
+				if bool(r["ok"]) or bool(r.get("tried", false)):
+					Loop.note("enhance")
 				if bool(r["ok"]):
 					AudioManager.ui_confirm()
 					_celebrate("강화 성공!", Gear.name_of(Gear.get_item(uid)))
@@ -1651,6 +1658,16 @@ func _quest_row(text: String, col: Color, item: Dictionary, place: Node,
 
 func _fill_quests() -> void:
 	_bag_grid.columns = 1
+	# **오늘의 임무** - 맨 위에. 날짜가 바뀌면 새로 셋 (`Loop.ensure_daily`).
+	Loop.ensure_daily()
+	_bag_grid.add_child(_bag_line("오늘의 임무  ·  날마다 새로  ·  하나에 꿈조각 %d · 강화석 1"
+		% int(Loop.daily_reward()["coins"]), 22, Color("#FFD43B")))
+	for q in Loop.daily.get("list", []):
+		var done := int(q["have"]) >= int(q["need"])
+		var tail := "받았어요" if bool(q["claimed"]) else ("%d / %d" % [int(q["have"]), int(q["need"])])
+		_bag_grid.add_child(_bag_line("%s  (%s)" % [String(q["label"]), tail], 21,
+			Color("#A79A8A") if bool(q["claimed"]) else (Color("#B4E6C0") if done
+				else Color("#FFF2C8"))))
 	var village := _quest_village()
 	var list := Quests.quest_list(village)
 	if list.is_empty():
@@ -2248,6 +2265,13 @@ func _watch_done(list: Array) -> void:
 ## 마을마다 **이번 실행에서 처음 볼 때**는 밀린 것을 조용히 챙긴다 -
 ## 옛 세이브로 들어서자마자 카드가 우르르 뜨지 않게, 한 줄로만 알린다.
 func claim_rewards() -> void:
+	# 오늘의 임무 - 마을과 상관없이 어디서나 받는다.
+	for d in Loop.claim_ready():
+		_celebrate("오늘의 임무 완료!", "%s  ·  꿈조각 +%d · 강화석 +%d" % [String(d["label"]),
+			int(d["coins"]), int(d["stones"])])
+		for ev in d["events"]:
+			if String(ev.get("kind", "")) == "level_up":
+				_celebrate("LV %d!" % int(ev["level"]), "능력치가 올랐어요")
 	var v := _quest_village()
 	if v == "":
 		return

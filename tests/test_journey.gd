@@ -8,6 +8,8 @@ var _fail := 0
 func _ready() -> void:
 	# "화면 보는 법" 판은 화면을 덮는다 — 검사 중에는 이미 본 것으로 둔다.
 	SaveManager.set_flag(HowToPlay.FLAG, true)
+	# 출석·잠든 사이 보상은 장소를 띄울 때마다 끼어든다 - 검사 중에는 끈다.
+	Loop.welcome_on = false
 	await get_tree().process_frame
 	await _sprite_tests()
 	await _walker_tests()
@@ -102,6 +104,7 @@ func _ready() -> void:
 	await _shelf_everywhere_tests()
 	await _hunt_tests()
 	await _char_ui_tests()
+	_loop_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -7762,3 +7765,79 @@ func _char_ui_tests() -> void:
 	await get_tree().process_frame
 	Battle.reset()
 	JourneyState.reset()
+
+
+# ── 계속 켜게 하는 것들 (`Loop`) ─────────────────────────────────────
+
+func _loop_tests() -> void:
+	print("\n[연타·정예·오늘의 임무·출석·칭호·잠든 사이]")
+	JourneyState.reset()
+	Battle.reset()
+	# 연타 - 3초 안에 이어 때리면 는다, 끊기면 0
+	Loop.hit(1)
+	Loop.hit(2)
+	ok(Loop.combo == 3 and Loop.best_combo == 3, "이어 때리면 연타가 는다")
+	Loop.tick(Loop.COMBO_WINDOW + 0.1)
+	ok(Loop.combo == 0 and Loop.best_combo == 3, "3초 쉬면 끊기고, 가장 긴 것은 남는다")
+	Loop.combo = 30
+	var xp0 := Battle.xp
+	Field.defeat(Field.new_foe("drop", 1))
+	var base_xp := int(Battle.foe_stats("drop", 1)["xp"])
+	ok(Battle.xp - xp0 >= int(base_xp * 1.25), "연타 30 이면 경험을 더 준다 (%d)" % (Battle.xp - xp0))
+	Loop.combo = 0
+	# 정예
+	var n := Field.new_foe("ember", 10)
+	var e := Field.new_foe("ember", 10, true)
+	ok(bool(e["elite"]) and int(e["hp"]) >= int(n["hp"]) * 3 and int(e["xp"]) > int(n["xp"]),
+		"정예는 단단하고 경험이 많다")
+	ok(not bool(Field.new_foe("night", 45, true)["elite"]), "우두머리는 정예가 되지 않는다")
+	var drops := Gear.roll_drops("ember", 10, false, true)
+	ok(drops["gear"].size() == 1 and int(drops["gear"][0]["rar"]) >= 1 and int(drops["stones"]) >= 1,
+		"정예는 고급 이상 장비와 강화석을 반드시 떨어뜨린다")
+	# 오늘의 임무 - 날짜마다 셋, 같은 날엔 같은 셋
+	Loop.ensure_daily()
+	var first: Array = Loop.daily["list"].duplicate(true)
+	Loop.daily = {}
+	Loop.ensure_daily()
+	ok(Loop.daily["list"].size() == 3 and Loop.daily["list"] == first, "오늘의 임무는 날마다 같은 셋")
+	var q: Dictionary = Loop.daily["list"][0]
+	var c0 := Gear.coins
+	for i in int(q["need"]):
+		if String(q["kind"]) == "combo":
+			Loop.note("combo", int(q["need"]))
+		else:
+			Loop.note(String(q["kind"]), 1, String(q["elem"]))
+	var got := Loop.claim_ready()
+	ok(got.size() >= 1 and Gear.coins > c0 and bool(q["claimed"]), "다 하면 꿈조각을 받는다")
+	ok(Loop.claim_ready().is_empty(), "두 번 받지 않는다")
+	# 출석 - 오늘 한 번
+	Loop.attend = {"last": "", "count": 6}
+	var n_items := Gear.items.size()
+	var a := Loop.check_attend()
+	ok(int(a.get("day", 0)) == 7 and Gear.items.size() == n_items + 1
+		and int(Gear.items[-1]["rar"]) == 3, "일곱째 날은 영웅 장비")
+	ok(Loop.check_attend().is_empty(), "하루에 한 번")
+	# 잠든 사이 - 10분마다, 최대 8시간
+	var now := int(Time.get_unix_time_from_system())
+	Loop.last_seen = now - 3600
+	var c1 := Gear.coins
+	var idle := Loop.check_idle()
+	ok(idle == 6 * (5 + Battle.level) and Gear.coins == c1 + idle, "한 시간 자면 여섯 몫 (%d)" % idle)
+	Loop.last_seen = now - 3600 * 24
+	ok(Loop.check_idle() == 48 * (5 + Battle.level), "여덟 시간까지만 모인다")
+	# 칭호 - 한 종을 10마리
+	var hp0 := Battle.hp_max()
+	var t := ""
+	for i in 10:
+		t = Loop.add_kill("drop")
+	ok(t == "물방울뭉 사냥꾼" and Loop.title == t, "10마리면 칭호 (%s)" % t)
+	ok(Battle.hp_max() == hp0 + Loop.TITLE_HP, "칭호마다 체력 최대가 는다")
+	# 저장
+	var d := JourneyState.to_dict()
+	JourneyState.reset()
+	ok(Loop.titles.is_empty(), "처음부터면 칭호가 없다")
+	JourneyState.from_dict(d)
+	ok(Loop.titles.has("물방울뭉 사냥꾼") and int(Loop.kills.get("drop", 0)) == 10
+		and bool(Loop.daily["list"][0]["claimed"]), "칭호·처치 수·임무가 저장된다")
+	JourneyState.reset()
+	Battle.reset()

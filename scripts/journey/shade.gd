@@ -58,6 +58,11 @@ func _ready() -> void:
 	if tag != null:
 		tag.add_theme_color_override("font_color",
 			Battle.elem_col(String(foe.get("elem", "none"))).lightened(0.35))
+	# **정예는 크고 금빛이다** - 멀리서 봐도 "저건 잡아야 한다".
+	if bool(foe.get("elite", false)):
+		scale = Vector2(1.35, 1.35)
+		if tag != null:
+			tag.add_theme_color_override("font_color", Color("#FFD43B"))
 
 
 func _build_bar() -> void:
@@ -227,6 +232,8 @@ func take_hit(res: Dictionary, from: Vector2) -> void:
 func pulse_color() -> Color:
 	var t := float(Time.get_ticks_msec()) / 1000.0
 	var k: float = 0.5 + 0.5 * sin(t * TAU / QuoWalker.TALK_PULSE_SECS)
+	if bool(foe.get("elite", false)):
+		return Color("#FFD43B").lerp(Color("#FFF3BF"), k)
 	return QuoWalker.OUTLINE_DARK.lerp(SHADE_TALK, k)
 
 

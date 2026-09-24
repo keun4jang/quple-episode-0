@@ -255,17 +255,34 @@ static func _roll_rarity(odds: Array) -> int:
 
 ## 몬스터가 쓰러질 때 떨어뜨리는 것. `{coins, stones, gear: [한 벌…]}`.
 ## 줍는 것은 부르는 쪽이 `take()` 로 한다.
-static func roll_drops(kind: String, lv: int, boss: bool) -> Dictionary:
+static func roll_drops(kind: String, lv: int, boss: bool, elite: bool = false) -> Dictionary:
 	var out := {"coins": 0, "stones": 0, "gear": []}
 	var c := lv * 3 + randi_range(0, maxi(1, lv))
 	c = int(c * (1.0 + bonus("coin") / 100.0))
-	out["coins"] = c * (20 if boss else 1)
-	if randf() < (1.0 if boss else 0.08):
+	out["coins"] = c * (20 if boss else (5 if elite else 1))
+	if boss or elite or randf() < 0.08:
 		out["stones"] = 3 if boss else 1
-	var n := 2 if boss else (1 if randf() < DROP_CHANCE * (1.0 + bonus("drop") / 100.0) else 0)
+	var n := 2 if boss else (1 if elite or randf() < DROP_CHANCE * (1.0 + bonus("drop") / 100.0) else 0)
 	for i in n:
-		out["gear"].append(roll_gear(kind, lv, boss))
+		var it := roll_gear(kind, lv, boss)
+		# 정예는 적어도 고급, 잘 나오면 희귀·영웅.
+		if elite and not boss:
+			_reroll(it, _roll_rarity(ELITE_ODDS))
+		out["gear"].append(it)
 	return out
+
+
+const ELITE_ODDS := [0.0, 50.0, 35.0, 13.0, 2.0]
+
+
+## 등급을 바꾸고 옵션 줄을 새로 뽑는다.
+static func _reroll(it: Dictionary, rar: int) -> void:
+	it["rar"] = rar
+	it["opts"] = []
+	var pool := OPT_KEYS.duplicate()
+	pool.shuffle()
+	for i in int(RARITY[rar]["opts"]):
+		it["opts"].append([String(pool[i]), _opt_value(String(pool[i]), int(it["tier"]))])
 
 
 ## 한 벌. 무기가 반, 방어구가 반. 무기 속성은 **절반쯤 그 몬스터의 속성**을
@@ -457,14 +474,8 @@ static func buy(id: String) -> Dictionary:
 		"box":
 			# 상자는 몬스터보다 조금 후하다 - 일반은 안 나온다.
 			var lv := Battle.level
-			var rar := _roll_rarity([0.0, 70.0, 23.0, 6.0, 1.0])
 			var it := roll_gear("", lv, false)
-			it["rar"] = rar
-			it["opts"] = []
-			var pool := OPT_KEYS.duplicate()
-			pool.shuffle()
-			for i in int(RARITY[rar]["opts"]):
-				it["opts"].append([String(pool[i]), _opt_value(String(pool[i]), int(it["tier"]))])
+			_reroll(it, _roll_rarity([0.0, 70.0, 23.0, 6.0, 1.0]))
 			items.append(it)
 			got = it
 		"reset":

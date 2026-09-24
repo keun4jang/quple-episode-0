@@ -132,7 +132,7 @@ static func main_stat() -> int:
 static func hp_max() -> int:
 	var j: Dictionary = JOBS.get(job, JOBS["novice"])
 	return 50 + 12 * (level - 1) + 2 * stat("str") + int(j["hp"]) * maxi(0, level - JOB_LV) \
-		+ Catalog.bonus("hp") + Gear.bonus("hp")
+		+ Catalog.bonus("hp") + Gear.bonus("hp") + Loop.title_hp()
 
 
 static func mp_max() -> int:

@@ -275,6 +275,8 @@ func _ready() -> void:
 	# 아직 아무도 없어서 "지금 해볼 일" 이 엉뚱한 것을 짚었다 —
 	# 말 걸 상대가 없으니 자리를 못 찾고 맨 끝 항목이 뽑혔다.
 	hud.announce_place(display_name())
+	_refresh_title()
+	_welcome()
 	if place_name() == "고향":
 		JourneyState.came_home()
 	else:
@@ -1110,12 +1112,17 @@ func _build_shades() -> void:
 	var place := place_name()
 	var spots := _shade_spots(want.size())
 	var put := 0
+	# **정예** - 날마다 몇 마리가 크고 금빛으로 선다 (`Loop.ELITE_CHANCE`).
+	# 날짜로 씨를 심어 같은 날 다시 들어오면 같은 녀석이다.
+	var erng := RandomNumberGenerator.new()
+	erng.seed = hash("elite|%s|%d" % [place_name(), JourneyState.day])
 	for i in mini(want.size(), spots.size()):
 		var t: Vector2i = spots[i]
 		if Battle.is_cleared(place, t):
 			continue        # 오늘 이미 걷어낸 자리
 		var w: Array = want[i]
-		if put_shade(t, String(w[0]), int(w[1])) != null:
+		var elite := erng.randf() < Loop.ELITE_CHANCE
+		if put_shade(t, String(w[0]), int(w[1]), elite) != null:
 			put += 1
 	# **처음 한 번은 말해 준다.** 그늘이 뭔지 모르면 그냥 지나친다 —
 	# 인연과 테두리 색이 다르다는 것만으로는 눌러도 되는 건지 알 수 없다.
@@ -1216,17 +1223,17 @@ func _too_near(t: Vector2i, others: Array, gap: int) -> bool:
 	return false
 
 
-func put_shade(t: Vector2i, kind: String, lv: int = 1) -> Shade:
+func put_shade(t: Vector2i, kind: String, lv: int = 1, elite: bool = false) -> Shade:
 	var e: Dictionary = Battle.ENEMIES.get(kind, {})
 	if e.is_empty():
 		push_warning("그런 몬스터가 없다: %s" % kind)
 		return null
 	var s := Shade.new()
 	s.sheet = "res://assets/sprites/s-%s-walk.png" % String(e["sheet"])
-	s.who = "Lv.%d %s" % [lv, String(e["name"])]
+	s.foe = Field.new_foe(kind, lv, elite)
+	s.who = "%sLv.%d %s" % ["정예 " if bool(s.foe["elite"]) else "", lv, String(e["name"])]
 	s.folk_id = "shade:%s" % kind
 	s.shade_kind = kind
-	s.foe = Field.new_foe(kind, lv)
 	s.at_tile = t
 	s.position = world_of(t)
 	add_child(s)
@@ -1368,6 +1375,8 @@ func field_use(id: String) -> bool:
 	stop_walk_to()
 	_did("fight")
 	_fight_t = 2.5
+	if id != "tap":
+		Loop.note("skill")
 	var elem := Battle.skill_elem(id)
 	if id != "tap":
 		FieldFx.cast_name(self, walker.global_position, id)
@@ -1472,6 +1481,11 @@ func _hit_shade(sh: Shade, id: String) -> void:
 		if String(ev.get("kind", "")) == "foe_status" and String(ev["text"]) != "흔들림":
 			FieldFx.number(self, sh.global_position + Vector2(0, y - 20), String(ev["text"]),
 				Color("#C9A7FF"), 11)
+	Loop.hit(res["hits"].size())
+	if eff > 1.01:
+		Loop.note("weak")
+	if crit:
+		_hitstop(0.07)
 	sh.take_hit(res, walker.global_position)
 	if bool(res["killed"]):
 		on_shade_down(sh)
@@ -1539,6 +1553,16 @@ func on_shade_down(sh: Shade) -> void:
 		_target = null
 	var evs := Field.defeat(sh.foe)
 	sh.dissolve()
+	Loop.note("kill")
+	Loop.note("kill_elem", 1, String(sh.foe.get("elem", "")))
+	if bool(sh.foe.get("elite", false)):
+		Loop.note("elite")
+		if hud != null:
+			hud._celebrate("정예 처치!", "좋은 것을 떨어뜨렸어요")
+	var new_title := Loop.add_kill(kind)
+	if new_title != "" and hud != null:
+		hud._celebrate("칭호를 얻었어요!", "%s  ·  체력 최대 +%d" % [new_title, Loop.TITLE_HP])
+		_refresh_title()
 	for ev in evs:
 		match String(ev.get("kind", "")):
 			"xp":
@@ -1584,6 +1608,58 @@ func _on_level_up(ev: Dictionary) -> void:
 		("새 스킬 · %s" % skn) if skn != "" else "능력치가 올랐어요")
 	if bool(ev.get("job_ready", false)):
 		hud._celebrate("전직할 수 있어요!", "왼쪽 위 캐릭터 창에서 직업을 골라요")
+
+
+## **치명타 멈칫** - 세상이 한순간 멈췄다 간다(히트스톱). 손맛의 절반이다.
+## `ignore_time_scale` 타이머라 느려진 동안에도 제시간에 풀린다.
+func _hitstop(secs: float) -> void:
+	if Engine.time_scale < 1.0:
+		return
+	Engine.time_scale = 0.08
+	get_tree().create_timer(secs, true, false, true).timeout.connect(func() -> void:
+		Engine.time_scale = 1.0)
+
+
+## 머리 위 칭호 (`Loop.title`). 얻은 가장 새 칭호를 금빛 작은 글씨로 단다.
+var _title_tag: Label
+
+
+func _refresh_title() -> void:
+	if walker == null:
+		return
+	if _title_tag == null:
+		_title_tag = Label.new()
+		_title_tag.name = "TitleTag"
+		_title_tag.add_theme_font_size_override("font_size", 9)
+		_title_tag.add_theme_color_override("font_color", Color("#FFD43B"))
+		_title_tag.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+		_title_tag.add_theme_constant_override("outline_size", 4)
+		_title_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_title_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_title_tag.z_index = 40
+		walker.add_child(_title_tag)
+		_title_tag.size = Vector2(120, 12)
+		_title_tag.position = Vector2(-60, -36)
+	_title_tag.text = Loop.title
+	_title_tag.visible = Loop.title != ""
+
+
+## 켜자마자 한 번 - **잠든 사이 모인 꿈조각**과 **출석 보상**.
+## 도착 카드가 걷힌 뒤에 뜨도록 조금 기다린다(잔치 줄에 선다).
+func _welcome() -> void:
+	if not Loop.welcome_on or hud == null or not can_fight():
+		return
+	await get_tree().create_timer(1.2).timeout
+	if not is_inside_tree() or hud == null:
+		return
+	var idle := Loop.check_idle()
+	if idle > 0:
+		hud._celebrate("잠든 사이 꿈이 모였어요", "꿈조각 +%d" % idle)
+	var a := Loop.check_attend()
+	if not a.is_empty():
+		hud._celebrate("출석 %d일째!" % int(a["day"]), String(a["text"]))
+	if idle > 0 or not a.is_empty():
+		SaveManager.save_now()
 
 
 ## 내 쪽에 붙은 것(회복·버프)을 띄운다.
@@ -3841,6 +3917,7 @@ func _process(delta: float) -> void:
 ## 싸움의 시간 - 틈·상태가 흐르고 온기가 찬다. 쓰러졌는지도 여기서 본다
 ## (나쁜 상태만으로 쓰러질 일은 없지만, 되돌림에 맞는 순간이 있다).
 func _tick_field(delta: float) -> void:
+	Loop.tick(delta)
 	_fight_t = maxf(0.0, _fight_t - delta)
 	for ev in Field.tick(delta):
 		if String(ev.get("kind", "")) == "heal" and walker != null:

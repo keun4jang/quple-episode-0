@@ -790,6 +790,7 @@ func to_dict() -> Dictionary:
 		# 따로 없다 — 여행 기록에 얹는다.
 		"battle": Battle.to_dict(),
 		"gear": Gear.to_dict(),
+		"loop": Loop.to_dict(),
 	}
 
 
@@ -916,6 +917,10 @@ func from_dict(d: Dictionary) -> void:
 	_migrate_kinds()
 	# **장비를 먼저** 읽는다 - 체력 최대가 장비에 달려 있어서, 레벨·체력을
 	# 먼저 읽으면 입은 옷만큼의 체력이 잘려 나간다.
+	if d.get("loop") is Dictionary:
+		Loop.from_dict(d["loop"])
+	else:
+		Loop.reset()
 	if d.get("gear") is Dictionary:
 		Gear.from_dict(d["gear"])
 	else:
@@ -975,4 +980,5 @@ func reset() -> void:
 	announced = {}
 	announce_ready = false
 	reward_base = {}
+	Loop.reset()
 	Battle.reset()
