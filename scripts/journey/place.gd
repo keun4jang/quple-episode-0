@@ -1114,14 +1114,15 @@ func _build_shades() -> void:
 		var t: Vector2i = spots[i]
 		if Battle.is_cleared(place, t):
 			continue        # 오늘 이미 걷어낸 자리
-		if put_shade(t, String(want[i])) != null:
+		var w: Array = want[i]
+		if put_shade(t, String(w[0]), int(w[1])) != null:
 			put += 1
 	# **처음 한 번은 말해 준다.** 그늘이 뭔지 모르면 그냥 지나친다 —
 	# 인연과 테두리 색이 다르다는 것만으로는 눌러도 되는 건지 알 수 없다.
 	# 도착 카드가 덮고 있는 동안은 기다렸다 뜬다(patient).
 	if put > 0 and hud != null and not JourneyState.quest_done("그늘:첫안내"):
 		JourneyState.mark_quest("그늘:첫안내")
-		hud._say_hint("그늘이 서 있어요. 다가가서 공격 버튼으로 걷어내요.", true, 2.4)
+		hud._say_hint("몬스터가 있어요. 다가가서 공격 버튼으로 쓰러뜨려요.", true, 2.4)
 
 
 ## 걸을 수 있는 칸 중에서 고른다.
@@ -1215,16 +1216,17 @@ func _too_near(t: Vector2i, others: Array, gap: int) -> bool:
 	return false
 
 
-func put_shade(t: Vector2i, kind: String) -> Shade:
+func put_shade(t: Vector2i, kind: String, lv: int = 1) -> Shade:
 	var e: Dictionary = Battle.ENEMIES.get(kind, {})
 	if e.is_empty():
-		push_warning("그런 그늘이 없다: %s" % kind)
+		push_warning("그런 몬스터가 없다: %s" % kind)
 		return null
 	var s := Shade.new()
 	s.sheet = "res://assets/sprites/s-%s-walk.png" % String(e["sheet"])
-	s.who = String(e["name"])
+	s.who = "Lv.%d %s" % [lv, String(e["name"])]
 	s.folk_id = "shade:%s" % kind
 	s.shade_kind = kind
+	s.foe = Field.new_foe(kind, lv)
 	s.at_tile = t
 	s.position = world_of(t)
 	add_child(s)
@@ -1327,26 +1329,34 @@ func _facing() -> Vector2:
 
 ## 공격·스킬 버튼이 부른다. 썼으면 참.
 ##
-## 닿는 데 그늘이 없어도 **휘두르기는 한다** - 누른 것에 아무 반응이
+## 닿는 데 몬스터가 없어도 **휘두르기는 한다** - 누른 것에 아무 반응이
 ## 없으면 버튼이 고장 난 줄 안다. 마음력·틈은 안 쓴다(헛손질).
+##
+## 스킬 성질(`Battle.SKILLS`)대로 맞힐 것을 고른다:
+##   range  멀리 닿는다 (마법사·궁수) · aoe 둘레를 한꺼번에
+##   line   겨눈 쪽 한 줄을 꿰뚫는다 · dash 그 앞까지 달려든다 · back 뒤로 뛴다
 func field_use(id: String) -> bool:
 	if combat_paused() or not Battle.SKILLS.has(id):
 		return false
 	var sk: Dictionary = Battle.SKILLS[id]
 	var attack := String(sk["type"]) == "attack"
-	var reach := Field.WIDE if id == "walk_on" else Field.REACH
-	var tgt := _shade_in_reach(reach) if attack else null
+	var reach := float(sk.get("range", Field.REACH))
+	var aoe := float(sk.get("aoe", 0.0))
+	var around_me := aoe > 0.0 and not sk.has("range")
+	var tgt: Shade = null
+	if attack:
+		tgt = _shade_in_reach(aoe if around_me else reach)
 	var why := Field.why_not(id)
 	if why != "":
 		if why != "숨 고르는 중" and hud != null:
 			hud._say_hint(why, false, 0.9)
 		return false
 	if attack and tgt == null:
-		if id == "smile":
-			FieldFx.swing(self, walker.global_position, _facing(), id)
-			Field.cooldown[id] = float(Field.CD[id])
+		if id == "tap":
+			FieldFx.swing(self, walker.global_position, _facing(), Battle.skill_elem(id))
+			Field.cooldown[id] = float(sk["cd"])
 		elif hud != null:
-			hud._say_hint("닿는 데 그늘이 없어요", false, 0.9)
+			hud._say_hint("닿는 데 몬스터가 없어요", false, 0.9)
 		return false
 	var evs := Field.use(id)
 	if evs.is_empty():
@@ -1354,51 +1364,114 @@ func field_use(id: String) -> bool:
 	stop_walk_to()
 	_did("fight")
 	_fight_t = 2.5
-	if id != "smile":
+	var elem := Battle.skill_elem(id)
+	if id != "tap":
 		FieldFx.cast_name(self, walker.global_position, id)
 		# 스킬은 화면째 물들고, 큰 것일수록 크게 흔들린다.
 		if hud != null:
-			hud.tint_flash(Color(String(FieldFx.cols_of(id)[0])),
-				0.32 if id == "walk_on" else 0.18)
-		FieldFx.shake(cam, 5.0 if id == "walk_on" else 2.0, 0.3 if id == "walk_on" else 0.15)
+			hud.tint_flash(Battle.elem_col(elem if attack else "none"),
+				0.3 if aoe > 0.0 else 0.16)
+		FieldFx.shake(cam, 5.0 if aoe > 0.0 else 2.0, 0.3 if aoe > 0.0 else 0.15)
 	if not attack:
-		FieldFx.burst(self, walker.global_position + Vector2(0, -10), id, false)
+		if bool(sk.get("back", false)):
+			_leap_back()
+		var fx := "heal" if String(sk["type"]) == "heal" else \
+			("guard" if String(sk.get("grants", "")) == "firm" else "keen")
+		FieldFx.burst(self, walker.global_position + Vector2(0, -10), fx, false)
 		_show_me(evs)
 		return true
-	walker.face(tgt.global_position - walker.global_position)
-	FieldFx.swing(self, walker.global_position, tgt.global_position - walker.global_position, id)
+	var to := tgt.global_position - walker.global_position
+	walker.face(to)
+	if bool(sk.get("dash", false)) and to.length() > 18.0:
+		_dash_to(tgt.global_position - to.normalized() * 14.0)
+	# 멀리 쏘는 것은 날아가는 빛이, 가까이 치는 것은 휘두름이 보인다.
+	if sk.has("range") and not bool(sk.get("dash", false)):
+		FieldFx.shot(self, walker.global_position + Vector2(0, -10),
+			tgt.global_position + Vector2(0, -10), elem)
+	else:
+		FieldFx.swing(self, walker.global_position, to, elem)
 	var hits: Array = [tgt]
-	if id == "walk_on":
+	if aoe > 0.0:
+		var center := walker.global_position if around_me else tgt.global_position
 		hits.clear()
 		for sh in _shades:
-			if is_instance_valid(sh) and sh.state != "gone" and \
-					walker.global_position.distance_to(sh.global_position) <= Field.WIDE:
+			if is_instance_valid(sh) and sh.state != "gone" \
+					and center.distance_to(sh.global_position) <= aoe:
+				hits.append(sh)
+		if around_me:
+			FieldFx.burst(self, walker.global_position, "rainbow" if id == "rainbow" else elem, true)
+	elif bool(sk.get("line", false)):
+		hits.clear()
+		var dir := to.normalized()
+		for sh in _shades:
+			if not is_instance_valid(sh) or sh.state == "gone":
+				continue
+			var v := sh.global_position - walker.global_position
+			var along := v.dot(dir)
+			if along > 0.0 and along <= reach and absf(v.cross(dir)) <= 12.0:
 				hits.append(sh)
 	for sh in hits:
 		_hit_shade(sh, id)
 	return true
 
 
+## 돌진 - 그 앞까지 몸으로 밀고 간다(벽은 못 뚫는다).
+func _dash_to(at: Vector2) -> void:
+	var v := at - walker.global_position
+	var steps := 6
+	for i in steps:
+		walker.move_and_collide(v / float(steps))
+	FieldFx.burst(self, walker.global_position + Vector2(0, -6), "wind", false)
+
+
+## 뒤로 뛰기 - 가장 가까운 몬스터에게서 멀어진다.
+func _leap_back() -> void:
+	var near: Shade = _shade_in_reach(ENGAGE * 2.0)
+	var away := -_facing()
+	if near != null:
+		away = (walker.global_position - near.global_position).normalized()
+	for i in 6:
+		walker.move_and_collide(away * 7.0)
+
+
 func _hit_shade(sh: Shade, id: String) -> void:
 	var res := Field.strike(id, sh.foe)
 	_target = sh
-	var at := sh.global_position + Vector2(0, -10)
+	var elem := Battle.skill_elem(id)
 	var weak := bool(res["weak"])
-	FieldFx.burst(self, at, id, weak)
-	FieldFx.number(self, sh.global_position + Vector2(0, -24), "%d" % int(res["dmg"]),
-		Color("#FFE066") if weak else Color("#FFFFFF"), 22 if weak else 18)
-	if weak:
-		FieldFx.number(self, sh.global_position + Vector2(0, -44), "약점!", Color("#7FDBFF"), 13)
-		FieldFx.shake(cam, 2.5, 0.12)
+	var crit := bool(res["crit"])
+	FieldFx.burst(self, sh.global_position + Vector2(0, -10), elem, weak or crit)
+	var y := -24.0
+	for h in res["hits"]:
+		var hc := bool(h["crit"])
+		FieldFx.number(self, sh.global_position + Vector2(0, y), "%d" % int(h["dmg"]),
+			Color("#FFD43B") if hc else (Color("#FFE066") if weak else Color("#FFFFFF")),
+			24 if hc else (20 if weak else 17))
+		y -= 12.0
+	var eff := float(res["eff"])
+	if eff > 1.01:
+		FieldFx.number(self, sh.global_position + Vector2(0, y - 8), "효과가 굉장해!",
+			Battle.elem_col(elem), 12)
 		AudioManager.battle_weak_hit()
+		FieldFx.shake(cam, 2.5, 0.12)
+	elif eff < 0.99:
+		FieldFx.number(self, sh.global_position + Vector2(0, y - 8), "효과가 별로...",
+			Color("#AAAAAA"), 11)
+		AudioManager.battle_hit()
 	else:
 		AudioManager.battle_hit()
+	if crit:
+		FieldFx.shake(cam, 3.0, 0.1)
+	for ev in res["events"]:
+		if String(ev.get("kind", "")) == "foe_status" and String(ev["text"]) != "흔들림":
+			FieldFx.number(self, sh.global_position + Vector2(0, y - 20), String(ev["text"]),
+				Color("#C9A7FF"), 11)
 	sh.take_hit(res, walker.global_position)
 	if bool(res["killed"]):
 		on_shade_down(sh)
 
 
-## 그늘이 덤볐다. `Field.foe_attack` 의 사건을 띄운다.
+## 몬스터가 덤볐다. `Field.foe_attack` 의 사건을 띄운다.
 func on_shade_attack(sh: Shade, evs: Array) -> void:
 	if walker == null:
 		return
@@ -1411,7 +1484,7 @@ func on_shade_attack(sh: Shade, evs: Array) -> void:
 				FieldFx.number(self, at + Vector2(0, -24), "-%d" % int(ev["amount"]),
 					Color("#FF8A8A"), 18)
 			"miss":
-				FieldFx.number(self, at + Vector2(0, -20), "괜찮아", Color("#DDDDDD"), 11)
+				FieldFx.number(self, at + Vector2(0, -20), "피했다", Color("#DDDDDD"), 11)
 			"status":
 				FieldFx.number(self, at + Vector2(0, -34), String(ev["text"]), Color("#C9A7FF"), 11)
 			"foe_line":
@@ -1429,46 +1502,82 @@ func on_shade_attack(sh: Shade, evs: Array) -> void:
 		_fall_down()
 
 
-## **쓰러져도 잃는 것이 없다.** 그 자리에서 추스르고, 그늘은 물러난다.
+## **되돌릴 수 없는 것은 잃지 않는다.** 그 자리에서 추스르고, 몬스터는 물러난다.
+## 꿈조각만 조금 흘린다.
 func _fall_down() -> void:
-	Field.fall()
+	var lost := Field.fall()
 	_target = null
 	for sh in _shades:
 		if is_instance_valid(sh):
 			sh.calm()
 	if hud != null:
-		hud._say_hint("마음이 한 번 주저앉았어요. 괜찮아요, 다시 일어났어요.", false, 2.4)
+		var tail := " 꿈조각 %d개를 흘렸어요." % lost if lost > 0 else ""
+		hud._say_hint("쓰러졌다가 다시 일어났어요." + tail, false, 2.4)
 	SaveManager.save_now()
 
 
-## 걷어냈다. 경험·남기는 것·퇴치 기록 - 오늘 하루 그 자리는 빈다.
+## 쓰러뜨렸다. 경험·드랍·퇴치 기록 - 오늘 하루 그 자리는 빈다.
 func on_shade_down(sh: Shade) -> void:
 	if not is_instance_valid(sh) or sh.state == "gone":
 		return
 	var kind := sh.shade_kind
+	var at := sh.global_position
 	AudioManager.battle_defeat()
-	FieldFx.burst(self, sh.global_position + Vector2(0, -10), "gone", true)
+	FieldFx.burst(self, at + Vector2(0, -10), "gone", true)
 	# 퇴치 할 일(`Quests.hunt_list`)이 세는 기록. 날이 바뀌어도
-	# 안 지워진다 - 그늘은 다시 서도 걷어낸 수는 쌓인다.
+	# 안 지워진다 - 몬스터는 다시 서도 걷어낸 수는 쌓인다.
 	JourneyState.add_defeat(quest_village(), kind)
 	Battle.mark_cleared(place_name(), sh.at_tile)
 	_shades.erase(sh)
 	if _target == sh:
 		_target = null
+	var evs := Field.defeat(sh.foe)
 	sh.dissolve()
-	var evs := Field.defeat(kind)
 	for ev in evs:
 		match String(ev.get("kind", "")):
 			"xp":
-				FieldFx.number(self, sh.global_position + Vector2(0, -30),
+				FieldFx.number(self, at + Vector2(0, -30),
 					"경험 +%d" % int(ev["amount"]), Color("#B4E6C0"), 12)
+			"loot":
+				_show_loot(at, ev["drops"])
 			"level_up":
-				var skn := String(ev.get("skill", ""))
-				if hud != null:
-					hud._celebrate("LV %d!" % int(ev["level"]),
-						("%s을(를) 쓸 수 있게 됐어요" % skn) if skn != ""
-						else "마음이 한 뼘 자랐어요")
+				_on_level_up(ev)
 	SaveManager.save_now()
+
+
+## 떨어진 것을 보여 준다 - 꿈조각은 반짝이며 튀고, 장비는 등급 빛기둥이 선다.
+## (주운 것은 이미 가방에 들었다 - `Field.defeat`. 여기는 눈으로 보는 것.)
+func _show_loot(at: Vector2, drops: Dictionary) -> void:
+	var coins := int(drops.get("coins", 0))
+	if coins > 0:
+		FieldFx.number(self, at + Vector2(0, -42), "꿈조각 +%d" % coins, Color("#FFE39A"), 12)
+		FieldFx.coins(self, at, walker, mini(8, 2 + coins / 20))
+	if int(drops.get("stones", 0)) > 0:
+		FieldFx.number(self, at + Vector2(0, -54), "강화석 +%d" % int(drops["stones"]),
+			Color("#9BE7F5"), 11)
+	var i := 0
+	for it in drops.get("gear", []):
+		var rar := int(it["rar"])
+		FieldFx.beam(self, at + Vector2(-8 + 16 * i, 4), Gear.rarity_col(it), rar)
+		i += 1
+		if hud != null and rar >= 2:
+			var nm := "%s %s" % [String(Gear.RARITY[rar]["name"]), Gear.name_of(it)]
+			if rar >= 3:
+				hud._celebrate("%s 장비!" % String(Gear.RARITY[rar]["name"]), Gear.name_of(it))
+			else:
+				hud._say_hint("%s을(를) 얻었어요" % nm, false, 1.6)
+
+
+func _on_level_up(ev: Dictionary) -> void:
+	if walker != null:
+		FieldFx.burst(self, walker.global_position + Vector2(0, -10), "levelup", true)
+	if hud == null:
+		return
+	var skn := String(ev.get("skill", ""))
+	hud._celebrate("LV %d!" % int(ev["level"]),
+		("새 스킬 · %s" % skn) if skn != "" else "능력치가 올랐어요")
+	if bool(ev.get("job_ready", false)):
+		hud._celebrate("전직할 수 있어요!", "왼쪽 위 캐릭터 창에서 직업을 골라요")
 
 
 ## 내 쪽에 붙은 것(회복·버프)을 띄운다.
@@ -1481,7 +1590,7 @@ func _show_me(evs: Array) -> void:
 				if int(ev["amount"]) > 0:
 					AudioManager.battle_heal()
 					FieldFx.number(self, at + Vector2(0, y), "+%d" % int(ev["amount"]),
-						Color("#8FF5D2"), 14)
+						Color("#8FF5D2"), 16)
 					y -= 12.0
 			"status":
 				FieldFx.number(self, at + Vector2(0, y), String(ev["text"]),
@@ -2644,7 +2753,7 @@ func _unhandled_input(e: InputEvent) -> void:
 		_target = who as Shade
 		if walker.global_position.distance_to(who.global_position) <= Field.REACH:
 			stop_walk_to()
-			field_use("smile")
+			field_use("tap")
 		else:
 			walk_to(_beside(who))
 		get_viewport().set_input_as_handled()

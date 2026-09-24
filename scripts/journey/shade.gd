@@ -1,6 +1,7 @@
 class_name Shade
 extends Folk
-## 마을에 서 있는 그늘. **공격 버튼으로 직접 때려 걷어낸다** (`Field`).
+## 꿈결의 몬스터. **공격 버튼으로 직접 때려 쓰러뜨린다** (`Field`).
+## 옛 이름 "그늘" 을 클래스 이름으로 그대로 쓴다 - 세이브·테스트가 이 이름을 안다.
 ##
 ## **`Folk` 를 그대로 물려받는다.** 탭 판정(`Place._folk_at`)·이름표·
 ## 테두리를 새로 쓸 까닭이 없다. 누르면 그 앞까지 걸어가 겨눈다.
@@ -52,6 +53,11 @@ func _ready() -> void:
 	if foe.is_empty():
 		foe = Field.new_foe(shade_kind)
 	_build_bar()
+	# 이름표를 **속성 빛깔**로 - 멀리서도 무엇으로 때릴지 짐작하게.
+	var tag := get_node_or_null("NameTag") as Label
+	if tag != null:
+		tag.add_theme_color_override("font_color",
+			Battle.elem_col(String(foe.get("elem", "none"))).lightened(0.35))
 
 
 func _build_bar() -> void:
@@ -64,15 +70,19 @@ func _build_bar() -> void:
 	_bar.draw.connect(func() -> void:
 		var w := 22.0
 		var k := clampf(float(foe.get("hp", 0)) / maxf(1.0, float(foe.get("hp_max", 1))), 0.0, 1.0)
-		_bar.draw_rect(Rect2(-w * 0.5 - 1, -1, w + 2, 5), Color(0.12, 0.09, 0.14, 0.9))
+		# 테두리가 속성 빛깔이다.
+		_bar.draw_rect(Rect2(-w * 0.5 - 2, -2, w + 4, 7),
+			Battle.elem_col(String(foe.get("elem", "none"))))
+		_bar.draw_rect(Rect2(-w * 0.5 - 1, -1, w + 2, 5), Color(0.12, 0.09, 0.14, 0.95))
 		_bar.draw_rect(Rect2(-w * 0.5, 0, w * k, 3),
 			Color("#FF6B6B") if k < 0.35 else Color("#F2A0A0"))
-		# 걸려 있는 것: 누그러짐 노랑 · 흔들림 하늘 · 사그라듦 보라
+		# 걸려 있는 것: 젖음 파랑 · 화상 주황 · 휘감김 초록 · 휘청·흔들림 하늘
 		var x := -w * 0.5
-		for id in ["soften", "shake", "fade"]:
+		for id in ["wet", "burn", "tangle", "sway", "shake"]:
 			if Field.foe_has(foe, id):
-				var c: Color = {"soften": Color("#FFE066"), "shake": Color("#7FDBFF"),
-					"fade": Color("#B28DFF")}[id]
+				var c: Color = {"wet": Color("#4DABF7"), "burn": Color("#FF7043"),
+					"tangle": Color("#51CF66"), "sway": Color("#9BE7F5"),
+					"shake": Color("#FFFFFF")}[id]
 				_bar.draw_rect(Rect2(x, 5, 3, 3), c)
 				x += 4.0)
 	add_child(_bar)
@@ -114,7 +124,9 @@ func _physics_process(delta: float) -> void:
 		"idle":
 			set_input(Vector2.ZERO)
 		"chase":
-			_t -= delta
+			# 휘감기면 걸음도 덤비는 박자도 느려진다.
+			_t -= delta * Field.foe_slow(foe)
+			speed = CHASE * Field.foe_slow(foe)
 			if global_position.distance_to(home) > LEASH or to.length() > LEASH:
 				_give_up()
 			elif to.length() > HIT:

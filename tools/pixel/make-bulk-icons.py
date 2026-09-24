@@ -726,13 +726,15 @@ for _v in STAMP_INK:
     ICONS["st-" + _v] = (lambda v: (lambda: stamp(STAMP_INK[v], STAMP_MOTIF[v]())))(_v)
 
 
-# ── 그늘 조각 ─────────────────────────────────────────────────────────
+# ── 몬스터 조각 ─────────────────────────────────────────────────────────
 
 SHARD = {
-    "worry": ("#6E86A8", "#B4CCE6"), "hurry": ("#C27A3A", "#F2C08A"),
-    "lonely": ("#4E5A9A", "#9AA6E0"), "tired": ("#7A6E8C", "#C4B8D6"),
-    "regret": ("#3E7A7A", "#8CC4C4"), "envy": ("#5A8A3E", "#A8D08A"),
-    "night": ("#2E3458", "#7A86C8"),
+    "drop": ("#1C7ED6", "#A5D8FF"), "whirl": ("#0B5AA8", "#74C0FC"),
+    "ember": ("#E8590C", "#FFD43B"), "blaze": ("#C92A2A", "#FFA94D"),
+    "sprout": ("#2B8A3E", "#8CE99A"), "thorn": ("#1E5A2A", "#D8F5A2"),
+    "pebble": ("#6B5A48", "#C9B79C"), "mole": ("#8D6E4F", "#E8C39E"),
+    "gust": ("#3B8A96", "#E3FAFC"), "storm": ("#1D5E68", "#9BE7F5"),
+    "night": ("#2E3458", "#B197FC"),
 }
 for _k in SHARD:
     ICONS["m-" + _k] = (lambda k: (lambda: shard(*SHARD[k])))(_k)

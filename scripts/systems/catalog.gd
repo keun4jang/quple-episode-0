@@ -27,7 +27,7 @@ const KIND_ORDER := ["pick", "snack", "keep", "stamp", "shade", "food", "tool"]
 
 const KIND_NAME := {
 	"pick": "주운 것", "tool": "여행 도구", "snack": "먹을 것",
-	"keep": "기념품", "stamp": "여행 도장", "shade": "그늘 조각",
+	"keep": "기념품", "stamp": "여행 도장", "shade": "몬스터 조각",
 	"food": "가게 먹거리",
 }
 
@@ -211,20 +211,28 @@ const ITEMS := {
 	"st-kkonnunbeol": {"name": "꽃눈벌 도장", "kind": "stamp", "at": "꽃눈벌",
 		"bonus": {"hp": 2}, "desc": "꽃잎 무늬. 들판 한가운데서 멈춰 섰다."},
 
-	# ── 그늘 조각 — 처음 걷어낼 때 하나 ──────────────────────────────
-	"m-worry": {"name": "걱정 한 조각", "kind": "shade", "guard": "worry",
-		"desc": "한 번 걷어낸 걱정은 다음엔 덜 무겁다."},
-	"m-hurry": {"name": "조급함 한 조각", "kind": "shade", "guard": "hurry",
-		"desc": "서두르지 않아도 된다는 걸 한 번 알았다."},
-	"m-lonely": {"name": "외로움 한 조각", "kind": "shade", "guard": "lonely",
-		"desc": "혼자여도 혼자만은 아니었다."},
-	"m-tired": {"name": "지침 한 조각", "kind": "shade", "guard": "tired",
-		"desc": "쉬어도 괜찮다고 스스로 말해 봤다."},
-	"m-regret": {"name": "후회 한 조각", "kind": "shade", "guard": "regret",
-		"desc": "그때의 나도 나름대로 애썼다."},
-	"m-envy": {"name": "부러움 한 조각", "kind": "shade", "guard": "envy",
-		"desc": "남의 길은 남의 길. 내 걸음은 내 걸음."},
-	"m-night": {"name": "밤그늘 한 조각", "kind": "shade", "guard": "night",
+	# ── 몬스터 조각 — 처음 쓰러뜨릴 때 하나 (`docs/elements.md`) ────────
+	"m-drop": {"name": "물방울뭉 조각", "kind": "shade", "guard": "drop",
+		"desc": "톡 건드리면 찰랑 소리가 난다."},
+	"m-ember": {"name": "불똥콩 조각", "kind": "shade", "guard": "ember",
+		"desc": "아직 따뜻하다. 손난로로 딱이다."},
+	"m-sprout": {"name": "새싹뭉치 조각", "kind": "shade", "guard": "sprout",
+		"desc": "물을 주면 다시 싹이 날 것 같다."},
+	"m-pebble": {"name": "조약돌이 조각", "kind": "shade", "guard": "pebble",
+		"desc": "동글동글. 주머니에 넣고 굴리게 된다."},
+	"m-gust": {"name": "회오리뭉 조각", "kind": "shade", "guard": "gust",
+		"desc": "귀에 대면 바람 소리가 난다."},
+	"m-whirl": {"name": "소용돌이 조각", "kind": "shade", "guard": "whirl",
+		"desc": "들여다보면 조금 어지럽다."},
+	"m-thorn": {"name": "가시덩굴 조각", "kind": "shade", "guard": "thorn",
+		"desc": "가시는 빠지고 덩굴만 남았다."},
+	"m-mole": {"name": "모래두더지 조각", "kind": "shade", "guard": "mole",
+		"desc": "쥐면 모래가 사르르 흘러내린다."},
+	"m-storm": {"name": "돌개바람 조각", "kind": "shade", "guard": "storm",
+		"desc": "병에 담아 두면 병 속에서 돈다."},
+	"m-blaze": {"name": "화르륵 조각", "kind": "shade", "guard": "blaze",
+		"desc": "꺼질 듯 꺼지지 않는 불씨."},
+	"m-night": {"name": "밤그늘 대왕 조각", "kind": "shade", "guard": "night",
 		"desc": "긴 밤도 결국 아침이 된다."},
 
 	# ── 가게 먹거리 — 그 자리에서 맛본다 (배낭에 안 들어간다) ─────────
@@ -314,10 +322,11 @@ static func effect_text(id: String) -> String:
 	var parts: Array = []
 	if bool(e.get("full", false)):
 		parts.append("체력·마음력 가득")
+	# 지금 레벨에 맞춰 늘어난 양으로 적는다 (`Battle.food_hp`).
 	if int(e.get("hp", 0)) > 0:
-		parts.append("체력 +%d" % int(e["hp"]))
+		parts.append("체력 +%d" % Battle.food_hp(int(e["hp"])))
 	if int(e.get("mp", 0)) > 0:
-		parts.append("마음력 +%d" % int(e["mp"]))
+		parts.append("마음력 +%d" % Battle.food_mp(int(e["mp"])))
 	if bool(e.get("warm", false)):
 		parts.append("온기")
 	if bool(e.get("cure", false)):

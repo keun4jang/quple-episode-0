@@ -1,30 +1,74 @@
 class_name FieldFx
 extends RefCounted
-## 마을 한가운데 싸움의 반짝이는 것들 - 휘두름, 터짐, 떠오르는 숫자.
+## 싸움의 반짝이는 것들 - 휘두름, 날아가는 빛, 터짐, 떠오르는 숫자,
+## 튀는 꿈조각, 장비 빛기둥.
 ##
 ## 전부 **지도 좌표**에 그린다 (카메라가 따라가도 그 자리에 남는다).
 ## 그림 파일 없이 도형만 쓴다 - 폰트에 없는 글자(★ 등)도 안 쓴다.
-## 스킬마다 빛깔이 다르다 ("형형색색", 0.1.168 턴제 화면에서 옮겨 왔다).
+## **속성마다 모양부터 다르다** (`docs/elements.md`): 물은 물방울이 튀어
+## 떨어지고, 불은 불꽃이 솟고, 나무는 잎이 돌며 흩날리고, 땅은 돌조각이
+## 떨어지고, 바람은 소용돌이가 감긴다.
 
-const SKILL_FX := {
-	"smile": {"cols": ["#FFE066", "#FFB347", "#FF8FB1", "#FFFFFF"], "n": 12, "rays": 6},
-	"breathe": {"cols": ["#8FF5D2", "#7FDBFF", "#C8FFF0", "#FFFFFF"], "n": 14, "rays": 6},
-	"remember": {"cols": ["#FF9AA2", "#FFDAC1", "#E2F0CB", "#B5EAD7", "#C7CEEA", "#F8B5FF"],
-		"n": 22, "rays": 10},
-	"cheer": {"cols": ["#FFD700", "#FF7B54", "#FFB26B", "#FFF3B0"], "n": 18, "rays": 10},
-	"steady": {"cols": ["#7AA2FF", "#B28DFF", "#E0C3FC", "#FFFFFF"], "n": 18, "rays": 8},
-	"walk_on": {"cols": ["#FF5A5A", "#FFA94D", "#FFE066", "#69DB7C", "#4DABF7",
-		"#9775FA", "#F783AC"], "n": 34, "rays": 14},
-	"hurt": {"cols": ["#FF6B6B", "#FFFFFF", "#C92A2A"], "n": 8, "rays": 0},
-	"gone": {"cols": ["#5C5470", "#8E7DBE", "#DCD6F7", "#FFFFFF"], "n": 20, "rays": 0},
+## 이펙트 이름 → 빛깔. 속성 다섯·무·어둠, 그리고 스킬이 아닌 것들.
+const PALETTE := {
+	"none": ["#FFE066", "#FFB347", "#FF8FB1", "#FFFFFF"],
+	"water": ["#4DABF7", "#A5D8FF", "#1C7ED6", "#E7F5FF"],
+	"fire": ["#FF7043", "#FFD43B", "#FA5252", "#FFE8CC"],
+	"wood": ["#51CF66", "#94D82D", "#2B8A3E", "#D8F5A2"],
+	"earth": ["#C9955C", "#E8C39E", "#8D6E4F", "#FFF3BF"],
+	"wind": ["#9BE7F5", "#E3FAFC", "#66D9E8", "#FFFFFF"],
+	"dark": ["#B197FC", "#7048E8", "#E5DBFF", "#FFFFFF"],
+	"rainbow": ["#FF5A5A", "#FFA94D", "#FFE066", "#69DB7C", "#4DABF7", "#9775FA", "#F783AC"],
+	"heal": ["#8FF5D2", "#7FDBFF", "#C8FFF0", "#FFFFFF"],
+	"guard": ["#7AA2FF", "#B28DFF", "#E0C3FC", "#FFFFFF"],
+	"keen": ["#FFD700", "#FF7B54", "#FFB26B", "#FFF3B0"],
+	"levelup": ["#FFE066", "#FFFFFF", "#FFD43B", "#FFF3BF", "#69DB7C"],
+	"hurt": ["#FF6B6B", "#FFFFFF", "#C92A2A"],
+	"gone": ["#8E7DBE", "#5C5470", "#DCD6F7", "#B197FC"],
+}
+
+## 이펙트 모양. 크기(px, 지도 좌표 - 카메라가 두 배쯤 키운다), 시간, 가운데
+## 번쩍임, 퍼지는 고리, 빛살, 조각 수와 **조각 모양**(`bit`), 떠오르는 방울,
+## 발밑 충격파, 빛기둥, 육각 방패, 위로 솟는가(`rise`).
+##   bit: spark 불똥 · drop 물방울 · flame 불꽃 · leaf 잎 · rock 돌조각 · swirl 회오리
+const STYLE := {
+	"none": {"r": 34.0, "secs": 0.5, "core": 10.0, "rings": 2, "rays": 8,
+		"n": 18, "stars": 5, "bit": "spark"},
+	"water": {"r": 38.0, "secs": 0.6, "core": 10.0, "rings": 3, "rays": 0,
+		"n": 22, "stars": 3, "bit": "drop", "orbs": 6},
+	"fire": {"r": 36.0, "secs": 0.65, "core": 12.0, "rings": 2, "rays": 10,
+		"n": 22, "stars": 2, "bit": "flame", "rise": true},
+	"wood": {"r": 40.0, "secs": 0.7, "core": 8.0, "rings": 2, "rays": 0,
+		"n": 18, "stars": 3, "bit": "leaf"},
+	"earth": {"r": 36.0, "secs": 0.6, "core": 10.0, "rings": 2, "rays": 6,
+		"n": 16, "stars": 0, "bit": "rock", "ground": true},
+	"wind": {"r": 42.0, "secs": 0.6, "core": 6.0, "rings": 1, "rays": 0,
+		"n": 14, "stars": 4, "bit": "swirl", "swirl": 3},
+	"dark": {"r": 40.0, "secs": 0.7, "core": 12.0, "rings": 3, "rays": 8,
+		"n": 20, "stars": 4, "bit": "spark"},
+	"rainbow": {"r": 84.0, "secs": 1.0, "core": 24.0, "rings": 7, "rays": 18,
+		"n": 60, "stars": 16, "bit": "spark", "orbs": 10, "ground": true},
+	"heal": {"r": 40.0, "secs": 1.0, "core": 0.0, "rings": 1, "rays": 0,
+		"n": 8, "stars": 8, "bit": "spark", "orbs": 22, "ground": true, "glow": 26.0,
+		"rise": true},
+	"keen": {"r": 44.0, "secs": 1.0, "core": 0.0, "rings": 1, "rays": 10,
+		"n": 14, "stars": 14, "bit": "spark", "ground": true, "pillar": true, "rise": true},
+	"guard": {"r": 40.0, "secs": 1.0, "core": 0.0, "rings": 1, "rays": 0,
+		"n": 16, "stars": 6, "bit": "spark", "ground": true, "shield": true, "rise": true},
+	"levelup": {"r": 50.0, "secs": 1.2, "core": 0.0, "rings": 3, "rays": 12,
+		"n": 30, "stars": 20, "bit": "spark", "ground": true, "pillar": true, "rise": true},
+	"hurt": {"r": 22.0, "secs": 0.35, "core": 8.0, "rings": 1, "rays": 0,
+		"n": 12, "stars": 0, "bit": "spark"},
+	"gone": {"r": 44.0, "secs": 0.9, "core": 5.0, "rings": 3, "rays": 0,
+		"n": 26, "stars": 6, "bit": "spark", "orbs": 14, "rise": true},
 }
 
 ## 위에 뜨는 것들은 이름표(40)보다 위에 그린다.
 const Z := 60
 
 
-static func cols_of(id: String) -> Array:
-	return SKILL_FX.get(id, SKILL_FX["smile"])["cols"]
+static func cols_of(key: String) -> Array:
+	return PALETTE.get(key, PALETTE["none"])
 
 
 ## 떠오르다 사라지는 글자 (피해 숫자·"+경험"·상태 이름).
@@ -35,51 +79,24 @@ static func number(parent: Node, at: Vector2, text: String, col: Color,
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
 	l.add_theme_color_override("font_outline_color", Color(0.12, 0.09, 0.14))
-	l.add_theme_constant_override("outline_size", 4)
+	l.add_theme_constant_override("outline_size", 4 if size < 18 else 6)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.z_index = Z + 2
-	l.size = Vector2(120, size + 6)
+	l.size = Vector2(140, size + 6)
 	# 여러 개가 겹쳐 뜨면 못 읽는다 - 좌우로 조금씩 흩는다.
-	l.position = at + Vector2(-60.0 + randf_range(-5.0, 5.0), -size - 4.0)
+	l.position = at + Vector2(-70.0 + randf_range(-5.0, 5.0), -size - 4.0)
 	l.pivot_offset = l.size * 0.5
 	l.scale = Vector2(0.5, 0.5)
 	parent.add_child(l)
 	var tw := l.create_tween()
-	tw.tween_property(l, "scale", Vector2(1.15, 1.15), 0.10)
+	tw.tween_property(l, "scale", Vector2(1.2, 1.2), 0.10)
 	tw.tween_property(l, "scale", Vector2.ONE, 0.08)
 	tw.parallel().tween_property(l, "position:y", l.position.y - 18.0, 0.7) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(l, "modulate:a", 0.0, 0.25)
 	tw.tween_callback(l.queue_free)
 	return l
-
-
-## 이펙트 모양 표. 스킬마다 **모양부터 다르다** - 빛깔만 바꾸면 멀리서는
-## 다 같은 "펑" 으로 보인다 ("더 크고 화려하게", 0.1.170).
-##   r      크기(px, 지도 좌표 - 카메라가 두 배쯤 키운다)
-##   secs   얼마나 가나
-##   core   가운데 번쩍임 · rings 퍼지는 고리 수 · rays 빛살 수
-##   sparks 튀는 불똥 수 · stars 네 갈래 별 수 · orbs 떠오르는 방울 수
-##   ground 발밑에 퍼지는 납작한 고리 · pillar 빛기둥 · shield 육각 방패
-const STYLE := {
-	"smile": {"r": 34.0, "secs": 0.5, "core": 10.0, "rings": 2, "rays": 8,
-		"sparks": 18, "stars": 5, "orbs": 0},
-	"remember": {"r": 56.0, "secs": 0.8, "core": 16.0, "rings": 4, "rays": 12,
-		"sparks": 28, "stars": 10, "orbs": 12},
-	"walk_on": {"r": 84.0, "secs": 1.0, "core": 24.0, "rings": 7, "rays": 18,
-		"sparks": 60, "stars": 16, "orbs": 10, "ground": true},
-	"breathe": {"r": 40.0, "secs": 1.0, "core": 0.0, "rings": 1, "rays": 0,
-		"sparks": 8, "stars": 8, "orbs": 22, "ground": true, "glow": 26.0},
-	"cheer": {"r": 44.0, "secs": 1.0, "core": 0.0, "rings": 1, "rays": 10,
-		"sparks": 14, "stars": 14, "orbs": 0, "ground": true, "pillar": true},
-	"steady": {"r": 40.0, "secs": 1.0, "core": 0.0, "rings": 1, "rays": 0,
-		"sparks": 16, "stars": 6, "orbs": 0, "ground": true, "shield": true},
-	"hurt": {"r": 22.0, "secs": 0.35, "core": 8.0, "rings": 1, "rays": 0,
-		"sparks": 12, "stars": 0, "orbs": 0},
-	"gone": {"r": 44.0, "secs": 0.9, "core": 12.0, "rings": 3, "rays": 0,
-		"sparks": 26, "stars": 6, "orbs": 14},
-}
 
 
 ## **밤에도 빛나게.** 마을은 `CanvasModulate` 로 하늘빛을 곱하는데, 이펙트까지
@@ -112,14 +129,52 @@ static func _star(n: Node2D, p: Vector2, r: float, rot: float, c: Color) -> void
 	n.draw_colored_polygon(pts, c)
 
 
+## 조각 하나를 모양대로 그린다.
+static func _bit(n: Node2D, shape: String, p: Vector2, v: Vector2, s: float, rot: float,
+		c: Color, a: float) -> void:
+	match shape:
+		"drop":
+			# 떨어지는 쪽이 둥글고 위가 뾰족한 물방울
+			var d := v.normalized() if v.length_squared() > 0.01 else Vector2.DOWN
+			n.draw_circle(p, s * 1.1, c)
+			n.draw_colored_polygon(PackedVector2Array([p + d.orthogonal() * s,
+				p - d * s * 2.6, p - d.orthogonal() * s]), c)
+			n.draw_circle(p + Vector2(-s * 0.4, -s * 0.4), s * 0.35, Color(1, 1, 1, a))
+		"flame":
+			# 위로 솟는 혀 - 바깥 빛깔 + 노란 속
+			var h := s * 3.2
+			n.draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 1.2, 0),
+				p + Vector2(0, -h), p + Vector2(s * 1.2, 0), p + Vector2(0, s * 0.8)]), c)
+			n.draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 0.5, 0),
+				p + Vector2(0, -h * 0.55), p + Vector2(s * 0.5, 0)]), Color(1, 0.95, 0.6, a))
+		"leaf":
+			# 돌면서 날리는 잎 - 마름모꼴 + 잎맥
+			var d2 := Vector2.from_angle(rot)
+			var o := d2.orthogonal() * s * 0.9
+			n.draw_colored_polygon(PackedVector2Array([p - d2 * s * 2.0, p + o,
+				p + d2 * s * 2.0, p - o]), c)
+			n.draw_line(p - d2 * s * 1.8, p + d2 * s * 1.8, c.darkened(0.35), 0.8)
+		"rock":
+			# 모난 돌조각
+			var pts := PackedVector2Array()
+			for i in 5:
+				pts.append(p + Vector2.from_angle(rot + TAU * i / 5.0) * s * (1.2 if i % 2 else 1.7))
+			n.draw_colored_polygon(pts, c)
+		"swirl":
+			n.draw_arc(p, s * 2.2, rot, rot + PI * 1.3, 8, c, 1.4)
+		_:
+			n.draw_line(p, p - v * 0.12 * a, c, s)
+			n.draw_circle(p, s * 0.7, c.lightened(0.35))
+
+
 ## 손을 휘두른 자국 - 보는 쪽으로 반달 모양 빛이 세 겹으로 스친다.
-static func swing(parent: Node, from: Vector2, dir: Vector2, id: String) -> void:
-	var cols := cols_of(id)
+static func swing(parent: Node, from: Vector2, dir: Vector2, key: String) -> void:
+	var cols := cols_of(key)
 	var n := Node2D.new()
 	n.z_index = Z
 	n.position = from + Vector2(0, -8)
 	var ang := dir.angle() if dir.length_squared() > 0.001 else PI * 0.5
-	var r := 22.0 if id != "walk_on" else Field.WIDE * 0.9
+	var r := 22.0
 	n.draw.connect(func() -> void:
 		var t: float = n.get_meta("t")
 		var a := 1.0 - t
@@ -131,7 +186,6 @@ static func swing(parent: Node, from: Vector2, dir: Vector2, id: String) -> void
 			c.a = a
 			n.draw_arc(Vector2.ZERO, r - float(i) * 3.0, start, start + sweep, 18, c,
 				4.0 - float(i))
-		# 칼끝에 반짝임
 		var tip := Vector2.from_angle(start + sweep) * r
 		_star(n, tip, 6.0 * a + 2.0, t * 6.0, Color(1, 1, 1, a)))
 	_glow(parent, n)
@@ -139,29 +193,56 @@ static func swing(parent: Node, from: Vector2, dir: Vector2, id: String) -> void
 	_animate(n, 0.22)
 
 
-## 터진다. 스킬마다 `STYLE` 의 모양으로. `strong`(약점)이면 한 배 반.
-static func burst(parent: Node, at: Vector2, id: String, strong := false) -> void:
-	var st: Dictionary = STYLE.get(id, STYLE["smile"])
-	var cols: Array = SKILL_FX.get(id, SKILL_FX["smile"])["cols"]
+## 멀리 쏜 것 - 빛 덩어리가 꼬리를 끌며 날아가 맞는다 (물총·불꽃·화살·표창).
+static func shot(parent: Node, from: Vector2, to: Vector2, key: String) -> void:
+	var cols := cols_of(key)
+	var shape := String(STYLE.get(key, STYLE["none"])["bit"])
+	var n := Node2D.new()
+	n.z_index = Z
+	n.draw.connect(func() -> void:
+		var t: float = n.get_meta("t")
+		var head := from.lerp(to, minf(1.0, t * 1.4))
+		var tail := from.lerp(to, maxf(0.0, t * 1.4 - 0.35))
+		var c0 := Color(String(cols[0]))
+		c0.a = 1.0 - maxf(0.0, t - 0.7) / 0.3
+		n.draw_line(tail, head, c0, 3.0)
+		var c1 := Color(String(cols[1 % cols.size()]))
+		c1.a = c0.a
+		n.draw_line(tail.lerp(head, 0.5), head, c1, 5.0)
+		_bit(n, shape, head, to - from, 3.0, t * 12.0, Color(String(cols[0])), c0.a))
+	_glow(parent, n)
+	parent.add_child(n)
+	_animate(n, 0.25)
+
+
+## 터진다. `key` 는 속성(water…) 또는 이펙트 이름(heal·gone…). `strong` 이면
+## (잘 드는 속성·치명타) 한 배 반.
+static func burst(parent: Node, at: Vector2, key: String, strong := false) -> void:
+	var st: Dictionary = STYLE.get(key, STYLE["none"])
+	var cols := cols_of(key)
 	var k := 1.5 if strong else 1.0
 	var R := float(st["r"]) * k
 	var secs := float(st["secs"]) * (1.15 if strong else 1.0)
-	var rise := String(id) in ["breathe", "cheer", "steady", "gone"]
-	# 불똥: [방향 속도, 빛깔, 굵기]
-	var sparks: Array = []
-	for i in int(int(st["sparks"]) * k):
+	var rise := bool(st.get("rise", false))
+	var shape := String(st.get("bit", "spark"))
+	var fall := shape in ["drop", "rock"]
+	var bits: Array = []
+	for i in int(float(st["n"]) * k):
 		var a := randf() * TAU
 		if rise:
 			a = -PI * 0.5 + randf_range(-1.1, 1.1)
-		sparks.append([Vector2.from_angle(a) * randf_range(0.5, 1.0) * R * 1.2,
-			Color(String(cols[i % cols.size()])), randf_range(1.2, 2.6)])
+		elif fall:
+			a = -PI * 0.5 + randf_range(-1.6, 1.6)
+		bits.append([Vector2.from_angle(a) * randf_range(0.5, 1.0) * R * 1.2,
+			Color(String(cols[i % cols.size()])), randf_range(1.2, 2.6),
+			randf() * TAU, randf_range(-8.0, 8.0)])
 	var stars: Array = []
-	for i in int(int(st["stars"]) * k):
+	for i in int(float(st["stars"]) * k):
 		stars.append([Vector2.from_angle(randf() * TAU) * randf_range(0.3, 1.0) * R,
 			Color(String(cols[(i + 1) % cols.size()])), randf_range(3.0, 6.0) * k,
 			randf() * TAU, randf_range(-6.0, 6.0)])
 	var orbs: Array = []
-	for i in int(st["orbs"]):
+	for i in int(st.get("orbs", 0)):
 		orbs.append([randf_range(-R * 0.6, R * 0.6), randf_range(0.0, 0.4),
 			randf_range(2.0, 4.5), Color(String(cols[i % cols.size()])), randf() * TAU])
 	var spin := randf() * TAU
@@ -184,7 +265,7 @@ static func burst(parent: Node, at: Vector2, id: String, strong := false) -> voi
 			fill.a = a * 0.18
 			n.draw_circle(Vector2.ZERO, R * (0.3 + e3), fill)
 			n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-		# 빛기둥 (응원) - 위로 솟았다 가늘어진다
+		# 빛기둥 - 위로 솟았다 가늘어진다
 		if bool(st.get("pillar", false)):
 			var h := R * 2.6 * minf(1.0, t * 3.0)
 			for j in 6:
@@ -192,13 +273,14 @@ static func burst(parent: Node, at: Vector2, id: String, strong := false) -> voi
 				var pc := Color(String(cols[j % cols.size()]))
 				pc.a = a * 0.22
 				n.draw_rect(Rect2(-w * 0.5, 8.0 - h, w, h), pc)
-		# 은은한 빛무리 (심호흡)
+		# 은은한 빛무리
 		if float(st.get("glow", 0.0)) > 0.0:
 			for j in 4:
 				var gl := Color(String(cols[j % cols.size()]))
 				gl.a = a * 0.12
-				n.draw_circle(Vector2(0, -6), float(st["glow"]) * (0.6 + 0.25 * j) * (0.7 + e3 * 0.5), gl)
-		# 육각 방패 (마음 단단히) - 돌면서 두 겹으로 감싼다
+				n.draw_circle(Vector2(0, -6),
+					float(st["glow"]) * (0.6 + 0.25 * j) * (0.7 + e3 * 0.5), gl)
+		# 육각 방패 - 돌면서 두 겹으로 감싼다
 		if bool(st.get("shield", false)):
 			for j in 2:
 				var sr := R * (0.55 + 0.2 * j) * (0.6 + 0.4 * e3)
@@ -212,11 +294,17 @@ static func burst(parent: Node, at: Vector2, id: String, strong := false) -> voi
 				var sf := sc
 				sf.a = a * 0.12
 				n.draw_colored_polygon(pts.slice(0, 6), sf)
-		# 가운데 번쩍 - 하얗게 부풀었다 스러진다
+		# 회오리 - 감기면서 커진다
+		for j in int(st.get("swirl", 0)):
+			var sc2 := Color(String(cols[j % cols.size()]))
+			sc2.a = a
+			var base := spin + t * 9.0 + TAU * j / 3.0
+			n.draw_arc(Vector2.ZERO, R * (0.25 + e3 * 0.7) * (1.0 - 0.15 * j),
+				base, base + PI * 1.2, 16, sc2, 2.2)
+		# 가운데 번쩍. 더하기 섞기라 하얀 원이 크면 몬스터까지 통째로
+		# 하얗게 덮는다 - 하얀 심은 작게, 둘레는 속성 빛깔로 옅게.
 		var core := float(st["core"]) * k
 		if core > 0.0:
-			# 더하기 섞기라 하얀 원이 크면 그늘까지 통째로 하얗게 덮는다 -
-			# 하얀 심은 작게, 둘레는 스킬 빛깔로 옅게.
 			var cc := Color(String(cols[0]))
 			cc.a = a * 0.3
 			n.draw_circle(Vector2.ZERO, core * (1.0 + e3 * 1.3), cc)
@@ -241,24 +329,23 @@ static func burst(parent: Node, at: Vector2, id: String, strong := false) -> voi
 			yc.a = a
 			n.draw_colored_polygon(PackedVector2Array([d * 4.0 + side, d * rl,
 				d * 4.0 - side]), yc)
-		# 불똥 - 꼬리를 끌며 날아간다
-		for b in sparks:
+		# 조각 - 속성마다 모양이 다르다. 물·돌은 떨어지고, 불은 솟는다.
+		for b in bits:
 			var v: Vector2 = b[0]
 			var p: Vector2 = v * e3
-			if not rise:
-				p.y += 30.0 * t * t          # 살짝 떨어진다
+			if fall:
+				p.y += 60.0 * t * t
+			elif not rise:
+				p.y += 20.0 * t * t
 			var c3: Color = b[1]
 			c3.a = a
-			n.draw_line(p, p - v * 0.12 * a, c3, b[2])
-			# 머리만 조금 밝게 - 하얗게 칠하면 불똥이 수십 개라 한데 뭉쳐
-			# 하얀 덩어리가 되고 그 밑의 그늘이 안 보였다.
-			n.draw_circle(p, float(b[2]) * 0.7, c3.lightened(0.35))
+			_bit(n, shape, p, v, float(b[2]), float(b[3]) + float(b[4]) * t, c3, a)
 		# 별 - 돌면서 반짝인다
 		for s2 in stars:
 			var sp: Vector2 = s2[0] * e3
-			var sc2: Color = s2[1]
-			sc2.a = a * (0.6 + 0.4 * sin(t * 30.0 + float(s2[3])))
-			_star(n, sp, float(s2[2]) * (0.5 + a), float(s2[3]) + float(s2[4]) * t, sc2)
+			var sc3: Color = s2[1]
+			sc3.a = a * (0.6 + 0.4 * sin(t * 30.0 + float(s2[3])))
+			_star(n, sp, float(s2[2]) * (0.5 + a), float(s2[3]) + float(s2[4]) * t, sc3)
 		# 떠오르는 방울 - 흔들리며 올라간다
 		for o in orbs:
 			var ot := clampf((t - float(o[1])) / 0.6, 0.0, 1.0)
@@ -275,15 +362,72 @@ static func burst(parent: Node, at: Vector2, id: String, strong := false) -> voi
 	_animate(n, secs)
 
 
-## 스킬 이름이 머리 위에 그 빛깔로 크게 떴다 사라진다 - 무엇을 썼는지 한눈에.
+## 스킬 이름이 머리 위에 그 속성 빛깔로 크게 떴다 사라진다.
 static func cast_name(parent: Node, at: Vector2, id: String) -> void:
-	var cols := cols_of(id)
+	var key := Battle.skill_elem(id)
+	var cols := cols_of(key)
 	var l := number(parent, at + Vector2(0, -44), String(Battle.SKILLS.get(id, {})
 		.get("name", "")), Color(String(cols[0])), 18)
 	l.add_theme_constant_override("outline_size", 6)
 	var tw := l.create_tween().set_loops(3)
 	for c in cols:
 		tw.tween_property(l, "theme_override_colors/font_color", Color(String(c)), 0.06)
+
+
+## 꿈조각이 튀어 올랐다가 쿼카에게 빨려 든다.
+static func coins(parent: Node, at: Vector2, to: Node2D, count: int) -> void:
+	for i in count:
+		var n := Node2D.new()
+		n.z_index = Z
+		n.position = at + Vector2(0, -6)
+		var up := Vector2(randf_range(-22.0, 22.0), randf_range(-26.0, -14.0))
+		n.draw.connect(func() -> void:
+			var t: float = n.get_meta("t")
+			var spin := absf(cos(t * 20.0 + i))
+			n.draw_set_transform(Vector2.ZERO, 0.0, Vector2(maxf(0.25, spin), 1.0))
+			n.draw_circle(Vector2.ZERO, 3.0, Color("#FFD43B"))
+			n.draw_circle(Vector2.ZERO, 1.6, Color("#FFF3BF"))
+			n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE))
+		parent.add_child(n)
+		n.set_meta("t", 0.0)
+		var start := n.position
+		var tw := n.create_tween()
+		tw.tween_method(func(v: float) -> void:
+			n.set_meta("t", v)
+			if v < 0.5:
+				var k := v / 0.5
+				n.position = start + Vector2(up.x * k, up.y * sin(k * PI) * 1.4 + 10.0 * k)
+			elif is_instance_valid(to):
+				var k2 := (v - 0.5) / 0.5
+				n.position = n.position.lerp(to.global_position + Vector2(0, -10), k2 * k2)
+			n.queue_redraw(), 0.0, 1.0, 0.9 + randf() * 0.2)
+		tw.tween_callback(n.queue_free)
+
+
+## 장비가 떨어진 자리에 **등급 빛깔의 빛기둥**이 선다 - 무엇이 나왔는지
+## 이름을 읽기 전에 색으로 먼저 안다. 등급이 높을수록 높고 오래 선다.
+static func beam(parent: Node, at: Vector2, col: Color, rar: int) -> void:
+	var n := Node2D.new()
+	n.z_index = Z - 1
+	n.position = at
+	var h := 40.0 + 22.0 * rar
+	n.draw.connect(func() -> void:
+		var t: float = n.get_meta("t")
+		var a := (1.0 - t) if t > 0.3 else 1.0
+		var grow := minf(1.0, t * 5.0)
+		for j in 5:
+			var w := (10.0 - j * 1.8) * (1.0 + 0.15 * sin(t * 20.0))
+			var c := col
+			c.a = a * (0.12 + 0.1 * j)
+			n.draw_rect(Rect2(-w * 0.5, -h * grow, w, h * grow), c)
+		# 바닥의 상자 - 반짝이는 작은 네모
+		n.draw_rect(Rect2(-4, -5, 8, 6), col.lightened(0.2))
+		n.draw_rect(Rect2(-4, -5, 8, 2), Color(1, 1, 1, a))
+		if rar >= 3:
+			_star(n, Vector2(0, -h * grow - 4.0), 5.0, t * 8.0, Color(1, 1, 1, a)))
+	_glow(parent, n)
+	parent.add_child(n)
+	_animate(n, 1.6 + 0.5 * rar)
 
 
 ## 화면이 흔들린다. 카메라의 `offset` 만 흔든다 - 위치는 그대로.

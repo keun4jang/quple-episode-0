@@ -928,24 +928,20 @@ const HUNT_OTHER := 3
 
 ## `[{key, label, kind, need, have, done}]`. 그늘이 없는 곳(고향·잿마루)은 빈 배열.
 static func hunt_list(village: String) -> Array:
-	var base: Array = Battle.SPAWNS.get(village, [])
-	if base.is_empty():
+	var kinds := Battle.kinds_in(village)
+	if kinds.is_empty():
 		return []
 	var out: Array = []
-	var kinds: Array = []
-	for k in base:
-		if not kinds.has(k):
-			kinds.append(k)
-	out.append(_hunt(village, "", HUNT_ANY[0], "그늘 %d마리 걷어내기" % HUNT_ANY[0]))
+	out.append(_hunt(village, "", HUNT_ANY[0], "몬스터 %d마리 쓰러뜨리기" % HUNT_ANY[0]))
 	for i in kinds.size():
 		var k := String(kinds[i])
 		var e: Dictionary = Battle.ENEMIES.get(k, {})
 		if bool(e.get("boss", false)):
-			out.append(_hunt(village, k, 1, "우두머리 %s 걷어내기" % String(e["name"])))
+			out.append(_hunt(village, k, 1, "우두머리 %s 쓰러뜨리기" % String(e["name"])))
 			continue
 		var need := HUNT_MAIN if i == 0 else HUNT_OTHER
-		out.append(_hunt(village, k, need, "%s %d마리 걷어내기" % [String(e["name"]), need]))
-	out.append(_hunt(village, "", HUNT_ANY[1], "그늘 %d마리 걷어내기" % HUNT_ANY[1]))
+		out.append(_hunt(village, k, need, "%s %d마리 쓰러뜨리기" % [String(e["name"]), need]))
+	out.append(_hunt(village, "", HUNT_ANY[1], "몬스터 %d마리 쓰러뜨리기" % HUNT_ANY[1]))
 	return out
 
 

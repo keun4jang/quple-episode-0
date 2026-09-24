@@ -92,6 +92,7 @@ func _ready() -> void:
 	_shop_skin_test()
 	await _menu_button_tests()
 	await _battle_tests()
+	_gear_tests()
 	await _shade_tests()
 	_catalog_tests()
 	await _reward_tests()
@@ -100,6 +101,7 @@ func _ready() -> void:
 	await _bag_ui_tests()
 	await _shelf_everywhere_tests()
 	await _hunt_tests()
+	await _char_ui_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -6562,139 +6564,327 @@ func _menu_button_tests() -> void:
 # 규칙만 본다. 화면(`Place`·`Shade`)은 `Field` 의 사건을 띄우기만 하므로, 여기서
 # 잡아야 할 것은 **수와 차례**다.
 func _battle_tests() -> void:
-	print("\n[마음 겨루기 — 규칙]")
+	print("\n[꿈결의 싸움 — 규칙]")
 	JourneyState.reset()
 	Battle.reset()
+	Field.jitter = false
 
 	ok(Battle.hp == Battle.hp_max() and Battle.mp == Battle.mp_max(),
 		"시작은 가득 찬 채다 (%d/%d)" % [Battle.hp, Battle.hp_max()])
-	ok(Battle.skills() == ["smile", "breathe"],
-		"LV1 에는 둘만 쓸 수 있다 (%s)" % str(Battle.skills()))
+	ok(Battle.skills() == ["tap", "breathe"],
+		"LV1 꿈나그네는 톡 치기·심호흡 (%s)" % str(Battle.skills()))
+	ok(Battle.attack_power() == 4 + 3 + 1, "LV1 공격력 = 막대기 4 + 힘 3 + 레벨 1 (%d)"
+		% Battle.attack_power())
 
-	# **약점에 회복·버프를 두면 안 된다.** 적에게 피해를 못 주는 스킬이
-	# 약점이 되면 "피해 0 + 적 턴 넘김" 이라, 그 스킬만 반복해 무한
-	# 회복이 된다 (쿼플 0편이 실제로 겪은 사고).
-	var bad: Array = []
-	for id in Battle.ENEMIES:
-		var w := String(Battle.ENEMIES[id].get("weak", ""))
-		if w != "" and String(Battle.SKILLS[w]["type"]) != "attack":
-			bad.append(id)
-	ok(bad.is_empty(), "약점은 공격 스킬뿐이다 (%s)" % str(bad))
+	# ① 속성 상성 - 한 바퀴로 물고 물린다 (물 > 불 > 나무 > 땅 > 바람 > 물)
+	var ring_ok := true
+	for e in Battle.ELEM_ORDER:
+		var beat := String(Battle.BEATS[e])
+		if Battle.matchup(e, beat) != Battle.SUPER or Battle.matchup(beat, e) != Battle.RESIST:
+			ring_ok = false
+	ok(ring_ok, "다섯 속성이 한 바퀴로 이기고 진다")
+	ok(Battle.matchup("water", "water") == Battle.SAME
+		and Battle.matchup("none", "fire") == 1.0 and Battle.matchup("fire", "dark") == 1.0,
+		"같은 속성은 덜 들고, 무·어둠은 보통")
+	# 속성마다 이기는 스킬이 있다 (마법사) - 어떤 몬스터든 약점을 찌를 수 있다
+	var no_counter: Array = []
+	for k in Battle.ENEMIES:
+		var fe := String(Battle.ENEMIES[k]["elem"])
+		if not Battle.BEATS.has(fe):
+			continue
+		var found := false
+		for id in Battle.job_skills("mage"):
+			var se := String(Battle.SKILLS[id].get("elem", ""))
+			if se != "weapon" and Battle.matchup(se, fe) > 1.0:
+				found = true
+		if not found:
+			no_counter.append(k)
+	ok(no_counter.is_empty(), "모든 속성 몬스터에게 잘 드는 마법이 있다 %s" % str(no_counter))
+	# 구역마다 주 속성 + 섞이는 것 - 한 가지 속성만 서는 구역이 없다
+	var mono: Array = []
+	for v in Battle.SPAWNS:
+		var els := {}
+		for k2 in Battle.kinds_in(String(v)):
+			els[String(Battle.ENEMIES[k2]["elem"])] = true
+		if els.size() < 2:
+			mono.append(v)
+	ok(mono.is_empty(), "구역마다 속성이 둘 이상 섞인다 %s" % str(mono))
 
-	# 약점은 모든 공격 스킬에 고르게 흩어져 있다 — 하나에 몰리면
-	# 나머지 둘은 영영 안 쓰인다.
-	var spread: Dictionary = {}
-	for id in Battle.ENEMIES:
-		var w := String(Battle.ENEMIES[id].get("weak", ""))
-		if w != "":
-			spread[w] = int(spread.get(w, 0)) + 1
-	ok(spread.size() >= 3, "약점이 공격 스킬 셋에 다 걸려 있다 (%s)" % str(spread))
-
-	# ① 때리면 줄어든다 (마을에서 실시간으로 - `Field`)
-	var foe := Field.new_foe("worry")
+	# ② 때리면 줄어든다 - 잘 드는 속성은 1.5배, 안 드는 것은 0.6배
+	var foe := Field.new_foe("ember", 5)
 	var before: int = int(foe["hp"])
-	var r := Field.strike("smile", foe)
+	var r := Field.strike("tap", foe)
 	ok(int(foe["hp"]) < before and int(r["dmg"]) == before - int(foe["hp"]),
-		"때리면 그늘이 줄어든다 (%d)" % int(r["dmg"]))
-	ok(Field.strike("breathe", Field.new_foe("worry"))["dmg"] == 0,
+		"때리면 몬스터가 줄어든다 (%d)" % int(r["dmg"]))
+	ok(Field.strike("breathe", Field.new_foe("drop", 1))["dmg"] == 0,
 		"회복 스킬로는 때릴 수 없다")
+	Battle.level = 10
+	Battle.set_job("mage")
+	var f_fire := Field.new_foe("ember", 10)
+	var r_water := Field.strike("splash", f_fire)
+	var f_fire2 := Field.new_foe("ember", 10)
+	var r_fire := Field.strike("flame", f_fire2)
+	ok(float(r_water["eff"]) == Battle.SUPER and float(r_fire["eff"]) == Battle.SAME,
+		"물총은 불똥콩에 굉장하고, 불꽃은 같은 속성이라 덜 든다")
+	ok(int(r_water["dmg"]) > int(r_fire["dmg"]) * 1.7,
+		"상성 차이가 피해로 보인다 (%d vs %d)" % [int(r_water["dmg"]), int(r_fire["dmg"])])
+	ok(bool(r_water["weak"]) and float(r_water["stagger"]) > 0.0, "처음 약점을 찌르면 멈칫한다")
+	var r_again := Field.strike("splash", f_fire)
+	ok(float(r_again["stagger"]) == 0.0, "멈칫은 몬스터마다 한 번")
+	ok(Field.foe_has(f_fire, "wet"), "물총은 젖음을 건다")
+	Battle.reset()
 
-	# ② **예고와 실제가 같아야 한다.** 무작위가 아니라 몇 번째 덤비는지로만
-	# 정하므로(`Battle.plan_for`) 어긋날 수가 없어야 한다. 머리 위 예고
-	# (`foe_intent`)와 실제(`foe_attack`)가 같은 함수를 쓴다.
-	for kind in ["regret", "tired", "envy", "worry", "night"]:
+	# ③ **예고와 실제가 같아야 한다.** 무작위가 아니라 몇 번째 덤비는지로만
+	# 정하므로(`Battle.plan_for`) 어긋날 수가 없어야 한다.
+	for kind in Battle.ENEMIES:
 		Battle.reset()
-		var f := Field.new_foe(kind)
+		Battle.level = 20
+		var f := Field.new_foe(String(kind), 20)
 		for i in 5:
-			if kind == "envy" and i % 2 == 0:
-				Field.strike("smile", f)          # 되돌릴 것이 생긴다
+			if String(kind) == "whirl" and i % 2 == 0:
+				Field.strike("tap", f)          # 되받아칠 것이 생긴다
 			Battle.hp = Battle.hp_max()
 			var told := Field.foe_expected(f)
 			var hp_was := Battle.hp
 			Field.foe_attack(f)
 			var lost := hp_was - Battle.hp
-			ok(lost == told, "%s %d번째: %d 온다고 하고 %d 왔다" % [kind, i + 1, told, lost])
+			if lost != told:
+				ok(false, "%s %d번째: %d 온다고 하고 %d 왔다" % [kind, i + 1, told, lost])
+	ok(true, "모든 몬스터가 예고한 만큼만 때린다")
 	Battle.reset()
 
-	# ③ 약점으로 멈칫하는 것은 **그늘마다 한 번**이다. 매번 통하면
-	# 웃어넘기기가 약점인 그늘은 연타만으로 영영 못 덤빈다.
-	var wf := Field.new_foe("worry")
-	var r1 := Field.strike("smile", wf)
-	var r2 := Field.strike("smile", wf)
-	ok(bool(r1["weak"]) and float(r1["stagger"]) > 0.0, "처음 약점을 찌르면 멈칫한다")
-	ok(bool(r2["weak"]) and float(r2["stagger"]) == 0.0, "두 번째부터는 안 멈춘다")
-	ok(Field.foe_has(wf, "shake"), "약점을 찔린 그늘은 흔들린다")
-
-	# ④ 다시 쓰기까지의 틈, 마음력
+	# ④ 레벨 곡선 - 같은 레벨이면 기본 공격 네댓 번, 아홉 번쯤 맞으면 쓰러진다
+	var curve_bad: Array = []
+	for lv in [1, 10, 20, 30, 40]:
+		Battle.reset()
+		Battle.gain_xp(0)
+		while Battle.level < lv:
+			Battle.xp = Battle.xp_need()
+			Battle.gain_xp(0)
+		var ft := Field.new_foe("drop", lv)
+		ft["elem"] = "none"
+		var hits_to_kill := ceili(float(ft["hp"]) / maxf(1.0, float(Field.strike("tap",
+			Field.new_foe("drop", lv))["dmg"])))
+		var hits_to_die := ceili(float(Battle.hp_max()) / maxf(1.0, float(Field._one_hit(ft, 1.0))))
+		if hits_to_kill < 2 or hits_to_kill > 9 or hits_to_die < 5 or hits_to_die > 20:
+			curve_bad.append("LV%d 잡기%d 버티기%d" % [lv, hits_to_kill, hits_to_die])
+	ok(curve_bad.is_empty(), "레벨마다 싸움 길이가 비슷하다 %s" % str(curve_bad))
 	Battle.reset()
-	ok(Field.use("smile").size() > 0, "공격을 쓴다")
-	ok(Field.why_not("smile") == "숨 고르는 중", "바로 또는 못 쓴다")
-	Field.tick(float(Field.CD["smile"]) + 0.01)
-	ok(Field.why_not("smile") == "", "틈이 지나면 다시 쓴다")
-	ok(Field.why_not("remember") == "아직 못 쓴다", "안 배운 스킬은 못 쓴다")
+	ok(Battle.foe_stats("drop", 30)["hp"] > Battle.foe_stats("drop", 10)["hp"] * 2,
+		"레벨이 높은 몬스터일수록 단단하다")
+	ok(Battle.foe_stats("night", 45)["hp"] > Battle.foe_stats("blaze", 45)["hp"] * 5,
+		"우두머리는 몸집이 다르다")
+
+	# ⑤ 다시 쓰기까지의 틈, 마음력
+	Battle.reset()
+	ok(Field.use("tap").size() > 0, "공격을 쓴다")
+	ok(Field.why_not("tap") == "숨 고르는 중", "바로 또는 못 쓴다")
+	Field.tick(float(Battle.SKILLS["tap"]["cd"]) + 0.01)
+	ok(Field.why_not("tap") == "", "틈이 지나면 다시 쓴다")
+	ok(Field.why_not("splash") == "아직 못 쓴다", "직업 스킬은 전직해야 쓴다")
 	Battle.mp = 0
 	ok(Field.why_not("breathe") == "마음력이 모자란다", "마음력이 모자라면 못 쓴다")
+	Field.tick(Field.BEAT + 0.01)
+	ok(Battle.mp > 0, "마음력은 저절로 조금씩 찬다")
 	Battle.mp = Battle.mp_max()
 	Battle.hp = 10
-	var evs := Field.use("breathe")
+	Field.use("breathe")
 	ok(Battle.hp > 10 and Field.has_status("warm"), "심호흡은 채우고 온기를 남긴다 (%d)" % Battle.hp)
 	var hp_w := Battle.hp
 	Field.tick(Field.BEAT + 0.01)
 	ok(Battle.hp > hp_w, "온기는 박자마다 조금씩 채운다 (%d → %d)" % [hp_w, Battle.hp])
-	Battle.level = 3
-	Field.use("cheer")
-	ok(Field.atk_bonus() > 0, "응원하면 한동안 세진다")
-	Field.tick(Field.BUFF_SECS + 0.1)
-	ok(Field.atk_bonus() == 0, "시간이 지나면 풀린다")
 
-	# ⑤ 걷어내면 자란다
+	# ⑥ 자란다 - 점수, 스킬, 전직
 	Battle.reset()
-	Field.defeat("worry")
-	ok(Battle.xp > 0 or Battle.level > 1, "걷어내면 마음이 자란다")
+	var got := Field.defeat(Field.new_foe("drop", 3))
+	ok(Battle.xp > 0 or Battle.level > 1, "쓰러뜨리면 경험을 얻는다")
+	var loot_ev := false
+	for ev in got:
+		if String(ev["kind"]) == "loot":
+			loot_ev = true
+	ok(loot_ev and Gear.coins > 0, "쓰러뜨리면 꿈조각을 떨어뜨린다 (%d)" % Gear.coins)
+	Battle.reset()
+	Battle.xp = Battle.xp_need()
+	var lu := Battle.gain_xp(0)
+	ok(Battle.level == 2 and not lu.is_empty(), "경험이 차면 레벨이 오른다")
+	ok(Battle.ap == 0 and Battle.stats["str"] > 4, "능력치 점수가 알아서 나뉜다 (힘 %d)"
+		% int(Battle.stats["str"]))
+	Battle.auto_ap = false
+	Battle.xp = Battle.xp_need()
+	Battle.gain_xp(0)
+	ok(Battle.ap == Battle.AP_PER, "자동 배분을 끄면 점수가 남는다 (%d)" % Battle.ap)
+	var int_was := int(Battle.stats["int"])
+	ok(Battle.spend_ap("int") and int(Battle.stats["int"]) == int_was + 1, "손으로 나눈다")
+	Battle.reset_stats()
+	ok(Battle.ap > Battle.AP_PER and int(Battle.stats["int"]) == 4, "초기화하면 점수를 돌려받는다")
+	Battle.reset()
+	ok(not Battle.set_job("warrior"), "LV 10 전에는 전직 못 한다")
+	while Battle.level < Battle.JOB_LV:
+		Battle.xp = Battle.xp_need()
+		var evs10 := Battle.gain_xp(0)
+		if Battle.level == Battle.JOB_LV:
+			ok(bool(evs10[-1].get("job_ready", false)), "LV 10 에 전직할 수 있다고 알린다")
+	ok(Battle.set_job("warrior"), "LV 10 에 전사가 된다")
+	ok(Battle.skills().has("power") and not Battle.skills().has("splash"),
+		"전사 스킬을 배우고 마법은 못 쓴다")
+	ok(Gear.weapon_kind() == "sword", "전직하면 검을 받아 든다")
+	ok(int(Battle.stats["str"]) > int(Battle.stats["int"]) + 10, "전사는 힘으로 나뉜다")
+	ok(not Battle.set_job("mage"), "한 번 고른 직업은 그대로")
+	var sp_was := Battle.sp
+	Battle.auto_sp = false
+	Battle.xp = Battle.xp_need()
+	Battle.gain_xp(0)
+	ok(Battle.sp == sp_was + 1, "레벨마다 스킬 점수")
+	ok(Battle.spend_sp("power") and int(Battle.skill_lv["power"]) >= 2, "스킬 레벨을 올린다")
+	ok(Battle.skill_power("power") > 1.05, "스킬 레벨만큼 세진다")
 
-	# ⑥ **쓰러져도 잃는 것이 없다.** 여행 게임에 되돌릴 수 없는 벌은 안 둔다.
+	# ⑦ **쓰러져도 되돌릴 수 없는 것은 잃지 않는다.** 꿈조각만 조금 흘린다.
 	Battle.reset()
+	Gear.coins = 100
 	var bag_was := JourneyState.bag.duplicate()
-	var boss := Field.new_foe("night")
+	var lv_was := Battle.level
+	var boss := Field.new_foe("night", 45)
 	var g2 := 0
 	while Battle.hp > 0 and g2 < 60:
 		Field.foe_attack(boss)
 		g2 += 1
 	ok(Battle.hp <= 0, "우두머리에게는 쓰러진다 (LV1)")
 	Field.my_status["shrink"] = 5.0
-	Field.fall()
+	var lost_c := Field.fall()
 	ok(Battle.hp > 0, "쓰러져도 다시 일어난다 (%d)" % Battle.hp)
+	ok(lost_c == 10 and Gear.coins == 90, "꿈조각을 10퍼센트 흘린다")
 	ok(not Field.has_status("shrink"), "일어나면 나쁜 상태가 걷힌다")
-	ok(JourneyState.bag == bag_was, "쓰러져도 배낭에서 없어지는 건 없다")
+	ok(JourneyState.bag == bag_was and Battle.level == lv_was, "레벨·배낭은 그대로")
 	var hp_f := Battle.hp
-	var miss := Field.foe_attack(Field.new_foe("worry"))
+	var miss := Field.foe_attack(Field.new_foe("drop", 1))
 	ok(Battle.hp == hp_f and String(miss[0]["kind"]) == "miss",
 		"일어난 직후 잠깐은 안 맞는다")
 	Battle.reset()
 
-	# ⑦ 퀘스트가 쓰는 것은 전투에서 못 쓴다 — 써 버리면 매듭이 막힌다.
+	# ⑧ 퀘스트가 쓰는 것은 먹어 없앨 수 없다 — 써 버리면 매듭이 막힌다.
 	var clash: Array = []
 	for id in ["p-seaglass", "p-seaweed", "p-conch"]:
 		if Battle.FOODS.has(id):
 			clash.append(id)
 	ok(clash.is_empty(), "퀘스트 물건은 먹어 없앨 수 없다 (%s)" % str(clash))
 
-	# ⑧ 저장에 남는다
+	# ⑨ 저장에 남는다 - 레벨·직업·능력치·스킬·장비
 	Battle.reset()
-	Battle.level = 4
+	while Battle.level < 12:
+		Battle.xp = Battle.xp_need()
+		Battle.gain_xp(0)
+	Battle.set_job("archer")
+	Gear.coins = 321
+	var drop := Gear.make("hat", "hat", 1, 2, "none")
+	Gear.items.append(drop)
+	Gear.equip(int(drop["uid"]))
+	# 체력은 입은 뒤에 정한다 - 옵션에 체력·힘이 붙으면 입는 순간 늘어난다.
 	Battle.xp = 7
 	Battle.hp = 30
+	var st_was: Dictionary = Battle.stats.duplicate()
+	var sk_was: Dictionary = Battle.skill_lv.duplicate()
 	var d := JourneyState.to_dict()
 	Battle.reset()
 	JourneyState.from_dict(d)
-	ok(Battle.level == 4 and Battle.xp == 7 and Battle.hp == 30,
-		"레벨·경험·체력이 저장된다 (LV%d %d %d)"
-			% [Battle.level, Battle.xp, Battle.hp])
-	# 전투가 없던 시절 세이브에는 이 칸이 아예 없다
+	ok(Battle.level == 12 and Battle.xp == 7 and Battle.hp == 30 and Battle.job == "archer",
+		"레벨·경험·체력·직업이 저장된다 (LV%d %s)" % [Battle.level, Battle.job])
+	ok(Battle.stats == st_was and Battle.skill_lv == sk_was, "능력치·스킬 레벨이 저장된다")
+	ok(Gear.coins == 321 and Gear.worn("hat").get("rar", -1) == 2
+		and Gear.weapon_kind() == "bow", "꿈조각·입은 장비가 저장된다")
+	# **옛 세이브**(레벨 하나로만 크던 때)는 그 레벨까지의 점수를 한꺼번에 받는다
+	var old_b := {"level": 7, "xp": 3, "hp": 20, "mp": 5}
 	var old_save := JourneyState.to_dict()
+	old_save["battle"] = old_b
+	old_save.erase("gear")
+	JourneyState.from_dict(old_save)
+	ok(Battle.level == 7 and Battle.ap == 0 and Battle.stats["str"] > 10,
+		"옛 세이브는 레벨 그대로, 능력치 점수를 받아 나눈다 (힘 %d)" % int(Battle.stats["str"]))
+	ok(Battle.skills().has("bump") and Gear.weapon_kind() == "stick",
+		"옛 세이브도 레벨만큼 스킬을 배우고 막대기를 든다")
 	old_save.erase("battle")
 	JourneyState.from_dict(old_save)
-	ok(Battle.level == 1, "옛 세이브는 LV1 부터 시작한다")
+	ok(Battle.level == 1, "싸움이 없던 세이브는 LV1 부터 시작한다")
+	# 감정 이름이던 옛 몬스터 조각·퇴치 기록을 옮긴다
+	JourneyState.reset()
+	var legacy := JourneyState.to_dict()
+	legacy["bag"] = {"m-worry": 1, "m-envy": 1}
+	legacy["seen_items"] = {"m-worry": true}
+	legacy["defeats"] = {"윤슬": 5, "윤슬:worry": 5}
+	JourneyState.from_dict(legacy)
+	ok(JourneyState.count("m-drop") == 1 and JourneyState.count("m-blaze") == 1
+		and not JourneyState.bag.has("m-worry"), "옛 조각이 새 몬스터 조각으로 바뀐다")
+	ok(JourneyState.defeated("윤슬", "drop") == 5, "옛 퇴치 기록도 옮긴다")
+	Field.jitter = true
+	Battle.reset()
+	JourneyState.reset()
+
+
+func _gear_tests() -> void:
+	print("\n[장비 - 등급·옵션·강화·팔기]")
+	JourneyState.reset()
+	Battle.reset()
+	ok(Gear.weapon_kind() == "stick", "처음엔 나무 막대기를 든다")
+	# 등급마다 옵션 줄 수
+	var bad := false
+	for rar in Gear.RARITY.size():
+		var it := Gear.make("ring", "ring", 2, rar, "none")
+		if it["opts"].size() != int(Gear.RARITY[rar]["opts"]):
+			bad = true
+	ok(not bad, "등급마다 옵션 줄 수가 정해져 있다")
+	var common := Gear.make("weapon", "sword", 2, 0, "fire")
+	var legend := Gear.make("weapon", "sword", 2, 4, "fire")
+	ok(Gear.atk_of(legend) > Gear.atk_of(common), "등급이 높을수록 세다")
+	ok(Gear.name_of(common) == "불꽃 은빛 검", "이름은 속성·단계·종류 (%s)" % Gear.name_of(common))
+	# 떨어뜨리기 - 우두머리는 늘 두 벌, 고급 이상
+	var boss := Gear.roll_drops("night", 45, true)
+	ok(boss["gear"].size() == 2 and int(boss["gear"][0]["rar"]) >= 1 and int(boss["coins"]) > 0,
+		"우두머리는 좋은 것을 떨어뜨린다")
+	var tiers_ok: bool = int(Gear.roll_gear("drop", 3, false)["tier"]) == 0 \
+		and int(Gear.roll_gear("drop", 33, false)["tier"]) == 3
+	ok(tiers_ok, "몬스터 레벨만큼 단계가 오른다")
+	# 입기 - 꿈나그네는 아무 무기, 전직하면 제 것만
+	Gear.items.append(common)
+	ok(Gear.equip(int(common["uid"])) and Battle.skill_elem("tap") == "fire",
+		"무기를 들면 공격이 그 속성이 된다")
+	var bow := Gear.make("weapon", "bow", 1, 0, "water")
+	Gear.items.append(bow)
+	while Battle.level < 10:
+		Battle.xp = Battle.xp_need()
+		Battle.gain_xp(0)
+	Battle.set_job("warrior")
+	ok(not Gear.equip(int(bow["uid"])), "전사는 활을 못 든다")
+	var hat := Gear.make("hat", "hat", 1, 1, "none")
+	Gear.items.append(hat)
+	var hp_was := Battle.hp_max()
+	var def_was := Battle.defense()
+	Gear.equip(int(hat["uid"]))
+	ok(Battle.defense() > def_was, "모자를 쓰면 방어력이 오른다")
+	Gear.unequip("hat")
+	ok(Battle.hp_max() == hp_was, "벗으면 그대로 돌아온다")
+	# 강화 - 재료가 있어야, 실패해도 수치는 그대로
+	Gear.coins = 0
+	Gear.stones = 0
+	ok(not bool(Gear.enhance(int(hat["uid"]))["ok"]), "꿈조각·강화석이 없으면 못 한다")
+	Gear.coins = 100000
+	Gear.stones = 100
+	var fails := 0
+	for i in 30:
+		var p := int(hat["plus"])
+		var rr := Gear.enhance(int(hat["uid"]))
+		if not bool(rr["ok"]) and bool(rr.get("tried", false)):
+			fails += 1
+			if int(hat["plus"]) != p:
+				bad = true
+	ok(int(hat["plus"]) >= 5, "+5 까지는 늘 된다 (+%d)" % int(hat["plus"]))
+	ok(not bad, "실패해도 강화 수치가 내려가지 않는다 (실패 %d)" % fails)
+	ok(int(hat["plus"]) <= Gear.PLUS_MAX, "+15 를 넘지 않는다")
+	# 팔기
+	var c0 := Gear.coins
+	var junk := Gear.make("shoes", "shoes", 0, 0, "none")
+	Gear.items.append(junk)
+	ok(Gear.sell_junk(1) > 0 and Gear.coins > c0 and Gear.get_item(int(junk["uid"])).is_empty(),
+		"일반 장비를 한꺼번에 판다")
+	ok(Gear.sell(int(Gear.worn("weapon")["uid"])) == 0, "입은 것은 안 팔린다")
 	Battle.reset()
 	JourneyState.reset()
 
@@ -6780,11 +6970,11 @@ func _shade_tests() -> void:
 		ok(target.state == "idle" and Battle.hp == calm_hp, "안 때리면 덤비지 않는다")
 		p2.walker.global_position = target.global_position + Vector2(10, 0)
 		var hp0: int = int(target.foe["hp"])
-		ok(p2.field_use("smile"), "공격 버튼을 누르면 때린다")
+		ok(p2.field_use("tap"), "공격 버튼을 누르면 때린다")
 		ok(int(target.foe["hp"]) < hp0, "그 자리에서 그늘이 줄어든다 (%d → %d)"
 			% [hp0, int(target.foe["hp"])])
 		ok(target.state == "chase", "맞은 그늘은 덤벼 온다")
-		ok(not p2.field_use("smile"), "틈 없이 연타는 안 된다")
+		ok(not p2.field_use("tap"), "틈 없이 연타는 안 된다")
 		# 덤빈다 - 머리 위에 예고가 뜨고, 예고한 만큼 맞는다
 		var told := -1
 		var hp1 := Battle.hp
@@ -6809,7 +6999,7 @@ func _shade_tests() -> void:
 		p2.walker.global_position = target.global_position + Vector2(10, 0)
 		target.foe["hp"] = 1
 		Field.cooldown.clear()
-		ok(p2.field_use("smile"), "마지막 한 대")
+		ok(p2.field_use("tap"), "마지막 한 대")
 		await get_tree().process_frame
 		ok(not p2._shades.has(target), "쓰러뜨리면 마을에서 걷힌다")
 		ok(Battle.is_cleared("윤슬", t), "걷어낸 자리를 기억한다")
@@ -6819,7 +7009,7 @@ func _shade_tests() -> void:
 		# 닿는 데 아무도 없으면 헛손질 - 마음력·보상 없이 휘두르기만
 		p2.walker.global_position = Vector2(-500, -500)
 		Field.cooldown.clear()
-		ok(not p2.field_use("smile") and Field.why_not("smile") != "",
+		ok(not p2.field_use("tap") and Field.why_not("tap") != "",
 			"빈 데를 휘두르면 헛손질이다")
 		# 쓰러져도 잃지 않는다 - 덤비던 그늘은 물러난다
 		var other: Shade = null
@@ -6830,7 +7020,7 @@ func _shade_tests() -> void:
 		if other != null:
 			p2.walker.global_position = other.global_position + Vector2(10, 0)
 			Field.cooldown.clear()
-			p2.field_use("smile")
+			p2.field_use("tap")
 			Battle.hp = 1
 			p2.on_shade_attack(other, [{"kind": "hurt", "amount": 1}])
 			Battle.hp = 0
@@ -6852,12 +7042,12 @@ func _shade_tests() -> void:
 	for v in Quests.ORDER:
 		var top := 0
 		for k in Battle.SPAWNS.get(v, []):
-			top = maxi(top, int(Battle.ENEMIES[k]["xp"]))
+			top = maxi(top, int(k[1]))
 		curve.append(top)
 		if top < last:
 			rising = false
 		last = top
-	ok(rising, "뒷마을일수록 무거운 그늘이 선다 (%s)" % str(curve))
+	ok(rising, "뒷구역일수록 레벨 높은 몬스터가 선다 (%s)" % str(curve))
 	Battle.reset()
 	JourneyState.reset()
 
@@ -7057,8 +7247,15 @@ func _item_battle_tests() -> void:
 
 	Battle.hp = 5
 	JourneyState.pick("b-riceball")
+	var want := 5 + Battle.food_hp(35)
 	var said := Battle.eat("b-riceball")
-	ok(said != "" and Battle.hp == 40, "배낭에서 먹으면 체력이 찬다 (%d, %s)" % [Battle.hp, said])
+	ok(said != "" and Battle.hp == want, "배낭에서 먹으면 체력이 찬다 (%d, %s)" % [Battle.hp, said])
+	# 먹을 것은 레벨에 맞춰 늘어난다 - LV 30 에 "체력 +35" 는 티도 안 난다
+	var lv1 := Battle.food_hp(35)
+	Battle.level = 30
+	ok(Battle.food_hp(35) > lv1 * 4, "레벨이 오르면 먹을 것도 더 채운다 (%d → %d)"
+		% [lv1, Battle.food_hp(35)])
+	Battle.level = 1
 	ok(JourneyState.count("b-riceball") == 0, "먹으면 없어진다")
 	Battle.hp = Battle.hp_max()
 	Battle.mp = Battle.mp_max()
@@ -7086,20 +7283,20 @@ func _item_battle_tests() -> void:
 	# 그늘 조각 - 예고와 실제가 같이 준다 (`Field._foe_out` 한 곳)
 	JourneyState.reset()
 	Battle.reset()
-	var f := Field.new_foe("worry")
+	var f := Field.new_foe("drop", 3)
 	var before := Field.foe_expected(f)
-	JourneyState.pick("m-worry")
+	JourneyState.pick("m-drop")
 	var after := Field.foe_expected(f)
-	ok(after < before, "걱정 조각을 지니면 걱정이 덜 아프다 (%d → %d)" % [before, after])
+	ok(after < before, "물방울뭉 조각을 지니면 물방울뭉이 덜 아프다 (%d → %d)" % [before, after])
 
 	# 걷어내면 남긴다 - 조각은 처음 한 번만
 	JourneyState.reset()
 	Battle.reset()
-	Field.defeat("worry")
-	ok(JourneyState.count("b-barleytea") == 1, "걱정은 보리차를 남긴다")
-	ok(JourneyState.count("m-worry") == 1, "처음 걷어내면 조각을 준다")
-	Field.defeat("worry")
-	ok(JourneyState.count("b-barleytea") == 2 and JourneyState.count("m-worry") == 1,
+	Field.defeat(Field.new_foe("drop", 1))
+	ok(JourneyState.count("b-barleytea") == 1, "물방울뭉은 보리차를 남긴다")
+	ok(JourneyState.count("m-drop") == 1, "처음 걷어내면 조각을 준다")
+	Field.defeat(Field.new_foe("drop", 1))
+	ok(JourneyState.count("b-barleytea") == 2 and JourneyState.count("m-drop") == 1,
 		"조각은 한 번뿐이다")
 	JourneyState.reset()
 	Battle.reset()
@@ -7303,7 +7500,7 @@ func _hunt_tests() -> void:
 		var bosses := 0
 		var normal := 0
 		for k in base:
-			if bool(Battle.ENEMIES[k].get("boss", false)):
+			if bool(Battle.ENEMIES[String(k[0])].get("boss", false)):
 				bosses += 1
 			else:
 				normal += 1
@@ -7325,7 +7522,10 @@ func _hunt_tests() -> void:
 				missing.append("보상:%s:%s" % [v, h["key"]])
 			# 서는 그늘보다 많이 잡으라고 하지 않는다 (하루에 다 채울 수 있다)
 			if String(h["kind"]) != "":
-				var there := Battle.spawns(String(v)).count(String(h["kind"]))
+				var there := 0
+				for sp2 in Battle.spawns(String(v)):
+					if String(sp2[0]) == String(h["kind"]):
+						there += 1
 				if there < int(h["need"]):
 					missing.append("못채움:%s:%s" % [v, h["kind"]])
 			elif int(h["need"]) > Battle.spawns(String(v)).size():
@@ -7387,7 +7587,7 @@ func _hunt_tests() -> void:
 	await get_tree().process_frame
 	var shown := false
 	for n in _all_nodes(p.hud._bag_grid):
-		if n is Label and String((n as Label).text).contains("걷어내기"):
+		if n is Label and String((n as Label).text).contains("쓰러뜨리기"):
 			shown = true
 	ok(shown, "이 마을 칸에 퇴치 할 일이 보인다")
 	p.hud.toggle_bag()
@@ -7401,11 +7601,11 @@ func _hunt_tests() -> void:
 	var until0 := Time.get_ticks_msec() + 1500
 	while pad.visible and Time.get_ticks_msec() < until0:
 		await get_tree().process_frame
-	ok(pad != null and not pad.visible, "그늘과 떨어져 있으면 공격 버튼이 없다")
+	ok(pad != null and not pad.visible, "몬스터와 떨어져 있으면 공격 버튼이 없다")
 	p.walker.global_position = p._shades[0].global_position + Vector2(12, 0)
 	for i in 12:
 		await get_tree().process_frame
-	ok(pad != null and pad.visible, "그늘 가까이 가면 공격 버튼이 뜬다")
+	ok(pad != null and pad.visible, "몬스터 가까이 가면 공격 버튼이 뜬다")
 	# 보이는 것만으로는 모자란다 - 판 크기가 0 이라 버튼이 화면 밖에 나가 있던 적이 있다
 	var vr := p.get_viewport().get_visible_rect()
 	var inside := true
@@ -7419,13 +7619,16 @@ func _hunt_tests() -> void:
 			shown_sk += 1
 	ok(shown_sk == Battle.skills().size(), "배운 것만 칸이 선다 (%d / %d)"
 		% [shown_sk, Battle.skills().size()])
-	Battle.level = 5
+	while Battle.level < 5:
+		Battle.xp = Battle.xp_need()
+		Battle.gain_xp(0)
+	await get_tree().process_frame
 	await get_tree().process_frame
 	shown_sk = 0
 	for b in pad.buttons():
 		if b.visible:
 			shown_sk += 1
-	ok(shown_sk == 6, "레벨이 오르면 칸이 는다 (%d)" % shown_sk)
+	ok(shown_sk == 3, "레벨이 오르면 칸이 는다 - 몸통 박치기 (%d)" % shown_sk)
 	# 걸으면서 다른 손가락으로 눌러도 된다
 	var sh2: Shade = p._shades[0]
 	p.walker.global_position = sh2.global_position + Vector2(10, 0)
@@ -7464,3 +7667,62 @@ func _hunt_tests() -> void:
 	await get_tree().process_frame
 	JourneyState.reset()
 	Battle.reset()
+
+
+# ── 캐릭터 창 (능력치·스킬·장비) ─────────────────────────────────────
+
+func _char_ui_tests() -> void:
+	print("\n[캐릭터 창 - 전직·점수·장비]")
+	JourneyState.reset()
+	Battle.reset()
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var hud: JourneyHud = p.hud
+	while Battle.level < Battle.JOB_LV:
+		Battle.xp = Battle.xp_need()
+		Battle.gain_xp(0)
+	hud.open_tab(5)
+	await get_tree().process_frame
+	ok(String(hud._bag_title.text) == "캐릭터", "여섯째 칸은 캐릭터 창 (%s)" % hud._bag_title.text)
+	var jb: Button = hud._bag_grid.find_child("Job_mage", true, false)
+	ok(jb != null, "LV 10 이면 직업 버튼이 뜬다")
+	if jb != null:
+		jb.pressed.emit()
+	await get_tree().process_frame
+	ok(Battle.job == "mage" and Gear.weapon_kind() == "staff", "누르면 마법사가 되고 지팡이를 든다")
+	ok(hud._bag_grid.find_child("Job_warrior", true, false) == null, "전직하면 직업 버튼이 사라진다")
+	# 능력치 손으로 나누기
+	Battle.auto_ap = false
+	Battle.ap = 2
+	hud._refill_bag()
+	await get_tree().process_frame
+	var plus: Button = hud._bag_grid.find_child("Plus_int", true, false)
+	var int_was := int(Battle.stats["int"])
+	if plus != null:
+		plus.pressed.emit()
+	ok(int(Battle.stats["int"]) == int_was + 1 and Battle.ap == 1, "+1 을 누르면 지능이 오른다")
+	# 장비 칸 - 가진 것을 골라 입는다
+	var ring := Gear.make("ring", "ring", 1, 3, "none")
+	Gear.items.append(ring)
+	hud._char_tab = 2
+	hud._gear_sel = int(ring["uid"])
+	hud._refill_bag()
+	await get_tree().process_frame
+	var wear := _find_button(hud._bag_grid, "입기")
+	ok(wear != null, "고른 장비에 [입기] 가 있다")
+	if wear != null:
+		wear.pressed.emit()
+	await get_tree().process_frame
+	ok(Gear.worn("ring").get("uid", -1) == int(ring["uid"]), "입기를 누르면 입는다")
+	var shows := false
+	for n in _all_nodes(hud._bag_grid):
+		if n is Button and String((n as Button).text).contains(Gear.name_of(ring)):
+			shows = true
+	ok(shows, "입은 칸에 이름이 보인다")
+	hud.toggle_bag()
+	p.queue_free()
+	await get_tree().process_frame
+	Battle.reset()
+	JourneyState.reset()

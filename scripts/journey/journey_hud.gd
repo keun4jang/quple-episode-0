@@ -39,6 +39,9 @@ var _bag_sel := ""
 var _bag_dex := false
 ## 배낭(도감) 몇째 쪽을 보고 있나. 굴리지 않고 방향 버튼으로 넘긴다.
 var _bag_page := 0
+## 캐릭터 창의 칸 - 0 능력치 · 1 스킬 · 2 장비. 장비 칸에서 고른 한 벌.
+var _char_tab := 0
+var _gear_sel := -1
 ## 화면 왼쪽 위 메뉴 버튼 다섯(배낭·사진첩·편지·행복첩·이 마을)과
 ## 그 뒤에 깔리는 받침, 그리고 편지·할 일 위에 뜨는 알림 점.
 ##
@@ -537,7 +540,7 @@ func _pop(b: Control) -> void:
 ## 알게 된다.
 const MENU := [
 	["배낭", "i-pack"], ["사진첩", "i-album"], ["편지", "i-letter"],
-	["행복첩", "i-heartbook"], ["이 마을", "i-list"], ["마음", "i-mind"],
+	["행복첩", "i-heartbook"], ["이 마을", "i-list"], ["캐릭터", "i-mind"],
 ]
 const MENU_AT := Vector2(24, 62)   # 시계(28,18)와 안 겹치게 그 아래부터
 ## **88 에서 64 로 줄였다.** 여섯이 두 칸씩 세 줄로 서면 화면 왼쪽
@@ -660,6 +663,7 @@ func toggle_bag() -> void:
 		_bag_sel = ""
 		_bag_dex = false
 		_bag_page = 0
+		_gear_sel = -1
 		_refill_bag()
 	bag_toggled.emit(_bag_panel.visible)
 
@@ -669,6 +673,7 @@ func _pick_tab(i: int) -> void:
 	_bag_sel = ""
 	_bag_dex = false
 	_bag_page = 0
+	_gear_sel = -1
 	if i == 2:
 		# 열어 봤으면 읽은 것이다
 		JourneyState.read_letters()
@@ -747,7 +752,7 @@ func _refill_bag() -> void:
 		c.queue_free()
 	_bag_title.text = String(MENU[_tab][0]) if _tab < MENU.size() else ""
 	# 배낭만 옆으로 넓다 (`BAG_WIDE` 주석). 채우기 전에 폭부터 정한다.
-	var half := (BAG_WIDE if _tab == 0 else BAG_NARROW) * 0.5
+	var half := (BAG_WIDE if _tab in [0, 5] else BAG_NARROW) * 0.5
 	_bag_panel.offset_left = -half
 	_bag_panel.offset_right = half
 
@@ -779,7 +784,7 @@ func _fit_bag_panel() -> void:
 	# 덜 잡는다 — 안 줄이면 물건 둘짜리 배낭이 또 반쯤 빈 판이 된다.
 	# 배낭은 **굴리지 않고 쪽을 넘기므로** 한 쪽이 통째로 들어갈 만큼
 	# 더 잡는다 - 설명 판 + 칸 세 줄 + 쪽 넘기기 줄.
-	var cap := 760.0 if _tab == 0 else 580.0
+	var cap := 760.0 if _tab in [0, 5] else 580.0
 	var need: float = clampf(content + 110.0, 190.0, minf(vp.y * 0.82, cap))
 	_bag_panel.offset_top = -need * 0.5
 	_bag_panel.offset_bottom = need * 0.5
@@ -1054,7 +1059,7 @@ func _item_card(item: String, can_use: bool) -> Control:
 	if can_use and Catalog.edible(item):
 		w -= 164.0
 	# 넓은 배낭 판에서는 글줄도 그만큼 넓게 - 좁게 접으면 판 높이를 넘는다.
-	if _tab == 0:
+	if _tab in [0, 5]:
 		w += BAG_WIDE - BAG_NARROW
 	var kind := Catalog.kind_of(item)
 	var at := String(Catalog.of(item).get("at", ""))
@@ -1201,44 +1206,341 @@ func _paper_btn(text: String, fn: Callable) -> Button:
 ## 잠긴 것도 흐리게 같이 적는 이유다 — 있다는 걸 알아야 기다린다.
 func _fill_mind() -> void:
 	_bag_grid.columns = 1
-	var need := Battle.xp_need() - Battle.xp
-	var tail := "다음까지 %d" % need if Battle.level < Battle.LEVEL_MAX else "끝까지 왔다"
-	_bag_grid.add_child(_bag_line("LV %d   ·   %s" % [Battle.level, tail],
-		30, Color("#FFE39A")))
-	_bag_grid.add_child(_bag_line("체력  %d / %d"
-		% [Battle.hp, Battle.hp_max()], 26, Color("#B4E6C0")))
-	_bag_grid.add_child(_bag_line("마음력  %d / %d"
-		% [Battle.mp, Battle.mp_max()], 26, Color("#B4CCE6")))
-	_bag_grid.add_child(_bag_line("마음의 힘 %d   ·   버팀 %d"
-		% [Battle.attack_power(), Battle.defense()], 24, Color("#E4DCCF")))
-	# **지닌 것이 보태는 힘.** 기념품·도장은 장착하지 않는다 - 배낭에
-	# 있기만 하면 된다. 그 몫이 어디서 왔는지 여기서 보인다.
+	var need := Battle.xp_need()
+	var tail := "경험 %d / %d" % [Battle.xp, need] if Battle.level < Battle.LEVEL_MAX \
+		else "끝까지 왔다"
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 10)
+	for i in 3:
+		var names := ["능력치", "스킬", "장비"]
+		var label := String(names[i])
+		if i == 0 and Battle.ap > 0:
+			label += " (%d)" % Battle.ap
+		elif i == 1 and Battle.sp > 0:
+			label += " (%d)" % Battle.sp
+		var tb := _paper_btn(label, func() -> void:
+			AudioManager.page_turn()
+			_char_tab = i
+			_gear_sel = -1
+			_bag_page = 0
+			_refill_bag())
+		tb.custom_minimum_size = Vector2(150, 52)
+		if i == _char_tab:
+			tb.modulate = Color(1.15, 1.1, 0.8)
+		else:
+			tb.modulate = Color(0.75, 0.75, 0.75)
+		tabs.add_child(tb)
+	# LV·직업·경험은 칸 줄 오른쪽에 - 따로 한 줄을 쓰면 장비 칸이 판을 넘친다.
+	var head := Label.new()
+	head.text = "LV %d  %s   %s" % [Battle.level, Battle.job_name(), tail]
+	head.add_theme_font_size_override("font_size", 22)
+	head.add_theme_color_override("font_color", Color("#FFE39A"))
+	head.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	tabs.add_child(head)
+	_bag_grid.add_child(tabs)
+	match _char_tab:
+		1: _fill_skills()
+		2: _fill_gear()
+		_: _fill_stats()
+
+
+## 능력치 - 체력·공격력…, 힘·민첩·지능·행운 나누기, 전직.
+func _fill_stats() -> void:
+	# **전직.** LV 10 이 되면 여기서 넷 중 하나를 고른다.
+	if Battle.job == "novice":
+		if Battle.level >= Battle.JOB_LV:
+			_bag_grid.add_child(_bag_line("전직할 수 있어요! 직업을 골라요.", 26,
+				Color("#FFD43B")))
+			var row := GridContainer.new()
+			row.columns = 2
+			row.add_theme_constant_override("h_separation", 10)
+			row.add_theme_constant_override("v_separation", 10)
+			for j in Battle.JOB_ORDER:
+				var jd: Dictionary = Battle.JOBS[j]
+				var jb := _paper_btn("%s  -  %s" % [String(jd["name"]),
+					String(Gear.WEAPONS[String(jd["weapon"])])], func() -> void:
+						if Battle.set_job(String(j)):
+							AudioManager.ui_confirm()
+							_celebrate("%s이(가) 되었어요!" % Battle.job_name(),
+								"%s을(를) 받았어요" % Gear.name_of(Gear.worn("weapon")))
+							SaveManager.save_now()
+							_refill_bag())
+				jb.custom_minimum_size = Vector2(420, 60)
+				jb.name = "Job_" + String(j)
+				jb.tooltip_text = String(jd["desc"])
+				row.add_child(jb)
+			_bag_grid.add_child(row)
+			for j in Battle.JOB_ORDER:
+				_bag_grid.add_child(_bag_line("%s - %s" % [String(Battle.JOBS[j]["name"]),
+					String(Battle.JOBS[j]["desc"])], 18, Color("#C9BFB2")))
+		else:
+			_bag_grid.add_child(_bag_line("LV %d 에 전직해요 - 전사 · 마법사 · 궁수 · 도적"
+				% Battle.JOB_LV, 20, Color("#A79A8A")))
+	_bag_grid.add_child(_bag_line("체력 %d / %d   ·   마음력 %d / %d"
+		% [Battle.hp, Battle.hp_max(), Battle.mp, Battle.mp_max()], 22, Color("#B4E6C0")))
+	_bag_grid.add_child(_bag_line("공격력 %d   ·   방어력 %d   ·   치명타 %d 퍼센트 (x%.1f)"
+		% [Battle.attack_power(), Battle.defense(), int(Battle.crit_rate() * 100.0),
+			Battle.crit_mult()], 22, Color("#E4DCCF")))
+	_bag_grid.add_child(_bag_line("남은 능력치 점수 %d" % Battle.ap, 22,
+		Color("#FFE39A") if Battle.ap > 0 else Color("#A79A8A")))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 8)
+	var what := {"str": "근접 공격 · 체력", "dex": "원거리 · 치명타",
+		"int": "마법 · 마음력", "luk": "치명타 피해 · 드랍"}
+	var main := String(Battle.JOBS[Battle.job]["main"])
+	for st in Battle.STAT_ORDER:
+		var l := _bag_line("%s %d  (%s)%s" % [String(Battle.STAT_NAME[st]), Battle.stat(st),
+			String(what[st]), "  - 주 능력치" if st == main else ""], 22,
+			Color("#FFFDF6") if st == main else Color("#E4DCCF"))
+		l.custom_minimum_size = Vector2(560, 0)
+		grid.add_child(l)
+		var plus := _paper_btn("+1", func() -> void:
+			if Battle.spend_ap(String(st)):
+				AudioManager.ui_click()
+				_refill_bag())
+		plus.custom_minimum_size = Vector2(90, 48)
+		plus.disabled = Battle.ap <= 0
+		plus.name = "Plus_" + String(st)
+		grid.add_child(plus)
+	_bag_grid.add_child(grid)
+	var auto := _paper_btn("자동 배분 %s" % ("켜짐" if Battle.auto_ap else "꺼짐"), func() -> void:
+		Battle.auto_ap = not Battle.auto_ap
+		if Battle.auto_ap:
+			Battle.auto_spend_ap()
+		AudioManager.ui_click()
+		_refill_bag())
+	auto.name = "AutoAP"
+	_bag_grid.add_child(auto)
+	# 지닌 기념품·도장이 보태는 힘도 여기서 보인다.
 	var parts: Array = []
-	for st in ["hp", "mp", "atk", "def"]:
-		var n := Catalog.bonus(st)
+	for st2 in ["hp", "mp", "atk", "def"]:
+		var n := Catalog.bonus(st2)
 		if n > 0:
-			parts.append("%s +%d" % [String(Catalog.STAT_NAME[st]), n])
+			parts.append("%s +%d" % [String(Catalog.STAT_NAME[st2]), n])
 	if not parts.is_empty():
 		_bag_grid.add_child(_bag_line("지닌 것 덕분에 · " + " · ".join(parts),
-			21, Color("#B4E6C0")))
-	var pieces := 0
-	for id in Catalog.ids_of("shade"):
-		if JourneyState.count(String(id)) > 0:
-			pieces += 1
-	if pieces > 0:
-		_bag_grid.add_child(_bag_line("그늘 조각 %d가지 · 그 그늘들이 주는 피해가 줄어든다"
-			% pieces, 21, Color("#B4CCE6")))
-	_bag_grid.add_child(_bag_line(" ", 12, Color("#A79A8A")))
-	for id in Battle.SKILL_ORDER:
+			19, Color("#B4E6C0")))
+
+
+## 스킬 - 배운 것과 배울 것, 스킬 점수로 레벨 올리기.
+func _fill_skills() -> void:
+	_bag_grid.add_child(_bag_line("남은 스킬 점수 %d   ·   스킬 레벨 한 칸마다 10퍼센트 세진다"
+		% Battle.sp, 21, Color("#FFE39A") if Battle.sp > 0 else Color("#A79A8A")))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 6)
+	for id in Battle.job_skills():
 		var sk: Dictionary = Battle.SKILLS[id]
-		var lv := int(sk["lv"])
-		if lv <= Battle.level:
-			var cost := "   (마음력 %d)" % int(sk["mp"]) if int(sk["mp"]) > 0 else ""
-			_bag_grid.add_child(_bag_line("%s%s"
-				% [String(sk["name"]), cost], 25, Color("#E4DCCF")))
+		var slv := int(Battle.skill_lv.get(id, 0))
+		var bits: Array = []
+		if String(sk["type"]) == "attack":
+			bits.append("%s 속성" % Battle.elem_name(Battle.skill_elem(id)))
+			bits.append("x%.1f" % (float(sk["mult"]) * Battle.skill_power(id)))
+			if int(sk.get("hits", 1)) > 1:
+				bits.append("%d번" % int(sk["hits"]))
+			if sk.has("aoe"):
+				bits.append("범위")
+			if sk.has("range"):
+				bits.append("원거리")
+		elif String(sk["type"]) == "heal":
+			bits.append("회복")
 		else:
-			_bag_grid.add_child(_bag_line("%s   -  LV %d 에"
-				% [String(sk["name"]), lv], 25, Color("#7E7468")))
+			bits.append("버프")
+		for key in ["foe", "grants"]:
+			if sk.has(key):
+				var tbl: Dictionary = Battle.ENEMY_STATUSES if key == "foe" else Battle.STATUSES
+				bits.append(String(tbl[String(sk[key])]["name"]))
+		bits.append("마음 %d" % int(sk["mp"]))
+		var head := "%s  Lv %d" % [String(sk["name"]), slv] if slv > 0 \
+			else "%s  (LV %d 에 배움)" % [String(sk["name"]), int(sk["lv"])]
+		var l := _bag_line("%s   %s" % [head, " · ".join(bits)], 20,
+			Battle.elem_col(Battle.skill_elem(id)).lightened(0.3) if slv > 0 else Color("#7E7468"))
+		l.custom_minimum_size = Vector2(740, 0)
+		grid.add_child(l)
+		var plus := _paper_btn("+1", func() -> void:
+			if Battle.spend_sp(String(id)):
+				AudioManager.ui_click()
+				_refill_bag())
+		plus.custom_minimum_size = Vector2(80, 44)
+		plus.disabled = Battle.sp <= 0 or slv <= 0 or slv >= Battle.SKILL_MAX
+		grid.add_child(plus)
+	_bag_grid.add_child(grid)
+	var auto := _paper_btn("자동 배분 %s" % ("켜짐" if Battle.auto_sp else "꺼짐"), func() -> void:
+		Battle.auto_sp = not Battle.auto_sp
+		if Battle.auto_sp:
+			Battle.auto_spend_sp()
+		AudioManager.ui_click()
+		_refill_bag())
+	_bag_grid.add_child(auto)
+
+
+const GEAR_PAGE := 4
+
+
+## 장비 - 입은 여섯 칸, 가진 것 목록(쪽 넘기기), 고른 한 벌의 설명·입기·강화·팔기.
+func _fill_gear() -> void:
+	_bag_grid.add_child(_bag_line("꿈조각 %d   ·   강화석 %d" % [Gear.coins, Gear.stones],
+		22, Color("#FFE39A")))
+	var sel := Gear.get_item(_gear_sel)
+	if not sel.is_empty():
+		_bag_grid.add_child(_gear_card(sel))
+	# 입은 것 - 두 줄 세 칸. 한 벌을 골라 설명 판이 떠 있는 동안은 접는다
+	# (판 높이를 넘으면 목록과 쪽 넘기기가 아래로 밀려 안 보인다).
+	if not sel.is_empty():
+		_gear_list()
+		return
+	var worn := GridContainer.new()
+	worn.columns = 3
+	worn.add_theme_constant_override("h_separation", 8)
+	worn.add_theme_constant_override("v_separation", 6)
+	for slot in Gear.SLOTS:
+		var it := Gear.worn(String(slot))
+		var txt := "%s  -  %s" % [String(Gear.SLOT_NAME[slot]),
+			Gear.name_of(it) if not it.is_empty() else "비어 있음"]
+		var b := _gear_btn(txt, it, 280.0)
+		worn.add_child(b)
+	_bag_grid.add_child(worn)
+	_gear_list()
+
+
+## 가진 장비 (입지 않은 것) - 등급 높은 것부터, 쪽 넘기기.
+func _gear_list() -> void:
+	var list: Array = []
+	for it in Gear.items:
+		if not Gear.is_worn(int(it["uid"])):
+			list.append(it)
+	list.sort_custom(func(a, b) -> bool:
+		if int(a["rar"]) != int(b["rar"]):
+			return int(a["rar"]) > int(b["rar"])
+		return Gear.score(a) > Gear.score(b))
+	if list.is_empty():
+		_bag_grid.add_child(_bag_line("가방에 다른 장비가 없어요. 몬스터가 떨어뜨려요.", 19,
+			Color("#A79A8A")))
+		return
+	var pages := maxi(1, ceili(float(list.size()) / GEAR_PAGE))
+	_bag_page = clampi(_bag_page, 0, pages - 1)
+	var cells := GridContainer.new()
+	cells.columns = 2
+	cells.add_theme_constant_override("h_separation", 8)
+	cells.add_theme_constant_override("v_separation", 6)
+	for i in range(_bag_page * GEAR_PAGE, mini((_bag_page + 1) * GEAR_PAGE, list.size())):
+		var it2: Dictionary = list[i]
+		var tag := ""
+		if not Gear.can_wield(it2):
+			tag = "  (못 듦)"
+		elif Gear.better(it2):
+			tag = "  (더 좋음)"
+		var b2 := _gear_btn("%s [%s]%s" % [Gear.name_of(it2),
+			String(Gear.RARITY[int(it2["rar"])]["name"]), tag], it2, 425.0)
+		cells.add_child(b2)
+	_bag_grid.add_child(cells)
+	_bag_grid.add_child(_pager(pages, _paper_btn("일반·고급 팔기", func() -> void:
+		var got := Gear.sell_junk(1)
+		if got > 0:
+			AudioManager.ui_confirm()
+			_say_hint("꿈조각 +%d" % got, false, 1.4)
+		_gear_sel = -1
+		_refill_bag())))
+
+
+func _gear_btn(text: String, it: Dictionary, w: float) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.clip_text = true
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.custom_minimum_size = Vector2(w, 44)
+	b.add_theme_font_size_override("font_size", 18)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1, 0.12 if not it.is_empty() and int(it["uid"]) == _gear_sel else 0.05)
+	sb.set_corner_radius_all(10)
+	sb.content_margin_left = 10
+	sb.border_color = Gear.rarity_col(it) if not it.is_empty() else Color("#5C5470")
+	sb.set_border_width_all(2)
+	for st in ["normal", "hover", "pressed", "focus"]:
+		b.add_theme_stylebox_override(st, sb)
+	var col := Gear.rarity_col(it) if not it.is_empty() else Color("#7E7468")
+	for st2 in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(st2, col)
+	if not it.is_empty():
+		var uid := int(it["uid"])
+		b.pressed.connect(func() -> void:
+			AudioManager.ui_click()
+			_gear_sel = -1 if _gear_sel == uid else uid
+			_refill_bag())
+	return b
+
+
+## 고른 장비 설명 - 수치, 그리고 입기·벗기·강화·팔기.
+func _gear_card(it: Dictionary) -> Control:
+	var panel := _card_box()
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	panel.add_child(col)
+	var head := Label.new()
+	head.add_theme_font_size_override("font_size", 24)
+	head.add_theme_color_override("font_color", Gear.rarity_col(it))
+	head.text = "%s  (%s · %s)" % [Gear.name_of(it), String(Gear.RARITY[int(it["rar"])]["name"]),
+		String(Gear.SLOT_NAME[String(it["slot"])])]
+	col.add_child(head)
+	var l := Label.new()
+	l.add_theme_font_size_override("font_size", 18)
+	l.add_theme_color_override("font_color", Color("#E4DCCF"))
+	l.text = "   ".join(Gear.lines_of(it))
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size = Vector2(820, 0)
+	col.add_child(l)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	col.add_child(row)
+	var uid := int(it["uid"])
+	if Gear.is_worn(uid):
+		row.add_child(_small_btn("벗기", func() -> void:
+			Gear.unequip(String(it["slot"]))
+			_gear_sel = -1
+			_refill_bag()))
+	elif Gear.can_wield(it):
+		# 입으면 판을 접고 입은 칸을 보여 준다 - 무엇이 바뀌었는지 바로 보이게.
+		row.add_child(_small_btn("입기", func() -> void:
+			if Gear.equip(uid):
+				AudioManager.ui_confirm()
+				_gear_sel = -1
+			_refill_bag()))
+	if int(it["plus"]) < Gear.PLUS_MAX:
+		var eb := _small_btn("강화 (%d · 강화석 1 · %d 퍼센트)" % [Gear.plus_cost(it),
+			int(Gear.plus_rate(it) * 100.0)], func() -> void:
+				var r := Gear.enhance(uid)
+				if bool(r["ok"]):
+					AudioManager.ui_confirm()
+					_celebrate("강화 성공!", Gear.name_of(Gear.get_item(uid)))
+				elif bool(r.get("tried", false)):
+					AudioManager.battle_hurt()
+					_say_hint("강화 실패... 수치는 그대로예요", false, 1.6)
+				else:
+					_say_hint(String(r["why"]), false, 1.4)
+				SaveManager.save_now()
+				_refill_bag())
+		eb.custom_minimum_size = Vector2(360, 48)
+		row.add_child(eb)
+	if not Gear.is_worn(uid):
+		row.add_child(_small_btn("팔기 %d" % Gear.sell_price(it), func() -> void:
+			Gear.sell(uid)
+			_gear_sel = -1
+			AudioManager.ui_click()
+			_refill_bag()))
+	return panel
+
+
+func _small_btn(text: String, fn: Callable) -> Button:
+	var b := _paper_btn(text, fn)
+	b.custom_minimum_size = Vector2(140, 48)
+	b.add_theme_font_size_override("font_size", 19)
+	return b
 
 
 ## 사진첩. 그림을 저장하지 않는다 — **어디서 언제 무엇을 봤는지**만 적는다.

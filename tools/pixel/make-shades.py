@@ -76,29 +76,87 @@ def put_eyes(px, spec, cx, ey, col, row):
             px[(x + 1, y + 1)] = col
 
 
+## 꿈결의 몬스터 (`docs/elements.md` 3절). **속성이 모양으로 보이게** 한다:
+##   drop   물방울 - 머리가 뾰족하고 하얀 반짝임
+##   flame  불꽃 - 머리 위로 혀 셋이 날름거린다 (프레임마다 흔들림)
+##   sprout 새싹 - 머리에 떡잎 두 장
+##   rock   돌 - 몸이 각지고 돌 무늬 점
+##   swirl  바람 - 몸에 흰 소용돌이 줄
+##   thorn  가시 - 몸 둘레에 가시
+## (id, 셀, 몸피, 머리 꼭대기, 자락 물결, 발밑 띄움, 몸빛, 테두리, 눈빛, 눈, 꾸밈, 꾸밈빛)
 SHADES = [
-    # id, 셀 크기, 몸피(반), 머리 꼭대기, 자락 물결, 발밑 띄움,
-    # 몸빛, 테두리, 눈빛, 눈 자리[(dx, dy, 큰가)]
-    ("worry",  (20, 24), 5, 8,  5, 3, "#5A6B7E", "#2A3340", "#FFE9A8",
-     [(-3, 0, False), (0, -2, False), (3, 0, False)]),
-    ("hurry",  (20, 24), 4, 3,  3, 4, "#8A5638", "#3A241A", "#FFC46B",
-     [(-2, 0, True), (2, 0, True)]),
-    ("lonely", (20, 24), 4, 2,  1, 2, "#46507E", "#20263C", "#A8C6FF",
-     [(-2, 0, False), (2, 0, False)]),
-    ("tired",  (20, 24), 7, 11, 2, 2, "#5E5A5E", "#2A282C", "#E0DCD4",
-     [(-3, 0, True), (3, 0, True)]),
-    ("regret", (20, 24), 6, 9,  3, 2, "#6B4A6E", "#312134", "#FFC8E6",
-     [(-3, 0, True), (3, 0, True)]),
-    ("envy",   (20, 24), 5, 5,  1, 3, "#4A6E5A", "#203026", "#C8FFD8",
-     [(-2, 0, True), (2, 0, True)]),
-    # 보스는 한눈에 크다. 셀부터 다르다.
+    ("drop",   (20, 24), 5, 7,  4, 3, "#4DABF7", "#1B4F7A", "#FFFFFF",
+     [(-2, 1, False), (2, 1, False)], "drop", "#E7F5FF"),
+    ("whirl",  (20, 24), 6, 6,  6, 2, "#1C7ED6", "#0B3B66", "#E7F5FF",
+     [(-2, 0, True), (2, 0, True)], "swirl", "#A5D8FF"),
+    ("ember",  (20, 24), 4, 8,  3, 3, "#FF7043", "#7A2A12", "#FFF3BF",
+     [(-2, 0, False), (2, 0, False)], "flame", "#FFD43B"),
+    ("blaze",  (20, 24), 6, 8,  4, 2, "#E8590C", "#5C1E05", "#FFF3BF",
+     [(-3, 0, True), (3, 0, True)], "flame", "#FFD43B"),
+    ("sprout", (20, 24), 5, 9,  3, 3, "#69DB7C", "#1E5A2A", "#FFFFFF",
+     [(-2, 0, False), (2, 0, False)], "sprout", "#2B8A3E"),
+    ("thorn",  (20, 24), 6, 7,  5, 2, "#2F9E44", "#123F1C", "#FFE066",
+     [(-3, 0, True), (3, 0, True)], "thorn", "#D8F5A2"),
+    ("pebble", (20, 24), 6, 9,  2, 2, "#A0896B", "#3F3222", "#FFF3BF",
+     [(-3, 0, False), (3, 0, False)], "rock", "#6B5A48"),
+    ("mole",   (20, 24), 7, 8,  2, 2, "#C9955C", "#4A3320", "#1A1418",
+     [(-3, 0, True), (3, 0, True)], "rock", "#8D6E4F"),
+    ("gust",   (20, 24), 4, 5,  5, 4, "#C5F6FA", "#3B8A96", "#1A1418",
+     [(-2, 0, False), (2, 0, False)], "swirl", "#FFFFFF"),
+    ("storm",  (20, 24), 6, 4,  6, 3, "#66D9E8", "#1D5E68", "#FFFFFF",
+     [(-3, 0, True), (3, 0, True)], "swirl", "#E3FAFC"),
+    # 우두머리는 한눈에 크다. 셀부터 다르다.
     ("night",  (26, 30), 9, 2,  4, 2, "#2E2836", "#121017", "#FFD166",
-     [(-4, 0, True), (4, 0, True)]),
+     [(-4, 0, True), (4, 0, True)], "none", "#B197FC"),
 ]
 
 
+def decorate(px, deco, col, on, cw, ch, top, half, f, row):
+    c = hx(col)
+    cx = int(round((cw - 1) / 2.0))
+    if deco == "drop":
+        # 머리 꼭대기를 뾰족하게, 반짝임 하나
+        for dy in range(1, 4):
+            px[(cx, top - dy)] = hx("#1B4F7A") if dy == 3 else px.get((cx, top), c)
+        px[(cx - 2, top + 2)] = c
+        px[(cx - 1, top + 1)] = c
+    elif deco == "flame":
+        sway = [0, 1, 0, -1][f]
+        for i, dx in enumerate((-2, 0, 2)):
+            h = 4 + (1 if i == 1 else 0)
+            for dy in range(1, h + 1):
+                x = cx + dx + (sway if dy > 1 else 0)
+                px[(x, top - dy + 1)] = c if dy < h else hx("#FFF3BF")
+    elif deco == "sprout":
+        px[(cx, top - 1)] = c
+        px[(cx, top - 2)] = c
+        for (x, y) in ((cx - 1, top - 3), (cx - 2, top - 3), (cx - 3, top - 4),
+                       (cx + 1, top - 3), (cx + 2, top - 3), (cx + 3, top - 4)):
+            px[(x, y)] = hx("#8CE99A")
+    elif deco == "thorn":
+        for (x, y) in list(on):
+            if (x + y + f) % 5 == 0 and ((x - 1, y) not in on or (x + 1, y) not in on):
+                nx = x - 1 if (x - 1, y) not in on else x + 1
+                px[(nx, y)] = c
+    elif deco == "rock":
+        for (x, y) in on:
+            if (x * 7 + y * 3) % 11 == 0:
+                px[(x, y)] = c
+    elif deco == "swirl":
+        if row == 2:
+            return
+        cy = top + half + 4
+        for k in range(10):
+            a = k * 0.7 + f * 0.8
+            r = 1.0 + k * 0.35
+            x = int(round(cx + math.cos(a) * r))
+            y = int(round(cy + math.sin(a) * r * 0.6))
+            if (x, y) in on:
+                px[(x, y)] = c
+
+
 def build(spec):
-    sid, (cw, ch), half, top, bumps, foot, body, edge, eyec, eyes = spec
+    sid, (cw, ch), half, top, bumps, foot, body, edge, eyec, eyes, deco, dcol = spec
     body_c, edge_c, eye_c = hx(body), hx(edge), hx(eyec)
     sheet = Image.new("RGBA", (cw * FRAMES, ch * ROWS), (0, 0, 0, 0))
     one = None
@@ -113,6 +171,7 @@ def build(spec):
                 px[p] = edge_c
             for p in on:
                 px[p] = body_c
+            decorate(px, deco, dcol, on, cw, ch, top + lift, half, f, row)
             put_eyes(px, eyes, (cw - 1) / 2.0, top + half + lift, eye_c, row)
             cell = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
             cell.putdata([px.get((x, y), (0, 0, 0, 0))

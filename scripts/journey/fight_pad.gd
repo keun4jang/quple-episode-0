@@ -1,31 +1,27 @@
 class_name FightPad
 extends Control
-## 오른쪽 아래 공격 버튼과 스킬 칸, 왼쪽 아래 체력·마음력 막대.
+## 오른쪽 아래 공격 버튼과 스킬 칸, 왼쪽 아래 LV·체력·마음력·경험 막대.
 ##
-## **바람의나라·메이플스토리처럼 버튼을 눌러 직접 때린다** (0.1.169).
-## 큰 [공격] 은 웃어넘기기(마음력 0) - 연타가 기본이다. 그 왼쪽에 배운
-## 스킬이 한 칸씩 붙는다 (레벨이 오르면 칸이 는다). 다시 쓰기까지의
-## 틈은 칸 위에 어두운 부채꼴로 줄어든다.
+## **바람의나라·메이플스토리처럼 버튼을 눌러 직접 때린다.** 큰 [공격] 은
+## 톡 치기(마음력 0, 든 무기의 속성) - 꾹 누르면 연타다. 그 왼쪽에 **배운
+## 스킬이 한 칸씩** 붙는다 (`Battle.slot_skills` - 직업과 레벨에 따라 바뀐다).
+## 칸 테두리는 그 스킬의 속성 빛깔이다. 다시 쓰기까지의 틈은 칸 위에 어두운
+## 부채꼴로 줄어든다.
 ##
-## 그늘이 서는 마을 바깥에서만 뜬다 (`Place.can_fight`). 가게 안·고향·
-## 회사에서는 싸울 일이 없으니 버튼도 없다.
+## **대결이 성사될 때만** 뜬다 (`Place.in_fight`, `JourneyHud._process`).
 ##
-## 키보드: Z 공격, 1~5 스킬 차례대로 (`ORDER`).
+## 키보드: Z 공격, 1~7 스킬 차례대로.
 
 const ATTACK := 128.0
-const SKILL := 84.0
-const GAP := 12.0
+const SKILL := 80.0
+const GAP := 10.0
 const EDGE := 32.0
-## 스킬 칸 차례 - 공격 버튼 바로 옆부터. 자주 쓰는 공격 스킬이 가깝다.
-const ORDER := ["remember", "walk_on", "breathe", "cheer", "steady"]
-const SHORT := {
-	"remember": "기억", "walk_on": "걷는다", "breathe": "심호흡",
-	"cheer": "응원", "steady": "단단히",
-}
-const KEYS := {KEY_1: 0, KEY_2: 1, KEY_3: 2, KEY_4: 3, KEY_5: 4}
+const SLOT_MAX := 7
+const KEYS := {KEY_1: 0, KEY_2: 1, KEY_3: 2, KEY_4: 3, KEY_5: 4, KEY_6: 5, KEY_7: 6}
 
 var _attack: Button
 var _skills: Dictionary = {}     # id → Button
+var _slot_ids: Array = []
 var _vitals: Control
 var _lv: Label
 
@@ -35,7 +31,7 @@ func _ready() -> void:
 	# 붙인 버튼들이 화면 왼쪽 위 바깥(-160,-160)으로 나갔다. 여백까지 맞춘다.
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_attack = _round_btn("smile", ATTACK, Color("#FF9A8A"), Color("#8C4B3F"))
+	_attack = _round_btn("tap", ATTACK, Color("#FF9A8A"), Color("#8C4B3F"))
 	_attack.name = "Attack"
 	_attack.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_attack.offset_left = -EDGE - ATTACK
@@ -44,10 +40,25 @@ func _ready() -> void:
 	_attack.offset_bottom = -EDGE
 	var al := _btn_label(_attack, "공격", 32, Color("#3A1E1A"))
 	al.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for i in ORDER.size():
-		var id: String = ORDER[i]
-		var col := Color(String(FieldFx.cols_of(id)[0]))
-		var b := _round_btn(id, SKILL, Color("#F4EDE2"), col.darkened(0.25))
+	_rebuild()
+	_build_vitals()
+
+
+## 스킬 칸을 다시 세운다 - 배운 스킬이 바뀌었을 때만 (레벨업·전직).
+func _rebuild() -> void:
+	for id in _skills:
+		(_skills[id] as Node).queue_free()
+	_skills.clear()
+	_slot_ids = Battle.slot_skills().slice(0, SLOT_MAX)
+	for i in _slot_ids.size():
+		var id: String = _slot_ids[i]
+		var sk: Dictionary = Battle.SKILLS[id]
+		var col := Battle.elem_col(Battle.skill_elem(id))
+		if String(sk["type"]) == "heal":
+			col = Color("#63E6BE")
+		elif String(sk["type"]) == "buff":
+			col = Color("#FFD43B")
+		var b := _round_btn(id, SKILL, Color("#F4EDE2"), col.darkened(0.15))
 		b.name = "Skill_" + id
 		b.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 		var right := -EDGE - ATTACK - GAP - float(i) * (SKILL + GAP)
@@ -61,13 +72,17 @@ func _ready() -> void:
 		box.add_theme_constant_override("separation", -4)
 		box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		b.add_child(box)
-		var nm := _btn_label(box, String(SHORT[id]), 19, Color("#3A2C2C"))
+		var name_s := String(sk["name"])
+		# 이름이 길면 두 줄로 - 칸이 80 이라 넉 자까지만 한 줄에 든다.
+		if name_s.length() > 4 and name_s.contains(" "):
+			name_s = name_s.replace(" ", "\n")
+		var nm := _btn_label(box, name_s, 16 if name_s.length() > 3 else 18,
+			Color("#3A2C2C"))
 		nm.name = "Name"
-		var cost := _btn_label(box, "마음 %d" % int(Battle.SKILLS[id]["mp"]), 13,
-			Color("#6B5A48"))
+		var cost := _btn_label(box, "마음 %d" % int(sk["mp"]), 12, Color("#6B5A48"))
 		cost.name = "Cost"
 		_skills[id] = b
-	_build_vitals()
+		move_child(b, 0)
 
 
 func _round_btn(id: String, sz: float, bg: Color, border: Color) -> Button:
@@ -135,8 +150,8 @@ func _build_vitals() -> void:
 	_vitals.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_vitals.offset_left = 128
 	_vitals.offset_right = 128 + 300
-	_vitals.offset_top = -98
-	_vitals.offset_bottom = -30
+	_vitals.offset_top = -102
+	_vitals.offset_bottom = -22
 	add_child(_vitals)
 	_lv = Label.new()
 	_lv.add_theme_font_size_override("font_size", 20)
@@ -154,7 +169,11 @@ func _build_vitals() -> void:
 		_bar(bars, font, 26.0, float(Battle.hp) / maxf(1.0, float(Battle.hp_max())),
 			Color("#7FCB8F"), "체력 %d / %d" % [Battle.hp, Battle.hp_max()])
 		_bar(bars, font, 50.0, float(Battle.mp) / maxf(1.0, float(Battle.mp_max())),
-			Color("#7FB0E6"), "마음력 %d / %d" % [Battle.mp, Battle.mp_max()]))
+			Color("#7FB0E6"), "마음력 %d / %d" % [Battle.mp, Battle.mp_max()])
+		# 경험 - 얇은 노란 띠. 찰 때마다 눈에 들어와야 한 마리 더 잡는다.
+		var k := float(Battle.xp) / maxf(1.0, float(Battle.xp_need()))
+		bars.draw_rect(Rect2(0, 73, 300, 7), Color(0.12, 0.09, 0.14, 0.85))
+		bars.draw_rect(Rect2(1, 74, 298.0 * clampf(k, 0.0, 1.0), 5), Color("#FFD43B")))
 	bars.name = "Bars"
 	_vitals.add_child(bars)
 
@@ -181,18 +200,18 @@ func _pop(b: Control) -> void:
 func _process(_delta: float) -> void:
 	if not visible:
 		return
-	_lv.text = "LV %d" % Battle.level
-	# **꾹 누르고 있으면 계속 때린다** (메이플처럼). 틈(`Field.CD`)이
+	_lv.text = "LV %d  %s" % [Battle.level, Battle.job_name()]
+	# **꾹 누르고 있으면 계속 때린다** (메이플처럼). 틈(`Battle.SKILLS` 의 cd)이
 	# 박자를 정하므로 매 프레임 불러도 된다.
 	if _attack.is_pressed():
-		press("smile")
+		press("tap")
+	if Battle.slot_skills().slice(0, SLOT_MAX) != _slot_ids:
+		_rebuild()
 	_vitals.get_node("Bars").queue_redraw()
 	_attack.get_node("Cooldown").queue_redraw()
 	for id in _skills:
 		var b: Button = _skills[id]
-		# 배운 것만 칸이 선다 - 레벨이 오르면 하나씩 는다.
-		b.visible = int(Battle.SKILLS[id]["lv"]) <= Battle.level
-		if not b.visible:
+		if not is_instance_valid(b):
 			continue
 		b.get_node("Cooldown").queue_redraw()
 		# 마음력이 모자라면 흐리게 - 눌러도 안 된다는 걸 먼저 보여 준다.
@@ -217,8 +236,9 @@ func press(id: String) -> bool:
 
 func buttons() -> Array:
 	var out: Array = [_attack]
-	for id in ORDER:
-		out.append(_skills[id])
+	for id in _slot_ids:
+		if _skills.has(id) and is_instance_valid(_skills[id]):
+			out.append(_skills[id])
 	return out
 
 
@@ -240,10 +260,10 @@ func _unhandled_key_input(e: InputEvent) -> void:
 		return
 	var k: int = (e as InputEventKey).physical_keycode
 	if k == KEY_Z:
-		press("smile")
+		press("tap")
 		get_viewport().set_input_as_handled()
 	elif KEYS.has(k):
 		var i: int = KEYS[k]
-		if i < ORDER.size():
-			press(String(ORDER[i]))
+		if i < _slot_ids.size():
+			press(String(_slot_ids[i]))
 			get_viewport().set_input_as_handled()

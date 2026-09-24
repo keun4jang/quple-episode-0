@@ -789,7 +789,31 @@ func to_dict() -> Dictionary:
 		# `Battle` 은 오토로드가 아니라 정적 싱글턴이라 저장할 자리가
 		# 따로 없다 — 여행 기록에 얹는다.
 		"battle": Battle.to_dict(),
+		"gear": Gear.to_dict(),
 	}
+
+
+## 감정 이름이던 옛 그늘(걱정·조급함…)을 속성 몬스터로 옮긴다
+## (`Battle.OLD_KINDS`, `docs/elements.md` 5절). 조각도, 걷어낸 수도.
+func _migrate_kinds() -> void:
+	for old in Battle.OLD_KINDS:
+		var nu := String(Battle.OLD_KINDS[old])
+		if old == nu:
+			continue
+		var o_id := "m-" + String(old)
+		var n_id := "m-" + nu
+		if bag.has(o_id):
+			bag[n_id] = maxi(int(bag.get(n_id, 0)), int(bag[o_id]))
+			bag.erase(o_id)
+		if seen_items.has(o_id):
+			seen_items.erase(o_id)
+			seen_items[n_id] = true
+		for k in defeats.keys():
+			var ks := String(k)
+			if ks.ends_with(":" + String(old)):
+				var nk := ks.substr(0, ks.length() - String(old).length()) + nu
+				defeats[nk] = int(defeats.get(nk, 0)) + int(defeats[k])
+				defeats.erase(k)
 
 
 ## 쿼- 이름을 원래 낱말로 되돌렸다 (쿼이스크림 -> 아이스크림).
@@ -889,6 +913,14 @@ func from_dict(d: Dictionary) -> void:
 	for k in bag:
 		seen_items[String(k)] = true
 	defeats = d.get("defeats", {}).duplicate() if d.get("defeats") is Dictionary else {}
+	_migrate_kinds()
+	# **장비를 먼저** 읽는다 - 체력 최대가 장비에 달려 있어서, 레벨·체력을
+	# 먼저 읽으면 입은 옷만큼의 체력이 잘려 나간다.
+	if d.get("gear") is Dictionary:
+		Gear.from_dict(d["gear"])
+	else:
+		Gear.reset()
+		Gear.starter_stick()
 	# 전투가 없던 시절 세이브에는 이 칸이 없다. 그때는 갓 시작한 것으로
 	# 친다 — 없는 값을 지어내기보다 LV1 부터가 낫다.
 	if d.get("battle") is Dictionary:
