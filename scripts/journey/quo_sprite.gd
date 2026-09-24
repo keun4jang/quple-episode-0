@@ -31,6 +31,11 @@ func _ready() -> void:
 		_measure()
 
 
+## 지금 보는 쪽의 줄 (`ROW_*`). 싸울 때 앞에 선 그늘을 먼저 겨누는 데 쓴다.
+func row() -> int:
+	return _row
+
+
 func load_sheet(path: String) -> void:
 	var tex := load(path) as Texture2D
 	if tex == null:

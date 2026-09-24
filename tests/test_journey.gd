@@ -3913,7 +3913,7 @@ func _how_to_play_tests() -> void:
 		names.append(String(sp[3]))
 	for must in ["메뉴", "작은 지도", "설정"]:
 		ok(names.has(must), "%s 자리를 알려 준다" % must)
-	ok(HowToPlay.HOWS.size() == 3, "조작은 세 줄로 적는다")
+	ok(HowToPlay.HOWS.size() == 4, "조작은 네 줄로 적는다 (걷기·누르기·싸우기·확대)")
 
 	# 닫으면 표시가 남아 다시 안 뜬다
 	card._close()
@@ -6559,7 +6559,7 @@ func _menu_button_tests() -> void:
 
 # ── 마음 겨루기 ───────────────────────────────────────────────────────
 #
-# 규칙만 본다. 화면은 `BattleUI` 가 사건 배열을 재생만 하므로, 여기서
+# 규칙만 본다. 화면(`Place`·`Shade`)은 `Field` 의 사건을 띄우기만 하므로, 여기서
 # 잡아야 할 것은 **수와 차례**다.
 func _battle_tests() -> void:
 	print("\n[마음 겨루기 — 규칙]")
@@ -6590,76 +6590,87 @@ func _battle_tests() -> void:
 			spread[w] = int(spread.get(w, 0)) + 1
 	ok(spread.size() >= 3, "약점이 공격 스킬 셋에 다 걸려 있다 (%s)" % str(spread))
 
-	# ① 때리면 줄어든다
-	Battle.start("worry")
-	ok(Battle.in_battle, "전투가 열렸다")
-	var before: int = int(Battle.enemy["hp"])
-	Battle.player_use_skill("smile")
-	ok(int(Battle.enemy["hp"]) < before, "때리면 그늘이 줄어든다")
+	# ① 때리면 줄어든다 (마을에서 실시간으로 - `Field`)
+	var foe := Field.new_foe("worry")
+	var before: int = int(foe["hp"])
+	var r := Field.strike("smile", foe)
+	ok(int(foe["hp"]) < before and int(r["dmg"]) == before - int(foe["hp"]),
+		"때리면 그늘이 줄어든다 (%d)" % int(r["dmg"]))
+	ok(Field.strike("breathe", Field.new_foe("worry"))["dmg"] == 0,
+		"회복 스킬로는 때릴 수 없다")
 
-	# ② **행동 예고와 실제가 같아야 한다.** 무작위가 아니라 턴 수로만
-	# 정하므로(`_enemy_plan`) 어긋날 수가 없어야 한다.
+	# ② **예고와 실제가 같아야 한다.** 무작위가 아니라 몇 번째 덤비는지로만
+	# 정하므로(`Battle.plan_for`) 어긋날 수가 없어야 한다. 머리 위 예고
+	# (`foe_intent`)와 실제(`foe_attack`)가 같은 함수를 쓴다.
+	for kind in ["regret", "tired", "envy", "worry", "night"]:
+		Battle.reset()
+		var f := Field.new_foe(kind)
+		for i in 5:
+			if kind == "envy" and i % 2 == 0:
+				Field.strike("smile", f)          # 되돌릴 것이 생긴다
+			Battle.hp = Battle.hp_max()
+			var told := Field.foe_expected(f)
+			var hp_was := Battle.hp
+			Field.foe_attack(f)
+			var lost := hp_was - Battle.hp
+			ok(lost == told, "%s %d번째: %d 온다고 하고 %d 왔다" % [kind, i + 1, told, lost])
 	Battle.reset()
-	Battle.start("regret")
-	for i in 5:
-		if not Battle.in_battle:
-			break
-		var told := Battle.expected_damage()
-		var hp_was := Battle.hp
-		Battle.player_use_skill("smile")
-		if not Battle.in_battle:
-			break
-		var lost := hp_was - Battle.hp
-		# 상태(온기 등)가 흐르면 총량이 달라질 수 있으니 예고가 0 일
-		# 때(상태만 거는 턴)와 때린 턴을 갈라 본다.
-		if told > 0:
-			ok(lost == told, "%d턴: %d 온다고 하고 %d 왔다" % [i + 1, told, lost])
-		else:
-			ok(lost == 0, "%d턴: 안 때린다고 하고 안 때렸다 (%d)" % [i + 1, lost])
 
-	# ③ 약점 턴 넘김은 **전투당 한 번**이다. 매번 통하면 마음력 0 짜리
-	# 웃어넘기기가 약점인 그늘은 영영 반격을 못 한다.
+	# ③ 약점으로 멈칫하는 것은 **그늘마다 한 번**이다. 매번 통하면
+	# 웃어넘기기가 약점인 그늘은 연타만으로 영영 못 덤빈다.
+	var wf := Field.new_foe("worry")
+	var r1 := Field.strike("smile", wf)
+	var r2 := Field.strike("smile", wf)
+	ok(bool(r1["weak"]) and float(r1["stagger"]) > 0.0, "처음 약점을 찌르면 멈칫한다")
+	ok(bool(r2["weak"]) and float(r2["stagger"]) == 0.0, "두 번째부터는 안 멈춘다")
+	ok(Field.foe_has(wf, "shake"), "약점을 찔린 그늘은 흔들린다")
+
+	# ④ 다시 쓰기까지의 틈, 마음력
 	Battle.reset()
-	Battle.start("worry")
-	var hp0 := Battle.hp
-	Battle.player_use_skill("smile")      # 약점 — 이번엔 넘어간다
-	ok(Battle.hp == hp0, "처음 약점을 찌르면 그늘이 못 움직인다")
-	Battle.player_use_skill("smile")
-	ok(Battle.hp < hp0, "두 번째부터는 정상적으로 반격한다")
-	ok(Battle.found_weak, "찾아낸 약점을 기억한다")
+	ok(Field.use("smile").size() > 0, "공격을 쓴다")
+	ok(Field.why_not("smile") == "숨 고르는 중", "바로 또는 못 쓴다")
+	Field.tick(float(Field.CD["smile"]) + 0.01)
+	ok(Field.why_not("smile") == "", "틈이 지나면 다시 쓴다")
+	ok(Field.why_not("remember") == "아직 못 쓴다", "안 배운 스킬은 못 쓴다")
+	Battle.mp = 0
+	ok(Field.why_not("breathe") == "마음력이 모자란다", "마음력이 모자라면 못 쓴다")
+	Battle.mp = Battle.mp_max()
+	Battle.hp = 10
+	var evs := Field.use("breathe")
+	ok(Battle.hp > 10 and Field.has_status("warm"), "심호흡은 채우고 온기를 남긴다 (%d)" % Battle.hp)
+	var hp_w := Battle.hp
+	Field.tick(Field.BEAT + 0.01)
+	ok(Battle.hp > hp_w, "온기는 박자마다 조금씩 채운다 (%d → %d)" % [hp_w, Battle.hp])
+	Battle.level = 3
+	Field.use("cheer")
+	ok(Field.atk_bonus() > 0, "응원하면 한동안 세진다")
+	Field.tick(Field.BUFF_SECS + 0.1)
+	ok(Field.atk_bonus() == 0, "시간이 지나면 풀린다")
 
-	# ④ 이기면 자란다
+	# ⑤ 걷어내면 자란다
 	Battle.reset()
-	Battle.start("worry")
-	var guard := 0
-	while Battle.in_battle and guard < 40:
-		Battle.player_use_skill("smile")
-		guard += 1
-	ok(not Battle.in_battle, "언젠가 끝난다 (%d턴)" % guard)
-	ok(Battle.xp > 0 or Battle.level > 1, "이기면 마음이 자란다")
+	Field.defeat("worry")
+	ok(Battle.xp > 0 or Battle.level > 1, "걷어내면 마음이 자란다")
 
-	# ⑤ **져도 잃는 것이 없다.** 여행 게임에 되돌릴 수 없는 벌은 안 둔다.
+	# ⑥ **쓰러져도 잃는 것이 없다.** 여행 게임에 되돌릴 수 없는 벌은 안 둔다.
 	Battle.reset()
 	var bag_was := JourneyState.bag.duplicate()
-	Battle.start("night")                 # 보스 — LV1 이 이길 수 없다
+	var boss := Field.new_foe("night")
 	var g2 := 0
-	while Battle.in_battle and g2 < 60:
-		Battle.player_use_skill("smile")
+	while Battle.hp > 0 and g2 < 60:
+		Field.foe_attack(boss)
 		g2 += 1
-	ok(not Battle.in_battle, "보스에게는 진다 (LV1)")
-	Battle.recover_after_loss()
+	ok(Battle.hp <= 0, "우두머리에게는 쓰러진다 (LV1)")
+	Field.my_status["shrink"] = 5.0
+	Field.fall()
 	ok(Battle.hp > 0, "쓰러져도 다시 일어난다 (%d)" % Battle.hp)
-	ok(JourneyState.bag == bag_was, "져도 배낭에서 없어지는 건 없다")
-
-	# ⑥ 손에 쥔 것 — 쓰면 배낭에서 준다. 0 이 되면 칸 자체가 사라진다
-	# (`pick(-1)` 로 대신하면 "감 0" 이 남는다).
+	ok(not Field.has_status("shrink"), "일어나면 나쁜 상태가 걷힌다")
+	ok(JourneyState.bag == bag_was, "쓰러져도 배낭에서 없어지는 건 없다")
+	var hp_f := Battle.hp
+	var miss := Field.foe_attack(Field.new_foe("worry"))
+	ok(Battle.hp == hp_f and String(miss[0]["kind"]) == "miss",
+		"일어난 직후 잠깐은 안 맞는다")
 	Battle.reset()
-	JourneyState.pick("p-persimmon")
-	Battle.start("worry")
-	Battle.hp = 5
-	Battle.player_use_item("p-persimmon")
-	ok(Battle.hp > 5, "먹으면 체력이 는다 (%d)" % Battle.hp)
-	ok(not JourneyState.bag.has("p-persimmon"), "다 쓰면 배낭에서 칸이 사라진다")
 
 	# ⑦ 퀘스트가 쓰는 것은 전투에서 못 쓴다 — 써 버리면 매듭이 막힌다.
 	var clash: Array = []
@@ -6757,33 +6768,74 @@ func _shade_tests() -> void:
 	again.sort()
 	ok(again == first, "같은 날에는 같은 자리에 선다")
 
-	# 눌러서 다가가면 전투가 열린다 (인연과 같은 길로 간다)
+	# **마을에서 그대로 때린다** (바람의나라·메이플처럼). 붙어 서서 공격.
 	var target: Shade = p2._shades[0] if not p2._shades.is_empty() else null
 	ok(target != null, "붙어 볼 그늘을 찾았다")
 	if target != null:
+		# 먼저 덤비지 않는다 - 옆에 서 있기만 해서는 아무 일도 없다
 		p2.walker.global_position = target.global_position + Vector2(10, 0)
-		p2._near = target
-		p2.talk_to_near()
+		var calm_hp := Battle.hp
+		for i in 90:
+			await get_tree().physics_frame
+		ok(target.state == "idle" and Battle.hp == calm_hp, "안 때리면 덤비지 않는다")
+		p2.walker.global_position = target.global_position + Vector2(10, 0)
+		var hp0: int = int(target.foe["hp"])
+		ok(p2.field_use("smile"), "공격 버튼을 누르면 때린다")
+		ok(int(target.foe["hp"]) < hp0, "그 자리에서 그늘이 줄어든다 (%d → %d)"
+			% [hp0, int(target.foe["hp"])])
+		ok(target.state == "chase", "맞은 그늘은 덤벼 온다")
+		ok(not p2.field_use("smile"), "틈 없이 연타는 안 된다")
+		# 덤빈다 - 머리 위에 예고가 뜨고, 예고한 만큼 맞는다
+		var told := -1
+		var hp1 := Battle.hp
+		for i in 240:
+			p2.walker.global_position = target.global_position + Vector2(10, 0)
+			await get_tree().physics_frame
+			if target.state == "windup" and told < 0:
+				told = Field.foe_expected(target.foe)
+				ok(target.get_node("Intent").visible, "덤비기 전에 머리 위에 예고가 뜬다")
+			if Battle.hp < hp1:
+				break
+		ok(told > 0 and hp1 - Battle.hp == told, "예고한 만큼 맞는다 (%d, %d)"
+			% [told, hp1 - Battle.hp])
+		# 멀리 달아나면 놓는다
+		p2.walker.global_position = target.home + Vector2(Shade.LEASH + 40.0, 0)
+		for i in 4:
+			await get_tree().physics_frame
+		ok(target.state == "back", "멀리 달아나면 제자리로 돌아간다")
+		# 걷어내면 그 자리는 오늘 하루 빈다
+		var t: Vector2i = target.at_tile
+		var kind := target.shade_kind
+		p2.walker.global_position = target.global_position + Vector2(10, 0)
+		target.foe["hp"] = 1
+		Field.cooldown.clear()
+		ok(p2.field_use("smile"), "마지막 한 대")
 		await get_tree().process_frame
-		var ui = get_tree().get_first_node_in_group("battle_ui")
-		ok(ui != null, "그늘 앞에 서면 겨루기가 열린다")
-		ok(Battle.in_battle and Battle.kind == target.shade_kind,
-			"그 그늘과 붙는다 (%s)" % Battle.kind)
-		if ui != null:
-			# 이겨서 닫으면 그 자리는 오늘 하루 빈다
-			var t: Vector2i = target.at_tile
-			Battle.enemy["hp"] = 1
-			ui.step_secs = 0.0
-			ui._act_skill("smile")
-			await get_tree().process_frame
-			await get_tree().process_frame
-			ok(not Battle.in_battle, "쓰러뜨리면 전투가 끝난다")
-			ui._finish()
-			await get_tree().process_frame
-			ok(Battle.is_cleared("윤슬", t), "걷어낸 자리를 기억한다")
-			ok(JourneyState.defeated("윤슬") == 1
-				and JourneyState.defeated("윤슬", target.shade_kind) == 1,
-				"걷어낸 수를 센다 (퇴치 할 일)")
+		ok(not p2._shades.has(target), "쓰러뜨리면 마을에서 걷힌다")
+		ok(Battle.is_cleared("윤슬", t), "걷어낸 자리를 기억한다")
+		ok(JourneyState.defeated("윤슬") == 1
+			and JourneyState.defeated("윤슬", kind) == 1,
+			"걷어낸 수를 센다 (퇴치 할 일)")
+		# 닿는 데 아무도 없으면 헛손질 - 마음력·보상 없이 휘두르기만
+		p2.walker.global_position = Vector2(-500, -500)
+		Field.cooldown.clear()
+		ok(not p2.field_use("smile") and Field.why_not("smile") != "",
+			"빈 데를 휘두르면 헛손질이다")
+		# 쓰러져도 잃지 않는다 - 덤비던 그늘은 물러난다
+		var other: Shade = null
+		for sh in p2._shades:
+			if is_instance_valid(sh):
+				other = sh
+				break
+		if other != null:
+			p2.walker.global_position = other.global_position + Vector2(10, 0)
+			Field.cooldown.clear()
+			p2.field_use("smile")
+			Battle.hp = 1
+			p2.on_shade_attack(other, [{"kind": "hurt", "amount": 1}])
+			Battle.hp = 0
+			p2.on_shade_attack(other, [])
+			ok(Battle.hp > 0 and other.state == "back", "쓰러지면 일어나고 그늘은 물러난다")
 	p2.queue_free()
 	await get_tree().process_frame
 
@@ -7019,40 +7071,36 @@ func _item_battle_tests() -> void:
 	Battle.eat("b-lunchbox")
 	ok(Battle.hp == Battle.hp_max() and Battle.mp == Battle.mp_max(), "도시락은 가득 채운다")
 
-	Battle.start("regret")
-	Battle.my_status["shrink"] = 3
+	# **풀기**는 배가 불러도 먹는다 - 나쁜 상태를 푸는 길이 이것뿐이다
+	Battle.hp = Battle.hp_max()
+	Battle.mp = Battle.mp_max()
+	Field.my_status["shrink"] = 9.0
 	JourneyState.pick("b-citron-tea")
-	Battle.player_use_item("b-citron-tea")
-	ok(not Battle.has_status("shrink"), "유자차는 위축을 푼다")
+	ok(Battle.eat("b-citron-tea") != "" and not Field.has_status("shrink"),
+		"유자차는 위축을 푼다")
+	Battle.hp = 1
 	JourneyState.pick("b-honeycake")
-	Battle.player_use_item("b-honeycake")
-	ok(Battle.has_status("warm"), "꿀떡은 온기를 남긴다")
-	Battle.in_battle = false
+	Battle.eat("b-honeycake")
+	ok(Field.has_status("warm"), "꿀떡은 온기를 남긴다")
 
-	# 그늘 조각 - 예고와 실제가 같이 준다 (`_enemy_out` 한 곳)
+	# 그늘 조각 - 예고와 실제가 같이 준다 (`Field._foe_out` 한 곳)
 	JourneyState.reset()
 	Battle.reset()
-	Battle.start("worry")
-	var before := Battle.expected_damage()
+	var f := Field.new_foe("worry")
+	var before := Field.foe_expected(f)
 	JourneyState.pick("m-worry")
-	var after := Battle.expected_damage()
+	var after := Field.foe_expected(f)
 	ok(after < before, "걱정 조각을 지니면 걱정이 덜 아프다 (%d → %d)" % [before, after])
-	Battle.in_battle = false
 
 	# 걷어내면 남긴다 - 조각은 처음 한 번만
 	JourneyState.reset()
 	Battle.reset()
-	Battle.start("worry")
-	Battle.enemy["hp"] = 1
-	Battle.player_use_skill("smile")
+	Field.defeat("worry")
 	ok(JourneyState.count("b-barleytea") == 1, "걱정은 보리차를 남긴다")
 	ok(JourneyState.count("m-worry") == 1, "처음 걷어내면 조각을 준다")
-	Battle.start("worry")
-	Battle.enemy["hp"] = 1
-	Battle.player_use_skill("smile")
+	Field.defeat("worry")
 	ok(JourneyState.count("b-barleytea") == 2 and JourneyState.count("m-worry") == 1,
 		"조각은 한 번뿐이다")
-	ok(Battle.usable_items().has("b-barleytea"), "받은 먹을 것을 전투에서 꺼낼 수 있다")
 	JourneyState.reset()
 	Battle.reset()
 
@@ -7321,16 +7369,12 @@ func _hunt_tests() -> void:
 	ok(JourneyState.defeated(v, kind) == int(Quests.hunt_list(v)[1]["need"]),
 		"걷어낸 수가 저장된다")
 
-	# 자동 사냥은 기본으로 꺼져 있다 - 버튼을 눌러야 켜진다
-	var bu := BattleUI.new()
-	ok(not bu._auto, "자동 사냥은 처음에 꺼져 있다")
-	bu.free()
-
 	# 그늘은 몸으로 길을 막지 않는다
 	var sh := Shade.new()
 	add_child(sh)
 	await get_tree().process_frame
-	ok(sh.collision_layer == 0 and sh.collision_mask == 0, "그늘은 부딪히지 않는다")
+	ok(sh.collision_layer == 0 and sh.collision_mask != 0,
+		"그늘은 길을 막지 않지만 벽은 못 뚫는다")
 	sh.queue_free()
 
 	# 이 마을 칸에 퇴치가 따로 보인다
@@ -7346,7 +7390,65 @@ func _hunt_tests() -> void:
 		if n is Label and String((n as Label).text).contains("걷어내기"):
 			shown = true
 	ok(shown, "이 마을 칸에 퇴치 할 일이 보인다")
+	p.hud.toggle_bag()
+	await get_tree().process_frame
+
+	# 오른쪽 아래 공격·스킬 버튼 (바람의나라·메이플처럼)
+	var pad: FightPad = p.hud.fight
+	await get_tree().process_frame
+	ok(pad != null and pad.visible, "그늘이 서는 마을에는 공격 버튼이 뜬다")
+	# 보이는 것만으로는 모자란다 - 판 크기가 0 이라 버튼이 화면 밖에 나가 있던 적이 있다
+	var vr := p.get_viewport().get_visible_rect()
+	var inside := true
+	for b in pad.buttons() + [pad.get_node("Vitals")]:
+		if not vr.encloses(b.get_global_rect()):
+			inside = false
+	ok(inside, "공격·스킬 버튼과 막대가 화면 안에 있다 (%s)" % str(pad.buttons()[0].get_global_rect()))
+	var shown_sk := 0
+	for b in pad.buttons():
+		if b.visible:
+			shown_sk += 1
+	ok(shown_sk == Battle.skills().size(), "배운 것만 칸이 선다 (%d / %d)"
+		% [shown_sk, Battle.skills().size()])
+	Battle.level = 5
+	await get_tree().process_frame
+	shown_sk = 0
+	for b in pad.buttons():
+		if b.visible:
+			shown_sk += 1
+	ok(shown_sk == 6, "레벨이 오르면 칸이 는다 (%d)" % shown_sk)
+	# 걸으면서 다른 손가락으로 눌러도 된다
+	var sh2: Shade = p._shades[0]
+	p.walker.global_position = sh2.global_position + Vector2(10, 0)
+	var hp2: int = int(sh2.foe["hp"])
+	var atk_btn: Button = pad.buttons()[0]
+	ok(p.hud.try_touch(atk_btn.get_global_rect().get_center()), "공격 버튼을 손가락으로 누른다")
+	ok(int(sh2.foe["hp"]) < hp2, "버튼으로 때렸다")
+	# 키보드 Z
+	Field.cooldown.clear()
+	var hp3: int = int(sh2.foe["hp"])
+	var ev := InputEventKey.new()
+	ev.physical_keycode = KEY_Z
+	ev.pressed = true
+	pad._unhandled_key_input(ev)
+	ok(int(sh2.foe["hp"]) < hp3, "Z 키로도 때린다")
+	# 대화 중에는 비켜 준다
+	p.hud.set_buttons_visible(false)
+	await get_tree().process_frame
+	ok(not pad.visible, "대화 중에는 공격 버튼이 숨는다")
+	p.hud.set_buttons_visible(true)
+	Battle.reset()
 	p.queue_free()
+	await get_tree().process_frame
+	# 회사에는 싸울 일이 없다 - 버튼도 없다
+	JourneyState.reset()
+	JourneyState.here = "잿마루"
+	var pj: Place = load(GOAL_SCENES["잿마루"]).instantiate()
+	add_child(pj)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(not pj.hud.fight.visible, "그늘이 없는 곳에는 공격 버튼이 없다")
+	pj.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
 	Battle.reset()

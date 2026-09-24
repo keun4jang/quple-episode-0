@@ -29,6 +29,8 @@ var _bag_panel: PanelContainer
 var _bag_grid: GridContainer
 var _hint: Label
 var _cam_btn: TextureButton
+## 오른쪽 아래 공격·스킬 버튼과 체력·마음력 막대 (`FightPad`).
+var fight: FightPad
 var _bag_title: Label
 var _tab := 0        # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 이 마을 · 5 마음
 ## 배낭에서 눌러 본 물건. 위에 설명 판이 뜬다.
@@ -239,6 +241,12 @@ func _build() -> void:
 	_act_btn.pressed.connect(func(): acted.emit())
 	_press_feedback(_act_btn)
 	root.add_child(_act_btn)
+
+	# 공격·스킬 버튼. 선택 버튼(위)보다 먼저 깔아야 겹칠 때 선택 버튼이 위다.
+	fight = FightPad.new()
+	fight.visible = false
+	root.add_child(fight)
+	root.move_child(fight, _act_btn.get_index())
 
 	# 무엇을 주웠는지 잠깐 알려 주는 줄
 	_hint = Label.new()
@@ -2018,6 +2026,10 @@ func _process(delta: float) -> void:
 		_cam_btn.visible = cam_ok and not _buttons_hidden
 	if _pad_cam != null:
 		_pad_cam.visible = cam_ok and not _buttons_hidden
+	if fight != null:
+		var p := _place()
+		fight.visible = p != null and p.has_method("can_fight") and p.can_fight() \
+			and not _buttons_hidden and not bag_open()
 
 
 # ── 안전영역 ──────────────────────────────────────────────────────────
@@ -2101,18 +2113,6 @@ func set_buttons_visible(on: bool) -> void:
 			d.visible = false
 
 
-## 겨루기 화면이 떠 있는 동안 HUD 를 통째로 비운다.
-##
-## `set_buttons_visible(false)` 만으로는 시계와 안내줄이 남았다. 어두워진
-## 바닥 위에 그 글자들이 그대로 떠서, 정작 봐야 할 그늘 이름·수치와
-## 같은 자리를 다퉜다.
-func set_battle_mode(on: bool) -> void:
-	set_buttons_visible(not on)
-	for n in [_clock, _hint, _place_title, _arrive_task]:
-		if n != null:
-			n.visible = not on
-
-
 ## 지금 할 수 있는 일을 버튼에 적는다. 없으면 빈 문자열.
 func set_action(kind: String, label: String) -> void:
 	if _act_btn == null:
@@ -2160,6 +2160,8 @@ func try_touch(pos: Vector2) -> bool:
 		return false                       # 배낭이 열려 있으면 창이 알아서 받는다
 	# 메뉴 다섯도 `TextureButton` 이라 여기 같이 들어와야 한다 — 안 그러면
 	# 걸으면서 다른 손가락으로 누른 것이 그냥 없던 일이 된다.
+	if fight != null and fight.try_touch(pos):
+		return true
 	var targets: Array = [_act_btn, _cam_btn]
 	targets.append_array(_menu_btns)
 	for b in targets:

@@ -1,6 +1,6 @@
 class_name Battle
 extends RefCounted
-## 마음 겨루기 — 그늘과 벌이는 턴제 전투.
+## 마음 겨루기 — 수치와 규칙의 표.
 ##
 ## **오토로드가 아니라 정적 싱글턴이다.** 오토로드 목록은
 ## `project.godot` 에 있고 그건 APK 를 새로 깔아야 바뀐다 — 리소스 팩
@@ -9,8 +9,10 @@ extends RefCounted
 ## 들어간 그 문제다). `class_name` + `static var` 는 그냥 스크립트라
 ## 갱신으로 간다. 부르는 쪽은 `Battle.hp` 처럼 똑같이 쓴다.
 ##
-## 그래서 시그널이 없다. 일어난 일은 함수가 **사건 배열**로 돌려주고
-## 화면(`BattleUI`)이 그걸 재생한다 — 정적 멤버는 시그널을 못 든다.
+## 여기는 **누가 얼마나 센가**(레벨·스킬·그늘·패턴)와 성장·저장만 든다.
+## 실제로 치고받는 것은 `Field` 가 마을 한가운데서 실시간으로 한다
+## (0.1.169 - 바람의나라·메이플스토리처럼 공격 버튼으로 직접 때린다).
+## 한때는 따로 뜨는 턴제 화면(`BattleUI`)이었다.
 ##
 ## **이 게임에 전투가 없던 이유와, 그래도 넣은 이유.**
 ## 처음 설계는 "걷고 보고 만난다" 뿐이었다(`docs/redesign-journey.md` 3절).
@@ -19,17 +21,15 @@ extends RefCounted
 ## 한 발 옮긴다: 레벨이 오르고, 스킬이 풀리고, 더 센 그늘이 나온다.
 ##
 ## 다만 **마을을 전장으로 만들지는 않는다.** 그늘은 눈에 보이게 서 있고
-## 눌러야만 시작한다(`Shade`). 무작위 조우가 없으니 쉬러 온 사람은
-## 그냥 지나가면 된다.
+## 먼저 때려야만 덤빈다(`Shade`). 쉬러 온 사람은 그냥 지나가면 된다.
 ##
 ## 규칙은 셋만 지킨다:
-## 1. **턴을 통째로 빼앗는 상태는 안 만든다** (기절·속박). 손을 놓고
-##    맞기만 하는 턴은 불편하기만 하다.
+## 1. **손을 통째로 묶는 상태는 안 만든다** (기절·속박). 손을 놓고
+##    맞기만 하는 시간은 불편하기만 하다.
 ## 2. **져도 잃지 않는다.** 쓰러지면 그 자리에서 마음이 가라앉고
-##    (체력 절반으로 회복) 그늘은 그대로 남는다. 되돌릴 수 없는 벌은
-##    여행 게임에 안 맞는다.
-## 3. **행동 예고는 실제와 반드시 같다.** 적의 수는 무작위가 아니라
-##    턴 수로만 정해지므로(`_enemy_plan`), 예고와 실제가 어긋날 수 없다.
+##    (체력 절반으로 회복) 그늘은 제자리로 돌아간다.
+## 3. **예고는 실제와 반드시 같다.** 그늘의 수는 무작위가 아니라 몇 번째
+##    공격인지로만 정해지므로(`plan_for`), 머리 위 예고와 실제가 어긋날 수 없다.
 
 # ── 사람 쪽 ──────────────────────────────────────────────────────────
 #
@@ -72,7 +72,7 @@ static func mp_max() -> int:
 
 
 static func attack_power() -> int:
-	return ATK_BASE + (level - 1) * ATK_PER + _atk_buff + Catalog.bonus("atk")
+	return ATK_BASE + (level - 1) * ATK_PER + Field.atk_bonus() + Catalog.bonus("atk")
 
 
 static func defense() -> int:
@@ -293,17 +293,6 @@ const FOODS := {
 }
 
 
-## 전투에서 꺼내 먹을 수 있는 것. 주운 것 중 몇몇(`FOODS`)과, 할 일·
-## 그늘에게서 받은 먹을 것(`Catalog` 의 snack) 전부.
-static func usable_items() -> Array:
-	var out: Array = []
-	for id in JourneyState.bag.keys():
-		if Catalog.edible(String(id)) and JourneyState.count(String(id)) > 0:
-			out.append(String(id))
-	out.sort()
-	return out
-
-
 ## 먹으면 무엇이 되나. 주운 것은 `FOODS`, 받은 먹을 것은 `Catalog` 에 적혀 있다.
 static func food_effect(id: String) -> Dictionary:
 	if FOODS.has(id):
@@ -311,17 +300,24 @@ static func food_effect(id: String) -> Dictionary:
 	return Catalog.of(id)
 
 
-## **전투 밖에서 먹는다.** 배낭 설명 판의 [먹기]가 부른다. 체력·마음력이
+## 배낭 설명 판의 [먹기]가 부른다 (싸우는 중에도 - 배낭을 열면 그늘이 멈춘다). 체력·마음력이
 ## 다 차 있으면 안 먹는다 - 먹어 봤자 없어지기만 한다. 먹은 뒤 한 줄을
 ## 돌려준다 (빈 문자열이면 못 먹은 것).
 static func eat(id: String) -> String:
-	if in_battle or not Catalog.edible(id) or JourneyState.count(id) <= 0:
+	if not Catalog.edible(id) or JourneyState.count(id) <= 0:
 		return ""
 	var f := food_effect(id)
 	var full := bool(f.get("full", false))
 	var need_hp := hp < hp_max() and (full or int(f.get("hp", 0)) > 0)
 	var need_mp := mp < mp_max() and (full or int(f.get("mp", 0)) > 0)
-	if not need_hp and not need_mp:
+	# **풀기**(유자차·매실차·솔잎차)는 나쁜 상태가 걸려 있으면 배가
+	# 불러도 먹는다 - 위축·먹먹함을 푸는 길이 이것뿐이다.
+	var bad := false
+	for st in Field.my_status.keys():
+		if not bool(STATUSES.get(st, {}).get("good", false)):
+			bad = true
+	var need_cure := bad and bool(f.get("cure", false))
+	if not need_hp and not need_mp and not need_cure:
 		return ""
 	JourneyState.use(id)
 	var hp0 := hp
@@ -337,215 +333,30 @@ static func eat(id: String) -> String:
 		parts.append("체력 +%d" % (hp - hp0))
 	if mp > mp0:
 		parts.append("마음력 +%d" % (mp - mp0))
+	if need_cure:
+		for st in Field.my_status.keys():
+			if not bool(STATUSES.get(st, {}).get("good", false)):
+				Field.my_status.erase(st)
+		parts.append("마음이 풀렸다")
+	# **온기**(꿀떡·군밤)는 먹은 뒤로 한동안 체력이 조금씩 찬다.
+	if bool(f.get("warm", false)):
+		Field.my_status["warm"] = float(STATUSES["warm"]["turns"]) * Field.BEAT
+		parts.append("온기")
 	return "%s, %s" % [Catalog.name_of(id), " · ".join(parts)]
-
-
-# ── 지금 벌어지고 있는 전투 ──────────────────────────────────────────
-
-static var in_battle := false
-static var kind := ""
-static var enemy: Dictionary = {}
-static var my_status: Dictionary = {}        # id → 남은 턴
-static var enemy_status: Dictionary = {}
-static var turn := 0
-static var _atk_buff := 0
-static var _last_dealt := 0                  # 부러움이 되돌리는 데 쓴다
-## 약점으로 턴을 넘기는 것은 **전투당 한 번**이다. 매번 통하면 마음력
-## 0 짜리 웃어넘기기가 약점인 그늘은 그 스킬만 반복해 영영 반격을
-## 못 하게 된다.
-static var _weak_used := false
-## 이 전투에서 밝혀진 약점. 스킬 목록에 * 로 표시된다 (◆ 는 폰트에 없다).
-static var found_weak := false
-
-
-static func start(id: String) -> void:
-	if not ENEMIES.has(id):
-		push_warning("그런 그늘이 없다: %s" % id)
-		return
-	var e: Dictionary = ENEMIES[id]
-	kind = id
-	enemy = {
-		"id": id, "name": String(e["name"]),
-		"hp": int(e["hp"]), "hp_max": int(e["hp"]),
-		"atk": int(e["atk"]), "def": int(e["def"]),
-		"sheet": String(e["sheet"]), "line": String(e.get("line", "")),
-		"boss": bool(e.get("boss", false)),
-	}
-	my_status = {}
-	enemy_status = {}
-	turn = 0
-	_atk_buff = 0
-	_last_dealt = 0
-	_weak_used = false
-	found_weak = false
-	in_battle = true
-	# 쓰러진 채로 다음 전투에 들어가지 않는다. 그건 시작하자마자 지는 것이다.
-	if hp <= 0:
-		hp = maxi(1, hp_max() / 2)
 
 
 static func weak_of(id: String) -> String:
 	return String(ENEMIES.get(id, {}).get("weak", ""))
 
 
-static func has_status(id: String) -> bool:
-	return my_status.get(id, 0) > 0
-
-
-static func enemy_has(id: String) -> bool:
-	return enemy_status.get(id, 0) > 0
-
-
-# ── 사람의 차례 ──────────────────────────────────────────────────────
-
-static func player_use_skill(id: String) -> Array:
-	if not in_battle or not SKILLS.has(id):
-		return []
-	var s: Dictionary = SKILLS[id]
-	if int(s["lv"]) > level:
-		return []
-	var cost := int(s["mp"])
-	if mp < cost:
-		return [{"kind": "line", "text": "마음력이 모자란다"}]
-	mp -= cost
-	var evs: Array = [{"kind": "line", "text": String(s["say"])}]
-	turn += 1
-
-	var skip_enemy := false
-	match String(s["type"]):
-		"attack":
-			# 약점은 **공격 스킬로만** 판정한다 (위 주석의 그 사고).
-			var hit_weak: bool = weak_of(kind) == id
-			var mult := float(s["mult"])
-			if hit_weak:
-				mult *= 1.6
-				found_weak = true
-				evs.append({"kind": "line", "text": "약점을 찔렀다!"})
-				if not _weak_used:
-					_weak_used = true
-					skip_enemy = true
-				_give_enemy("shake", evs)
-			var raw := float(attack_power()) * mult
-			if has_status("shrink"):
-				raw *= 0.75
-			if enemy_has("shake"):
-				raw *= 1.3
-			var dmg := maxi(1, int(round(raw * _mitigation(int(enemy["def"])))))
-			_last_dealt = dmg
-			enemy["hp"] = maxi(0, int(enemy["hp"]) - dmg)
-			evs.append({"kind": "damage", "to": "enemy", "amount": dmg,
-				"weak": hit_weak})
-			if s.has("enemy_grants"):
-				_give_enemy(String(s["enemy_grants"]), evs)
-		"heal":
-			var amount := int(s["amount"])
-			if has_status("numb"):
-				amount = int(amount * 0.5)
-			var before := hp
-			hp = mini(hp_max(), hp + amount)
-			evs.append({"kind": "heal", "to": "me", "amount": hp - before})
-			if s.has("grants"):
-				_give_me(String(s["grants"]), evs)
-		"buff":
-			if s.has("atk_up"):
-				_atk_buff += int(s["atk_up"])
-				evs.append({"kind": "status", "to": "me",
-					"text": "마음의 힘 +%d" % int(s["atk_up"])})
-			if s.has("grants"):
-				_give_me(String(s["grants"]), evs)
-
-	_after_player(evs, skip_enemy)
-	return evs
-
-
-static func player_use_item(id: String) -> Array:
-	if not in_battle or not Catalog.edible(id) or JourneyState.count(id) <= 0:
-		return []
-	var f := food_effect(id)
-	JourneyState.use(id)
-	var nm := Catalog.name_of(id)
-	var verb := String(f.get("verb", "먹었다"))
-	var evs: Array = [{"kind": "line",
-		"text": "%s을(를) %s" % [nm, verb]}]
-	turn += 1
-	var full := bool(f.get("full", false))
-	if full or int(f.get("hp", 0)) > 0:
-		var before := hp
-		# **먹먹함은 아이템 회복을 안 막는다.** 막으면 대응할 길이
-		# 통째로 사라진다 — 스킬 회복만 절반으로 준다.
-		hp = hp_max() if full else mini(hp_max(), hp + int(f["hp"]))
-		evs.append({"kind": "heal", "to": "me", "amount": hp - before})
-	if full or int(f.get("mp", 0)) > 0:
-		var before_mp := mp
-		mp = mp_max() if full else mini(mp_max(), mp + int(f["mp"]))
-		evs.append({"kind": "status", "to": "me",
-			"text": "마음력 +%d" % (mp - before_mp)})
-	# **풀기**는 나쁜 상태(위축·먹먹함)를 지운다. 대응할 길이 하나 더
-	# 생긴다 - 스킬로는 못 푸는 것들이다.
-	if bool(f.get("cure", false)):
-		var cleared := false
-		for bad in my_status.keys():
-			if not bool(STATUSES[bad].get("good", false)):
-				my_status.erase(bad)
-				cleared = true
-		if cleared:
-			evs.append({"kind": "status", "to": "me", "text": "마음이 풀렸다"})
-	if bool(f.get("warm", false)):
-		_give_me("warm", evs)
-	_after_player(evs, false)
-	return evs
-
-
-## 물러난다. 보스가 아니면 늘 된다 — 쉬러 온 사람을 붙잡아 두지 않는다.
-static func player_flee() -> Array:
-	if not in_battle:
-		return []
-	if bool(enemy.get("boss", false)):
-		var evs: Array = [{"kind": "line", "text": "…발이 안 떨어진다"}]
-		turn += 1
-		_enemy_turn(evs)
-		if hp <= 0:
-			_lose(evs)
-			return evs
-		_tick(evs)
-		if hp <= 0:
-			_lose(evs)
-			return evs
-		return evs
-	in_battle = false
-	var out: Array = [{"kind": "line", "text": "조용히 돌아섰다"},
-		{"kind": "fled"}]
-	return out
-
-
-static func _after_player(evs: Array, skip_enemy: bool) -> void:
-	if int(enemy["hp"]) <= 0:
-		_win(evs)
-		return
-	if skip_enemy:
-		# 적이 안 움직였으면 **상태 시간도 안 흐른다.** 얻은 것과 잃은
-		# 것이 한 묶음이라야 공평하다.
-		evs.append({"kind": "line", "text": "그늘이 잠시 흔들린다"})
-		return
-	_enemy_turn(evs)
-	if hp <= 0:
-		_lose(evs)
-		return
-	_tick(evs)
-	if int(enemy["hp"]) <= 0:
-		_win(evs)
-		return
-	if hp <= 0:
-		_lose(evs)
-		return
-
-
-# ── 그늘의 차례 ──────────────────────────────────────────────────────
-#
-# **무작위가 아니라 턴 수로만 정한다.** 그래야 행동 예고(`intent()`)와
-# 실제가 어긋날 수 없다 — 예고해 놓고 딴짓을 하면 예고가 거짓말이 된다.
-static func _enemy_plan(t: int) -> Dictionary:
-	var p: Dictionary = ENEMIES[kind].get("pattern", {})
+## 그늘이 `t` 번째로 덤빌 때 무엇을 하나.
+##
+## **무작위가 아니라 몇 번째인지로만 정한다.** 그래야 머리 위 예고
+## (`Field.foe_intent`)와 실제가 어긋날 수 없다 — 예고해 놓고 딴짓을
+## 하면 예고가 거짓말이 된다. `dealt` 는 지난번 덤빈 뒤로 그늘이 맞은
+## 피해의 합(부러움이 되돌린다).
+static func plan_for(kind: String, t: int, dealt: int) -> Dictionary:
+	var p: Dictionary = ENEMIES.get(kind, {}).get("pattern", {})
 	match String(p.get("kind", "")):
 		"multi":
 			return {"act": "attack", "times": int(p.get("times", 2)),
@@ -573,7 +384,7 @@ static func _enemy_plan(t: int) -> Dictionary:
 				return {"act": "inflict", "status": String(p.get("status", "shrink"))}
 			return {"act": "attack", "times": 1, "mult": 1.0}
 		"reflect":
-			if _last_dealt > 0:
+			if dealt > 0:
 				return {"act": "reflect", "back": float(p.get("back", 0.35))}
 			return {"act": "attack", "times": 1, "mult": 1.0}
 		"heavy":
@@ -581,148 +392,6 @@ static func _enemy_plan(t: int) -> Dictionary:
 				return {"act": "attack", "times": 1, "mult": float(p.get("mult", 2.1))}
 			return {"act": "attack", "times": 1, "mult": 1.0}
 	return {"act": "attack", "times": 1, "mult": 1.0}
-
-
-## 누그러짐은 **여기 한 곳에서만** 곱한다. 실제 행동과 예고가 같은
-## 함수를 쓰므로 예고 수치가 계속 실제와 맞는다.
-static func _enemy_out() -> float:
-	var m := 0.75 if enemy_has("soften") else 1.0
-	# **그늘 조각.** 한 번 걷어낸 마음은 다음엔 덜 아프다. 여기 한 곳에서
-	# 곱하므로 행동 예고(`expected_damage`)도 같이 맞는다.
-	if Catalog.guards(kind):
-		m *= Catalog.GUARD_MULT
-	return m
-
-
-static func _hit_me(raw: float, evs: Array) -> void:
-	var v := raw * _enemy_out()
-	if has_status("firm"):
-		v *= 0.7
-	var dmg := maxi(1, int(round(v * _mitigation(defense()))))
-	hp = maxi(0, hp - dmg)
-	evs.append({"kind": "damage", "to": "me", "amount": dmg})
-
-
-## 다음 턴에 얼마쯤 맞을까. 예고에 적는 수다.
-static func expected_damage() -> int:
-	if not in_battle:
-		return 0
-	var plan := _enemy_plan(turn + 1)
-	if String(plan["act"]) == "rest":
-		return 0
-	if String(plan["act"]) == "reflect":
-		return maxi(1, int(round(float(_last_dealt) * float(plan["back"]))))
-	if String(plan["act"]) == "inflict":
-		return 0
-	var raw := float(enemy["atk"]) * float(plan.get("mult", 1.0)) * _enemy_out()
-	if has_status("firm"):
-		raw *= 0.7
-	var once := maxi(1, int(round(raw * _mitigation(defense()))))
-	return once * int(plan.get("times", 1))
-
-
-static func intent() -> String:
-	if not in_battle:
-		return ""
-	var plan := _enemy_plan(turn + 1)
-	match String(plan["act"]):
-		"rest":
-			return "늘어져 있다"
-		"inflict":
-			var nm := String(STATUSES[String(plan["status"])]["name"])
-			return "무언가를 걸려 한다 - %s" % nm
-		"reflect":
-			return "맞은 만큼 되돌리려 한다 - %d" % expected_damage()
-	var times := int(plan.get("times", 1))
-	var one := expected_damage() / maxi(1, times)
-	if times > 1:
-		return "%d씩 %d번 올 것 같다" % [one, times]
-	return "%d쯤 올 것 같다" % expected_damage()
-
-
-static func _enemy_turn(evs: Array) -> void:
-	var plan := _enemy_plan(turn)
-	match String(plan["act"]):
-		"rest":
-			evs.append({"kind": "line", "text": "%s이(가) 늘어져 있다"
-				% String(enemy["name"])})
-		"inflict":
-			_give_me(String(plan["status"]), evs)
-		"reflect":
-			var back := maxi(1, int(round(float(_last_dealt) * float(plan["back"]))))
-			hp = maxi(0, hp - back)
-			evs.append({"kind": "damage", "to": "me", "amount": back})
-		_:
-			for i in int(plan.get("times", 1)):
-				if hp <= 0:
-					break
-				_hit_me(float(enemy["atk"]) * float(plan.get("mult", 1.0)), evs)
-			if String(plan.get("inflict", "")) != "":
-				_give_me(String(plan["inflict"]), evs)
-	_last_dealt = 0
-
-
-# ── 상태 흐르기 ──────────────────────────────────────────────────────
-#
-# **적이 움직인 뒤 한 번만** 흐른다. 약점으로 적 턴을 건너뛰면 상태
-# 시간도 안 흐른다 — 얻은 것과 잃은 것이 한 묶음이라야 공평하다.
-static func _tick(evs: Array) -> void:
-	for id in my_status.keys():
-		var st: Dictionary = STATUSES[id]
-		if st.has("hp_per_turn") and hp > 0:
-			var before := hp
-			hp = clampi(hp + int(st["hp_per_turn"]), 0, hp_max())
-			if hp != before:
-				evs.append({"kind": "heal", "to": "me", "amount": hp - before})
-		my_status[id] = int(my_status[id]) - 1
-		if int(my_status[id]) <= 0:
-			my_status.erase(id)
-	for id in enemy_status.keys():
-		var st2: Dictionary = ENEMY_STATUSES[id]
-		if st2.has("hp_per_turn"):
-			var d := -int(st2["hp_per_turn"])
-			enemy["hp"] = maxi(0, int(enemy["hp"]) - d)
-			evs.append({"kind": "damage", "to": "enemy", "amount": d})
-		enemy_status[id] = int(enemy_status[id]) - 1
-		if int(enemy_status[id]) <= 0:
-			enemy_status.erase(id)
-
-
-static func _give_me(id: String, evs: Array) -> void:
-	if not STATUSES.has(id):
-		return
-	my_status[id] = int(STATUSES[id]["turns"])
-	evs.append({"kind": "status", "to": "me",
-		"text": String(STATUSES[id]["name"])})
-
-
-static func _give_enemy(id: String, evs: Array) -> void:
-	if not ENEMY_STATUSES.has(id):
-		return
-	enemy_status[id] = int(ENEMY_STATUSES[id]["turns"])
-	evs.append({"kind": "status", "to": "enemy",
-		"text": String(ENEMY_STATUSES[id]["name"])})
-
-
-# ── 끝 ───────────────────────────────────────────────────────────────
-
-static func _win(evs: Array) -> void:
-	in_battle = false
-	evs.append({"kind": "line", "text": "%s이(가) 옅어졌다" % String(enemy["name"])})
-	var got := maxi(1, int(round(float(ENEMIES[kind]["xp"]) * KILL_XP_MULT)))
-	evs.append({"kind": "xp", "amount": got})
-	evs.append_array(gain_xp(got))
-	# **그늘이 남기는 것.** 무작위가 아니다 - 그늘마다 늘 같은 것을 남긴다.
-	var drop := String(ENEMIES[kind].get("drop", ""))
-	if drop != "":
-		JourneyState.pick(drop)
-		evs.append({"kind": "line", "text": "%s을(를) 얻었다" % Catalog.name_of(drop)})
-	# 처음 걷어낸 종류면 조각 하나. 두 번은 안 준다 - 도감 기록을 본다.
-	var piece := "m-" + kind
-	if Catalog.has(piece) and not JourneyState.seen_items.has(piece):
-		JourneyState.pick(piece)
-		evs.append({"kind": "line", "text": "%s을(를) 얻었다" % Catalog.name_of(piece)})
-	evs.append({"kind": "victory"})
 
 
 ## 경험을 얻는다. 전투에서도, 할 일을 마쳐도(`Rewards`) 같은 길로 온다.
@@ -748,17 +417,6 @@ static func _skill_at(lv: int) -> String:
 		if int(SKILLS[id]["lv"]) == lv:
 			return id
 	return ""
-
-
-## **져도 잃는 것이 없다.** 마음이 가라앉을 뿐이다. 그늘은 그대로
-## 서 있으니 다시 붙어도 되고 지나가도 된다.
-## **여기서 회복시키지 않는다.** 화면이 아직 마지막 한 대를 그리는
-## 중이라, 여기서 체력을 되돌리면 막대가 0 으로 내려가기도 전에 반쯤
-## 차 버린다. 사람이 판을 닫을 때 `recover_after_loss()` 가 되돌린다.
-static func _lose(evs: Array) -> void:
-	in_battle = false
-	evs.append({"kind": "line", "text": "마음이 한 번 주저앉았다"})
-	evs.append({"kind": "defeat"})
 
 
 ## 쓰러진 뒤 추스른다. 잃는 것은 없다 — 그늘도 그 자리에 그대로 있다.
@@ -793,10 +451,7 @@ static func reset() -> void:
 	mp = mp_max()
 	cleared = {}
 	cleared_day = 0
-	in_battle = false
-	enemy = {}
-	my_status = {}
-	enemy_status = {}
+	Field.reset()
 
 
 # ── 걷어낸 자리 기억 ─────────────────────────────────────────────────

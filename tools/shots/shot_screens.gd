@@ -145,18 +145,14 @@ func _run() -> void:
 	await _wait(4)
 	var shade: Shade = p._shades[0] if not p._shades.is_empty() else null
 	if shade != null:
+		# 마을 한가운데서 싸운다 - 붙어 서서 공격 버튼을 누른다.
 		p.walker.global_position = shade.global_position + Vector2(14, 0)
-		p._near = shade
-		p.talk_to_near()
-		await _wait(30)
+		await _wait(4)
+		p.field_use("smile")
+		await _wait(3)
 		await _shot("battle")
-		var bui = get_tree().get_first_node_in_group("battle_ui")
-		if bui != null:
-			bui._open_skills()
-			await _wait(8)
-			await _shot("battle-skills")
-			bui._finish()
-			await _wait(6)
+		await _wait(30)
+		await _shot("battle-chase")
 	Battle.reset()
 	JourneyState.here = "꽃눈벌"
 

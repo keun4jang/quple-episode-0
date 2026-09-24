@@ -94,10 +94,8 @@ var minimap: MiniMap
 var guide: Guide
 ## 소품이 막고 있는 칸. 길찾기가 본다.
 var _blocked: Dictionary = {}
-## 설정 버튼이 사는 층. 겨루기 동안 통째로 치운다.
+## 설정 버튼이 사는 층.
 var _settings_cl: CanvasLayer
-## 겨루기 중인가. 세계가 멈춘다 — 시간도, 걸음도, 이름표도.
-var _battling := false
 ## 대화가 걸리는 소품의 칸 → 그 소품의 금색 테두리 노드.
 ## `_update_near()` 가 가까워진 자리를 찾아 켠다.
 var _prop_outline_at: Dictionary = {}
@@ -1123,7 +1121,7 @@ func _build_shades() -> void:
 	# 도착 카드가 덮고 있는 동안은 기다렸다 뜬다(patient).
 	if put > 0 and hud != null and not JourneyState.quest_done("그늘:첫안내"):
 		JourneyState.mark_quest("그늘:첫안내")
-		hud._say_hint("마을에 그늘이 서 있어요. 누르면 마음을 겨뤄요.", true, 2.4)
+		hud._say_hint("그늘이 서 있어요. 다가가서 공격 버튼으로 걷어내요.", true, 2.4)
 
 
 ## 걸을 수 있는 칸 중에서 고른다.
@@ -1234,59 +1232,230 @@ func put_shade(t: Vector2i, kind: String) -> Shade:
 	return s
 
 
-## 겨루기 동안 세계를 멈추고 화면을 비운다.
-##
-## **판만 덮어서는 모자랐다.** 미니맵·설정 버튼·목표 화살표·물건
-## 이름표가 어두워진 바닥 위에 그대로 떠서, 정작 봐야 할 그늘과 수치가
-## 그 사이에 묻혔다. 시간도 같이 멈춘다 — 한 대 주고받는 사이에 해가
-## 기울면 그것대로 급해진다.
-func set_world_ui(on: bool) -> void:
-	_battling = not on
-	if minimap != null:
-		minimap.visible = on
-	if _settings_cl != null:
-		_settings_cl.visible = on
-	if _goal_edge != null:
-		_goal_edge.visible = on
-	if hud != null:
-		hud.set_battle_mode(not on)
-	for f in _tappable():
-		if is_instance_valid(f):
-			f.set_tag_near(false)
-	for a in _loose:
-		if not is_instance_valid(a):
+# ── 마을 한가운데서 싸우기 (`Field`) ─────────────────────────────────
+#
+# 여태는 그늘을 누르면 따로 턴제 화면이 떴다. 이제 **바람의나라·
+# 메이플스토리처럼 그 자리에서** 공격 버튼으로 때린다. 여기는 누구를
+# 맞힐지 고르고, 일어난 일을 지도 위에 띄우는 곳이다 - 수는 `Field`.
+
+## 누르거나 마지막으로 때린 그늘. 닿는 데 있으면 먼저 이걸 친다.
+var _target: Shade = null
+
+
+## 싸움을 잠깐 멈춰야 하나 - 대화·배낭·잠·지도·설정이 떠 있는 동안.
+## **배낭을 열면 그늘도 멈춘다.** 먹을 것을 꺼내 먹는 틈이다.
+func combat_paused() -> bool:
+	if walker == null or not is_inside_tree():
+		return true
+	if say != null and say.is_busy():
+		return true
+	if hud != null and hud.bag_open():
+		return true
+	if _sleeping or (board != null and board.visible):
+		return true
+	if minimap != null and minimap.is_big():
+		return true
+	var sv := get_tree().get_first_node_in_group("settings_ui")
+	return sv != null and sv.visible
+
+
+## 이 마을에서 싸울 수 있나 (그늘이 서는 곳인가). 버튼을 띄울지 정한다.
+func can_fight() -> bool:
+	return not is_indoors() and not shades().is_empty()
+
+
+## 닿는 곳에 있는 그늘. 겨눈 것이 먼저, 없으면 보는 쪽에 가까운 것.
+func _shade_in_reach(reach: float) -> Shade:
+	if walker == null:
+		return null
+	var me := walker.global_position
+	if _target != null and is_instance_valid(_target) and _target.state != "gone" \
+			and me.distance_to(_target.global_position) <= reach:
+		return _target
+	var best: Shade = null
+	var best_d := INF
+	var facing := _facing()
+	for sh in _shades:
+		if not is_instance_valid(sh) or sh.state == "gone":
 			continue
-		var tg = a.get_node_or_null("Tag")
-		if tg != null:
-			tg.visible = on
+		var v := sh.global_position - me
+		var d := v.length()
+		if d > reach:
+			continue
+		# 등 뒤보다 앞을 먼저 - 거리를 조금 깎아 준다.
+		if d > 0.1 and v.normalized().dot(facing) > 0.3:
+			d *= 0.6
+		if d < best_d:
+			best_d = d
+			best = sh
+	return best
 
 
-## 그늘 앞에 섰다. 화면을 띄운다.
-func start_shade(s: Shade) -> void:
-	if get_tree().get_first_node_in_group("battle_ui") != null:
-		return
-	walker.stop()
+func _facing() -> Vector2:
+	if walker == null or walker.sprite == null:
+		return Vector2.DOWN
+	match walker.sprite.row():
+		QuoSprite.ROW_UP:
+			return Vector2.UP
+		QuoSprite.ROW_SIDE:
+			return Vector2.RIGHT if walker.sprite.flip_h else Vector2.LEFT
+	return Vector2.DOWN
+
+
+## 공격·스킬 버튼이 부른다. 썼으면 참.
+##
+## 닿는 데 그늘이 없어도 **휘두르기는 한다** - 누른 것에 아무 반응이
+## 없으면 버튼이 고장 난 줄 안다. 마음력·틈은 안 쓴다(헛손질).
+func field_use(id: String) -> bool:
+	if combat_paused() or not Battle.SKILLS.has(id):
+		return false
+	var sk: Dictionary = Battle.SKILLS[id]
+	var attack := String(sk["type"]) == "attack"
+	var reach := Field.WIDE if id == "walk_on" else Field.REACH
+	var tgt := _shade_in_reach(reach) if attack else null
+	var why := Field.why_not(id)
+	if why != "":
+		if why != "숨 고르는 중" and hud != null:
+			hud._say_hint(why, false, 0.9)
+		return false
+	if attack and tgt == null:
+		if id == "smile":
+			FieldFx.swing(self, walker.global_position, _facing(), id)
+			Field.cooldown[id] = float(Field.CD[id])
+		elif hud != null:
+			hud._say_hint("닿는 데 그늘이 없어요", false, 0.9)
+		return false
+	var evs := Field.use(id)
+	if evs.is_empty():
+		return false
 	stop_walk_to()
-	set_world_ui(false)
-	var ui := BattleUI.new()
-	add_child(ui)
-	ui.open(s.shade_kind)
-	ui.closed.connect(func(won: bool) -> void:
-		set_world_ui(true)
-		if won:
-			# 퇴치 할 일(`Quests.hunt_list`)이 세는 기록. 날이 바뀌어도
-			# 안 지워진다 - 그늘은 다시 서도 걷어낸 수는 쌓인다.
-			JourneyState.add_defeat(quest_village(), s.shade_kind)
-		if won and is_instance_valid(s):
-			Battle.mark_cleared(place_name(), s.at_tile)
-			_shades.erase(s)
-			s.dissolve()
-		# 졌거나 물러났으면 그늘은 그대로 선다. 한 걸음 물러나 둬야
-		# 판을 닫자마자 다시 붙는 일이 없다.
-		elif is_instance_valid(s):
-			var away := (walker.global_position - s.global_position).normalized()
-			walker.global_position += away * TILE * 1.5
-		SaveManager.save_now())
+	_did("fight")
+	if id != "smile":
+		FieldFx.cast_name(self, walker.global_position, id)
+	if not attack:
+		FieldFx.burst(self, walker.global_position + Vector2(0, -10), id, false)
+		_show_me(evs)
+		return true
+	walker.face(tgt.global_position - walker.global_position)
+	FieldFx.swing(self, walker.global_position, tgt.global_position - walker.global_position, id)
+	var hits: Array = [tgt]
+	if id == "walk_on":
+		hits.clear()
+		for sh in _shades:
+			if is_instance_valid(sh) and sh.state != "gone" and \
+					walker.global_position.distance_to(sh.global_position) <= Field.WIDE:
+				hits.append(sh)
+	for sh in hits:
+		_hit_shade(sh, id)
+	return true
+
+
+func _hit_shade(sh: Shade, id: String) -> void:
+	var res := Field.strike(id, sh.foe)
+	_target = sh
+	var at := sh.global_position + Vector2(0, -10)
+	var weak := bool(res["weak"])
+	FieldFx.burst(self, at, id, weak)
+	FieldFx.number(self, sh.global_position + Vector2(0, -24), "%d" % int(res["dmg"]),
+		Color("#FFE066") if weak else Color("#FFFFFF"), 22 if weak else 18)
+	if weak:
+		FieldFx.number(self, sh.global_position + Vector2(0, -44), "약점!", Color("#7FDBFF"), 13)
+		AudioManager.battle_weak_hit()
+	else:
+		AudioManager.battle_hit()
+	sh.take_hit(res, walker.global_position)
+	if bool(res["killed"]):
+		on_shade_down(sh)
+
+
+## 그늘이 덤볐다. `Field.foe_attack` 의 사건을 띄운다.
+func on_shade_attack(sh: Shade, evs: Array) -> void:
+	if walker == null:
+		return
+	var at := walker.global_position
+	var hurt := false
+	for ev in evs:
+		match String(ev.get("kind", "")):
+			"hurt":
+				hurt = true
+				FieldFx.number(self, at + Vector2(0, -24), "-%d" % int(ev["amount"]),
+					Color("#FF8A8A"), 18)
+			"miss":
+				FieldFx.number(self, at + Vector2(0, -20), "괜찮아", Color("#DDDDDD"), 11)
+			"status":
+				FieldFx.number(self, at + Vector2(0, -34), String(ev["text"]), Color("#C9A7FF"), 11)
+			"foe_line":
+				FieldFx.number(self, sh.global_position + Vector2(0, -24), String(ev["text"]),
+					Color("#CCCCCC"), 10)
+	if hurt:
+		AudioManager.battle_hurt()
+		FieldFx.burst(self, at + Vector2(0, -10), "hurt", false)
+		if walker.sprite != null:
+			walker.sprite.modulate = Color(1.8, 0.6, 0.6)
+			var tw := create_tween()
+			tw.tween_property(walker.sprite, "modulate", Color.WHITE, 0.25)
+	if Battle.hp <= 0:
+		_fall_down()
+
+
+## **쓰러져도 잃는 것이 없다.** 그 자리에서 추스르고, 그늘은 물러난다.
+func _fall_down() -> void:
+	Field.fall()
+	_target = null
+	for sh in _shades:
+		if is_instance_valid(sh):
+			sh.calm()
+	if hud != null:
+		hud._say_hint("마음이 한 번 주저앉았어요. 괜찮아요, 다시 일어났어요.", false, 2.4)
+	SaveManager.save_now()
+
+
+## 걷어냈다. 경험·남기는 것·퇴치 기록 - 오늘 하루 그 자리는 빈다.
+func on_shade_down(sh: Shade) -> void:
+	if not is_instance_valid(sh) or sh.state == "gone":
+		return
+	var kind := sh.shade_kind
+	AudioManager.battle_defeat()
+	FieldFx.burst(self, sh.global_position + Vector2(0, -10), "gone", true)
+	# 퇴치 할 일(`Quests.hunt_list`)이 세는 기록. 날이 바뀌어도
+	# 안 지워진다 - 그늘은 다시 서도 걷어낸 수는 쌓인다.
+	JourneyState.add_defeat(quest_village(), kind)
+	Battle.mark_cleared(place_name(), sh.at_tile)
+	_shades.erase(sh)
+	if _target == sh:
+		_target = null
+	sh.dissolve()
+	var evs := Field.defeat(kind)
+	for ev in evs:
+		match String(ev.get("kind", "")):
+			"xp":
+				FieldFx.number(self, sh.global_position + Vector2(0, -30),
+					"경험 +%d" % int(ev["amount"]), Color("#B4E6C0"), 12)
+			"level_up":
+				var skn := String(ev.get("skill", ""))
+				if hud != null:
+					hud._celebrate("LV %d!" % int(ev["level"]),
+						("%s을(를) 쓸 수 있게 됐어요" % skn) if skn != ""
+						else "마음이 한 뼘 자랐어요")
+	SaveManager.save_now()
+
+
+## 내 쪽에 붙은 것(회복·버프)을 띄운다.
+func _show_me(evs: Array) -> void:
+	var at := walker.global_position
+	var y := -22.0
+	for ev in evs:
+		match String(ev.get("kind", "")):
+			"heal":
+				if int(ev["amount"]) > 0:
+					AudioManager.battle_heal()
+					FieldFx.number(self, at + Vector2(0, y), "+%d" % int(ev["amount"]),
+						Color("#8FF5D2"), 14)
+					y -= 12.0
+			"status":
+				FieldFx.number(self, at + Vector2(0, y), String(ev["text"]),
+					Color("#FFE39A"), 11)
+				y -= 12.0
 
 
 func _build_pickups() -> void:
@@ -2029,7 +2198,8 @@ func _update_near() -> void:
 		if not is_instance_valid(f):
 			continue
 		var d := walker.global_position.distance_squared_to(f.global_position)
-		if d < best:
+		# 그늘은 말 걸 상대가 아니다 - 오른쪽 버튼이 "말 걸기" 가 되면 안 된다.
+		if d < best and not (f is Shade):
 			best = d
 			_near = f
 		if not talking and d < nearest_d:
@@ -2307,11 +2477,6 @@ func talk_to_near() -> void:
 	f.face(dir)
 	walker.face(-dir)
 	walker.stop()
-	# 그늘 앞이면 말이 아니라 겨루기다.
-	if f is Shade:
-		_near = null
-		start_shade(f as Shade)
-		return
 	# **대사를 먼저 고르고** 마음을 올린다. 순서를 바꾸면 처음 만난
 	# 사람이 두 칸째 대사를 하고, 첫인사를 영영 못 듣는다.
 	# 가게 선반은 대화 대신 **판**이 뜬다. 자리 표시를 그대로 쓰되
@@ -2442,6 +2607,17 @@ func _unhandled_input(e: InputEvent) -> void:
 			door = null
 		else:
 			who = null
+	# 그늘을 누르면 겨눈다. 닿으면 바로 한 대, 멀면 그 앞까지 걸어간다
+	# - 거기서부터는 공격 버튼이다.
+	if who is Shade:
+		_target = who as Shade
+		if walker.global_position.distance_to(who.global_position) <= Field.REACH:
+			stop_walk_to()
+			field_use("smile")
+		else:
+			walk_to(_beside(who))
+		get_viewport().set_input_as_handled()
+		return
 	if who != null:
 		# **앞에 가서** 눌러야 말이 걸린다. 멀리서 누르면 다가가서
 		# 저절로 말을 건다 (`_pending_talk`).
@@ -2773,11 +2949,7 @@ func _refresh_action() -> void:
 		hud.set_action("", "")
 		return
 	if _near != null:
-		# 그늘 앞에서 "말 걸기" 라고 적으면 안 된다 — 누르면 겨루기가 열린다.
-		if _near is Shade:
-			hud.set_action("talk", "마음 겨루기")
-		else:
-			hud.set_action("talk", "보기" if _near.is_spot else "말 걸기")
+		hud.set_action("talk", "보기" if _near.is_spot else "말 걸기")
 		return
 	# **사진 자리에서는 사진이 먼저다.** 등대곶은 등대 문 앞이기도 해서
 	# 버튼에 "등대 들어가기" 가 떴다 - 사진을 남겨야 넘어가는 자리인데
@@ -3451,9 +3623,6 @@ func _tick_goto(delta: float) -> Vector2:
 
 
 func _process(delta: float) -> void:
-	# 겨루기 중에는 세계가 멈춘다. 시간도, 걸음도, 이름표도.
-	if _battling:
-		return
 	# **대화가 막 닫혔으면 잠깐은 다시 안 연다.** 대사는 타자 효과라
 	# 자연히 연타하게 되는데, 마지막 줄에서 대화가 닫히는 즉시 같은
 	# 자리 버튼이 "다음"→"말 걸기" 로 바뀌어(쿨다운 없이) 연타의
@@ -3495,6 +3664,8 @@ func _process(delta: float) -> void:
 		_pending_depart = false
 		_retalk_tried = false
 	_walk_to_age += delta
+	if not blocked:
+		_tick_field(delta)
 	_check_pickups()
 	_tick_quest_zones()
 	_update_near()
@@ -3515,6 +3686,15 @@ func _process(delta: float) -> void:
 	_tick_traces()
 	if not blocked:
 		_tick_footsteps(delta)
+
+
+## 싸움의 시간 - 틈·상태가 흐르고 온기가 찬다. 쓰러졌는지도 여기서 본다
+## (나쁜 상태만으로 쓰러질 일은 없지만, 되돌림에 맞는 순간이 있다).
+func _tick_field(delta: float) -> void:
+	for ev in Field.tick(delta):
+		if String(ev.get("kind", "")) == "heal" and walker != null:
+			FieldFx.number(self, walker.global_position + Vector2(0, -22),
+				"+%d" % int(ev["amount"]), Color("#8FF5D2"), 12)
 
 
 # ── 도우미 ────────────────────────────────────────────────────────────
