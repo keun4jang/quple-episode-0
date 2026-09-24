@@ -724,9 +724,18 @@ func announce_place(text: String) -> void:
 
 ## 사진을 찍었다. 화면이 한 번 하얘진다.
 func flash() -> void:
-	_flash.color.a = 0.85
+	_flash.color = Color(1, 1, 1, 0.85)
 	var tw := create_tween()
 	tw.tween_property(_flash, "color:a", 0.0, 0.35)
+
+
+## 스킬을 쓰면 화면이 그 빛깔로 한 번 물든다 (`Place.field_use`).
+func tint_flash(c: Color, a: float, secs := 0.3) -> void:
+	if _flash == null:
+		return
+	_flash.color = Color(c.r, c.g, c.b, a)
+	var tw := create_tween()
+	tw.tween_property(_flash, "color:a", 0.0, secs)
 
 
 func bag_open() -> bool:
@@ -2028,8 +2037,15 @@ func _process(delta: float) -> void:
 		_pad_cam.visible = cam_ok and not _buttons_hidden
 	if fight != null:
 		var p := _place()
-		fight.visible = p != null and p.has_method("can_fight") and p.can_fight() \
+		# **붙었을 때만 뜬다** (`Place.in_fight`). 늘 떠 있으면 버튼 일곱과
+		# 막대 둘이 마을을 가렸다. 툭 켜지지 않게 스르르.
+		var want: bool = p != null and p.has_method("in_fight") and p.in_fight() \
 			and not _buttons_hidden and not bag_open()
+		if want:
+			fight.visible = true
+		fight.modulate.a = move_toward(fight.modulate.a, 1.0 if want else 0.0, delta * 6.0)
+		if not want and fight.modulate.a <= 0.0:
+			fight.visible = false
 
 
 # ── 안전영역 ──────────────────────────────────────────────────────────

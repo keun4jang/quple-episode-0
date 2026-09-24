@@ -7395,8 +7395,17 @@ func _hunt_tests() -> void:
 
 	# 오른쪽 아래 공격·스킬 버튼 (바람의나라·메이플처럼)
 	var pad: FightPad = p.hud.fight
-	await get_tree().process_frame
-	ok(pad != null and pad.visible, "그늘이 서는 마을에는 공격 버튼이 뜬다")
+	# **붙었을 때만 뜬다.** 멀리 있으면 마을을 가리지 않는다
+	p.walker.global_position = Vector2(-900, -900)
+	p._fight_t = 0.0
+	var until0 := Time.get_ticks_msec() + 1500
+	while pad.visible and Time.get_ticks_msec() < until0:
+		await get_tree().process_frame
+	ok(pad != null and not pad.visible, "그늘과 떨어져 있으면 공격 버튼이 없다")
+	p.walker.global_position = p._shades[0].global_position + Vector2(12, 0)
+	for i in 12:
+		await get_tree().process_frame
+	ok(pad != null and pad.visible, "그늘 가까이 가면 공격 버튼이 뜬다")
 	# 보이는 것만으로는 모자란다 - 판 크기가 0 이라 버튼이 화면 밖에 나가 있던 적이 있다
 	var vr := p.get_viewport().get_visible_rect()
 	var inside := true
@@ -7434,7 +7443,10 @@ func _hunt_tests() -> void:
 	ok(int(sh2.foe["hp"]) < hp3, "Z 키로도 때린다")
 	# 대화 중에는 비켜 준다
 	p.hud.set_buttons_visible(false)
-	await get_tree().process_frame
+	# 스르르 사라지므로 **시간으로** 기다린다 (헤드리스는 한 프레임이 짧다)
+	var until := Time.get_ticks_msec() + 1500
+	while pad.visible and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
 	ok(not pad.visible, "대화 중에는 공격 버튼이 숨는다")
 	p.hud.set_buttons_visible(true)
 	Battle.reset()

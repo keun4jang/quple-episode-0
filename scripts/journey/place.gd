@@ -1264,6 +1264,29 @@ func can_fight() -> bool:
 	return not is_indoors() and not shades().is_empty()
 
 
+## 방금 싸웠나 - 공격·스킬을 쓰면 이만큼(초) 버튼이 남는다.
+var _fight_t := 0.0
+## 이만큼 붙으면 대결이 성사된 것으로 친다(px) - 누르면 닿는 거리 조금 밖.
+const ENGAGE := 54.0
+
+
+## 대결 중인가. 공격 버튼·체력 막대는 이때만 뜬다 (`JourneyHud`).
+## 그늘 가까이 섰거나, 덤벼 오는 그늘이 있거나, 방금 때렸으면.
+func in_fight() -> bool:
+	if not can_fight() or walker == null:
+		return false
+	if _fight_t > 0.0:
+		return true
+	for sh in _shades:
+		if not is_instance_valid(sh) or sh.state == "gone":
+			continue
+		if sh.is_fighting():
+			return true
+		if walker.global_position.distance_to(sh.global_position) <= ENGAGE:
+			return true
+	return false
+
+
 ## 닿는 곳에 있는 그늘. 겨눈 것이 먼저, 없으면 보는 쪽에 가까운 것.
 func _shade_in_reach(reach: float) -> Shade:
 	if walker == null:
@@ -1330,8 +1353,14 @@ func field_use(id: String) -> bool:
 		return false
 	stop_walk_to()
 	_did("fight")
+	_fight_t = 2.5
 	if id != "smile":
 		FieldFx.cast_name(self, walker.global_position, id)
+		# 스킬은 화면째 물들고, 큰 것일수록 크게 흔들린다.
+		if hud != null:
+			hud.tint_flash(Color(String(FieldFx.cols_of(id)[0])),
+				0.32 if id == "walk_on" else 0.18)
+		FieldFx.shake(cam, 5.0 if id == "walk_on" else 2.0, 0.3 if id == "walk_on" else 0.15)
 	if not attack:
 		FieldFx.burst(self, walker.global_position + Vector2(0, -10), id, false)
 		_show_me(evs)
@@ -1360,6 +1389,7 @@ func _hit_shade(sh: Shade, id: String) -> void:
 		Color("#FFE066") if weak else Color("#FFFFFF"), 22 if weak else 18)
 	if weak:
 		FieldFx.number(self, sh.global_position + Vector2(0, -44), "약점!", Color("#7FDBFF"), 13)
+		FieldFx.shake(cam, 2.5, 0.12)
 		AudioManager.battle_weak_hit()
 	else:
 		AudioManager.battle_hit()
@@ -1390,6 +1420,7 @@ func on_shade_attack(sh: Shade, evs: Array) -> void:
 	if hurt:
 		AudioManager.battle_hurt()
 		FieldFx.burst(self, at + Vector2(0, -10), "hurt", false)
+		FieldFx.shake(cam, 2.0, 0.12)
 		if walker.sprite != null:
 			walker.sprite.modulate = Color(1.8, 0.6, 0.6)
 			var tw := create_tween()
@@ -3691,6 +3722,7 @@ func _process(delta: float) -> void:
 ## 싸움의 시간 - 틈·상태가 흐르고 온기가 찬다. 쓰러졌는지도 여기서 본다
 ## (나쁜 상태만으로 쓰러질 일은 없지만, 되돌림에 맞는 순간이 있다).
 func _tick_field(delta: float) -> void:
+	_fight_t = maxf(0.0, _fight_t - delta)
 	for ev in Field.tick(delta):
 		if String(ev.get("kind", "")) == "heal" and walker != null:
 			FieldFx.number(self, walker.global_position + Vector2(0, -22),
