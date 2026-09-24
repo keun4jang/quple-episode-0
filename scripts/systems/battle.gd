@@ -357,9 +357,61 @@ const ENEMIES := {
 		"xp": 1.25, "sheet": "blaze", "drop": "b-yakgwa",
 		"pattern": {"kind": "burst", "rest": 2, "mult": 2.3, "inflict": "numb"},
 		"desc": "두 번 쉬고 활활"},
-	"night": {"name": "밤그늘 대왕", "elem": "dark", "hp": 1.0, "atk": 1.0, "def": 1.2,
-		"xp": 1.0, "sheet": "night", "boss": true, "drop": "b-lunchbox",
+	# ── 구역 보스 - 구역마다 하나. 쓰러뜨리면 꿈의 문이 열린다 (`docs/redesign-dream.md` 2절).
+	"drop_king": {"name": "물방울 대왕", "elem": "water", "hp": 0.8, "atk": 0.9, "def": 1.0,
+		"xp": 1.0, "sheet": "drop_king", "boss": true, "drop": "b-lunchbox",
+		"pattern": {"kind": "multi", "times": 3, "mult": 0.6}, "desc": "세 번 연달아 튄다"},
+	"dokkaebi": {"name": "불꽃 도깨비", "elem": "fire", "hp": 0.85, "atk": 1.0, "def": 1.0,
+		"xp": 1.0, "sheet": "dokkaebi", "boss": true, "drop": "b-lunchbox",
+		"pattern": {"kind": "escalate", "step": 0.25, "cap": 2.4}, "desc": "갈수록 불붙는다"},
+	"golem": {"name": "바위 거인", "elem": "earth", "hp": 1.1, "atk": 1.0, "def": 1.5,
+		"xp": 1.0, "sheet": "golem", "boss": true, "drop": "b-lunchbox",
+		"pattern": {"kind": "burst", "rest": 2, "mult": 2.6, "inflict": "numb"},
+		"desc": "두 번 쉬고 내리찍는다"},
+	"gull": {"name": "태풍 갈매기", "elem": "wind", "hp": 0.8, "atk": 1.05, "def": 0.9,
+		"xp": 1.0, "sheet": "gull", "boss": true, "drop": "b-lunchbox",
+		"pattern": {"kind": "multi", "times": 4, "mult": 0.45}, "desc": "네 번 휘몰아친다"},
+	"carp": {"name": "소용돌이 잉어왕", "elem": "water", "hp": 0.95, "atk": 1.0, "def": 1.1,
+		"xp": 1.0, "sheet": "carp", "boss": true, "drop": "b-lunchbox",
+		"pattern": {"kind": "reflect", "back": 0.45}, "desc": "맞은 만큼 되받아친다"},
+	"lotus": {"name": "연꽃 정령", "elem": "wood", "hp": 0.95, "atk": 1.0, "def": 1.1,
+		"xp": 1.0, "sheet": "lotus", "boss": true, "drop": "b-lunchbox",
+		"pattern": {"kind": "inflict", "every": 3, "status": "numb"}, "desc": "세 번째마다 먹먹하게"},
+	"thorn_queen": {"name": "가시덩굴 여왕", "elem": "wood", "hp": 1.0, "atk": 1.05, "def": 1.2,
+		"xp": 1.0, "sheet": "thorn_queen", "boss": true, "drop": "b-lunchbox",
+		"pattern": {"kind": "inflict", "every": 3, "status": "shrink"}, "desc": "세 번째마다 옭아맨다"},
+	"mole_king": {"name": "산골 두더지왕", "elem": "earth", "hp": 1.05, "atk": 1.1, "def": 1.3,
+		"xp": 1.0, "sheet": "mole_king", "boss": true, "drop": "b-lunchbox",
+		"pattern": {"kind": "heavy", "every": 3, "mult": 2.2}, "desc": "세 번째마다 땅이 꺼진다"},
+	"deer": {"name": "화염 꽃사슴", "elem": "fire", "hp": 1.0, "atk": 1.15, "def": 1.1,
+		"xp": 1.0, "sheet": "deer", "boss": true, "drop": "b-lunchbox",
+		"pattern": {"kind": "burst", "rest": 2, "mult": 2.6, "inflict": "numb"},
+		"desc": "두 번 숨 고르고 활활"},
+	# ── 회사 몬스터 - 꿈이 금 간 뒤 꿈속 잿마루 타워에만 선다 (`TOWER_SPAWNS`).
+	"paper": {"name": "결재 서류 골렘", "elem": "earth", "hp": 1.2, "atk": 1.05, "def": 1.3,
+		"xp": 1.2, "sheet": "paper", "drop": "b-riceball",
+		"pattern": {"kind": "heavy", "every": 3, "mult": 2.0}, "desc": "세 번째마다 서류 더미로 짓누른다"},
+	"memo": {"name": "회의록 유령", "elem": "wind", "hp": 1.0, "atk": 1.0, "def": 1.0,
+		"xp": 1.2, "sheet": "memo", "drop": "b-sikhye",
+		"pattern": {"kind": "inflict", "every": 3, "status": "numb"}, "desc": "세 번째마다 회의가 길어진다"},
+	"vending": {"name": "커피 자판기 미믹", "elem": "fire", "hp": 1.1, "atk": 1.15, "def": 1.2,
+		"xp": 1.25, "sheet": "vending", "drop": "b-candy",
+		"pattern": {"kind": "escalate", "step": 0.25, "cap": 2.4}, "desc": "마실수록 뜨거워진다"},
+	"bat": {"name": "메신저 박쥐", "elem": "water", "hp": 0.8, "atk": 1.0, "def": 0.9,
+		"xp": 1.15, "sheet": "bat", "drop": "b-cookie",
+		"pattern": {"kind": "multi", "times": 4, "mult": 0.4}, "desc": "알림이 네 번 연달아 온다"},
+	# 끝판 - 떨어진 사람들의 "야근하는 마음" 이 뭉친 것. 꿈속 잿마루 타워 꼭대기.
+	"night": {"name": "야근 대마왕", "elem": "dark", "hp": 1.2, "atk": 1.1, "def": 1.3,
+		"xp": 1.5, "sheet": "night", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "heavy", "every": 4, "mult": 2.1}, "desc": "네 번째마다 무거운 한 방"},
+}
+
+## 구역마다의 보스 (차례대로). 쓰러뜨리면 `JourneyState.quest_flags` 에
+## "보스:<구역>" 이 남는다 - 꿈의 문이 열린 표시.
+const REGION_BOSS := {
+	"윤슬": "drop_king", "볕뉘": "dokkaebi", "가풀재": "golem", "하늬섬": "gull",
+	"굽이나루": "carp", "방울못": "lotus", "갈밭머리": "thorn_queen", "솔은재": "mole_king",
+	"꽃눈벌": "deer",
 }
 
 ## 우두머리는 몸집이 다르다.
@@ -368,8 +420,9 @@ const BOSS_ATK := 1.4
 const BOSS_XP := 20.0
 
 ## 옛 이름(감정 그늘) → 새 종. 옛 세이브의 조각·퇴치 기록을 옮긴다.
+## 옛 밤그늘(꽃눈벌 우두머리)은 그 자리의 새 보스 화염 꽃사슴으로 간다.
 const OLD_KINDS := {"worry": "drop", "hurry": "ember", "lonely": "gust",
-	"tired": "pebble", "regret": "thorn", "envy": "blaze", "night": "night"}
+	"tired": "pebble", "regret": "thorn", "envy": "blaze", "night": "deer"}
 
 
 ## 그 종이 그 레벨일 때의 몸. 레벨 곡선은 **같은 레벨의 사람이 기본
@@ -396,16 +449,41 @@ static func foe_stats(kind: String, lv: int) -> Dictionary:
 ##
 ## 프롤로그(잿마루)와 고향에는 없다 - 거기는 현실이다.
 const SPAWNS := {
-	"윤슬": [["drop", 2], ["drop", 3], ["drop", 5], ["ember", 7]],
-	"볕뉘": [["ember", 10], ["ember", 11], ["drop", 9], ["sprout", 12]],
-	"가풀재": [["pebble", 14], ["pebble", 15], ["sprout", 13], ["ember", 16]],
-	"하늬섬": [["gust", 18], ["gust", 19], ["pebble", 17], ["drop", 18], ["sprout", 20]],
-	"굽이나루": [["whirl", 22], ["whirl", 23], ["sprout", 21], ["gust", 24]],
-	"방울못": [["thorn", 26], ["thorn", 27], ["whirl", 25], ["pebble", 28]],
-	"갈밭머리": [["thorn", 30], ["mole", 31], ["mole", 32], ["gust", 29]],
-	"솔은재": [["storm", 34], ["storm", 35], ["mole", 33], ["thorn", 36], ["whirl", 34]],
-	"꽃눈벌": [["blaze", 38], ["blaze", 40], ["storm", 39], ["night", 45]],
+	"윤슬": [["drop", 2], ["drop", 3], ["drop", 5], ["ember", 7], ["drop_king", 8]],
+	"볕뉘": [["ember", 10], ["ember", 11], ["drop", 9], ["sprout", 12], ["dokkaebi", 13]],
+	"가풀재": [["pebble", 14], ["pebble", 15], ["sprout", 13], ["ember", 16], ["golem", 17]],
+	"하늬섬": [["gust", 18], ["gust", 19], ["pebble", 17], ["drop", 18], ["sprout", 20],
+		["gull", 21]],
+	"굽이나루": [["whirl", 22], ["whirl", 23], ["sprout", 21], ["gust", 24], ["carp", 25]],
+	"방울못": [["thorn", 26], ["thorn", 27], ["whirl", 25], ["pebble", 28], ["lotus", 29]],
+	"갈밭머리": [["thorn", 30], ["mole", 31], ["mole", 32], ["gust", 29], ["thorn_queen", 33]],
+	"솔은재": [["storm", 34], ["storm", 35], ["mole", 33], ["thorn", 36], ["whirl", 34],
+		["mole_king", 37]],
+	"꽃눈벌": [["blaze", 38], ["blaze", 40], ["storm", 39], ["deer", 42]],
 }
+
+## 꿈이 금 간 뒤의 꿈속 잿마루 타워 (`docs/redesign-dream.md` 2절 "전·결").
+## 현실의 회사가 거꾸로 선 곳 - 회사 몬스터들과 꼭대기의 야근 대마왕.
+## `SPAWNS` 에 안 넣는다: 잿마루는 프롤로그(현실)라 평소엔 싸움이 없다.
+const TOWER_SPAWNS := [["paper", 44], ["memo", 45], ["vending", 46], ["bat", 45],
+	["paper", 47], ["night", 50]]
+
+
+static func tower_spawns() -> Array:
+	var out: Array = []
+	for i in 4:
+		for k in TOWER_SPAWNS:
+			var boss := bool(ENEMIES[String(k[0])].get("boss", false))
+			if i > 0 and boss:
+				continue
+			out.append([String(k[0]), int(k[1]) + (0 if boss else (i % 3) - 1)])
+	return out
+
+
+## 그 구역의 보스를 쓰러뜨렸나 - 꿈의 문이 열렸나.
+static func boss_down(village: String) -> bool:
+	return JourneyState.quest_done("보스:" + village)
+
 
 ## **여섯 배.** 표는 구역마다의 비율로 두고 실제로 서는 수는 여기서 곱한다.
 ## 우두머리는 곱하지 않는다.
@@ -704,7 +782,7 @@ static func to_dict() -> Dictionary:
 		"level": level, "xp": xp, "hp": hp, "mp": mp,
 		"job": job, "stats": stats.duplicate(), "ap": ap, "sp": sp,
 		"skill_lv": skill_lv.duplicate(), "auto_ap": auto_ap, "auto_sp": auto_sp,
-		"cleared": cleared.duplicate(), "cleared_day": cleared_day, "v": 2,
+		"cleared": cleared.duplicate(), "cleared_day": cleared_day, "v": 3,
 	}
 
 

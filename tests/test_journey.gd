@@ -105,6 +105,7 @@ func _ready() -> void:
 	await _hunt_tests()
 	await _char_ui_tests()
 	_loop_tests()
+	await _story_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -6828,6 +6829,8 @@ func _battle_tests() -> void:
 	# 감정 이름이던 옛 몬스터 조각·퇴치 기록을 옮긴다
 	JourneyState.reset()
 	var legacy := JourneyState.to_dict()
+	legacy["battle"] = {"level": 1}          # 옛 저장판 (v 없음)
+	legacy.erase("gear")
 	legacy["bag"] = {"m-worry": 1, "m-envy": 1}
 	legacy["seen_items"] = {"m-worry": true}
 	legacy["defeats"] = {"윤슬": 5, "윤슬:worry": 5}
@@ -7680,7 +7683,8 @@ func _hunt_tests() -> void:
 	ev.physical_keycode = KEY_Z
 	ev.pressed = true
 	pad._unhandled_key_input(ev)
-	ok(int(sh2.foe["hp"]) < hp3, "Z 키로도 때린다")
+	ok(int(sh2.foe["hp"]) < hp3, "Z 키로도 때린다 (%d → %d, %s, 보임 %s, %s)" % [hp3,
+		int(sh2.foe["hp"]), sh2.state, pad.visible, Field.why_not("tap")])
 	# 대화 중에는 비켜 준다
 	p.hud.set_buttons_visible(false)
 	# 스르르 사라지므로 **시간으로** 기다린다 (헤드리스는 한 프레임이 짧다)
@@ -7839,5 +7843,111 @@ func _loop_tests() -> void:
 	JourneyState.from_dict(d)
 	ok(Loop.titles.has("물방울뭉 사냥꾼") and int(Loop.kills.get("drop", 0)) == 10
 		and bool(Loop.daily["list"][0]["claimed"]), "칭호·처치 수·임무가 저장된다")
+	JourneyState.reset()
+	Battle.reset()
+
+
+# ── 꿈 이야기 (`docs/redesign-dream.md` 2절) ─────────────────────────
+
+func _story_tests() -> void:
+	print("\n[꿈 이야기 - 몽이·구역 보스·꿈의 문·타워·엔딩]")
+	JourneyState.reset()
+	Battle.reset()
+	# 인트로는 야근하다 잠드는 데까지
+	ok(String(load("res://scripts/menu/intro_slides.gd").SLIDES[-1][0]).contains("눈 좀 붙이자"),
+		"인트로는 잠드는 데서 끝난다")
+	# 구역마다 보스가 하나씩, 한 마리만 선다
+	var bad: Array = []
+	for v in Quests.ORDER:
+		var boss := String(Battle.REGION_BOSS.get(v, ""))
+		var n := 0
+		for sp in Battle.spawns(String(v)):
+			if String(sp[0]) == boss:
+				n += 1
+		if boss == "" or n != 1 or not bool(Battle.ENEMIES[boss].get("boss", false)):
+			bad.append(v)
+	ok(bad.is_empty(), "구역마다 보스가 하나 선다 %s" % str(bad))
+	ok(ResourceLoader.exists("res://assets/sprites/s-drop_king-walk.png")
+		and ResourceLoader.exists("res://assets/sprites/mongi-walk.png"), "보스·몽이 그림이 있다")
+	# 꿈의 문 - 할 일을 다 하거나, 보스를 쓰러뜨리거나
+	ok(not Quests.is_unlocked("볕뉘"), "처음엔 볕뉘가 잠겨 있다")
+	JourneyState.mark_quest("보스:윤슬")
+	ok(Quests.is_unlocked("볕뉘"), "윤슬 보스를 쓰러뜨리면 볕뉘 문이 열린다")
+	ok(Quests.unlock_todo("볕뉘").is_empty(), "열렸으면 남은 조건도 없다")
+	# 타워 - 꽃눈벌 보스 전엔 정류장에 안 보인다
+	ok(not Quests.is_unlocked(Quests.TOWER), "타워는 처음엔 닫혀 있다")
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var mongi: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.folk_id == "mongi":
+			mongi = f
+	ok(mongi != null and String(mongi.lines()[0][1]).contains("몽이"), "윤슬에 몽이가 있다")
+	p.board.open(p.place_name())
+	var rows: Array = []
+	for b in p.board._list.get_children():
+		rows.append(String((b as Button).text))
+	ok(not str(rows).contains("잿마루 타워"), "타워는 열리기 전엔 정류장에 안 보인다")
+	p.board.close()
+	# 구역 보스를 쓰러뜨리면 표시가 남는다
+	JourneyState.reset()
+	Battle.reset()
+	JourneyState.here = "윤슬"
+	p.queue_free()
+	await get_tree().process_frame
+	p = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var king: Shade = null
+	for sh in p._shades:
+		if sh.shade_kind == "drop_king":
+			king = sh
+	ok(king != null, "윤슬에 물방울 대왕이 선다")
+	if king != null:
+		p.on_shade_down(king)
+		ok(Battle.boss_down("윤슬") and Quests.is_unlocked("볕뉘"), "대왕을 쓰러뜨리면 꿈의 문이 열린다")
+	p.queue_free()
+	await get_tree().process_frame
+	# 꽃눈벌 보스 뒤 - 타워가 나타나고, 잿마루가 타워가 된다
+	JourneyState.mark_quest("보스:꽃눈벌")
+	ok(Quests.is_unlocked(Quests.TOWER), "꽃눈벌 보스 뒤엔 타워가 열린다")
+	JourneyState.here = "잿마루"
+	var jm: Place = load(GOAL_SCENES["잿마루"]).instantiate()
+	add_child(jm)
+	await get_tree().process_frame
+	ok(jm.display_name() == "꿈속 잿마루 타워" and not jm._shades.is_empty(),
+		"잿마루가 몬스터 가득한 타워가 된다 (%d)" % jm._shades.size())
+	var big: Shade = null
+	for sh2 in jm._shades:
+		if sh2.shade_kind == "night":
+			big = sh2
+	ok(big != null, "꼭대기에 야근 대마왕이 있다")
+	ok(String(Quests.quest_list("잿마루")[0]["label"]).contains("야근 대마왕"),
+		"할 일 맨 위가 대마왕이다")
+	jm.board.open(jm.place_name())
+	var rows2: Array = []
+	for b2 in jm.board._list.get_children():
+		rows2.append(String((b2 as Button).text))
+	jm.board.close()
+	ok(not str(rows2).contains("잿마루 타워"), "여기 있으니 타워 줄은 안 뜬다")
+	if big != null:
+		jm.on_shade_down(big)
+		ok(JourneyState.quest_done("엔딩:대마왕"), "대마왕을 쓰러뜨리면 깨어난다")
+	jm.queue_free()
+	await get_tree().process_frame
+	# 선택 판
+	var ec := EndingChoice.new()
+	add_child(ec)
+	var picked := [""]
+	ec.chose.connect(func(w: String) -> void: picked[0] = w)
+	await get_tree().process_frame
+	var work: Button = ec.find_child("Choice_work", true, false)
+	ok(work != null and ec.find_child("Choice_quit", true, false) != null, "사직·출근 두 갈래")
+	if work != null:
+		work.pressed.emit()
+	ok(picked[0] == "work", "고르면 알린다")
+	await get_tree().process_frame
 	JourneyState.reset()
 	Battle.reset()

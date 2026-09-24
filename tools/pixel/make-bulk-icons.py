@@ -735,6 +735,13 @@ SHARD = {
     "pebble": ("#6B5A48", "#C9B79C"), "mole": ("#8D6E4F", "#E8C39E"),
     "gust": ("#3B8A96", "#E3FAFC"), "storm": ("#1D5E68", "#9BE7F5"),
     "night": ("#2E3458", "#B197FC"),
+    "drop_king": ("#1C7ED6", "#FFD43B"), "dokkaebi": ("#E8590C", "#FFD43B"),
+    "golem": ("#495057", "#FFD43B"), "gull": ("#3B8A96", "#FFD43B"),
+    "carp": ("#1864AB", "#FFD43B"), "lotus": ("#C2255C", "#FFD43B"),
+    "thorn_queen": ("#2B8A3E", "#FFD43B"), "mole_king": ("#6B4A2A", "#FFD43B"),
+    "deer": ("#C92A2A", "#FFD43B"),
+    "paper": ("#868E96", "#F1F3F5"), "memo": ("#495057", "#CED4DA"),
+    "vending": ("#A61E1E", "#FFE8CC"), "bat": ("#343A40", "#FF6B6B"),
 }
 for _k in SHARD:
     ICONS["m-" + _k] = (lambda k: (lambda: shard(*SHARD[k])))(_k)

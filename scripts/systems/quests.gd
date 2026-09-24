@@ -478,7 +478,7 @@ static func unlock_todo(village: String) -> Dictionary:
 	if idx <= 0:
 		return {}
 	var prev: String = String(ORDER[idx - 1])
-	if village_cleared(prev):
+	if village_cleared(prev) or Battle.boss_down(prev):
 		return {}
 	var need := 0
 	var first := ""
@@ -767,7 +767,12 @@ static func quest_list(village: String) -> Array:
 	# 참이다. 다 안 해도 떠날 수 있다 — 벌이 없다는 원칙 그대로,
 	# 이 목록은 "해도 되는 것"을 적어 둔 것뿐이다.
 	if village == "잿마루":
-		return [
+		# 끝판(타워)에 왔으면 할 일은 하나 - 맨 위에 세운다.
+		var boss_row: Array = []
+		if Battle.boss_down(String(ORDER[-1])) and not JourneyState.quest_done("엔딩:대마왕"):
+			boss_row = [{"label": "타워 꼭대기의 야근 대마왕 쓰러뜨리기", "kind": "boss",
+				"key": "night", "done": false}]
+		return boss_row + [
 			{"label": "옆자리 동료에게 인사하기", "kind": "talk", "key": "coworker",
 				"done": JourneyState.heart("coworker") >= 1},
 			{"label": "창가에서 밖을 내다보기", "kind": "prop", "key": "창밖",
@@ -778,7 +783,7 @@ static func quest_list(village: String) -> Array:
 				"done": JourneyState.heart("guard") >= 1},
 			{"label": "회사 앞으로 걸어 나가기", "kind": "prop", "key": "회사 앞",
 				"done": JourneyState.quest_done("잿마루:본:회사 앞")},
-			{"label": "정류장에서 첫 여행지 고르기", "kind": "depart", "key": "",
+			{"label": "정류장에서 첫 꿈결 구역 고르기", "kind": "depart", "key": "",
 				"done": JourneyState.quest_done("잿마루:정류장")},
 		]
 	# 고향에도 목록을 둔다 — 잿마루와 똑같은 이유다.
@@ -957,9 +962,19 @@ static func _hunt(village: String, kind: String, need: int, label: String) -> Di
 static func is_unlocked(village: String) -> bool:
 	if village == "고향":
 		return true
+	# 꿈속 잿마루 타워 - 마지막 구역(꽃눈벌)의 보스를 쓰러뜨려야 나타난다.
+	if village == TOWER:
+		return Battle.boss_down(String(ORDER[-1]))
 	if JourneyState.visited.has(village):
 		return true
 	var idx := ORDER.find(village)
 	if idx <= 0:
 		return true
-	return village_cleared(ORDER[idx - 1])
+	# **길이 둘이다** - 앞 구역의 할 일을 하거나, 그 구역 보스를 쓰러뜨리거나.
+	# 이야기를 따라가는 사람도, 싸워서 뚫는 사람도 막히지 않는다.
+	var prev := String(ORDER[idx - 1])
+	return village_cleared(prev) or Battle.boss_down(prev)
+
+
+## 꽃눈벌 너머 끝판 - 정류장 이름.
+const TOWER := "잿마루 타워"

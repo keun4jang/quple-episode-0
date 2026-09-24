@@ -522,6 +522,8 @@ const POSTCARD_LINES := [
 ## "와 달라" 로 끝나면 안 된다 (`docs/story-journey.md` 의 편지 규칙과 같다).
 ## 여기 없는 인연은 아래 공용 줄로 간다.
 const POSTCARD_BY_FOLK := {
+	# 꿈결 안내 요정
+	"mongi": "꿈결 어디에 있든 몽이가 지켜보고 있어. 대마왕까지 힘내!",
 	# 윤슬
 	"seal": "아이스크림에 새 맛이 들어왔어. 그거 먹자고 여기까지 올 건 없고.",
 	"seagull": "오늘 등대 불이 유난히 멀리 갔어요. 거기까지 갔으려나.",
@@ -914,7 +916,11 @@ func from_dict(d: Dictionary) -> void:
 	for k in bag:
 		seen_items[String(k)] = true
 	defeats = d.get("defeats", {}).duplicate() if d.get("defeats") is Dictionary else {}
-	_migrate_kinds()
+	# 옛 몬스터 이름 옮기기는 **옛 세이브에만** (`Battle` 저장판 v3 전). 새 세이브의
+	# "night" 는 야근 대마왕이라 옮기면 안 된다 - 예전의 night 는 꽃눈벌 보스였다.
+	var bv := int((d["battle"] as Dictionary).get("v", 1)) if d.get("battle") is Dictionary else 1
+	if bv < 3:
+		_migrate_kinds()
 	# **장비를 먼저** 읽는다 - 체력 최대가 장비에 달려 있어서, 레벨·체력을
 	# 먼저 읽으면 입은 옷만큼의 체력이 잘려 나간다.
 	if d.get("loop") is Dictionary:

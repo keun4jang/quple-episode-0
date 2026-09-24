@@ -1559,6 +1559,7 @@ func on_shade_down(sh: Shade) -> void:
 		Loop.note("elite")
 		if hud != null:
 			hud._celebrate("정예 처치!", "좋은 것을 떨어뜨렸어요")
+	_boss_story(kind)
 	var new_title := Loop.add_kill(kind)
 	if new_title != "" and hud != null:
 		hud._celebrate("칭호를 얻었어요!", "%s  ·  체력 최대 +%d" % [new_title, Loop.TITLE_HP])
@@ -1608,6 +1609,57 @@ func _on_level_up(ev: Dictionary) -> void:
 		("새 스킬 · %s" % skn) if skn != "" else "능력치가 올랐어요")
 	if bool(ev.get("job_ready", false)):
 		hud._celebrate("전직할 수 있어요!", "왼쪽 위 캐릭터 창에서 직업을 골라요")
+
+
+## 보스를 쓰러뜨렸다 - 이야기가 한 칸 나아간다 (`docs/redesign-dream.md` 2절).
+##   구역 보스   → 꿈의 문이 열린다 (`Quests.is_unlocked` 의 두 번째 길)
+##   꽃눈벌 보스 → 꿈이 금 가고 정류장에 잿마루 타워가 나타난다
+##   야근 대마왕 → 깨어난다
+func _boss_story(kind: String) -> void:
+	var v := quest_village()
+	if String(Battle.REGION_BOSS.get(v, "")) == kind and not Battle.boss_down(v):
+		JourneyState.mark_quest("보스:" + v)
+		if hud != null:
+			if v == String(Quests.ORDER[-1]):
+				hud._celebrate("꿈이 금 가기 시작했어요!", "정류장에 잿마루 타워가 나타났어요")
+			else:
+				hud._celebrate("꿈의 문이 열렸어요!", "다음 구역으로 가는 길이 열렸어요")
+	if kind == "night" and not JourneyState.quest_done("엔딩:대마왕"):
+		JourneyState.mark_quest("엔딩:대마왕")
+		SaveManager.save_now()
+		_wake_up()
+
+
+## 깨어난다. 몇 마디 뒤에 선택 판(`EndingChoice`).
+func _wake_up() -> void:
+	await get_tree().create_timer(1.6).timeout
+	if not is_inside_tree():
+		return
+	if say != null:
+		say.say("", [
+			["야근 대마왕", "…내일 아침까지… 부탁…"],
+			["", "대마왕이 흩어지며 하늘이 아침빛으로 물든다."],
+			["", "삐삐삐삐. 알람 소리."],
+			["나", "…꿈이었나."],
+		])
+		while is_inside_tree() and say.is_busy():
+			await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	var ch := EndingChoice.new()
+	ch.chose.connect(_on_ending)
+	add_child(ch)
+
+
+func _on_ending(which: String) -> void:
+	JourneyState.mark_quest("엔딩:" + ("사직" if which == "quit" else "출근"))
+	var path := "res://scenes/journey/Home.tscn" if which == "quit" \
+		else "res://scenes/journey/Yunseul.tscn"
+	JourneyState.arriving = true
+	SaveManager.save_game(path)
+	var st := get_node_or_null("/root/SceneTransition")
+	if st != null and st.has_method("go_to"):
+		st.go_to(path, "dawn" if which == "quit" else "hopeful")
 
 
 ## **치명타 멈칫** - 세상이 한순간 멈췄다 간다(히트스톱). 손맛의 절반이다.
@@ -3950,6 +4002,11 @@ func goal_world(item: Dictionary) -> Vector2:
 	var kind := String(item.get("kind", ""))
 	var key := String(item.get("key", ""))
 	match kind:
+		# 보스 - 그 몬스터가 선 자리 (타워의 야근 대마왕).
+		"boss":
+			for sh in _shades:
+				if is_instance_valid(sh) and sh.shade_kind == key:
+					return sh.global_position
 		"talk":
 			for f in _folk:
 				if is_instance_valid(f) and not f.is_spot and f.folk_id == key:

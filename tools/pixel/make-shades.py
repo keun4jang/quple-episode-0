@@ -105,15 +105,77 @@ SHADES = [
      [(-2, 0, False), (2, 0, False)], "swirl", "#FFFFFF"),
     ("storm",  (20, 24), 6, 4,  6, 3, "#66D9E8", "#1D5E68", "#FFFFFF",
      [(-3, 0, True), (3, 0, True)], "swirl", "#E3FAFC"),
-    # 우두머리는 한눈에 크다. 셀부터 다르다.
+    # 우두머리는 한눈에 크다. 셀부터 다르다. 구역 보스는 머리에 금관(`crown`)을 쓴다.
     ("night",  (26, 30), 9, 2,  4, 2, "#2E2836", "#121017", "#FFD166",
-     [(-4, 0, True), (4, 0, True)], "none", "#B197FC"),
+     [(-4, 0, True), (4, 0, True)], "crown", "#B197FC"),
+    ("drop_king",   (26, 30), 9, 6, 5, 2, "#339AF0", "#0B3B66", "#FFFFFF",
+     [(-3, 1, True), (3, 1, True)], "crown drop", "#E7F5FF"),
+    ("dokkaebi",    (26, 30), 8, 7, 4, 2, "#E8590C", "#5C1E05", "#FFF3BF",
+     [(-3, 0, True), (3, 0, True)], "crown flame", "#FFD43B"),
+    ("golem",       (26, 30), 10, 7, 2, 2, "#868E96", "#343A40", "#FFE066",
+     [(-4, 0, True), (4, 0, True)], "crown rock", "#495057"),
+    ("gull",        (26, 30), 8, 5, 6, 3, "#E3FAFC", "#3B8A96", "#1A1418",
+     [(-3, 0, True), (3, 0, True)], "crown swirl", "#66D9E8"),
+    ("carp",        (26, 30), 9, 6, 6, 2, "#1864AB", "#0B2F55", "#FFE066",
+     [(-4, 0, True), (4, 0, True)], "crown swirl", "#A5D8FF"),
+    ("lotus",       (26, 30), 8, 8, 5, 2, "#F783AC", "#862E4C", "#FFFFFF",
+     [(-3, 0, True), (3, 0, True)], "crown sprout", "#51CF66"),
+    ("thorn_queen", (26, 30), 9, 6, 5, 2, "#2B8A3E", "#0E3A18", "#FFE066",
+     [(-4, 0, True), (4, 0, True)], "crown thorn", "#D8F5A2"),
+    ("mole_king",   (26, 30), 10, 7, 2, 2, "#A87B4F", "#3F2A16", "#1A1418",
+     [(-4, 0, True), (4, 0, True)], "crown rock", "#6B4A2A"),
+    ("deer",        (26, 30), 9, 7, 4, 2, "#FA5252", "#6B1414", "#FFF3BF",
+     [(-3, 0, True), (3, 0, True)], "crown flame", "#FFD43B"),
+    # 꿈이 금 간 뒤 잿마루 타워에 나오는 회사 몬스터 넷
+    ("paper",   (20, 24), 6, 6, 1, 2, "#F1F3F5", "#495057", "#1A1418",
+     [(-2, 0, False), (2, 0, False)], "lines", "#ADB5BD"),
+    ("memo",    (20, 24), 5, 4, 5, 3, "#CED4DA", "#495057", "#1A1418",
+     [(-2, 0, True), (2, 0, True)], "lines", "#868E96"),
+    ("vending", (20, 24), 6, 5, 1, 1, "#C92A2A", "#5C0B0B", "#FFF3BF",
+     [(-2, -2, False), (2, -2, False)], "window", "#E7F5FF"),
+    ("bat",     (20, 24), 4, 6, 3, 5, "#495057", "#15191C", "#FF6B6B",
+     [(-2, 0, False), (2, 0, False)], "wings", "#343A40"),
 ]
 
 
 def decorate(px, deco, col, on, cw, ch, top, half, f, row):
+    # 여러 꾸밈을 빈칸으로 이어 쓴다 ("crown flame")
+    parts = deco.split()
+    if len(parts) > 1:
+        for d in parts[1:]:
+            decorate(px, d, col, on, cw, ch, top, half, f, row)
+        decorate(px, parts[0], col, on, cw, ch, top, half, f, row)
+        return
     c = hx(col)
     cx = int(round((cw - 1) / 2.0))
+    if deco == "crown":
+        gold, hi = hx("#FFD43B"), hx("#FFF3BF")
+        y0 = top - 1
+        for x in range(cx - 3, cx + 4):
+            px[(x, y0)] = gold
+        for dx in (-3, 0, 3):
+            px[(cx + dx, y0 - 1)] = gold
+            px[(cx + dx, y0 - 2)] = hi if dx == 0 else gold
+        px[(cx, y0)] = hx("#FA5252")
+        return
+    if deco == "lines":
+        for (x, y) in on:
+            if y % 3 == 0 and y > top + half and (x + 1, y) in on and (x - 1, y) in on:
+                px[(x, y)] = c
+        return
+    if deco == "window":
+        for y in range(top + half + 3, top + half + 7):
+            for x in range(cx - 2, cx + 3):
+                if (x, y) in on:
+                    px[(x, y)] = c if y > top + half + 3 else hx("#1A1418")
+        return
+    if deco == "wings":
+        flap = [0, -1, 0, 1][f]
+        for side in (-1, 1):
+            for k in range(1, 5):
+                for h in range(0, 4 - k // 2):
+                    px[(cx + side * (half + k), top + half + h + flap - k // 2)] = c
+        return
     if deco == "drop":
         # 머리 꼭대기를 뾰족하게, 반짝임 하나
         for dy in range(1, 4):

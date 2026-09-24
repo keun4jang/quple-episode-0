@@ -29,6 +29,9 @@ const PLACES := {
 	# 설명을 비워 두지 않는다 - "언제든 돌아갈 수 있는 곳" 이라는 것
 	# 자체가 고향의 뜻이다. 목록 맨 위에 둔다 (`_row_order`).
 	"고향": ["res://scenes/journey/Home.tscn", "언제든 돌아갈 수 있는 곳"],
+	# 끝판. 꽃눈벌 보스를 쓰러뜨려야 나타난다 (`Quests.TOWER`). 이름이 "잿마루" 가
+	# 아니다 - 현실의 회사로 돌아가는 게 아니라, 꿈이 비춰 낸 **거꾸로 선 회사**다.
+	"잿마루 타워": ["res://scenes/journey/Jaenmaru.tscn", "꿈이 금 간 곳 - 야근 대마왕이 기다린다"],
 }
 
 var _panel: PanelContainer
@@ -197,6 +200,9 @@ func open(from_place: String) -> void:
 	for name in _row_order():
 		if name == _from:
 			continue                      # 여기 있는데 여기로 갈 순 없다
+		# 타워는 열리기 전엔 아예 안 보인다 - 나타나는 순간이 곧 "전(轉)" 이다.
+		if name == Quests.TOWER and (_from == "잿마루" or not Quests.is_unlocked(name)):
+			continue
 		var entry: Array = PLACES[name]
 		var b := Button.new()
 		var been := JourneyState.visited.has(name)
@@ -300,6 +306,18 @@ func _locked_lines(b: Button, name: String) -> void:
 ## 몇 개가 남았는지는 `Quests.unlock_todo` 가 센다 — 매듭 마을은 100% 가
 ## 아니라 이야기 하나와 샛길 둘이면 열리므로, 안 끝난 줄 수와 다르다.
 func _blocking_line(name: String) -> String:
+	var line := _blocking_todo(name)
+	# 보스로도 열린다는 것을 앞에 적는다 - 싸워서 뚫는 길. 문장은 그대로
+	# "…열려요" 로 끝나야 조건으로 읽힌다.
+	var idx := Quests.ORDER.find(name)
+	if idx > 0 and line.ends_with("열려요"):
+		var boss := String(Battle.REGION_BOSS.get(String(Quests.ORDER[idx - 1]), ""))
+		if boss != "":
+			line = "우두머리 %s 처치 또는 %s" % [String(Battle.ENEMIES[boss]["name"]), line]
+	return line
+
+
+func _blocking_todo(name: String) -> String:
 	var todo := Quests.unlock_todo(name)
 	if todo.is_empty():
 		return "아직 더 볼 게 있는 것 같다"
@@ -339,8 +357,10 @@ func _place_name_of(path: String) -> String:
 
 func _pick(path: String) -> void:
 	visible = false
-	# 내가 떠나면 여행자도 떠난다.
-	JourneyState.move_wanderer(_place_name_of(path), _from)
+	# 내가 떠나면 여행자도 떠난다. (타워로는 안 따라온다 - 거긴 혼자 간다.)
+	var dest := _place_name_of(path)
+	if dest != Quests.TOWER:
+		JourneyState.move_wanderer(dest, _from)
 	# 다음 마을에는 아침에 닿는다. `Place` 가 지도를 깔면서 처리한다.
 	JourneyState.arriving = true
 	# **도착지**를 적어야 한다. `save_now()` 는 지금 씬을 보는데, 여기서는
