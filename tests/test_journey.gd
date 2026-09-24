@@ -4269,7 +4269,25 @@ func _shelf_tests() -> void:
 	for f in shop._folk:
 		if is_instance_valid(f) and f.is_spot and f.spot_key.begins_with("선반:"):
 			shelves.append(f)
-	ok(shelves.size() == 3, "선반이 셋 있다 (%d)" % shelves.size())
+	ok(shelves.size() == 4, "선반 셋 + 꿈조각 상점 (%d)" % shelves.size())
+	# 상점 자리는 걸어서 닿는 칸 옆에 있어야 한다
+	var shop_spot: Folk = null
+	for f3 in shelves:
+		if f3.spot_key == "선반:shop":
+			shop_spot = f3
+	ok(shop_spot != null and not shop._floor_solid(shop_spot.at_tile.x, shop_spot.at_tile.y + 1),
+		"꿈조각 상점 앞에 설 수 있다")
+	var sp := ShelfPanel.open(shop, "윤슬", ShelfPanel.KIND_SHOP)
+	await get_tree().process_frame
+	Gear.coins = 500
+	var st_b := Gear.stones
+	sp._tap(Gear.shop_item("stone"))
+	await get_tree().process_frame
+	ok(Gear.stones == st_b + 1 and Gear.coins == 380, "상점 판에서 누르면 산다")
+	ok(is_instance_valid(sp) and sp.is_inside_tree(), "사도 판은 안 닫힌다 (이어서 산다)")
+	if is_instance_valid(sp):
+		sp._close()
+	await get_tree().process_frame
 	var owner_in := false
 	for f2 in shop._folk:
 		if is_instance_valid(f2) and not f2.is_spot and f2.who == "가게 할머니":
@@ -6885,6 +6903,22 @@ func _gear_tests() -> void:
 	ok(Gear.sell_junk(1) > 0 and Gear.coins > c0 and Gear.get_item(int(junk["uid"])).is_empty(),
 		"일반 장비를 한꺼번에 판다")
 	ok(Gear.sell(int(Gear.worn("weapon")["uid"])) == 0, "입은 것은 안 팔린다")
+	# 상점 - 꿈조각으로 산다
+	Gear.coins = 100
+	ok(not bool(Gear.buy("stone")["ok"]), "꿈조각이 모자라면 못 산다")
+	Gear.coins = 2000
+	var st0 := Gear.stones
+	ok(bool(Gear.buy("stone5")["ok"]) and Gear.stones == st0 + 5, "강화석 다섯 개를 산다")
+	var n0 := Gear.items.size()
+	var box := Gear.buy("box")
+	ok(bool(box["ok"]) and Gear.items.size() == n0 + 1 and int(box["got"]["rar"]) >= 1,
+		"꿈 상자에서 고급 이상 장비가 나온다")
+	var rc := JourneyState.count("b-riceball")
+	Gear.buy("b-riceball")
+	ok(JourneyState.count("b-riceball") == rc + 1, "먹을 것은 배낭에 든다")
+	Battle.auto_ap = true
+	Gear.buy("reset")
+	ok(Battle.ap > 0 and not Battle.auto_ap, "초기화 물약은 점수를 돌려주고 자동 배분을 끈다")
 	Battle.reset()
 	JourneyState.reset()
 
@@ -7692,6 +7726,8 @@ func _char_ui_tests() -> void:
 		jb.pressed.emit()
 	await get_tree().process_frame
 	ok(Battle.job == "mage" and Gear.weapon_kind() == "staff", "누르면 마법사가 되고 지팡이를 든다")
+	var held := p.walker.get_node_or_null("HeldWeapon")
+	ok(held != null, "든 무기가 몸에 그려진다")
 	ok(hud._bag_grid.find_child("Job_warrior", true, false) == null, "전직하면 직업 버튼이 사라진다")
 	# 능력치 손으로 나누기
 	Battle.auto_ap = false

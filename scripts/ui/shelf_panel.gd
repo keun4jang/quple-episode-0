@@ -13,6 +13,9 @@ signal closed
 const KIND_FOOD := "food"
 const KIND_KEEP := "keep"
 const KIND_SHOW := "show"
+## 꿈조각 상점 (`Gear.SHOP`). 이것만은 **값이 있다** - 꿈결 대개편에서
+## 사고팔기를 넣었다 (`docs/redesign-dream.md` 4절). 현금 결제는 없다.
+const KIND_SHOP := "shop"
 
 var _village := ""
 var _kind := ""
@@ -45,6 +48,8 @@ func _title() -> String:
 			return "오늘의 먹거리"
 		KIND_KEEP:
 			return "이 마을 물건"
+		KIND_SHOP:
+			return "꿈조각 상점  ·  꿈조각 %d  ·  강화석 %d" % [Gear.coins, Gear.stones]
 	return "기억 선반"
 
 
@@ -55,6 +60,8 @@ func _rows() -> Array:
 			return d.get("food", [])
 		KIND_KEEP:
 			return d.get("keep", [])
+		KIND_SHOP:
+			return Gear.SHOP
 	# 기억 선반에는 **지금 가진 것만** 올린다. 없는 것을 흐리게 늘어놓으면
 	# 그것도 모으라는 숙제가 된다.
 	var out: Array = []
@@ -170,6 +177,9 @@ func _style(b: Button, bg: Color) -> void:
 func _row(it: Dictionary) -> Control:
 	var done := false
 	var why := ""
+	if _kind == KIND_SHOP:
+		why = "꿈조각 %d  ·  %s" % [int(it["price"]), String(it.get("desc", ""))]
+		done = Gear.coins < int(it["price"])
 	match _kind:
 		KIND_FOOD:
 			done = Items.tasted(_village, it)
@@ -212,7 +222,8 @@ func _row(it: Dictionary) -> Control:
 	icon.custom_minimum_size = Vector2(56, 56)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# 아직 못 받는 것은 흐리게. 폰트에 자물쇠 글자가 없어서 색으로 말한다.
-	var ready_now: bool = _kind != KIND_KEEP or Items.unlocked(_village, it)
+	var ready_now: bool = (_kind != KIND_KEEP or Items.unlocked(_village, it)) \
+		and not (_kind == KIND_SHOP and done)
 	icon.modulate = Color(1, 1, 1, 1.0 if ready_now else 0.35)
 	row.add_child(icon)
 
@@ -244,6 +255,9 @@ func _row(it: Dictionary) -> Control:
 
 
 func _tap(it: Dictionary) -> void:
+	if _kind == KIND_SHOP:
+		_buy(it)
+		return
 	var say: Variant = _place.get("say") if _place != null else null
 	var lines: Array = []
 	match _kind:
@@ -271,6 +285,33 @@ func _tap(it: Dictionary) -> void:
 		# `say()` 는 **한 겹 배열**을 받는다 — 원소가 배열이면
 		# [누가, 무슨 말] 로 읽어 버린다 (`journey_say.gd`).
 		say.call("say", String(Items.of(_village).get("owner", "가게")), lines)
+
+
+## 산다. 판은 닫지 않는다 - 여러 개를 이어서 사게. 꿈조각이 바뀌니 다시 그린다.
+func _buy(it: Dictionary) -> void:
+	var r := Gear.buy(String(it["id"]))
+	var hud := get_tree().get_first_node_in_group("journey_hud")
+	if not bool(r["ok"]):
+		AudioManager.battle_hurt()
+		if hud != null:
+			hud._say_hint(String(r["why"]), false, 1.2)
+		return
+	AudioManager.ui_confirm()
+	var got: Dictionary = r.get("got", {})
+	if hud != null:
+		if not got.is_empty():
+			var rar := int(got["rar"])
+			if rar >= 3:
+				hud._celebrate("%s 장비!" % String(Gear.RARITY[rar]["name"]), Gear.name_of(got))
+			else:
+				hud._say_hint("%s %s이(가) 나왔어요" % [String(Gear.RARITY[rar]["name"]),
+					Gear.name_of(got)], false, 1.8)
+		else:
+			hud._say_hint("샀어요", false, 0.8)
+	SaveManager.save_now()
+	for c in get_children():
+		c.queue_free()
+	_build()
 
 
 ## 사진첩에 한 줄 남긴다. 그림은 저장하지 않는다 — 이 게임의 사진은

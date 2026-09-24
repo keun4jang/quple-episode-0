@@ -1467,6 +1467,18 @@ func _gear_btn(text: String, it: Dictionary, w: float) -> Button:
 	var col := Gear.rarity_col(it) if not it.is_empty() else Color("#7E7468")
 	for st2 in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(st2, col)
+	# 그림 - 무채색으로 찍어 두고 단계 빛깔을 입힌다 (`HeldWeapon.METAL`).
+	if not it.is_empty():
+		var ic := "w-%s" % String(it["kind"]) if String(it["slot"]) == "weapon" \
+			else "a-%s" % String(it["slot"])
+		var path := "res://assets/sprites/%s.png" % ic
+		if ResourceLoader.exists(path):
+			b.icon = load(path)
+			b.expand_icon = true
+			var tint := Color(String(HeldWeapon.METAL[clampi(int(it["tier"]), 0, 4)]))
+			for st3 in ["icon_normal_color", "icon_hover_color", "icon_pressed_color",
+					"icon_focus_color"]:
+				b.add_theme_color_override(st3, tint)
 	if not it.is_empty():
 		var uid := int(it["uid"])
 		b.pressed.connect(func() -> void:

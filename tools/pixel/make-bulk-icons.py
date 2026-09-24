@@ -845,6 +845,102 @@ def _():
     return cup("#F2C0D0", steam=False, extra=[(fl, hx("#E8709A"))])
 
 
+
+# ── 장비·상점 (`Gear`) ────────────────────────────────────────────────
+# 무기·방어구는 **밝은 무채색**으로 찍는다 - 단계 빛깔(나무·쇠·은빛·용맹·
+# 꿈결)은 화면에서 `modulate` 로 입힌다. 스물다섯 장 대신 열 장이면 된다.
+
+@icon("g-stone")
+def _():
+    gem = poly([(8, 1.5), (13.5, 6), (11, 14), (5, 14), (2.5, 6)])
+    return render([(gem, hx("#6FC3DF")), (poly([(8, 3), (11, 6), (8, 8), (5, 6)]), hx("#D0F4FF"))],
+                  dots=[((6, 5), hx("#FFFFFF")), ((7, 4), hx("#FFFFFF"))])
+
+
+@icon("g-box")
+def _():
+    box = rect(2, 6, 13, 14)
+    lid = rect(1, 4, 14, 7)
+    band = rect(7, 4, 8, 14)
+    return render([(box, hx("#8E6BBF")), (lid, hx("#B197FC")), (band, hx("#FFD43B"))],
+                  dots=[((7, 8), hx("#FFF3BF")), ((8, 8), hx("#FFF3BF")), ((4, 2), hx("#FFFFFF")),
+                        ((11, 1), hx("#FFFFFF")), ((12, 2), hx("#FFE066"))])
+
+
+@icon("g-reset")
+def _():
+    flask = ellipse(8, 10.5, 5, 4.5) | rect(6, 2, 9, 7)
+    liquid = ellipse(8, 11, 4, 3.5)
+    return render([(flask, hx("#E7F5FF")), (liquid, hx("#F783AC")), (rect(5, 1, 10, 2), hx("#8C6E3F"))],
+                  dots=[((6, 9), hx("#FFFFFF")), ((10, 12), hx("#FFC9DE"))])
+
+
+@icon("w-stick")
+def _():
+    return render([(line(3, 13, 12, 2, 2), hx("#E9E4DA"))], outline="#4A3A2A")
+
+
+@icon("w-sword")
+def _():
+    blade = line(5, 10, 12, 3, 2)
+    guard = line(3, 9, 7, 13, 1)
+    grip = line(2, 13, 4, 11, 2)
+    return render([(blade, hx("#F1F3F5")), (guard, hx("#C9C9C9")), (grip, hx("#8C6E3F"))],
+                  outline="#343A40", dots=[((12, 3), hx("#FFFFFF"))])
+
+
+@icon("w-staff")
+def _():
+    rod = line(3, 14, 10, 5, 1)
+    orb = ellipse(11, 4, 3, 3)
+    return render([(rod, hx("#D9C8B0")), (orb, hx("#F8F9FA"))], outline="#495057",
+                  dots=[((10, 3), hx("#FFFFFF"))])
+
+
+@icon("w-bow")
+def _():
+    arc = ring(3, 8, 8, 6.7) & rect(5, 0, 15, 16)
+    string = line(5, 1, 5, 14, 1)
+    return render([(arc, hx("#E9E4DA")), (string, hx("#F8F9FA"))], outline="#495057", shade=False)
+
+
+@icon("w-dagger")
+def _():
+    blade = line(7, 8, 12, 3, 1) | line(8, 8, 12, 4, 1)
+    guard = line(5, 8, 8, 11, 1)
+    grip = line(4, 12, 6, 10, 1)
+    return render([(blade, hx("#F1F3F5")), (guard, hx("#C9C9C9")), (grip, hx("#8C6E3F"))],
+                  outline="#343A40")
+
+
+@icon("a-hat")
+def _():
+    return render([(ellipse(8, 9, 6, 4), hx("#E9E4DA")), (rect(1, 10, 14, 12), hx("#DEE2E6"))])
+
+
+@icon("a-top")
+def _():
+    body = poly([(4, 3), (12, 3), (15, 7), (12, 8), (12, 14), (4, 14), (4, 8), (1, 7)])
+    return render([(body, hx("#E9E4DA"))], dots=[((8, 4), hx("#ADB5BD")), ((8, 7), hx("#ADB5BD"))])
+
+
+@icon("a-gloves")
+def _():
+    return render([(ellipse(8, 8, 4.5, 5), hx("#E9E4DA")), (rect(4, 11, 11, 14), hx("#CED4DA")),
+                   (ellipse(3.5, 8, 1.5, 2.5), hx("#E9E4DA"))])
+
+
+@icon("a-shoes")
+def _():
+    shoe = poly([(3, 6), (8, 6), (9, 10), (14, 11), (14, 13), (2, 13)])
+    return render([(shoe, hx("#E9E4DA")), (rect(2, 12, 14, 13), hx("#ADB5BD"))])
+
+
+@icon("a-ring")
+def _():
+    return render([(ring(8, 9, 5, 3), hx("#E9E4DA")), (ellipse(8, 3.5, 2, 2), hx("#F8F9FA"))],
+                  dots=[((7, 3), hx("#FFFFFF"))])
+
 def main():
     only = set(sys.argv[1:])
     n = 0

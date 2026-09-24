@@ -274,6 +274,8 @@ func on_built() -> void:
 	_shelf(Vector2i(mid - 5, 6), "선반:food", "오늘의 먹거리")
 	_shelf(Vector2i(mid + 5, 6), "선반:keep", "이 마을 물건")
 	_shelf(Vector2i(mid - 2, 3), "선반:show", "기억 선반")
+	# 꿈결 대개편 - 꿈조각으로 강화석·먹을 것·꿈 상자를 산다 (`Gear.SHOP`).
+	_shelf(Vector2i(mid + 2, 3), "선반:shop", "꿈조각 상점")
 
 
 ## 가게 주인 그림. 밖에 선 그 사람과 같은 얼굴이어야 한다.

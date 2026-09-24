@@ -413,6 +413,68 @@ static func better(it: Dictionary) -> bool:
 	return cur.is_empty() or score(it) > score(cur) + 0.5
 
 
+# ── 상점 (가게 안 "꿈조각 상점") ────────────────────────────────────
+
+## 꿈조각으로 사는 것. 먹을 것은 배낭(`JourneyState`)에 든다.
+const SHOP := [
+	{"id": "stone", "name": "강화석", "price": 120, "icon": "g-stone",
+		"desc": "장비를 한 칸 강화한다."},
+	{"id": "stone5", "name": "강화석 다섯 개", "price": 550, "icon": "g-stone",
+		"desc": "한꺼번에 사면 조금 싸다."},
+	{"id": "box", "name": "꿈 상자", "price": 300, "icon": "g-box",
+		"desc": "지금 레벨의 장비 한 벌. 무엇이 나올지는 열어 봐야 안다."},
+	{"id": "b-riceball", "price": 25, "desc": "체력을 채운다."},
+	{"id": "b-sikhye", "price": 30, "desc": "마음력을 채운다."},
+	{"id": "b-citron-tea", "price": 45, "desc": "나쁜 상태를 푼다."},
+	{"id": "b-lunchbox", "price": 260, "desc": "체력·마음력이 가득 찬다."},
+	{"id": "reset", "name": "초기화 물약", "price": 400, "icon": "g-reset",
+		"desc": "능력치를 처음으로 되돌리고 점수를 돌려받는다. 자동 배분은 꺼진다."},
+]
+
+
+static func shop_item(id: String) -> Dictionary:
+	for e in SHOP:
+		if String(e["id"]) == id:
+			return e
+	return {}
+
+
+## 산다. `{ok, why, got}` - 꿈 상자면 `got` 에 나온 한 벌.
+static func buy(id: String) -> Dictionary:
+	var e := shop_item(id)
+	if e.is_empty():
+		return {"ok": false, "why": "없는 물건"}
+	var price := int(e["price"])
+	if coins < price:
+		return {"ok": false, "why": "꿈조각이 모자라요"}
+	coins -= price
+	var got := {}
+	match id:
+		"stone":
+			stones += 1
+		"stone5":
+			stones += 5
+		"box":
+			# 상자는 몬스터보다 조금 후하다 - 일반은 안 나온다.
+			var lv := Battle.level
+			var rar := _roll_rarity([0.0, 70.0, 23.0, 6.0, 1.0])
+			var it := roll_gear("", lv, false)
+			it["rar"] = rar
+			it["opts"] = []
+			var pool := OPT_KEYS.duplicate()
+			pool.shuffle()
+			for i in int(RARITY[rar]["opts"]):
+				it["opts"].append([String(pool[i]), _opt_value(String(pool[i]), int(it["tier"]))])
+			items.append(it)
+			got = it
+		"reset":
+			Battle.auto_ap = false
+			Battle.reset_stats()
+		_:
+			JourneyState.pick(id)
+	return {"ok": true, "why": "", "got": got}
+
+
 # ── 저장 ─────────────────────────────────────────────────────────────
 
 static func to_dict() -> Dictionary:

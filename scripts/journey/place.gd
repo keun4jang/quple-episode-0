@@ -1242,6 +1242,8 @@ func put_shade(t: Vector2i, kind: String, lv: int = 1) -> Shade:
 
 ## 누르거나 마지막으로 때린 그늘. 닿는 데 있으면 먼저 이걸 친다.
 var _target: Shade = null
+## 손에 든 무기 그림.
+var _held: HeldWeapon
 
 
 ## 싸움을 잠깐 멈춰야 하나 - 대화·배낭·잠·지도·설정이 떠 있는 동안.
@@ -1354,6 +1356,8 @@ func field_use(id: String) -> bool:
 	if attack and tgt == null:
 		if id == "tap":
 			FieldFx.swing(self, walker.global_position, _facing(), Battle.skill_elem(id))
+			if _held != null:
+				_held.swing()
 			Field.cooldown[id] = float(sk["cd"])
 		elif hud != null:
 			hud._say_hint("닿는 데 몬스터가 없어요", false, 0.9)
@@ -1382,6 +1386,8 @@ func field_use(id: String) -> bool:
 		return true
 	var to := tgt.global_position - walker.global_position
 	walker.face(to)
+	if _held != null:
+		_held.swing()
 	if bool(sk.get("dash", false)) and to.length() > 18.0:
 		_dash_to(tgt.global_position - to.normalized() * 14.0)
 	# 멀리 쏘는 것은 날아가는 빛이, 가까이 치는 것은 휘두름이 보인다.
@@ -1808,6 +1814,10 @@ func _build_walker() -> void:
 		JourneyState.pending_spawn = Vector2i(-1, -1)
 	walker.position = Vector2(t.x * TILE + TILE * 0.5, (t.y + 1) * TILE)
 	add_child(walker)
+	# 든 무기를 몸에 그린다 (`HeldWeapon`). 싸우지 않는 곳에서도 든다 -
+	# 새 무기를 얻으면 마을을 걸으며 보고 싶다.
+	_held = HeldWeapon.new()
+	walker.add_child(_held)
 
 
 func _build_camera() -> void:
