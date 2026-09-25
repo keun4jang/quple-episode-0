@@ -31,6 +31,8 @@ var _hint: Label
 var _cam_btn: TextureButton
 ## 오른쪽 아래 공격·스킬 버튼과 체력·마음력 막대 (`FightPad`).
 var fight: FightPad
+## 화면 맨 아래 경험 막대.
+var xp_bar: XpBar
 var _bag_title: Label
 var _tab := 0        # 0 배낭 · 1 사진첩 · 2 편지 · 3 행복첩 · 4 이 마을 · 5 마음
 ## 배낭에서 눌러 본 물건. 위에 설명 판이 뜬다.
@@ -251,6 +253,10 @@ func _build() -> void:
 	root.add_child(fight)
 	root.move_child(fight, _act_btn.get_index())
 
+	# 화면 맨 아래 경험 막대 - 늘 뜬다 (`XpBar`).
+	xp_bar = XpBar.new()
+	root.add_child(xp_bar)
+
 	# 무엇을 주웠는지 잠깐 알려 주는 줄
 	_hint = Label.new()
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -298,6 +304,7 @@ func _build() -> void:
 	root.add_child(_cam_btn)
 
 	_build_menu(root)
+	_build_main_quest(root)
 
 	# ── 얻은 것 카드 ──
 	#
@@ -459,6 +466,7 @@ func _build_bag(root: Control) -> void:
 	box.add_child(_bag_title)
 
 	var scroll := ScrollContainer.new()
+	TouchScroll.setup(scroll)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(scroll)
@@ -554,6 +562,57 @@ const MENU_BTN := 64.0
 const MENU_GAP := 12.0
 const MENU_PAD := 5.0
 const MENU_COLS := 2
+
+
+## **메인 퀘스트** - 왼쪽 메뉴 바로 아래에 늘 뜬다 (`MainQuest`). 이 게임이
+## 무엇을 향해 가는지(몇 장, 어느 우두머리)를 한눈에. 누르면 퀘스트 창.
+var main_quest: Button
+var _mq_head: Label
+var _mq_goal: Label
+var _mq_t := 0.0
+
+
+func _build_main_quest(root: Control) -> void:
+	main_quest = Button.new()
+	main_quest.name = "MainQuest"
+	main_quest.focus_mode = Control.FOCUS_NONE
+	var top := MENU_AT.y + ceilf(float(MENU.size()) / MENU_COLS) * (MENU_BTN + MENU_GAP) + 2.0
+	main_quest.position = Vector2(MENU_AT.x - 4, top)
+	main_quest.size = Vector2(330, 62)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.09, 0.14, 0.62)
+	sb.border_color = Color("#E8C46A")
+	sb.border_width_left = 4
+	sb.set_corner_radius_all(10)
+	for k in ["normal", "hover", "pressed", "focus"]:
+		main_quest.add_theme_stylebox_override(k, sb)
+	main_quest.pressed.connect(func() -> void: open_tab(4))
+	root.add_child(main_quest)
+	_mq_head = Label.new()
+	_mq_head.position = Vector2(12, 4)
+	_mq_head.add_theme_font_size_override("font_size", 17)
+	_mq_head.add_theme_color_override("font_color", Color("#FFD43B"))
+	_mq_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_quest.add_child(_mq_head)
+	_mq_goal = Label.new()
+	_mq_goal.position = Vector2(12, 30)
+	_mq_goal.add_theme_font_size_override("font_size", 17)
+	_mq_goal.add_theme_color_override("font_color", Color("#FFFDF6"))
+	_mq_goal.add_theme_color_override("font_outline_color", Color(0.12, 0.09, 0.14))
+	_mq_goal.add_theme_constant_override("outline_size", 4)
+	_mq_goal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_quest.add_child(_mq_goal)
+	_refresh_main_quest()
+
+
+func _refresh_main_quest() -> void:
+	if main_quest == null:
+		return
+	var m := MainQuest.now()
+	_mq_head.text = "메인 퀘스트  ·  " + String(m["head"])
+	_mq_goal.text = String(m["goal"])
+	var w: float = maxf(_mq_head.get_minimum_size().x, _mq_goal.get_minimum_size().x) + 28.0
+	main_quest.size = Vector2(maxf(240.0, w), 62)
 
 
 ## i 번째 버튼이 앉을 자리. 고리·점도 같은 셈을 써서 어긋나지 않는다.
@@ -1897,6 +1956,7 @@ func _open_guide_recap() -> void:
 		box.add_child(now)
 
 	var scroll := ScrollContainer.new()
+	TouchScroll.setup(scroll)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(scroll)
@@ -2392,17 +2452,24 @@ func _process(delta: float) -> void:
 		_cam_btn.visible = cam_ok and not _buttons_hidden
 	if _pad_cam != null:
 		_pad_cam.visible = cam_ok and not _buttons_hidden
+	_mq_t -= delta
+	if _mq_t <= 0.0:
+		_mq_t = 0.5
+		_refresh_main_quest()
+	if main_quest != null:
+		main_quest.visible = not _buttons_hidden and not bag_open()
 	if fight != null:
 		var p := _place()
-		# **붙었을 때만 뜬다** (`Place.in_fight`). 늘 떠 있으면 버튼 일곱과
-		# 막대 둘이 마을을 가렸다. 툭 켜지지 않게 스르르.
-		var want: bool = p != null and p.has_method("in_fight") and p.in_fight() \
+		# [공격] 은 몬스터가 서는 곳이면 늘 뜬다 - 가까이 없어도 휘둘러 볼 수 있다.
+		# 스킬 칸과 체력·마음력은 **붙었을 때만** (`Place.in_fight`) 스르르 뜬다.
+		var want: bool = p != null and p.has_method("can_fight") and p.can_fight() \
 			and not _buttons_hidden and not bag_open()
 		if want:
 			fight.visible = true
 		fight.modulate.a = move_toward(fight.modulate.a, 1.0 if want else 0.0, delta * 6.0)
 		if not want and fight.modulate.a <= 0.0:
 			fight.visible = false
+		fight.set_engaged(want and p.in_fight(), delta)
 
 
 # ── 안전영역 ──────────────────────────────────────────────────────────

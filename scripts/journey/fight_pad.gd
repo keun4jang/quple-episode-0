@@ -8,7 +8,10 @@ extends Control
 ## 칸 테두리는 그 스킬의 속성 빛깔이다. 다시 쓰기까지의 틈은 칸 위에 어두운
 ## 부채꼴로 줄어든다.
 ##
-## **대결이 성사될 때만** 뜬다 (`Place.in_fight`, `JourneyHud._process`).
+## **[공격] 은 몬스터가 서는 곳이면 늘 떠 있다** - 가까이 없어도 눌러서 휘둘러
+## 볼 수 있다 ("몬스터에 가까이 가지 않아도 공격 제스처를"). 스킬 칸과 왼쪽 아래
+## 체력·마음력은 **대결이 성사될 때만** 스르르 뜬다 (`set_engaged`, `Place.in_fight`) -
+## 늘 떠 있으면 버튼 일곱과 막대 둘이 마을을 가린다.
 ##
 ## 키보드: Z 공격, 1~7 스킬 차례대로.
 
@@ -168,8 +171,8 @@ func _build_vitals() -> void:
 	_vitals.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_vitals.offset_left = 128
 	_vitals.offset_right = 128 + 300
-	_vitals.offset_top = -102
-	_vitals.offset_bottom = -22
+	_vitals.offset_top = -112
+	_vitals.offset_bottom = -36
 	add_child(_vitals)
 	_lv = Label.new()
 	_lv.add_theme_font_size_override("font_size", 20)
@@ -188,10 +191,8 @@ func _build_vitals() -> void:
 			Color("#7FCB8F"), "체력 %d / %d" % [Battle.hp, Battle.hp_max()])
 		_bar(bars, font, 50.0, float(Battle.mp) / maxf(1.0, float(Battle.mp_max())),
 			Color("#7FB0E6"), "마음력 %d / %d" % [Battle.mp, Battle.mp_max()])
-		# 경험 - 얇은 노란 띠. 찰 때마다 눈에 들어와야 한 마리 더 잡는다.
-		var k := float(Battle.xp) / maxf(1.0, float(Battle.xp_need()))
-		bars.draw_rect(Rect2(0, 73, 300, 7), Color(0.12, 0.09, 0.14, 0.85))
-		bars.draw_rect(Rect2(1, 74, 298.0 * clampf(k, 0.0, 1.0), 5), Color("#FFD43B")))
+		# 경험은 화면 맨 아래 긴 막대가 늘 보여 준다 (`XpBar`).
+		pass)
 	bars.name = "Bars"
 	_vitals.add_child(bars)
 
@@ -215,6 +216,25 @@ func _pop(b: Control) -> void:
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 
+## 대결 중인가 - 스킬 칸과 체력·마음력을 띄울지.
+var _engaged_a := 0.0
+
+
+func set_engaged(on: bool, delta: float) -> void:
+	_engaged_a = move_toward(_engaged_a, 1.0 if on else 0.0, delta * 6.0)
+	var show := _engaged_a > 0.0
+	_vitals.visible = show
+	_vitals.modulate.a = _engaged_a
+	for id in _skills:
+		var b: Button = _skills[id]
+		if is_instance_valid(b):
+			b.visible = show
+	
+
+func engaged() -> bool:
+	return _engaged_a > 0.0
+
+
 func _process(_delta: float) -> void:
 	if not visible:
 		return
@@ -234,7 +254,7 @@ func _process(_delta: float) -> void:
 			continue
 		b.get_node("Cooldown").queue_redraw()
 		# 마음력이 모자라면 흐리게 - 눌러도 안 된다는 걸 먼저 보여 준다.
-		b.modulate.a = 0.45 if Battle.mp < int(Battle.SKILLS[id]["mp"]) else 1.0
+		b.modulate.a = (0.45 if Battle.mp < int(Battle.SKILLS[id]["mp"]) else 1.0) * _engaged_a
 
 
 func _tick_combo() -> void:

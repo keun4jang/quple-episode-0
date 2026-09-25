@@ -46,26 +46,36 @@ func _init() -> void:
 ##   가로로 길게 깔면 계단이 아니라 또 하나의 띠로 보인다.
 func ground_map() -> String:
 	return """
-wwwwwwwwwwwwwwdddwwwwwwwwwwwwbbbbbb
-wwwwwwwwwwwwwwdddwwwwwwwwwwwbbbbbbb
-wwwwwwwwwwwwbwdddddwwwwwwwwbbbbbbbb
-wwwwwwwwwwdddddddddwwwwbbbsssbbbbbb
-wwwwwwddddddddddddddddwbbsssbbbbbbb
-wwbbbdddddddddddddddddddsssbbbbbbbb
-wbbbbddddccccccccccccccssbbbbbbbbbb
-bbcccccccccccccccccccccccssbbbbbbbb
-bccccsscccccccccccccsscccccbbbbbbbb
-.....ssccccccc......ss....cccbbbbbb
-cccccss.......ccccccssccccccc.bbbbb
-cccc..cccccccccccccccccccccc.gbbbbb
-ccsscccccccccccssccccccccc...gggbbb
-..ss.....ccccccss.....cccgggggggggg
-ccsscccccccccccsscccccccccc.ggggggg
-cccccccccc..ccccccccccc..gggggggggg
-.cccccccc...ccccccc..gggggggggggggg
-gg..cccc...gg..ccc..ggggggggggggggg
-gggggg...ggggggggg..gggggggg...gggg
-ggggggggggg...ggggggggggggggg..gggg
+wwwwwwwwwwwwwwwwwwwwwdddddwwwwwwwwwwwwwwwwwwbbbbbbbbb
+wwwwwwwwwwwwwwwwwwwwwdddddwwwwwwwwwwwwwwwwwwbbbbbbbbb
+wwwwwwwwwwwwwwwwwwwwwdddddwwwwwwwwwwwwwwwwbbbbbbbbbbb
+wwwwwwwwwwwwwwwwwwbbwddddddddwwwwwwwwwwwwbbbbbbbbbbbb
+wwwwwwwwwwwwwwwwwwbbwddddddddwwwwwwwwwwwwbbbbbbbbbbbb
+wwwwwwwwwwwwwwwddddddddddddddwwwwwwbbbbsssssbbbbbbbbb
+wwwwwwwwwddddddddddddddddddddddddwwbbbssssbbbbbbbbbbb
+wwwwwwwwwddddddddddddddddddddddddwwbbbssssbbbbbbbbbbb
+wwwbbbbbddddddddddddddddddddddddddddsssssbbbbbbbbbbbb
+wwbbbbbbddddddcccccccccccccccccccccsssbbbbbbbbbbbbbbb
+wwbbbbbbddddddcccccccccccccccccccccsssbbbbbbbbbbbbbbb
+bbbcccccccccccccccccccccccccccccccccccsssbbbbbbbbbbbb
+bbccccccssscccccccccccccccccccsssccccccccbbbbbbbbbbbb
+bbccccccssscccccccccccccccccccsssccccccccbbbbbbbbbbbb
+........ssscccccccccc.........sss......cccccbbbbbbbbb
+ccccccccsss..........cccccccccsssccccccccccc.bbbbbbbb
+ccccccccsss..........cccccccccsssccccccccccc.bbbbbbbb
+cccccc...ccccccccccccccccccccccccccccccccc..gbbbbbbbb
+cccssscccccccccccccccccsssccccccccccccc.....ggggbbbbb
+cccssscccccccccccccccccsssccccccccccccc.....ggggbbbbb
+...sss........cccccccccsss.......cccccggggggggggggggg
+cccssscccccccccccccccccsssccccccccccccccc.ggggggggggg
+cccssscccccccccccccccccsssccccccccccccccc.ggggggggggg
+ccccccccccccccc...ccccccccccccccccc...ggggggggggggggg
+..cccccccccccc....ccccccccccc...ggggggggggggggggggggg
+..cccccccccccc....ccccccccccc...ggggggggggggggggggggg
+ggg...cccccc.....ggg...cccc...ggggggggggggggggggggggg
+ggggggggg.....ggggggggggggg...gggggggggggg.....gggggg
+ggggggggg.....ggggggggggggg...gggggggggggg.....gggggg
+ggggggggggggggggg....ggggggggggggggggggggggg...gggggg
 """
 
 
@@ -83,172 +93,174 @@ func props() -> Array:
 	return [
 		# 축대. 계단은 놓였는데 층과 층 사이 높이차가 0 이라 아직 평지로
 		# 읽혔다. 단 옆에 세워 "여기가 한 층 아래"라고 말해 준다.
-		[4, 7, "retaining-wall", true],
+		[6, 11, "retaining-wall", true],
 		# ── 면집 앞 마당 (장면) — 좌판과 장독이 있어야 장사 중이다
-		[21, 12, "stall", true],
-		[17, 12, "jars", true],
+		[32, 19, "stall", true],
+		[26, 19, "jars", true],
 		# ── 능선 쉼터 (가풀재:능선 장면 곁)
-		[16, 18, "bench", true],
-		[13, 18, "pebbles", false],
-		[20, 17, "boulder", true],
+		[24, 28, "bench", true],
+		[20, 28, "pebbles", false],
+		[30, 26, "boulder", true],
 		# **막지 않는다.** 시장 담(x11~15)이 끝나는 바로 옆이라, 부두로
 		# 올라가는 길은 이 칸 옆(x9) 한 줄뿐이다. 그런데 축대 콜라이더가
 		# 제 칸보다 넓어(그림 36px) 그 옆 칸 안쪽까지 4.6px 삐져나와,
 		# 그 칸 한가운데로 지나가는 길이 1.3px 차로 껴서 멈췄다(실측).
 		# 어차피 위 주석대로 **높이차가 0인 평지**에 세운 표시일 뿐이라,
 		# 그림만 두고 막지는 않는다.
-		[10, 7, "retaining-wall", false],
+		[15, 11, "retaining-wall", false],
 		# (24,9) 축대는 지웠다 — 그 줄 x21~28 이 가게(23,10)와
 		# 호스텔(26,11) 그림에 통째로 덮여 어디에도 보일 자리가 없다.
 		# 층이 갈리는 선은 (29,9) 하나로 충분히 읽힌다.
-		[29, 9, "retaining-wall", true],
+		[44, 14, "retaining-wall", true],
 		# ── 바다와 현무암 곶 ──────────────────────────────────────────
 		# 등대는 96px(여섯 칸)짜리라 발을 5번 줄에 둬야 꼭대기가 안 잘린다.
-		[30, 5, "lighthouse", true],
-		[32, 3, "boulder", true],
-		[27, 2, "boulder", true],
-		[33, 7, "boulder", true],
-		[31, 8, "pebbles", false],
-		[34, 9, "pebbles", false],
-		[34, 4, "beach-grass", false],
-		[24, 5, "beach-grass", false],
+		[45, 8, "lighthouse", true],
+		[48, 5, "boulder", true],
+		[41, 4, "boulder", true],
+		[50, 11, "boulder", true],
+		[47, 13, "pebbles", false],
+		[51, 14, "pebbles", false],
+		[51, 7, "beach-grass", false],
+		[36, 8, "beach-grass", false],
 		# 부표는 물 위에 뜬다. 물은 어차피 못 걷는 칸이라 막지 않는다 —
 		# 텅 빈 바다에 눈이 걸릴 것이 몇 개는 있어야 한다.
-		[11, 1, "buoy", false],
-		[19, 1, "buoy", false],
-		[6, 2, "buoy", false],
-		[21, 3, "buoy", false],
-		[3, 4, "buoy", false],
+		[17, 2, "buoy", false],
+		[29, 2, "buoy", false],
+		[9, 4, "buoy", false],
+		[32, 5, "buoy", false],
+		[5, 7, "buoy", false],
 
 		# ── 부두 ──────────────────────────────────────────────────────
-		[14, 3, "dock", false],
-		[17, 3, "dock", false],
-		[15, 1, "net", false],
-		[12, 4, "net", false],
-		[10, 4, "icebox", false],
-		[16, 4, "icebox", false],
-		[19, 4, "firewood", false],
-		[21, 5, "washtub", false],
+		[21, 5, "dock", false],
+		[26, 5, "dock", false],
+		[23, 2, "net", false],
+		[18, 7, "net", false],
+		[15, 7, "icebox", false],
+		[24, 7, "icebox", false],
+		[29, 7, "firewood", false],
+		[32, 8, "washtub", false],
 		# 나루 어귀. 떠나는 자리 (7,5) 바로 옆에 표지판이 선다.
 		# **막지 않는다** — 그 위로 걸어 지나갈 수 있어야 나루가 안 좁다.
-		[8, 5, "signpost", false],
-		[5, 6, "jars", true],
-		[6, 6, "jars", true],
+		[12, 8, "signpost", false],
+		[8, 10, "jars", true],
+		[9, 10, "jars", true],
 
 		# ── 첫째 층: 시장 골목 ────────────────────────────────────────
 		# 좌판은 한 칸씩 띄워 세운다. 붙여 놓으면 골목이 막힌다.
-		[11, 7, "stall", true],
-		[13, 7, "stall", true],
-		[15, 7, "stall", true],
+		[17, 11, "stall", true],
+		[20, 11, "stall", true],
+		[23, 11, "stall", true],
 		# 가게는 세 칸(x17~19)을 막는다. 층계 머리(x20~21)를 비워 둔다.
-		[18, 8, "shop", true],
+		[27, 13, "shop", true],
 		# **한 칸 아래(y8)에 있었다.** 시장 담(y7, x10~15)이 끝나는 바로
 		# 그 모서리를 콕 찍고 있어서, 부두로 돌아가는 길이 그 모서리를
 		# 살짝 스치는 대각선을 타면 실제로 걸을 때 그 자리에 발이 걸렸다
 		# (`_clear_line()` 의 모서리 규칙과 별개로, 아예 그 자리를 피한다).
-		[9, 9, "street-lamp", true],
-		[16, 8, "bench", true],
-		[5, 7, "flower-pots", false],
-		[3, 8, "jars", true],
-		[4, 8, "jars", true],
-		[2, 8, "washtub", false],
-		[1, 9, "beach-grass", false],
-		[23, 6, "net", false],
-		[24, 6, "fence", true],
+		[14, 14, "street-lamp", true],
+		[24, 13, "bench", true],
+		[8, 11, "flower-pots", false],
+		[5, 13, "jars", true],
+		[6, 13, "jars", true],
+		[3, 13, "washtub", false],
+		[2, 14, "beach-grass", false],
+		[35, 10, "net", false],
+		[36, 10, "fence", true],
 
 		# ── 둘째 층: 살림 골목 ────────────────────────────────────────
 		# 장독대·빨랫줄·펌프가 붙어 있어야 사람이 산다.
-		[0, 10, "boulder", true],
-		[2, 11, "jars", true],
-		[3, 11, "jars", true],
-		[5, 12, "clothesline", true],
-		[7, 12, "pump", true],
-		[10, 12, "stall", true],
-		[11, 10, "street-lamp", true],
-		[14, 12, "bench", true],
-		[16, 10, "flower-pots", false],
-		[18, 12, "mailbox", true],
-		[21, 12, "bench", true],
-		[23, 10, "shop", true],
+		[0, 16, "boulder", true],
+		[3, 17, "jars", true],
+		[5, 17, "jars", true],
+		[8, 19, "clothesline", true],
+		[11, 19, "pump", true],
+		[15, 19, "stall", true],
+		[17, 16, "street-lamp", true],
+		[21, 19, "bench", true],
+		[24, 16, "flower-pots", false],
+		[27, 19, "mailbox", true],
+		[32, 19, "bench", true],
+		[35, 16, "shop", true],
 		# 호스텔은 비탈 끝에 앉아 항구를 내려다본다. 문 앞은 (26,12).
-		[26, 11, "guesthouse", true],
-		[29, 11, "shrub", false],
+		[39, 17, "guesthouse", true],
+		[44, 17, "shrub", false],
 
 		# ── 셋째 층과 능선 ────────────────────────────────────────────
-		[3, 15, "tools", false],
-		[7, 14, "street-lamp", true],
-		[16, 15, "bench", true],
-		[13, 17, "boulder", true],
-		[21, 16, "shrub", false],
-		[32, 14, "tree", true],
-		[4, 18, "pine", true],
-		[9, 19, "pine", true],
-		[17, 18, "pine", true],
-		[24, 19, "tree", true],
-		[30, 18, "pine", true],
+		[5, 23, "tools", false],
+		[11, 22, "street-lamp", true],
+		[24, 23, "bench", true],
+		[20, 26, "boulder", true],
+		[32, 25, "shrub", false],
+		[48, 22, "tree", true],
+		[6, 28, "pine", true],
+		[14, 29, "pine", true],
+		[26, 28, "pine", true],
+		[36, 29, "tree", true],
+		[45, 28, "pine", true],
 		# ── 뒷개로 들어가는 자리 (능선 서쪽 끝) ───────────────────
-		[1, 17, "shrub", false],
+		[2, 26, "shrub", false],
+		# ── 1.5배로 넓히며 줄지어 선 소품 사이 틈을 메운 것
+		[4, 17, "jars", true],
 	]
 
 
 func pickups() -> Array:
 	return [
-		[12, 4, "p-shell"],        # 부두
-		[21, 4, "p-seaglass"],
-		[32, 4, "p-shell"],        # 곶
-		[8, 7, "p-pebble"],        # 골목
-		[12, 15, "p-flower"],
-		[24, 15, "p-pinecone"],    # 능선
+		[18, 7, "p-shell"],        # 부두
+		[32, 7, "p-seaglass"],
+		[48, 7, "p-shell"],        # 곶
+		[12, 11, "p-pebble"],        # 골목
+		[18, 23, "p-flower"],
+		[36, 23, "p-pinecone"],    # 능선
 	]
 
 
 ## 둘째 층 골목 한복판. 올라가면 부두, 내려가면 능선이다.
 func spawn_tile() -> Vector2i:
-	return Vector2i(14, 11)
+	return Vector2i(21, 17)
 
 
 ## 호스텔 문 앞. 호스텔은 11번 줄 x25~27 을 막으므로 문 앞은 12번 줄이다.
 func sleep_tile() -> Vector2i:
-	return Vector2i(26, 12)
+	return Vector2i(39, 19)
 
 
 ## 나루. 부두 서쪽 끝이고 바로 옆 (8,5) 에 표지판이 서 있다.
 func depart_tile() -> Vector2i:
-	return Vector2i(7, 5)
+	return Vector2i(11, 8)
 
 
 ## 둘째 층 큰길. 좌판이나 벤치 콜라이더에 걸리지 않는 칸이어야
 ## 여행자가 물건을 뚫고 서 있지 않는다.
 func wanderer_tile() -> Vector2i:
-	return Vector2i(19, 11)
+	return Vector2i(29, 17)
 
 
 ## "노을은 계단에서 봐야 해요" — 부두(1층)에서 능선(3층)까지 다 오른
 ## 사람만 닿는 자리다.
 func quest_zones() -> Array:
 	return [
-		["가풀재:능선", Vector2i(16, 16), 56.0],
+		["가풀재:능선", Vector2i(24, 25), 56.0],
 		# 부두 끝. 뒤돌아보면 세 층 골목이 다 보인다.
-		["가풀재:부두끝", Vector2i(15, 1), 36.0],
+		["가풀재:부두끝", Vector2i(23, 2), 36.0],
 	]
 
 
 ## 가게 둘(18,8)·(23,10) 문 앞. 둘 다 한 칸만 막으니 문 앞은 아랫줄이다.
 func doors() -> Array:
 	return [
-		{"tile": Vector2i(18, 9),
+		{"tile": Vector2i(27, 14),
 			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 			"label": "가게 들어가기"},
-		{"tile": Vector2i(23, 11),
+		{"tile": Vector2i(35, 17),
 			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 			"label": "가게 들어가기"},
 		# 등대 밑동(30,5) 바로 앞.
-		{"tile": Vector2i(30, 6),
+		{"tile": Vector2i(45, 10),
 			"scene": "res://scenes/journey/interiors/LighthouseInterior.tscn",
 			"label": "등대 들어가기", "enter_key": "등대안"},
 		# 능선 서쪽 끝, 큰 항구 뒤로 물이 파고든 후미. 문이 아니라
 		# "들어가는 자리" 라 `enter_key` 를 따로 준다.
-		{"tile": Vector2i(0, 18),
+		{"tile": Vector2i(0, 28),
 			"scene": "res://scenes/journey/interiors/ShadeSpot.tscn",
 			"label": "뒷개로 들어가기", "enter_key": "뒷개"},
 	]
@@ -259,7 +271,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 좌판 (13,7) 앞. 아저씨가 제 가게 앞에 서 있는 셈이다.
-	put_folk(Vector2i(13, 8), "seal", "국수집 아저씨", "san_seal", [
+	put_folk(Vector2i(20, 13), "seal", "국수집 아저씨", "san_seal", [
 		["앉아요. 국물부터 한 술 떠 봐."],
 		["이 동네는 계단이 많아서.", "다리 아프지."],
 		["나도 젊을 땐 배를 탔어요."],
@@ -268,15 +280,15 @@ func on_built() -> void:
 	], Vector2.DOWN, false, {
 		# 아침: 부두 얼음궤 (16,4) 옆. 젊을 때 배를 탔던 사람이라
 		# 새벽 배가 부린 생선을 아직도 제 눈으로 고른다.
-		"아침": Vector2i(15, 4),
+		"아침": Vector2i(23, 7),
 		# 낮: 좌판 앞. 국물을 내며 손님을 받는다.
-		"낮": Vector2i(13, 8),
+		"낮": Vector2i(20, 13),
 		# 저녁: 좌판 옆 벤치 (16,8) 곁. "다리 아프지" 하던 사람이
 		# 하루 끝엔 제 다리부터 쉰다.
-		"저녁": Vector2i(15, 8),
+		"저녁": Vector2i(23, 13),
 	})
 
-	put_folk(Vector2i(17, 4), "seagull", "부두 청년", "san_gull", [
+	put_folk(Vector2i(26, 7), "seagull", "부두 청년", "san_gull", [
 		["배 들어오는 거 보러 왔어요?"],
 		["저기 등대까지 자전거로 십 분."],
 		["여기 노을은 계단에서 봐야 해요."],
@@ -285,12 +297,12 @@ func on_built() -> void:
 	], Vector2.LEFT, false, {
 		# 아침: 부두 한가운데. 배는 새벽에 들어온다 —
 		# 들어오는 배를 보는 게 이 청년의 아침이다.
-		"아침": Vector2i(17, 2),
+		"아침": Vector2i(26, 4),
 		# 낮: 부두 어귀. 짐을 부리고 오가는 사람을 맞는다.
-		"낮": Vector2i(17, 4),
+		"낮": Vector2i(26, 7),
 		# 저녁: 등대로 오르는 곶 층계. "노을은 계단에서 봐야 해요"를
 		# 본인이 매일 지키고 있다.
-		"저녁": Vector2i(25, 5),
+		"저녁": Vector2i(38, 8),
 	})
 
 	put_wanderer("raccoon", "배낭 멘 너구리", "raccoon", [
@@ -310,6 +322,6 @@ func foliage_tint() -> Color:
 
 ## 가게가 둘이다. 아랫것이 본래의  가게, (23, 10) 것은 찻집이다.
 func sign_of(prop_name: String, at: Vector2i = Vector2i.ZERO) -> String:
-	if prop_name == "shop" and at == Vector2i(23, 10):
+	if prop_name == "shop" and at == Vector2i(35, 16):
 		return "찻집"
 	return super(prop_name, at)

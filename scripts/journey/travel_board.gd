@@ -113,6 +113,7 @@ func _build() -> void:
 	# 여행지가 여덟 곳까지 늘었다 — 목록이 고정 칸보다 길어지면 스크롤로
 	# 받는다. 안 그러면 화면 아래로 잘려 나가거나 겹쳐 보인다.
 	_scroll = ScrollContainer.new()
+	TouchScroll.setup(_scroll)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(_scroll)

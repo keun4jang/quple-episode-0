@@ -25,28 +25,39 @@ func _init() -> void:
 ## 있고, 강 한복판에 모래톱이 있다.
 func ground_map() -> String:
 	return """
-gggggggggggggggggswwwwwwwsgggggggggggggggg
-ggggggggggggggggggswwwwwwwsggggggggggggggg
-gggggggggggggggggggswwwwwwwsgggggggggggggg
-ggggggggggggggggggggswwwwwwwsggggggggggggg
-ggggggggggggggggggggggswwwwwwwsggggggggggg
-gggggggggggggggggggggggswwwwwwwsgggggggggg
-ggggggggggggggggggggggggswwwwwwwsggggggggg
-gggggggggggggggggggggggggswwwwwwwsgggggggg
-gggggggggggggggggggggggggswwwwwwwsgggggggg
-ggggggggggggggggggggggggggswwssswwsggggggg
-ggggggggggggggggggggggggggswwssswwsggggggg
-ggggggggggggggggggggggggggswwssswwsggggggg
-ggggggggggggggggggggggggggswwssswwsgeeeeee
-ggggggggggggggggggggggggggswwwdwwwddddeeee
-ggggggggggggggggggggggggggsdddddddddddeeee
-gggggggggggggggggggggggggswwwwwwwddddeeeee
-gggggggggggggggggggggggggswwwwwwwddddeeeee
-ggggggggggggggggggggggggswwwwwwwsgggeeeeee
-gggggggggggggggggggggggswwwwwwwsggggeeeeee
-ggggggggggggggggggggggswwwwwwwsgggggeeeeee
-gggggggggggggggggggggswwwwwwwsgggggggggggg
-gggggggggggggggggggswwwwwwwsgggggggggggggg
+ggggggggggggggggggggggggggswwwwwwwwwwwsgggggggggggggggggggggggg
+ggggggggggggggggggggggggggswwwwwwwwwwwsgggggggggggggggggggggggg
+gggggggggggggggggggggggggggsswwwwwwwwwwssgggggggggggggggggggggg
+gggggggggggggggggggggggggggggswwwwwwwwwwwsggggggggggggggggggggg
+gggggggggggggggggggggggggggggswwwwwwwwwwwsggggggggggggggggggggg
+ggggggggggggggggggggggggggggggsswwwwwwwwwwssggggggggggggggggggg
+gggggggggggggggggggggggggggggggggsswwwwwwwwwwssgggggggggggggggg
+gggggggggggggggggggggggggggggggggsswwwwwwwwwwssgggggggggggggggg
+gggggggggggggggggggggggggggggggggggswwwwwwwwwwwsggggggggggggggg
+ggggggggggggggggggggggggggggggggggggsswwwwwwwwwwssggggggggggggg
+ggggggggggggggggggggggggggggggggggggsswwwwwwwwwwssggggggggggggg
+ggggggggggggggggggggggggggggggggggggggswwwwwwwwwwwsgggggggggggg
+ggggggggggggggggggggggggggggggggggggggswwwwwwwwwwwsgggggggggggg
+ggggggggggggggggggggggggggggggggggggggswwwwwwwwwwwsgggggggggggg
+gggggggggggggggggggggggggggggggggggggggsswwwsssswwwssgggggggggg
+gggggggggggggggggggggggggggggggggggggggsswwwsssswwwssgggggggggg
+gggggggggggggggggggggggggggggggggggggggsswwwsssswwwssgggggggggg
+gggggggggggggggggggggggggggggggggggggggsswwwsssswwwssgggggggggg
+gggggggggggggggggggggggggggggggggggggggsswwwsssswwwssgeeeeeeeee
+gggggggggggggggggggggggggggggggggggggggsswwwsssswwwssgeeeeeeeee
+gggggggggggggggggggggggggggggggggggggggsswwwwddwwwwddddddeeeeee
+gggggggggggggggggggggggggggggggggggggggssddddddddddddddddeeeeee
+gggggggggggggggggggggggggggggggggggggggssddddddddddddddddeeeeee
+ggggggggggggggggggggggggggggggggggggggswwwwwwwwwwwddddddeeeeeee
+ggggggggggggggggggggggggggggggggggggggswwwwwwwwwwwddddddeeeeeee
+ggggggggggggggggggggggggggggggggggggggswwwwwwwwwwwddddddeeeeeee
+ggggggggggggggggggggggggggggggggggggsswwwwwwwwwwssggggeeeeeeeee
+gggggggggggggggggggggggggggggggggggswwwwwwwwwwwsggggggeeeeeeeee
+gggggggggggggggggggggggggggggggggggswwwwwwwwwwwsggggggeeeeeeeee
+gggggggggggggggggggggggggggggggggsswwwwwwwwwwssgggggggeeeeeeeee
+ggggggggggggggggggggggggggggggggswwwwwwwwwwwsgggggggggggggggggg
+ggggggggggggggggggggggggggggggggswwwwwwwwwwwsgggggggggggggggggg
+gggggggggggggggggggggggggggggswwwwwwwwwwwsggggggggggggggggggggg
 """
 
 
@@ -77,17 +88,17 @@ func props() -> Array:
 	return [
 		# ── 나루 마당 (동안) ────────────────────────────────────────
 		# 붙박이 넷. 좌표 고정.
-		[39, 14, "shop", true],          # 카피바라 가게
-		[37, 12, "guesthouse", true],    # 쉼터
-		[40, 15, "signpost", false],
-		[34, 17, "mailbox", true],
+		[59, 22, "shop", true],          # 카피바라 가게
+		[56, 19, "guesthouse", true],    # 쉼터
+		[60, 23, "signpost", false],
+		[51, 26, "mailbox", true],
 		# 건물 밑동. 마당에서 안 가려지는 곳은 y15 와 y17~19 뿐이다.
-		[37, 15, "flower-pots", false],
-		[36, 17, "flower-pots", false],
-		[37, 18, "bench", true],
-		[36, 19, "firewood", false],
-		[40, 18, "jars", true],
-		[39, 19, "jars", true],
+		[56, 23, "flower-pots", false],
+		[54, 26, "flower-pots", false],
+		[56, 28, "bench", true],
+		[54, 29, "firewood", false],
+		[60, 28, "jars", true],
+		[59, 29, "jars", true],
 
 		# ── 데크 (사람이 만든 것 — 줄을 맞춘다) ─────────────────────
 		# **막지 않는다.** 강 건너 모래톱으로 가는 길이 다리 어귀
@@ -96,146 +107,148 @@ func props() -> Array:
 		# 확인) - 옮겨서 피해도 다리로 몰리는 길목 특성상 다른 자리에서
 		# 같은 사고가 되풀이됐다. 자리는 그대로 두고 막지만 않는다 -
 		# 밑동 가는 기둥이라 몸을 슬쩍 스쳐도 크게 안 어색하다.
-		[26, 13, "street-lamp", false],   # 다리 서쪽 어귀
+		[39, 20, "street-lamp", false],   # 다리 서쪽 어귀
 		# 데크 등 둘. 같은 칸줄(x34)에 세워 판자길 어귀를 양쪽에서 낀다.
 		# (37,13)에 뒀더니 가게 그림에 62%가 먹혔다 — 가게가 x37.4까지 온다.
-		[34, 13, "street-lamp", true],
-		[34, 16, "street-lamp", true],
-		[35, 16, "bench", true],         # 굽이를 보고 앉는 자리
-		[33, 16, "net", false],
+		[51, 20, "street-lamp", true],
+		[51, 25, "street-lamp", true],
+		[53, 25, "bench", true],         # 굽이를 보고 앉는 자리
+		[50, 25, "net", false],
 
 		# ── 강 한복판 모래톱 ────────────────────────────────────────
-		[29, 9, "beach-grass", false],
-		[31, 10, "beach-grass", false],
-		[30, 12, "pebbles", false],
+		[44, 14, "beach-grass", false],
+		[47, 16, "beach-grass", false],
+		[45, 19, "pebbles", false],
 
 		# ── 강물 ────────────────────────────────────────────────────
 		# 부표는 물길 한복판을 따라 내려간다(19→24→27). 굽이를 눈으로 읽게.
-		[22, 1, "buoy", false],
-		[24, 3, "buoy", false],
-		[27, 5, "buoy", false],
-		[28, 17, "buoy", false],
+		[33, 2, "buoy", false],
+		[36, 5, "buoy", false],
+		[41, 8, "buoy", false],
+		[42, 26, "buoy", false],
 		# 아래 굽이 여울의 바위 둘
-		[23, 20, "boulder", false],
-		[21, 21, "boulder", false],
+		[35, 31, "boulder", false],
+		[32, 32, "boulder", false],
 
 		# ── 동안 전망 자리 (갈매기가 서 있는 곳) ────────────────────
-		[30, 2, "fence", true],          # 난간 셋 — 한 줄로
-		[31, 2, "fence", true],
-		[32, 2, "fence", true],
-		[31, 3, "bench", true],
+		[45, 4, "fence", true],          # 난간 셋 — 한 줄로
+		[47, 4, "fence", true],
+		[48, 4, "fence", true],
+		[47, 5, "bench", true],
 		# ── 둔치 모래톱 쉼터 (갈매기의 자리)
-		[32, 6, "bench", true],
-		[33, 2, "pebbles", false],
-		[37, 5, "beach-grass", false],
+		[48, 10, "bench", true],
+		[50, 4, "pebbles", false],
+		[56, 8, "beach-grass", false],
 
 		# ── 동안 숲 (오른쪽 가장자리를 두른다) ──────────────────────
-		[38, 5, "pine", true],
-		[40, 7, "pine", true],
-		[40, 9, "tree", true],
-		[39, 10, "shrub", false],
+		[57, 8, "pine", true],
+		[60, 11, "pine", true],
+		[60, 14, "tree", true],
+		[59, 16, "shrub", false],
 
 		# ── 남동 숲 (오른쪽 아래 귀퉁이) ────────────────────────────
 		# 소나무를 마당 쪽(36,21)에 두면 장작(36,19)을 통째로 삼킨다 —
 		# 나무는 네 칸 높이라 두 줄 아래에서도 위를 다 덮는다. 서쪽으로 뺐다.
-		[31, 21, "pine", true],
-		[33, 20, "tree", true],
-		[35, 18, "shrub", false],
+		[47, 32, "pine", true],
+		[50, 31, "tree", true],
+		[53, 28, "shrub", false],
 
 		# ── 서안: 서북 솔숲 (왼쪽 위 귀퉁이) ────────────────────────
-		[2, 1, "shrub", false],
-		[1, 3, "pine", true],
-		[3, 5, "pine", true],
-		[6, 4, "pine", true],
+		[3, 2, "shrub", false],
+		[2, 5, "pine", true],
+		[5, 8, "pine", true],
+		[9, 7, "pine", true],
 
 		# ── 서안: 참나무 그늘 (도토리 떨어진 자리 곁) ───────────────
-		[9, 4, "tree", true],
-		[12, 7, "tree", true],
-		[13, 9, "shrub", false],
+		[14, 7, "tree", true],
+		[18, 11, "tree", true],
+		[20, 14, "shrub", false],
 
 		# ── 서안: 북쪽 강가 갯풀, 첫 무리 ───────────────────────────
-		[16, 1, "beach-grass", false],
-		[17, 2, "pebbles", false],
-		[15, 3, "beach-grass", false],
+		[24, 2, "beach-grass", false],
+		[26, 4, "pebbles", false],
+		[23, 5, "beach-grass", false],
 
 		# ── 서안: 북쪽 강가 갯풀, 둘째 무리 ─────────────────────────
-		[21, 6, "beach-grass", false],
-		[20, 7, "pebbles", false],
-		[22, 8, "beach-grass", false],
+		[32, 10, "beach-grass", false],
+		[30, 11, "pebbles", false],
+		[33, 13, "beach-grass", false],
 
 		# ── 서안: 바깥 굽이 바위 (물살이 부딪는 쪽) ─────────────────
-		[23, 10, "boulder", true],
-		[24, 12, "boulder", true],
-		[22, 13, "pebbles", false],
+		[35, 16, "boulder", true],
+		[36, 19, "boulder", true],
+		[33, 20, "pebbles", false],
 
 		# ── 서안: 그물 손질터 ───────────────────────────────────────
-		[23, 17, "reception", true],
-		[22, 16, "firewood", false],
-		[21, 18, "net", false],
+		[35, 26, "reception", true],
+		[33, 25, "firewood", false],
+		[32, 28, "net", false],
 
 		# ── 서안: 남서 숲 (왼쪽 아래 귀퉁이) ────────────────────────
-		[6, 17, "shrub", false],
-		[4, 19, "tree", true],
-		[8, 20, "pine", true],
-		[2, 21, "pine", true],
+		[9, 26, "shrub", false],
+		[6, 29, "tree", true],
+		[12, 31, "pine", true],
+		[3, 32, "pine", true],
 
 		# ── 서안: 남쪽 강가 갯풀 ────────────────────────────────────
-		[16, 20, "beach-grass", false],
-		[14, 21, "beach-grass", false],
-		[18, 21, "pebbles", false],
+		[24, 31, "beach-grass", false],
+		[21, 32, "beach-grass", false],
+		[27, 32, "pebbles", false],
+		# ── 1.5배로 넓히며 줄지어 선 소품 사이 틈을 메운 것
+		[46, 4, "fence", true],
 	]
 
 
 func pickups() -> Array:
 	return [
-		[29, 10, "p-pebble"],      # 모래톱
-		[30, 11, "p-pebble"],
-		[8, 9, "p-flower"],
-		[10, 6, "p-acorn"],
+		[44, 16, "p-pebble"],      # 모래톱
+		[45, 17, "p-pebble"],
+		[12, 14, "p-flower"],
+		[15, 10, "p-acorn"],
 		# (35,4) 는 영영 못 줍는 자리였다 — 바로 위 (35,3) 에 선 갈매기가
 		# 제 칸과 **아랫칸까지** 막는다(`Place._block_folk_tiles`). 줍는
 		# 거리가 12px 라 한 칸(16px) 옆에 서서는 안 닿는다. 그래서 이 마을은
 		# 다섯 개를 다 못 주웠고, "떨어진 것 다 줍기" 가 안 끝나
 		# **방울못부터 그 뒤 2탄 전체가 안 열렸다.** 한 칸 아래로 내린다.
-		[35, 5, "p-feather"],
+		[53, 8, "p-feather"],
 	]
 
 
 func spawn_tile() -> Vector2i:
-	return Vector2i(10, 10)
+	return Vector2i(15, 16)
 
 
 ## 호스텔 문 앞. 호스텔은 여섯 칸 높이(96px)라 마당 아래에 세우면
 ## 가게·표지판·정류장을 통째로 덮는다. 마당 위쪽에 세우고 문 앞은
 ## 그 아랫줄이다.
 func sleep_tile() -> Vector2i:
-	return Vector2i(36, 13)
+	return Vector2i(54, 20)
 
 
 func depart_tile() -> Vector2i:
-	return Vector2i(40, 15)
+	return Vector2i(60, 23)
 
 func wanderer_tile() -> Vector2i:
-	return Vector2i(14, 12)
+	return Vector2i(21, 19)
 
 
 
 ## "강 굽이가 보이는 데크까지 가 보기" — 나루 데크 자체가 방문 지점이다.
 func quest_zones() -> Array:
 	return [
-		["굽이나루:데크", Vector2i(36, 14), 56.0],
+		["굽이나루:데크", Vector2i(54, 22), 56.0],
 	]
 
 
 func doors() -> Array:
 	return [
-		{"tile": Vector2i(39, 15),
+		{"tile": Vector2i(59, 23),
 			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 			"label": "가게 들어가기"},
 		# 모래톱에서 강 안쪽으로 더 들어가는 샛길. **문이 아니라 길이다** —
 		# 널 하나 건너 모래가 이어지는 자리다. `enter_key` 는 뜻이 없다.
 		# 다 했다는 표시는 안쪽 자리에서 난다(`SidePathInterior`).
-		{"tile": Vector2i(31, 11),
+		{"tile": Vector2i(47, 17),
 			"scene": "res://scenes/journey/interiors/SidePathInterior.tscn",
 			"label": "모래톱 안쪽으로", "enter_key": "샛길입구"},
 	]
@@ -246,7 +259,7 @@ func on_built() -> void:
 	JourneyState.visit(place_name())
 
 	# 카피바라 — 물범의 담수 버전. 조끼 차림, 나루 옆 가게를 지킨다.
-	put_folk(Vector2i(33, 15), "capybara-a", "나루 가게 아저씨", "cap_guinaru", [
+	put_folk(Vector2i(50, 23), "capybara-a", "나루 가게 아저씨", "cap_guinaru", [
 		["어서 와요. 강 여행은 또 다르지."],
 		["강물이 굽어 도는 자리가 여기예요.", "서두를 것 없어요."],
 		["길 묻는 손님한테도 늘 이렇게 말해요.", "천천히 가요."],
@@ -255,7 +268,7 @@ func on_built() -> void:
 	], Vector2.DOWN, false, {}, "")
 
 	# 갈매기 — 1탄과 같은 역할(높은 곳, 먼 곳을 동경). 여기선 강 굽이를 본다.
-	put_folk(Vector2i(35, 3), "seagull", "둔치의 갈매기", "gu_gull", [
+	put_folk(Vector2i(53, 5), "seagull", "둔치의 갈매기", "gu_gull", [
 		["강도 바다처럼 넓어질 수 있대요."],
 		["저 굽이까지 가 봤어요?", "데크에서 보면 더 잘 보여요."],
 		["여긴 물살이 안 급해서 좋아요."],
@@ -264,13 +277,13 @@ func on_built() -> void:
 	], Vector2.DOWN, false, {
 		# 아침엔 난간에서 강을 내려다보고, 낮엔 모래톱에 내려앉고,
 		# 저녁엔 데크에서 노을을 본다 — 하루가 흐르는 게 보인다.
-		"아침": Vector2i(35, 3),
-		"낮": Vector2i(24, 13),
-		"저녁": Vector2i(33, 4),
+		"아침": Vector2i(53, 5),
+		"낮": Vector2i(36, 20),
+		"저녁": Vector2i(50, 7),
 	})
 
 	# 수달 — 선택형 서브 NPC. 필수 퀘스트에 안 넣는다(강가 돌 위, 붙박이).
-	put_folk(Vector2i(29, 12), "otter", "돌 위의 수달", "gu_otter", [
+	put_folk(Vector2i(44, 19), "otter", "돌 위의 수달", "gu_otter", [
 		["매끈한 돌 하나를 오래 들여다보고 있었어요."],
 		["좋은 돌은 멀리 안 가도 물이 다듬어 줘요."],
 		["또 왔네요.", "그 돌, 그대로 있어요."],

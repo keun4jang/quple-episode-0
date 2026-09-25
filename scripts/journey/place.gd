@@ -1377,11 +1377,15 @@ func field_use(id: String) -> bool:
 			hud._say_hint(why, false, 0.9)
 		return false
 	if attack and tgt == null:
+		# **닿는 데 아무도 없어도 휘두른다** - 누르면 몸이 먼저 움직여야 손맛이 난다.
+		# 스킬은 마음력을 안 쓰고 몸짓만 하고, 왜 안 맞았는지 한 줄 알린다.
+		FieldFx.swing(self, walker.global_position, _facing(), Battle.skill_elem(id))
+		if _held != null:
+			_held.swing()
+		_attack_pose(_facing())
 		if id == "tap":
-			FieldFx.swing(self, walker.global_position, _facing(), Battle.skill_elem(id))
-			if _held != null:
-				_held.swing()
 			Field.cooldown[id] = float(sk["cd"])
+			AudioManager.battle_hit()
 		elif hud != null:
 			hud._say_hint("닿는 데 몬스터가 없어요", false, 0.9)
 		return false
@@ -1413,6 +1417,7 @@ func field_use(id: String) -> bool:
 	walker.face(to)
 	if _held != null:
 		_held.swing()
+	_attack_pose(to)
 	if bool(sk.get("dash", false)) and to.length() > 18.0:
 		_dash_to(tgt.global_position - to.normalized() * 14.0)
 	# 멀리 쏘는 것은 날아가는 빛이, 가까이 치는 것은 휘두름이 보인다.
@@ -1444,6 +1449,27 @@ func field_use(id: String) -> bool:
 	for sh in hits:
 		_hit_shade(sh, id)
 	return true
+
+
+## 공격 몸짓 - 몸이 치는 쪽으로 훅 나갔다 돌아오고, 살짝 눌렸다 편다.
+## 그림(`walker.sprite`)만 움직인다 - 몸의 자리(충돌)는 그대로다.
+var _pose_tw: Tween
+
+
+func _attack_pose(dir: Vector2) -> void:
+	if walker == null or walker.sprite == null:
+		return
+	var spr: Node2D = walker.sprite
+	if _pose_tw != null and _pose_tw.is_valid():
+		_pose_tw.kill()
+	var d := dir.normalized() if dir.length() > 0.01 else Vector2.DOWN
+	spr.position = Vector2.ZERO
+	spr.scale = Vector2.ONE
+	_pose_tw = create_tween()
+	_pose_tw.tween_property(spr, "position", d * 5.0, 0.06)
+	_pose_tw.parallel().tween_property(spr, "scale", Vector2(1.15, 0.88), 0.06)
+	_pose_tw.tween_property(spr, "position", Vector2.ZERO, 0.12)
+	_pose_tw.parallel().tween_property(spr, "scale", Vector2.ONE, 0.12)
 
 
 ## 돌진 - 그 앞까지 몸으로 밀고 간다(벽은 못 뚫는다).
@@ -1993,6 +2019,10 @@ func _build_walker() -> void:
 	if JourneyState.pending_spawn.x >= 0:
 		t = JourneyState.pending_spawn
 		JourneyState.pending_spawn = Vector2i(-1, -1)
+		# 옛 세이브의 자리는 마을을 넓히기 전 칸이다 - 못 서는 칸이면 가까운 데로.
+		if not _walkable(t):
+			var nw := _nearest_walkable(t)
+			t = nw if nw.x >= 0 else spawn_tile()
 	walker.position = Vector2(t.x * TILE + TILE * 0.5, (t.y + 1) * TILE)
 	add_child(walker)
 	# 든 무기를 몸에 그린다 (`HeldWeapon`). 싸우지 않는 곳에서도 든다 -
@@ -4188,16 +4218,21 @@ func _tick_goal_arrow(delta: float) -> void:
 		_goal_arrow.z_index = 60
 		_goal_arrow.draw.connect(func() -> void:
 			# 아래를 가리키는 세모. 폰트에 없는 글자라 직접 그린다.
+			# **크게** - 처음 것(14px)은 폰에서 너무 작아 안 보였다.
 			var pts := PackedVector2Array([
-				Vector2(-7, -10), Vector2(7, -10), Vector2(0, 0)])
+				Vector2(-13, -19), Vector2(13, -19), Vector2(0, 0)])
 			for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
 				var o := PackedVector2Array()
 				for p in pts:
-					o.append(p + d * 1.5)
+					o.append(p + d * 2.0)
 				_goal_arrow.draw_colored_polygon(o, Color(0.16, 0.13, 0.18))
-			_goal_arrow.draw_colored_polygon(pts, Color(1.0, 0.83, 0.35)))
+			_goal_arrow.draw_colored_polygon(pts, Color(1.0, 0.83, 0.35))
+			# 안쪽 밝은 줄 - 반짝이는 느낌.
+			_goal_arrow.draw_colored_polygon(PackedVector2Array([
+				Vector2(-6, -16), Vector2(0, -16), Vector2(0, -5)]), Color(1.0, 0.95, 0.72)))
 		add_child(_goal_arrow)
 	_arrow_clock += delta
+	_tick_goal_path(delta)
 	if _goal_edge == null:
 		_goal_edge = GoalPointer.new()
 		add_child(_goal_edge)
@@ -4230,13 +4265,74 @@ func _tick_goal_arrow(delta: float) -> void:
 	# (-키-17, 높이 16) 한복판에 화살표가 박혀 이름을 가렸다 —
 	# 폰에서 "가게 할머니" 가 "…할머니" 로 보였다. 이름표가 붙는
 	# 종류(인연·줍는 것)는 그 위로 비켜 준다.
-	var lift := 26.0
+	var lift := 30.0
 	match String(g.get("kind", "")):
 		"talk":
-			lift = 50.0
+			lift = 54.0
 		"pickup":
-			lift = 38.0
+			lift = 42.0
 	_goal_arrow.position = at + Vector2(0.0, -lift + bob)
+
+
+# ── 목표까지 가는 길 ──────────────────────────────────────────────────
+#
+# 화살표는 **어디**만 알려 주고 **어떻게**는 안 알려 줬다. 넓어진 마을에서
+# 집과 물길을 돌아가야 하는 목표는 화살표만 보고 가면 벽에 막힌다. 발밑에서
+# 목표까지 **실제로 걸을 길**(`_find_path`)을 금빛 점으로 깐다. 점들이 목표
+# 쪽으로 흘러가듯 밝아진다. 가까이 오면(다섯 칸 안) 걷는다.
+
+var _goal_path: Node2D
+var _path_pts: PackedVector2Array = PackedVector2Array()
+var _path_t := 0.0
+var _path_key := ""
+
+
+func _tick_goal_path(delta: float) -> void:
+	if _goal_path == null:
+		_goal_path = Node2D.new()
+		_goal_path.name = "GoalPath"
+		# 바닥 위, 사람·소품 아래 - 자리가 (0, 0) 이라 y 정렬에서 바닥 바로 다음에 그려진다.
+		_goal_path.draw.connect(_draw_goal_path)
+		add_child(_goal_path)
+	_path_t += delta
+	var g := current_goal() if walker != null else {}
+	var at := goal_world(g) if not g.is_empty() else Vector2.INF
+	var hide: bool = at == Vector2.INF or walker == null or (minimap != null and minimap.is_big()) \
+		or walker.global_position.distance_to(at) < TILE * 5.0
+	if hide:
+		_path_pts = PackedVector2Array()
+		_path_key = ""
+		_goal_path.queue_redraw()
+		return
+	# 발밑 칸이나 목표가 바뀌었을 때만 길을 다시 찾는다.
+	var from_t := tile_of(walker.global_position)
+	var to_t := tile_of(at - Vector2(0, 1))
+	var key := "%s>%s" % [from_t, to_t]
+	if key != _path_key:
+		_path_key = key
+		if not _walkable(to_t):
+			to_t = _nearest_walkable(to_t)
+		var tiles: Array = []
+		if to_t.x >= 0 and _astar != null:
+			var ft := from_t if _walkable(from_t) else _nearest_walkable(from_t)
+			if ft.x >= 0 and ft != to_t:
+				tiles = Array(_astar.get_id_path(ft, to_t))
+		_path_pts = PackedVector2Array()
+		for t in tiles:
+			_path_pts.append(world_of(t) + Vector2(0, -TILE * 0.5))
+	_goal_path.queue_redraw()
+
+
+func _draw_goal_path() -> void:
+	var n := _path_pts.size()
+	if n < 2:
+		return
+	# 두 칸마다 점 하나. 흐르는 빛이 목표 쪽으로 간다.
+	for i in range(1, n, 2):
+		var p: Vector2 = _path_pts[i]
+		var wave := 0.5 + 0.5 * sin(_path_t * 6.0 - float(i) * 0.55)
+		_goal_path.draw_circle(p, 5.5, Color(0.16, 0.13, 0.18, 0.5))
+		_goal_path.draw_circle(p, 4.0, Color(1.0, 0.83, 0.35, 0.6 + 0.4 * wave))
 
 
 func open_goals() -> Array:
@@ -4543,7 +4639,7 @@ func put_folk(t: Vector2i, sheet: String, who: String, folk_id: String,
 const BOSS_ROAD_SCENE := "res://scenes/journey/interiors/BossRoad.tscn"
 const TOWER_SCENE := "res://scenes/journey/interiors/TowerFloor.tscn"
 ## 도착한 자리에서 이만큼(칸) 떨어진 곳을 고른다.
-const GATE_DIST := 9.0
+const GATE_DIST := 13.0
 
 ## `doors()` 밖에서 새로 연 문들. `_doors` 에도 들어간다.
 var _gates: Array = []

@@ -124,6 +124,7 @@ func _build() -> void:
 	box.add_child(title)
 
 	var scroll := ScrollContainer.new()
+	TouchScroll.setup(scroll)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(scroll)

@@ -30,7 +30,9 @@ const EDGE := 118.0
 
 ## 남은 거리를 적는 글자. 방향만으로는 "저 산 너머인지 코앞인지" 를
 ## 모른다 - 스무 걸음인지 두 걸음인지는 갈지 말지를 가른다.
-const FONT_SIZE := 20
+const FONT_SIZE := 24
+## 화살촉 크기 배율 - "화살표가 너무 작다" 는 말을 듣고 키웠다.
+const HEAD_SCALE := 1.8
 
 ## 화살촉 모양. [코, 왼날개, 파낸 뒷허리, 오른날개] - +x 를 가리킨다.
 ##
@@ -198,7 +200,8 @@ func _on_draw() -> void:
 	edge += dir * (sin(_clock * 3.6) * 4.0)
 
 	# 둥근 바닥을 먼저 깐다. 풀밭이든 모래든 그 위에서 읽히게.
-	_draw.draw_circle(edge, 23.0, Color(0.16, 0.13, 0.18, 0.66))
+	_draw.draw_circle(edge, 38.0, Color(0.16, 0.13, 0.18, 0.72))
+	_draw.draw_arc(edge, 38.0, 0.0, TAU, 40, Color(1.0, 0.83, 0.35, 0.9), 3.0)
 
 	# 화살촉을 그린다. 오목한 도형이라 삼각형 둘로 나눠 그린다 -
 	# `draw_colored_polygon` 은 볼록한 것만 제대로 채운다.
@@ -208,7 +211,7 @@ func _on_draw() -> void:
 		[HEAD[0], HEAD[2], HEAD[3]]]:
 		var poly := PackedVector2Array()
 		for pt: Vector2 in tri:
-			poly.append(tip + pt.rotated(ang))
+			poly.append(tip + (pt * HEAD_SCALE).rotated(ang))
 		_draw.draw_colored_polygon(poly, Color(1.0, 0.83, 0.35))
 
 	# 남은 거리. 걸음으로 센다 - 픽셀이나 칸은 사람 말이 아니다.

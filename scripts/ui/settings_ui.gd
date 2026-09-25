@@ -67,6 +67,7 @@ func _make_scrollable() -> void:
 	if body == null or margin == null or body is ScrollContainer:
 		return
 	var sc := ScrollContainer.new()
+	TouchScroll.setup(sc)
 	sc.name = "Scroll"
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL

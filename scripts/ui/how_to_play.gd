@@ -50,9 +50,10 @@ const SPOTS := [
 ]
 
 const HOWS := [
-	"가고 싶은 곳을 톡 누르면 그리로 걸어가요.",
-	"인연이나 문을 누르면 다가가서 저절로 해요.",
-	"그늘 옆에서 오른쪽 아래 공격을 누르면 때려요. 꾹 누르면 계속 때려요.",
+	"꿈속 액션 RPG예요. 몬스터를 쓰러뜨려 레벨을 올리고,\n아홉 구역의 우두머리를 차례로 쓰러뜨려 꿈에서 깨어나요.",
+	"왼쪽 메인 퀘스트가 지금 잡을 우두머리예요.\n마을 사람들 이야기는 보상이 붙는 곁가지예요.",
+	"가고 싶은 곳을 톡 누르면 그리로 걸어가요. 금빛 점을 따라가면 목표예요.",
+	"오른쪽 아래 공격을 누르면 휘둘러요. 꾹 누르면 계속 때려요.",
 	"두 손가락으로 벌리면 가까이, 오므리면 멀리 봐요.",
 ]
 
@@ -131,7 +132,7 @@ func _build() -> void:
 	root.add_child(box)
 
 	var title := Label.new()
-	title.text = "화면 보는 법"
+	title.text = "꿈결 RPG · 하는 법"
 	title.add_theme_font_size_override("font_size", 40)
 	title.add_theme_color_override("font_color", Color("#FFE39A"))
 	title.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))

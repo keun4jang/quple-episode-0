@@ -52,26 +52,36 @@ func _init() -> void:
 ##   바닥부터 갈린다
 func ground_map() -> String:
 	return """
-wwwwwwwwwwwwwwdddwwwwwwwwwwwwwsssww
-wwwwwwwwwwwwwwdddwwwwwwwwwwwwssssss
-wwwwwwwwwwwwwwdddwwwwwwwwwwssssssss
-wwwwwwwwwwwwwwdddwwwwwwwwssssssssss
-wwwsswwwwwwsssdddswwwwwssssssssssss
-sssssswwwwsssssssssswwsssssssssssss
-ssssssswwssssssssssssssssssssssssss
-ssssssssssssssccccsssssssssssssssss
-sssssssssssssccccccssssssssssssssss
-sssscccccsssscccccccsssmmmmmsssssss
-ccccccsccssssccccccscccmmmmmmsssmmm
-cccccccggccccccsccccccc....mmmmmmmm
-ccccccggggccccccgccccmm....mmmmmmmm
-eeeeeeggggccccccgccccmmmmmmmmmmmmmm
-eeeeeeeeee.....ccccgcmmmmmmmmmmgggg
-.....eeeeegggggccc........cccccgggg
-ggggg.....gggggccc....ggggcccccgggg
-gggggggggggggcccccgggggggg.....gggg
-gggggggg....gcccccggggggggggggggggg
-ggggggggg...gcccccggggggggggggggggg
+wwwwwwwwwwwwwwwwwwwwwdddddwwwwwwwwwwwwwwwwwwwssssswww
+wwwwwwwwwwwwwwwwwwwwwdddddwwwwwwwwwwwwwwwwwwwssssswww
+wwwwwwwwwwwwwwwwwwwwwdddddwwwwwwwwwwwwwwwwwwsssssssss
+wwwwwwwwwwwwwwwwwwwwwdddddwwwwwwwwwwwwwwwssssssssssss
+wwwwwwwwwwwwwwwwwwwwwdddddwwwwwwwwwwwwwwwssssssssssss
+wwwwwwwwwwwwwwwwwwwwwdddddwwwwwwwwwwwwsssssssssssssss
+wwwwwssswwwwwwwwwssssdddddswwwwwwwwssssssssssssssssss
+wwwwwssswwwwwwwwwssssdddddswwwwwwwwssssssssssssssssss
+ssssssssswwwwwwssssssssssssssswwwssssssssssssssssssss
+ssssssssssswwwsssssssssssssssssssssssssssssssssssssss
+ssssssssssswwwsssssssssssssssssssssssssssssssssssssss
+sssssssssssssssssssssccccccssssssssssssssssssssssssss
+sssssssssssssssssssscccccccccssssssssssssssssssssssss
+sssssssssssssssssssscccccccccssssssssssssssssssssssss
+ssssssccccccccssssssccccccccccsssssmmmmmmmsssssssssss
+cccccccccsscccsssssscccccccccscccccmmmmmmmmmssssmmmmm
+cccccccccsscccsssssscccccccccscccccmmmmmmmmmssssmmmmm
+cccccccccccgggcccccccccsccccccccccc......mmmmmmmmmmmm
+cccccccccggggggcccccccccggccccccmmm......mmmmmmmmmmmm
+cccccccccggggggcccccccccggccccccmmm......mmmmmmmmmmmm
+eeeeeeeeeggggggcccccccccggccccccmmmmmmmmmmmmmmmmmmmmm
+eeeeeeeeeeeeeee........ccccccgccmmmmmmmmmmmmmmmgggggg
+eeeeeeeeeeeeeee........ccccccgccmmmmmmmmmmmmmmmgggggg
+........eeeeeeeggggggggcccc............ccccccccgggggg
+gggggggg.......ggggggggcccc......ggggggccccccccgggggg
+gggggggg.......ggggggggcccc......ggggggccccccccgggggg
+ggggggggggggggggggggcccccccgggggggggggg........gggggg
+gggggggggggg......ggcccccccgggggggggggggggggggggggggg
+gggggggggggg......ggcccccccgggggggggggggggggggggggggg
+gggggggggggggg....ggcccccccgggggggggggggggggggggggggg
 """
 
 
@@ -104,93 +114,93 @@ func props() -> Array:
 		# ── 바다 ──────────────────────────────────────────────────────
 		# 부표 둘만 남겼다. 넷을 사방에 흩어 놓으면 바다가 넓어 보이는 게
 		# 아니라 어수선해진다. 부두 서쪽에 나란히 매어 둔 것처럼 둘.
-		[9, 2, "buoy", false],
-		[11, 3, "buoy", false],
+		[14, 4, "buoy", false],
+		[17, 5, "buoy", false],
 		# 부두 어귀. **사람이 만든 것이라 오와 열을 맞춘다** —
 		# 판자 둘이 어귀를 32px 폭으로 딱 채워 문설주처럼 선다.
-		[14, 5, "dock", false],
-		[16, 5, "dock", false],
+		[21, 8, "dock", false],
+		[24, 8, "dock", false],
 		# 부두 끝 — "부두 끝까지 걸어 나가 보기" 가 닿는 장면. 그물과
 		# 부표가 있어야 끝까지 나간 보람이 있다. 서는 칸(15,1)은 비운다.
-		[14, 2, "buoy", false],
-		[16, 3, "net", false],
+		[21, 4, "buoy", false],
+		[24, 5, "net", false],
 		# 갈매기 소년(18,7)의 발치 — 소년이 물가에서 조약돌을 고르던
 		# 참으로 보이게. 빈 모래 위에 점처럼 서 있지 않게 한다.
-		[17, 6, "pebbles", false],
-		[19, 7, "beach-grass", false],
+		[26, 10, "pebbles", false],
+		[29, 11, "beach-grass", false],
 
 		# ── 등대곶 ────────────────────────────────────────────────────
 		# 바위 셋을 **물가 선 위에** 얹는다. 모래가 y3 은 x25 부터, y2 는
 		# x27 부터 시작해 물가가 비스듬히 올라가는데, 바위도 그 선을 탄다.
 		# 하나는 물 위에 남겨 뒀다 — 곶이 바다로 이어지는 게 보인다.
-		[23, 3, "boulder", true],
-		[26, 3, "boulder", true],
-		[28, 2, "boulder", true],
-		[24, 4, "pebbles", false],
+		[35, 5, "boulder", true],
+		[39, 5, "boulder", true],
+		[42, 4, "boulder", true],
+		[36, 7, "pebbles", false],
 		# 등대는 96px(여섯 칸)짜리라 발을 5번 줄에 둬야 꼭대기가 안 잘린다.
 		# 몸이 x30~32 · y0~5 를 덮으므로 그 안에는 아무것도 안 둔다.
-		[31, 5, "lighthouse", true],
+		[47, 8, "lighthouse", true],
 
 		# ── 백사장 ────────────────────────────────────────────────────
 		# 파라솔 둘. 사람이 편 것이라 나란히 두되 한 칸씩 어긋낸다.
 		# 호스텔 몸(x2.9~6.1 · y6~12)에 안 걸리게 왼쪽 물가에 붙인다.
-		[3, 5, "parasol", false],
-		[1, 7, "parasol", false],
+		[5, 8, "parasol", false],
+		[2, 11, "parasol", false],
 		# 만 안쪽 갯풀. 물이 파고든 자리(x7~8, y6)의 **물가를 따라** 난다.
 		# 여섯 개를 백사장 전체에 흩던 것을 여기 한 무리로 모았다.
-		[9, 6, "beach-grass", false],
-		[7, 7, "beach-grass", false],
-		[8, 8, "pebbles", false],
+		[14, 10, "beach-grass", false],
+		[11, 11, "beach-grass", false],
+		[12, 13, "pebbles", false],
 		# 시장 뒷마당. 장작과 아이스박스가 붙어 있어야 살림처럼 보인다.
-		[27, 8, "firewood", true],
-		[29, 7, "icebox", false],
+		[41, 13, "firewood", true],
+		[44, 11, "icebox", false],
 		# 갯바위로 내려가는 어귀. 가게 지붕(x22~26 · y6~10)에 안
 		# 걸리게 그 서쪽 빈 백사장에 둔다.
-		[20, 9, "pebbles", false],
+		[30, 14, "pebbles", false],
 
 		# ── 마을 ──────────────────────────────────────────────────────
 		# 돌길이 백사장으로 나가는 어귀. 가로등 하나로 표시한다 —
 		# 앞마당(x14~22)은 처음 서는 자리라 **비워 둔다.**
-		[13, 10, "street-lamp", true],
+		[20, 16, "street-lamp", true],
 		# 호스텔과 그 발치. 화분은 문(4,12) 왼쪽, 벤치는 오른쪽 모서리에.
-		[4, 11, "guesthouse", true],
-		[2, 12, "flower-pots", false],
-		[6, 12, "bench", true],
+		[6, 17, "guesthouse", true],
+		[3, 19, "flower-pots", false],
+		[9, 19, "bench", true],
 		# 마을 한복판 풀밭. 나무 하나에 덤불 하나를 비스듬히 아래로.
 		# 나무 몸이 x6.4~9.6 · y9.5~13 을 덮으니 덤불은 그 밖 앞쪽에 둔다.
-		[8, 13, "tree", true],
-		[10, 14, "shrub", false],
+		[12, 20, "tree", true],
+		[15, 22, "shrub", false],
 		# 큰길 벤치. 가게 할머니가 저녁에 (17,14) 에 서서 하루를 닫는다.
-		[16, 14, "bench", true],
+		[24, 22, "bench", true],
 		# 살림골목 — 장독대·빨랫줄·펌프가 붙어 있어야 사람이 산다.
 		# 장독 둘은 일부러 겹쳐 놓았다. 떨어뜨리면 항아리 두 개고,
 		# 붙이면 장독대다.
-		[1, 13, "jars", true],
-		[2, 13, "jars", true],
-		[3, 14, "clothesline", true],
-		[5, 14, "pump", true],
+		[2, 20, "jars", true],
+		[3, 20, "jars", true],
+		[5, 22, "clothesline", true],
+		[8, 22, "pump", true],
 		# 가게와 그 발치. 문(24,11) 앞은 할머니가 서니 비우고 왼쪽에만.
-		[24, 10, "shop", true],
-		[22, 11, "flower-pots", false],
+		[36, 16, "shop", true],
+		[33, 17, "flower-pots", false],
 
 		# ── 시장 ──────────────────────────────────────────────────────
 		# 좌판 셋. **44px 라 세 칸 간격이라야 나란히 선다** — 두 칸이면
 		# 서로 파고든다(예전 (27,12)(29,12) 가 그랬다).
 		# 뒷줄 둘을 딱 붙여 한 줄로 세우고, 앞줄 하나를 어긋나게 내려
 		# 골목이 생기게 했다. 연장은 그 앞에 내놓은 물건이다.
-		[28, 11, "stall", true],
-		[31, 11, "stall", true],
-		[29, 13, "stall", true],
-		[28, 14, "tools", false],
+		[42, 17, "stall", true],
+		[47, 17, "stall", true],
+		[44, 20, "stall", true],
+		[42, 22, "tools", false],
 
 		# ── 정류장 ────────────────────────────────────────────────────
 		# 떠나는 자리 (32,13) 둘레. 사람이 만든 것 넷이 한 덩어리로 선다.
-		[33, 11, "street-lamp", true],
-		[32, 12, "bench", true],
-		[34, 12, "mailbox", true],
+		[50, 17, "street-lamp", true],
+		[48, 19, "bench", true],
+		[51, 19, "mailbox", true],
 		# 표지판은 **막지 않는다.** 그 위로 걸어 지나갈 수 있어야
 		# 정류장 앞이 좁아 보이지 않는다.
-		[33, 13, "signpost", false],
+		[50, 20, "signpost", false],
 
 		# ── 언덕 ──────────────────────────────────────────────────────
 		# 여덟 그루를 다섯 칸 간격으로 늘어놓던 것을 **숲 넷**으로 묶었다.
@@ -200,82 +210,82 @@ func props() -> Array:
 		#
 		# 소나무는 네 칸 높이다. 18번 줄보다 위에 발을 두면 꼭대기가
 		# 살림골목 빨랫줄까지 올라와 겹친다. 그래서 18·19번 줄에 심는다.
-		[2, 18, "pine", true],
-		[4, 19, "tree", true],
-		[1, 19, "shrub", false],
+		[3, 28, "pine", true],
+		[6, 29, "tree", true],
+		[2, 29, "shrub", false],
 		# 가운데 숲. 솔방울(13,17) 은 소나무 발치에 떨어진 것처럼 두되,
 		# 소나무 발을 16번 줄에 둬 솔방울이 그 앞에 그려지게 한다.
-		[10, 18, "tree", true],
-		[13, 16, "pine", true],
+		[15, 28, "tree", true],
+		[20, 25, "pine", true],
 		# 동쪽 숲. 꽃(20,16) 을 가리지 않게 x21 부터 시작한다.
-		[23, 18, "tree", true],
-		[25, 19, "pine", true],
+		[35, 28, "tree", true],
+		[38, 29, "pine", true],
 		# 바위를 (21,19) 에 두면 나무(23,18)·소나무(25,19) 와 함께
 		# (22~24,19) 석 칸을 지도 아래 모서리에 가둔다 — 몸으로는
 		# 비집고 들어가지는데 길찾기는 못 나온다. 한 칸 올린다.
-		[21, 18, "boulder", true],
+		[32, 28, "boulder", true],
 		# 남동 모서리. 가장자리는 촘촘히 — 지도가 허공에서 안 끝난다.
-		[31, 18, "pine", true],
-		[33, 17, "pine", true],
+		[47, 28, "pine", true],
+		[50, 26, "pine", true],
 	]
 
 
 func pickups() -> Array:
 	return [
-		[24, 5, "p-shell"],        # 백사장
-		[12, 7, "p-shell"],
-		[6, 7, "p-seaglass"],
-		[19, 8, "p-pebble"],
-		[13, 17, "p-pinecone"],    # 언덕
-		[20, 16, "p-flower"],
+		[36, 8, "p-shell"],        # 백사장
+		[18, 11, "p-shell"],
+		[9, 11, "p-seaglass"],
+		[29, 13, "p-pebble"],
+		[20, 26, "p-pinecone"],    # 언덕
+		[30, 25, "p-flower"],
 	]
 
 
 ## 마을길 한가운데. 위로 가면 바다, 아래로 가면 언덕이다.
 func spawn_tile() -> Vector2i:
-	return Vector2i(17, 12)
+	return Vector2i(26, 19)
 
 
 ## 호스텔 문 앞. 여기서 자면 다음 날이다.
 ## 호스텔은 11번 줄 x3~5 를 막으므로 문 앞은 12번 줄이다.
 func sleep_tile() -> Vector2i:
-	return Vector2i(4, 12)
+	return Vector2i(6, 19)
 
 
 ## 마을 끝 버스 정류장. 바로 옆 (33,13) 에 표지판이 서 있다.
 func depart_tile() -> Vector2i:
-	return Vector2i(32, 13)
+	return Vector2i(48, 20)
 
 
 func wanderer_tile() -> Vector2i:
 	# 예전 (28,13) 은 좌판 콜라이더에 걸려 설 수 없는 칸이었다.
 	# 말은 걸렸지만 너구리가 좌판을 뚫고 서 있었다. 큰길 위에 세운다.
-	return Vector2i(21, 12)
+	return Vector2i(32, 19)
 
 
 ## "저 등대까지 가 봤어요?" — 갈매기 소년이 궁금해하던 그 자리.
 func quest_zones() -> Array:
 	return [
-		["윤슬:등대", Vector2i(31, 5), 56.0],
+		["윤슬:등대", Vector2i(47, 8), 56.0],
 		# 부두 끝. 판자가 바다로 나간 그 끝 — 걸어 나가 봐야 아는 자리다.
-		["윤슬:부두끝", Vector2i(15, 1), 36.0],
+		["윤슬:부두끝", Vector2i(23, 2), 36.0],
 	]
 
 
 ## 가게(24,10) 문 앞. 가게는 한 칸만 막으므로 문 앞은 바로 아랫줄이다.
 func doors() -> Array:
 	return [
-		{"tile": Vector2i(24, 11),
+		{"tile": Vector2i(36, 17),
 			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 			"label": "가게 들어가기"},
 		# 등대 밑동(31,5) 바로 앞. 나선 계단을 오르는 서브맵으로 이어진다.
-		{"tile": Vector2i(31, 6),
+		{"tile": Vector2i(47, 10),
 			"scene": "res://scenes/journey/interiors/LighthouseInterior.tscn",
 			"label": "등대 들어가기", "enter_key": "등대안"},
 		# 백사장, 물이 빠지면 드러나는 바위 어귀. 문이 아니라
 		# "내려가는 자리" 라 `enter_key` 를 따로 준다 (`GatherGround` 가
 		# 완료 표시를 안쪽 자리에서 낸다).
-		{"tile": Vector2i(20, 8),
+		{"tile": Vector2i(30, 13),
 			"scene": "res://scenes/journey/interiors/GatherGround.tscn",
 			"label": "갯바위로 내려가기", "enter_key": "갯바위"},
 	]
@@ -292,7 +302,7 @@ func on_built() -> void:
 	# **문(24,11) 위에 세우면 안 된다.** 낮 내내 문을 몸으로 막고 서서,
 	# 문을 눌러도 대화만 열리고 "가게 들어가 보기" 를 할 수가 없었다.
 	# 한 칸 옆(23,11)에 세운다 — 화분 곁, 문을 지키되 막지는 않는 자리.
-	put_folk(Vector2i(22, 14), "seal", "가게 할머니", "seal", [
+	put_folk(Vector2i(33, 22), "seal", "가게 할머니", "seal", [
 		["어서 와요. 처음 보는 얼굴이네.", "아이스크림 하나 들고 가.",
 			"이 지도도 가지고 다녀. 낯선 데서 길 잃지 말고."],
 		["오늘은 바람이 좀 차지.", "감기 조심하고."],
@@ -306,13 +316,13 @@ func on_built() -> void:
 		# 아침 자리가 골목 맨 끝(1,12)이었는데, 첫 과업("지도 받기")의
 		# 상대가 **미니맵도 없는 유일한 구간**에서 지도 반대편 끝에
 		# 있었다 — 골목 어귀로 당긴다. 살림 도는 결은 그대로다.
-		"아침": Vector2i(11, 12),
-		"낮": Vector2i(22, 14),
-		"저녁": Vector2i(17, 14),
+		"아침": Vector2i(17, 19),
+		"낮": Vector2i(33, 22),
+		"저녁": Vector2i(26, 22),
 	}, "map")
 
 	# 마찬가지로 카메라를 준다 — 셔터 버튼이 여기서부터 켜진다.
-	put_folk(Vector2i(18, 7), "seagull", "갈매기 소년", "seagull", [
+	put_folk(Vector2i(27, 11), "seagull", "갈매기 소년", "seagull", [
 		["아저씨 여기 사람 아니죠?", "걷는 게 딱 티 나요.",
 			"이거 써 봐요. 나는 두 개거든요."],
 		["저 등대까지 가 봤어요?", "생각보다 안 멀어요."],
@@ -327,24 +337,24 @@ func on_built() -> void:
 		# 저녁엔 등대곶 끝 — "저 등대까지 가 봤어요?"의 그 등대 곁에서
 		# 불 켜지는 걸 본다. 마을(스폰) 쪽에서 화면 밖일 만큼 멀어야
 		# 시간표 이동이 눈앞 순간이동 없이 일어난다.
-		"아침": Vector2i(13, 6),
-		"낮": Vector2i(18, 7),
-		"저녁": Vector2i(29, 2),
+		"아침": Vector2i(20, 10),
+		"낮": Vector2i(27, 11),
+		"저녁": Vector2i(44, 4),
 	}, "camera")
 
 	# 숨은 자취 — 갈매기 소년이 말한 "빛이 머문 자리" 셋.
 	# 좌표를 지도에 다 찍어 주지 않는다. 마을을 걸으며 반짝임을
 	# 눈으로 찾는 놀이다 (`Place.put_trace`, `Quests.SIDE`).
 	# 부두 곁 / 모래와 풀이 만나는 곳 / 등대곶 — 서로 여덟 칸 넘게 떨어져 있다.
-	put_trace(Vector2i(12, 5), "빛자리1", [
+	put_trace(Vector2i(18, 8), "빛자리1", [
 		"판자 틈 곁, 젖은 모래가 반짝인다.",
 		"배가 지나간 자리마다 빛이 남는 걸까.",
 	])
-	put_trace(Vector2i(24, 15), "빛자리2", [
+	put_trace(Vector2i(36, 23), "빛자리2", [
 		"마른 풀 사이에 작은 빛이 걸려 있다.",
 		"모래도 풀도 아닌 딱 그 사이에서만 보인다.",
 	])
-	put_trace(Vector2i(27, 4), "빛자리3", [
+	put_trace(Vector2i(41, 7), "빛자리3", [
 		"바위 그늘 밑에서 빛이 숨을 쉰다.",
 		"등대 불빛과는 다른, 작고 낮은 빛이다.",
 	])
@@ -352,7 +362,7 @@ func on_built() -> void:
 	# **몽이** - 꿈결의 안내 요정 (`docs/redesign-dream.md` 2절 "기").
 	# 도착한 자리 바로 곁에서 팔랑인다. 꿈결이 무엇인지, 싸우는 법,
 	# 속성, 직업, 그리고 야근 대마왕을 알려 준다 - 말을 걸수록 한 칸씩.
-	put_folk(_nearest_walkable(Vector2i(14, 13)), "mongi", "몽이", "mongi", [
+	put_folk(_nearest_walkable(Vector2i(21, 20)), "mongi", "몽이", "mongi", [
 		[["몽이", "앗, 또 한 명 떨어졌네! 안녕, 나는 몽이야."],
 			["몽이", "여긴 꿈결. 야근하다 잠든 사람들이 오는 꿈속 세상이야."],
 			["몽이", "요즘 야근 대마왕의 그림자가 번져서 몬스터들이 사나워졌어."],

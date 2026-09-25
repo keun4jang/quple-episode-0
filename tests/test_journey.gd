@@ -110,6 +110,7 @@ func _ready() -> void:
 	await _tower_tests()
 	await _buddy_tests()
 	await _sky_tests()
+	await _hud_help_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -3130,7 +3131,7 @@ func _action_button_overflow_tests() -> void:
 	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
 	add_child(p)
 	await get_tree().process_frame
-	p.walker.global_position = p.world_of(Vector2i(20, 8))
+	p.walker.global_position = p.world_of(_st(20, 8))
 	await get_tree().process_frame
 	p._refresh_action()
 	await get_tree().process_frame
@@ -3832,11 +3833,13 @@ func _placement_lint_tests() -> void:
 					sg.get_meta("rect", Rect2())])
 		var doors_with_sign := 0
 		for d2 in p.doors():
-			var above := Vector2i(d2["tile"]) + Vector2i(0, -1)
-			for pr3 in p.props():
-				if Vector2i(pr3[0], pr3[1]) == above \
-						and p.sign_of(String(pr3[2]), above) != "":
-					doors_with_sign += 1
+			# 마을을 1.5배로 넓히며 문과 건물 사이가 한 칸 벌어진 곳이 있다.
+			for up in [1, 2]:
+				var above := Vector2i(d2["tile"]) + Vector2i(0, -up)
+				for pr3 in p.props():
+					if Vector2i(pr3[0], pr3[1]) == above \
+							and p.sign_of(String(pr3[2]), above) != "":
+						doors_with_sign += 1
 		ok(doors_with_sign > 0 or p.doors().is_empty(),
 			"%s: 들어갈 수 있는 건물에 간판이 있다 (%d개)" % [village, doors_with_sign])
 		var sclash: Array = []
@@ -3923,7 +3926,7 @@ func _how_to_play_tests() -> void:
 		names.append(String(sp[3]))
 	for must in ["메뉴", "작은 지도", "설정"]:
 		ok(names.has(must), "%s 자리를 알려 준다" % must)
-	ok(HowToPlay.HOWS.size() == 4, "조작은 네 줄로 적는다 (걷기·누르기·싸우기·확대)")
+	ok(HowToPlay.HOWS.size() == 5, "다섯 줄로 적는다 (무슨 게임인지·메인 퀘스트·걷기·싸우기·확대)")
 
 	# 닫으면 표시가 남아 다시 안 뜬다
 	card._close()
@@ -4201,10 +4204,10 @@ func _trace_tests() -> void:
 		if String(q.get("kind", "")) == "trace":
 			row = q
 	ok(not row.is_empty(), "목록에 자취 줄이 있다")
-	p.walker.global_position = p.world_of(Vector2i(13, 7))
+	p.walker.global_position = p.world_of(_st(13, 7))
 	var g1 := p.goal_world(row)
 	ok(g1 != Vector2.INF, "지도가 한 자리를 짚는다")
-	ok(p.tile_of(g1 + Vector2(0, -1)).distance_to(Vector2(12, 5)) <= 1.5,
+	ok(p.tile_of(g1 + Vector2(0, -1)).distance_to(Vector2(_st(12, 5))) <= 2.0,
 		"부두 곁에 서면 부두 곁 자리를 짚는다 (%s)" % p.tile_of(g1))
 
 	# 살펴보면 하나씩 기록되고, 반짝임은 그 자리만 멎는다
@@ -4931,9 +4934,12 @@ func _walk_squeeze_tests() -> void:
 	var gap: Place = load(GOAL_SCENES["가풀재"]).instantiate()
 	add_child(gap)
 	await get_tree().process_frame
-	ok(not gap._walkable(Vector2i(12, 7)),
-		"가풀재: 좌판 두 개 사이(12,7)는 몸보다 좁아 막힌다")
-	gap.walker.global_position = gap.world_of(Vector2i(17, 2))
+	# 마을을 1.5배로 넓히며 좌판 사이가 두 칸이 됐다 - 막혔거나, 뚫렸으면
+	# 실제로 걸어서 지나갈 수 있어야 한다 (길찾기만 뚫린 칸으로 보고 끼면 안 된다).
+	var mid7 := _st(12, 7) + Vector2i(1, -1)
+	var through: bool = not gap._walkable(mid7) or await _walk_real(gap, mid7, 20.0)
+	ok(through, "가풀재: 좌판 두 개 사이는 막혔거나 실제로 지나갈 수 있다 %s" % mid7)
+	gap.walker.global_position = gap.world_of(_st(17, 2))
 	var ok1: bool = await _walk_real(gap, gap.sleep_tile(), 30.0)
 	ok(ok1, "가풀재: 부두 쪽에서 와도 잠자리까지 걸어간다")
 	gap.queue_free()
@@ -4956,8 +4962,9 @@ func _walk_squeeze_tests() -> void:
 	gap = load(GOAL_SCENES["가풀재"]).instantiate()
 	add_child(gap)
 	await get_tree().process_frame
-	ok(not gap._walkable(Vector2i(10, 7)),
-		"가풀재: 좌판 옆 칸(10,7)도 몸보다 좁아 막힌다")
+	var side7 := _st(10, 7) + Vector2i(0, -1)
+	var side_ok: bool = not gap._walkable(side7) or await _walk_real(gap, side7, 20.0)
+	ok(side_ok, "가풀재: 좌판 옆 칸은 막혔거나 실제로 닿는다 %s" % side7)
 	var ok1b: bool = await _walk_real(gap, Vector2i(12, 4), 25.0)
 	ok(ok1b, "가풀재: 부두 조개(12,4) 까지 걸어간다")
 	gap.queue_free()
@@ -5033,7 +5040,7 @@ func _walk_gives_up_tests() -> void:
 	await get_tree().process_frame
 	# 강 한복판 물칸. `walk_to()` 를 거치면 가장 가까운 뭍으로 옮겨
 	# 잡히므로, 길목을 직접 박아 "절대 못 닿는 자리" 를 만든다.
-	var wall := Vector2i(28, 10)
+	var wall := _st(28, 10)
 	ok(not p._walkable(wall), "고른 자리(%s)가 실제로 못 가는 칸이다" % wall)
 	p._path = [p.world_of(wall)] as Array[Vector2]
 	var spent := 0.0
@@ -7639,17 +7646,19 @@ func _hunt_tests() -> void:
 
 	# 오른쪽 아래 공격·스킬 버튼 (바람의나라·메이플처럼)
 	var pad: FightPad = p.hud.fight
-	# **붙었을 때만 뜬다.** 멀리 있으면 마을을 가리지 않는다
+	# [공격] 은 늘 떠 있고, 스킬 칸·체력 막대는 **붙었을 때만** 뜬다
 	p.walker.global_position = Vector2(-900, -900)
 	p._fight_t = 0.0
 	var until0 := Time.get_ticks_msec() + 1500
-	while pad.visible and Time.get_ticks_msec() < until0:
+	while pad.engaged() and Time.get_ticks_msec() < until0:
 		await get_tree().process_frame
-	ok(pad != null and not pad.visible, "몬스터와 떨어져 있으면 공격 버튼이 없다")
+	ok(pad != null and pad.visible and not pad.engaged(),
+		"몬스터와 떨어져 있으면 공격 버튼만 있고 스킬 칸·막대는 숨는다")
 	p.walker.global_position = p._shades[0].global_position + Vector2(12, 0)
-	for i in 12:
+	var until1 := Time.get_ticks_msec() + 1500
+	while not pad.engaged() and Time.get_ticks_msec() < until1:
 		await get_tree().process_frame
-	ok(pad != null and pad.visible, "몬스터 가까이 가면 공격 버튼이 뜬다")
+	ok(pad != null and pad.visible and pad.engaged(), "몬스터 가까이 가면 스킬 칸·막대도 뜬다")
 	# 보이는 것만으로는 모자란다 - 판 크기가 0 이라 버튼이 화면 밖에 나가 있던 적이 있다
 	var vr := p.get_viewport().get_visible_rect()
 	var inside := true
@@ -8311,4 +8320,91 @@ func _sky_tests() -> void:
 	jm.queue_free()
 	await get_tree().process_frame
 	JourneyState.here = "윤슬"
+	Field.jitter = true
+
+
+
+## 마을을 1.5배로 넓히기 전 칸 → 지금 칸 (`tools` 의 넓히기와 같은 셈).
+## 가로는 덩어리의 첫 칸, 세로는 마지막 칸(발밑 기준).
+func _st(x: int, y: int) -> Vector2i:
+	return Vector2i(ceili(1.5 * x), ceili(1.5 * (y + 1)) - 1)
+
+
+
+# ── 경험 막대 · 공격 몸짓 · 길 표시 · 스크롤 · 메인 퀘스트 ────────────
+
+func _hud_help_tests() -> void:
+	print("\n[경험 막대 · 공격 몸짓 · 길 · 스크롤 · 메인 퀘스트]")
+	_clean_state()
+	ok(String(MainQuest.now()["head"]) == "프롤로그", "처음 메인 퀘스트는 프롤로그")
+	JourneyState.mark_quest("잿마루:정류장")
+	var m1 := MainQuest.now()
+	ok(int(m1["chapter"]) == 1 and String(m1["goal"]).contains("물방울 대왕"),
+		"정류장을 떠나면 1장 윤슬 우두머리: %s" % m1["goal"])
+	JourneyState.mark_quest("보스:윤슬")
+	ok(int(MainQuest.now()["chapter"]) == 2, "윤슬 보스 뒤엔 2장")
+	ok(HowToPlay.HOWS[0].contains("RPG") and HowToPlay.HOWS[1].contains("메인 퀘스트"),
+		"하는 법 첫 줄이 이 게임이 무엇인지 말한다")
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	# 경험 막대 - 늘 보이고, 레벨업까지 남은 양을 적는다
+	ok(p.hud.xp_bar != null and p.hud.xp_bar.visible and XpBar.text_now().contains("레벨업까지"),
+		"화면 아래 경험 막대: %s" % XpBar.text_now())
+	var r: Rect2 = p.hud.xp_bar.get_global_rect()
+	var vp_r := p.get_viewport().get_visible_rect()
+	ok(r.size.x > vp_r.size.x * 0.9 and r.end.y <= vp_r.end.y and r.position.y > vp_r.end.y - 60.0,
+		"경험 막대는 화면 맨 아래 가로로 길다 %s" % r)
+	# 메인 퀘스트 칸
+	p.hud._refresh_main_quest()
+	ok(p.hud.main_quest.visible and p.hud._mq_goal.text.contains("불꽃 도깨비"),
+		"왼쪽에 메인 퀘스트가 뜬다: %s" % p.hud._mq_goal.text)
+	# 공격 버튼 - 몬스터가 곁에 없어도 떠 있고, 누르면 몸짓을 한다
+	var until := Time.get_ticks_msec() + 1500
+	while p.hud.fight.modulate.a < 0.99 and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
+	var far := true
+	for sh in p._shades:
+		if sh.global_position.distance_to(p.walker.global_position) < 80.0:
+			far = false
+	ok(p.hud.fight.visible and p.hud.fight._attack.visible, "몬스터가 서는 곳이면 공격 버튼이 늘 떠 있다")
+	if far:
+		ok(not p.hud.fight.engaged(), "붙지 않았으면 스킬 칸·체력 막대는 숨는다")
+	for sh in p._shades:
+		sh.queue_free()
+	p._shades.clear()
+	await get_tree().process_frame
+	Field.cooldown.clear()
+	p.field_use("tap")
+	ok(p._pose_tw != null and p._pose_tw.is_valid(), "닿는 데 아무도 없어도 공격 몸짓을 한다")
+	# 목표까지 가는 길 - 금빛 점
+	p.walker.global_position = p.world_of(p.spawn_tile())
+	var tries := 0
+	while p._path_pts.size() < 3 and tries < 20:
+		await get_tree().process_frame
+		tries += 1
+	var g := p.current_goal()
+	var far_goal: bool = not g.is_empty() and p.goal_world(g) != Vector2.INF \
+		and p.walker.global_position.distance_to(p.goal_world(g)) > Place.TILE * 6.0
+	if far_goal:
+		ok(p._path_pts.size() >= 3, "목표까지 걸을 길을 점으로 깐다 (%d점)" % p._path_pts.size())
+	p.queue_free()
+	await get_tree().process_frame
+	# 여행판 목록 - 스크롤 막대가 엄지 폭이고, 버튼 위에서 끌어도 굴러간다
+	var yp: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yp)
+	await get_tree().process_frame
+	yp.board.open(yp.place_name())
+	await get_tree().process_frame
+	var passing := true
+	for b in yp.board._list.get_children():
+		if b is BaseButton and (b as Control).mouse_filter != Control.MOUSE_FILTER_PASS:
+			passing = false
+	ok(yp.board._scroll.get_v_scroll_bar().custom_minimum_size.x >= TouchScroll.BAR_W
+		and passing, "여행판 목록: 굵은 스크롤 막대, 버튼 위에서 끌어도 굴러간다")
+	yp.board.close()
+	yp.queue_free()
+	await get_tree().process_frame
 	Field.jitter = true

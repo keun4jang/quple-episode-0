@@ -38,27 +38,38 @@ func _init() -> void:
 ## 아래는 흙마당과 박석마당 두 덩어리.
 func ground_map() -> String:
 	return """
-....gggggggggggggggggggggg.........
-...gggggggggggggggggggggggggg......
-..gggg....ggggggggggggggggggggg....
-g..gg......ggggggggggggggggggg.....
-gg......gggggggggggggggggggg......g
-ggg....gggggggggssssggggggg.....ggg
-gg....ggggggggssssssssggggggg......
-.....gggggggssssssssssssgggg.......
-..ccc....ggggssssssssssgg..ccc.....
-..ccccccccc.ggg.tttt..ccccccccc....
-ccccccccccccggccccccccccccccccccddd
-cccccccccccccccccccccccccccccccdddd
-ccccccccdddcccgggcccccccccccccccddd
-ccccccc.ddddddggggcccccccccbbbb....
-.....gdddddddddggggggbbbbbbbbbb....
-....gdddddddddggggggbbbbbbbbbg.....
-g....gdddddddggggggggbbbbbbbg.....g
-...ggggdddddggggggggggbbbbbggg.....
-gg.....gdddggggggggggggbbbgg.....gg
-......gggggggg.....gggggggg........
-....gggggggg.....gggggggg......gggg
+......ggggggggggggggggggggggggggggggggg..............
+......ggggggggggggggggggggggggggggggggg..............
+.....ggggggggggggggggggggggggggggggggggggggg.........
+...gggggg......gggggggggggggggggggggggggggggggg......
+...gggggg......gggggggggggggggggggggggggggggggg......
+gg...ggg.........gggggggggggggggggggggggggggg........
+ggg.........gggggggggggggggggggggggggggggg.........gg
+ggg.........gggggggggggggggggggggggggggggg.........gg
+ggggg......gggggggggggggssssssggggggggggg.......ggggg
+ggg......ggggggggggggssssssssssssggggggggggg.........
+ggg......ggggggggggggssssssssssssggggggggggg.........
+........ggggggggggssssssssssssssssssgggggg...........
+...ccccc......ggggggsssssssssssssssggg...cccc........
+...ccccc......ggggggsssssssssssssssggg...cccc........
+...cccccccccccccc.ggggg.tttttt...cccccccccccccc......
+ccccccccccccccccccgggcccccccccccccccccccccccccccddddd
+ccccccccccccccccccgggcccccccccccccccccccccccccccddddd
+cccccccccccccccccccccccccccccccccccccccccccccccdddddd
+ccccccccccccdddddccccgggggccccccccccccccccccccccddddd
+ccccccccccccdddddccccgggggccccccccccccccccccccccddddd
+ccccccccccc.dddddddddggggggccccccccccccccbbbbbb......
+........gddddddddddddddgggggggggbbbbbbbbbbbbbbb......
+........gddddddddddddddgggggggggbbbbbbbbbbbbbbb......
+......ggdddddddddddddgggggggggbbbbbbbbbbbbbbg........
+gg......gdddddddddddggggggggggggbbbbbbbbbbgg.......gg
+gg......gdddddddddddggggggggggggbbbbbbbbbbgg.......gg
+.....ggggggdddddddgggggggggggggggbbbbbbbbgggg........
+ggg........gdddddggggggggggggggggggbbbbggg........ggg
+ggg........gdddddggggggggggggggggggbbbbggg........ggg
+.........gggggggggggg........gggggggggggg............
+......gggggggggggg........gggggggggggg.........gggggg
+......gggggggggggg........gggggggggggg.........gggggg
 """
 
 
@@ -72,144 +83,150 @@ func props() -> Array:
 	return [
 		# 능. 이 마을 이름이 "능 앞 마을" 인데 봉분이 없었다 — 잔디 언덕에
 		# 박석만 깔려 있어서 무엇을 보러 온 곳인지 알 수가 없었다.
-		[16, 6, "burial-mound", true],
+		[24, 10, "burial-mound", true],
 		# ── 능을 두른 숲. 지도 가장자리를 막아 세상이 끊겨 보이지 않게 한다
-		[1, 2, "pine", true],
-		[4, 0, "tree", true],
-		[7, 2, "pine", true],
-		[2, 4, "tree", true],
-		[10, 1, "tree", true],
-		[16, 1, "tree", true],
-		[25, 1, "pine", true],
-		[29, 3, "tree", true],
-		[33, 1, "pine", true],
-		[32, 5, "pine", true],
-		[30, 7, "tree", true],
-		[27, 5, "shrub", false],
-		[20, 2, "shrub", false],
+		[2, 4, "pine", true],
+		[6, 1, "tree", true],
+		[11, 4, "pine", true],
+		[3, 7, "tree", true],
+		[15, 2, "tree", true],
+		[24, 2, "tree", true],
+		[38, 2, "pine", true],
+		[44, 5, "tree", true],
+		[50, 2, "pine", true],
+		[48, 8, "pine", true],
+		[45, 11, "tree", true],
+		[41, 8, "shrub", false],
+		[30, 4, "shrub", false],
 
 		# ── 능. 낮은 봉분과 그 앞 박석
-		[13, 3, "boulder", true],
-		[22, 3, "boulder", true],
-		[17, 4, "boulder", true],
-		[20, 5, "flower-pots", false],
-		[12, 8, "boulder", true],
-		[22, 9, "boulder", true],
+		[20, 5, "boulder", true],
+		[33, 5, "boulder", true],
+		[26, 7, "boulder", true],
+		[30, 8, "flower-pots", false],
+		[18, 13, "boulder", true],
+		[33, 14, "boulder", true],
 		# 능을 두른 낮은 울. 세로로만 서니 위아래로는 막지 않는다 —
 		# 섬돌(x16~19)로 오르는 길은 늘 열려 있다.
-		[11, 5, "fence", true],
-		[11, 6, "fence", true],
-		[11, 7, "fence", true],
-		[24, 5, "fence", true],
-		[24, 6, "fence", true],
-		[23, 6, "fence", true],
+		[17, 8, "fence", true],
+		[17, 10, "fence", true],
+		[17, 11, "fence", true],
+		[36, 8, "fence", true],
+		[36, 10, "fence", true],
+		[35, 10, "fence", true],
 
 		# ── 돌길 북쪽. 낮은 기와지붕이 늘어선 쪽
-		[4, 9, "guesthouse", true],
-		[8, 9, "shop", true],
-		[11, 9, "mailbox", true],
-		[14, 9, "street-lamp", true],
-		[21, 9, "street-lamp", true],
-		[23, 9, "stall", true],
-		[24, 9, "stall", true],
-		[27, 9, "shop", true],
-		[31, 9, "jars", true],
+		[6, 14, "guesthouse", true],
+		[12, 14, "shop", true],
+		[17, 14, "mailbox", true],
+		[21, 14, "street-lamp", true],
+		[32, 14, "street-lamp", true],
+		[35, 14, "stall", true],
+		[36, 14, "stall", true],
+		[41, 14, "shop", true],
+		[47, 14, "jars", true],
 
 		# ── 돌길 남쪽. 살림이 나와 앉은 쪽
-		[2, 13, "jars", true],
-		[3, 13, "jars", true],
-		[5, 13, "flower-pots", false],
-		[9, 13, "washtub", true],
-		[12, 13, "firewood", true],
-		[19, 13, "stall", true],
-		[20, 13, "stall", true],
-		[23, 13, "bench", true],
-		[25, 13, "street-lamp", true],
-		[29, 13, "fence", true],
-		[30, 13, "fence", true],
+		[3, 20, "jars", true],
+		[5, 20, "jars", true],
+		[8, 20, "flower-pots", false],
+		[14, 20, "washtub", true],
+		[18, 20, "firewood", true],
+		[29, 20, "stall", true],
+		[30, 20, "stall", true],
+		[35, 20, "bench", true],
+		[38, 20, "street-lamp", true],
+		[44, 20, "fence", true],
+		[45, 20, "fence", true],
 
 		# ── 아랫마당. 흙마당에는 밭과 펌프, 박석마당에는 장독대
-		[7, 15, "clothesline", true],
-		[10, 15, "pump", true],
-		[7, 17, "home-garden", false],
-		[10, 17, "home-garden", false],
-		[12, 16, "jars", true],
-		[13, 16, "jars", true],
-		[22, 15, "bench", true],
-		[25, 15, "clothesline", true],
-		[23, 17, "jars", true],
-		[24, 17, "jars", true],
-		[27, 17, "shrub", false],
+		[11, 23, "clothesline", true],
+		[15, 23, "pump", true],
+		[11, 26, "home-garden", false],
+		[15, 26, "home-garden", false],
+		[18, 25, "jars", true],
+		[20, 25, "jars", true],
+		[33, 23, "bench", true],
+		[38, 23, "clothesline", true],
+		[35, 26, "jars", true],
+		[36, 26, "jars", true],
+		[41, 26, "shrub", false],
 
 		# ── 아래 가장자리
-		[0, 17, "tree", true],
-		[3, 19, "pine", true],
-		[16, 19, "tree", true],
-		[8, 20, "shrub", false],
-		[31, 16, "pine", true],
-		[33, 19, "tree", true],
-		[28, 20, "shrub", false],
+		[0, 26, "tree", true],
+		[5, 29, "pine", true],
+		[24, 29, "tree", true],
+		[12, 31, "shrub", false],
+		[47, 25, "pine", true],
+		[50, 29, "tree", true],
+		[42, 31, "shrub", false],
 
 		# ── 버스 서는 자리. 표지판은 안 막는다 — 그 위로 걸어가도 된다
-		[32, 12, "bench", true],
-		[33, 10, "signpost", false],
+		[48, 19, "bench", true],
+		[50, 16, "signpost", false],
 		# ── 흙마당 생활터 (볕뉘:흙마당 장면) — 빨래·장작이 있어야 산다
-		[12, 18, "bench", true],
-		[8, 15, "washtub", false],
-		[7, 17, "firewood", true],
-		[13, 15, "jars", true],
+		[18, 28, "bench", true],
+		[12, 23, "washtub", false],
+		[11, 26, "firewood", true],
+		[20, 23, "jars", true],
 		# ── 두 가게 사이 장터 — 아주머니 낮 자리(10,12) 곁
-		[23, 12, "stall", true],
-		[25, 13, "flower-pots", false],
-		[21, 13, "jars", true],
+		[35, 19, "stall", true],
+		[38, 20, "flower-pots", false],
+		[32, 20, "jars", true],
 		# ── 감나무 밭으로 들어가는 자리 ───────────────────────────
-		[19, 18, "shrub", false],
+		[29, 28, "shrub", false],
+		# ── 1.5배로 넓히며 줄지어 선 소품 사이 틈을 메운 것
+		[17, 9, "fence", true],
+		[36, 9, "fence", true],
+		[4, 20, "jars", true],
+		[19, 25, "jars", true],
+		[20, 24, "jars", true],
 	]
 
 
 func pickups() -> Array:
 	return [
-		[5, 3, "p-pinecone"],
-		[18, 6, "p-flower"],
-		[27, 4, "p-acorn"],
-		[5, 16, "p-pebble"],
-		[26, 16, "p-acorn"],
-		[11, 19, "p-pebble"],
+		[8, 5, "p-pinecone"],
+		[27, 10, "p-flower"],
+		[41, 7, "p-acorn"],
+		[8, 25, "p-pebble"],
+		[39, 25, "p-acorn"],
+		[17, 29, "p-pebble"],
 	]
 
 
 func spawn_tile() -> Vector2i:
-	return Vector2i(17, 11)
+	return Vector2i(26, 17)
 
 
 func sleep_tile() -> Vector2i:
-	return Vector2i(4, 10)
+	return Vector2i(6, 16)
 
 
 func depart_tile() -> Vector2i:
-	return Vector2i(33, 11)
+	return Vector2i(50, 17)
 
 
 func wanderer_tile() -> Vector2i:
-	return Vector2i(21, 10)
+	return Vector2i(32, 16)
 
 
 ## 능(16,6) 한 바퀴 — 울타리 안쪽 박석까지 들어와 봤는지만 본다.
 func quest_zones() -> Array:
 	return [
-		["볕뉘:능", Vector2i(16, 6), 64.0],
+		["볕뉘:능", Vector2i(24, 10), 64.0],
 		# 남서쪽 흙마당. 돌길에서 한 층 내려온 살림 골목이다.
-		["볕뉘:흙마당", Vector2i(10, 16), 44.0],
+		["볕뉘:흙마당", Vector2i(15, 25), 44.0],
 	]
 
 
 ## 가게 둘(8,9)·(27,9) 문 앞. 둘 다 한 칸만 막으니 문 앞은 아랫줄이다.
 func doors() -> Array:
 	return [
-		{"tile": Vector2i(8, 10),
+		{"tile": Vector2i(12, 16),
 			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 			"label": "가게 들어가기"},
-		{"tile": Vector2i(27, 10),
+		{"tile": Vector2i(41, 16),
 			"scene": "res://scenes/journey/interiors/ShopInterior.tscn",
 			"label": "가게 들어가기"},
 		# 능 밑동(16,6) 바로 앞. 안쪽길 서브맵으로 이어진다.
@@ -217,11 +234,11 @@ func doors() -> Array:
 		# 걸어야 진짜 "안쪽길을 돌았다" 는 뜻이 되므로, 완료 표시는
 		# 안쪽(`TombPathInterior.quest_zones()`)에서 남긴다. 여기 문의
 		# `enter_key` 는 그 표시와 겹치면 안 되니 다른 이름을 쓴다.
-		{"tile": Vector2i(16, 7),
+		{"tile": Vector2i(24, 11),
 			"scene": "res://scenes/journey/interiors/TombPathInterior.tscn",
 			"label": "안쪽길 들어가기", "enter_key": "능입구"},
 		# 아랫마당 텃밭 너머, 옛 감나무 밭으로 슬쩍 들어가는 자리.
-		{"tile": Vector2i(18, 18),
+		{"tile": Vector2i(27, 28),
 			"scene": "res://scenes/journey/interiors/GatherGround.tscn",
 			"label": "감나무 밭으로 들어가기", "enter_key": "감나무밭"},
 	]
@@ -231,7 +248,7 @@ func on_built() -> void:
 	JourneyState.here = place_name()
 	JourneyState.visit(place_name())
 
-	put_folk(Vector2i(10, 12), "seal", "빵집 아주머니", "ju_seal", [
+	put_folk(Vector2i(15, 19), "seal", "빵집 아주머니", "ju_seal", [
 		["갓 구운 빵 있어요.", "식기 전에 드세요."],
 		["여긴 다들 천천히 걸어요.", "급할 게 없거든."],
 		["저 능은 천 년쯤 됐대요.", "…라고들 하죠."],
@@ -239,14 +256,14 @@ func on_built() -> void:
 		["냄새 나면 또 들어와요."],
 	], Vector2.DOWN, false, {
 		# 아침: 가게 문 바로 앞. 문을 열고 김 나는 빵을 내놓는 중이다.
-		"아침": Vector2i(7, 12),
+		"아침": Vector2i(11, 19),
 		# 낮: 가게 옆 돌길. 오가는 사람에게 빵을 판다.
-		"낮": Vector2i(10, 12),
+		"낮": Vector2i(15, 19),
 		# 저녁: 가로등 곁 벤치. "앉았다 가요" 하던 사람이 하루 끝엔 본인이 앉는다.
-		"저녁": Vector2i(24, 13),
+		"저녁": Vector2i(36, 20),
 	})
 
-	put_folk(Vector2i(20, 7), "seagull", "능 지키는 아이", "ju_kid", [
+	put_folk(Vector2i(30, 11), "seagull", "능 지키는 아이", "ju_kid", [
 		["여기 앉아 있으면 바람 소리만 나요."],
 		["아저씨는 어디서 왔어요?"],
 		["나는 여기 말고 가 본 데가 없어요."],
@@ -254,11 +271,11 @@ func on_built() -> void:
 		["잘 가요. 다음에 또 얘기해요."],
 	], Vector2.LEFT, false, {
 		# 아침: 우체통 앞. 여기밖에 모르는 아이가 바깥에서 온 것부터 살핀다.
-		"아침": Vector2i(11, 10),
+		"아침": Vector2i(17, 16),
 		# 낮: 능 앞 박석. 제 자리를 지키며 바람 소리를 듣는다.
-		"낮": Vector2i(20, 7),
+		"낮": Vector2i(30, 11),
 		# 저녁: 펌프 곁 흙마당. 해가 지면 집 마당으로 돌아간다.
-		"저녁": Vector2i(19, 8),
+		"저녁": Vector2i(29, 13),
 	})
 
 	_put_raccoon()
@@ -283,6 +300,6 @@ func foliage_tint() -> Color:
 
 ## 가게가 둘이다. 아랫것이 본래의  가게, (27, 9) 것은 찻집이다.
 func sign_of(prop_name: String, at: Vector2i = Vector2i.ZERO) -> String:
-	if prop_name == "shop" and at == Vector2i(27, 9):
+	if prop_name == "shop" and at == Vector2i(41, 14):
 		return "찻집"
 	return super(prop_name, at)
