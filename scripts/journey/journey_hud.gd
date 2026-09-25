@@ -1669,6 +1669,25 @@ func _fill_quests() -> void:
 			Color("#A79A8A") if bool(q["claimed"]) else (Color("#B4E6C0") if done
 				else Color("#FFF2C8"))))
 	var village := _quest_village()
+	# **우두머리** - 구역마다 하나. 마을 할 일 목록과 따로 선다
+	# (`Quests.boss_row` 주석). 눌러 두면 화살표가 붉은 틈을 짚는다.
+	var br := Quests.boss_row(village)
+	if not br.is_empty():
+		var bdone := bool(br["done"])
+		var bp := _place()
+		_bag_grid.add_child(_bag_line("우두머리  ·  붉은 틈 너머 · 잡으면 다음 구역이 열려요", 22,
+			Color("#FF8A8A")))
+		var btext := String(br["label"]) + ("  (다 했어요)" if bdone else "")
+		if not bdone and bp != null and bp.goal_world(br) != Vector2.INF:
+			_bag_grid.add_child(_quest_row(btext, Color("#FFE39A"), br, bp, 26))
+		else:
+			_bag_grid.add_child(_bag_line(btext, 26,
+				Color("#A79A8A") if bdone else Color("#FFF2C8")))
+		_reward_line(village, Rewards.for_row(village, br), bdone)
+	# 꿈의 탑 기록 - 열린 뒤로.
+	if Loop.tower_open():
+		_bag_grid.add_child(_bag_line("꿈의 탑  ·  최고 %d층  ·  다음엔 %d층부터" % [Loop.tower_best,
+			Loop.tower_start()], 22, Color("#8FD0FF")))
 	var list := Quests.quest_list(village)
 	if list.is_empty():
 		_empty("여기서는 딱히 할 일이 없어요")

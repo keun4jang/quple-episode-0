@@ -17,6 +17,8 @@ extends RefCounted
 const XP_LIGHT := 6
 const XP_KEEP := 12
 const XP_VILLAGE := 20
+## 구역 보스 줄 - 할 일 가운데 가장 무겁다.
+const XP_BOSS := 60
 
 ## 마을마다: 인사 보상 둘(그 마을 먹을 것), 방문+사진 기념품, 그 마을만의 것
 ## 기념품, 도장. 윤슬은 매듭·샛길이라 `SPECIAL` 에서 줄마다 적는다.
@@ -89,6 +91,9 @@ const VILLAGE_KEY := "마을"
 static func item_for(village: String, key: String) -> String:
 	if key.begins_with("퇴치:"):
 		return _hunt_item(key)
+	# 구역 보스 줄 (`Quests.boss_row`) - 엄마 도시락.
+	if key.begins_with("보스:"):
+		return "b-lunchbox"
 	var sp: Dictionary = SPECIAL.get(village, {})
 	if sp.has(key):
 		return String(sp[key])
@@ -144,6 +149,8 @@ static func _hunt_xp(key: String) -> int:
 static func xp_for(village: String, key: String) -> int:
 	if key.begins_with("퇴치:"):
 		return _hunt_xp(key)
+	if key.begins_with("보스:"):
+		return XP_BOSS
 	if key == VILLAGE_KEY:
 		return XP_VILLAGE
 	var k := Catalog.kind_of(item_for(village, key))
@@ -179,6 +186,10 @@ static func entries(village: String) -> Array:
 		for q in Quests.quest_list(village):
 			out.append(_entry(village, Quests.row_id(q), String(q.get("label", "")),
 				bool(q.get("done", false)), false))
+	var br := Quests.boss_row(village)
+	if not br.is_empty():
+		out.append(_entry(village, String(br["id"]), String(br["label"]),
+			bool(br["done"]), false))
 	if VILLAGE.has(village):
 		out.append(_entry(village, VILLAGE_KEY, "이 마을을 다 돌기",
 			Quests.village_cleared(village), false))

@@ -756,6 +756,22 @@ static func relay_line(village: String, npc_id: String) -> Array:
 	return []
 
 
+## 구역 보스 퀘스트 - 마을마다 하나. 붉은 틈(우두머리의 길)을 짚는다.
+##
+## **`quest_list()` 에 안 넣는다.** 그 목록은 "이 마을을 다 돌기"(`village_cleared`)
+## 와 한 몸이라, 보스를 넣으면 싸우지 않는 사람은 마을을 영영 못 마친다.
+## 보스는 할 일과 **나란한 다른 길**이다 (`is_unlocked`) - 퀘스트 창에 따로
+## 한 줄로 서고(`JourneyHud._fill_quests`), 보상(`Rewards.entries`)과
+## 화살표(`Place.open_goals`)도 따로 붙는다.
+static func boss_row(village: String) -> Dictionary:
+	var b := Battle.boss_of(village)
+	if b == "":
+		return {}
+	return {"label": "우두머리 %s 쓰러뜨리기" % String(Battle.ENEMIES[b]["name"]),
+		"id": "보스:" + village, "kind": "door", "key": "우두머리길",
+		"done": Battle.boss_down(village)}
+
+
 static func quest_list(village: String) -> Array:
 	# 프롤로그(쿼카컴퍼니가 있는 잿마루)에도 할 일을 둔다.
 	#
@@ -941,8 +957,8 @@ static func hunt_list(village: String) -> Array:
 	for i in kinds.size():
 		var k := String(kinds[i])
 		var e: Dictionary = Battle.ENEMIES.get(k, {})
+		# 우두머리는 여기 안 적는다 - 이 마을 목록의 보스 줄(`boss_row`)이 맡는다.
 		if bool(e.get("boss", false)):
-			out.append(_hunt(village, k, 1, "우두머리 %s 쓰러뜨리기" % String(e["name"])))
 			continue
 		var need := HUNT_MAIN if i == 0 else HUNT_OTHER
 		out.append(_hunt(village, k, need, "%s %d마리 쓰러뜨리기" % [String(e["name"]), need]))

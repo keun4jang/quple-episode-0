@@ -492,19 +492,67 @@ const SPAWN_MULT := 6
 
 ## 그 구역에 실제로 서는 몬스터들 `[종, 레벨]`. 되풀이할 때마다 레벨을
 ## 조금씩 흔든다(-1, 0, +1) - 한 무리가 다 같은 레벨이면 밋밋하다.
+##
+## **우두머리는 마을에 안 선다.** 마을 한쪽의 "우두머리의 길"
+## (`BossRoad`, 졸개들)을 지나 "우두머리 방"(`BossLair`)에서 기다린다.
+## 마을 한가운데 서 있으면 지나가다 건드려 버리고, 만나러 가는 맛이 없다.
 static func spawns(village: String) -> Array:
 	var base: Array = SPAWNS.get(village, [])
 	var out: Array = []
 	for i in SPAWN_MULT:
 		for k in base:
 			var kind := String(k[0])
-			var boss := bool(ENEMIES.get(kind, {}).get("boss", false))
-			if i > 0 and boss:
+			if bool(ENEMIES.get(kind, {}).get("boss", false)):
 				continue
-			var lv := int(k[1])
-			if not boss:
-				lv = clampi(lv + (i % 3) - 1, 1, LEVEL_MAX)
-			out.append([kind, lv])
+			out.append([kind, clampi(int(k[1]) + (i % 3) - 1, 1, LEVEL_MAX)])
+	return out
+
+
+## 그 구역의 우두머리 종 ("" 이면 없다).
+static func boss_of(village: String) -> String:
+	return String(REGION_BOSS.get(village, ""))
+
+
+## 그 구역 우두머리의 레벨 (`SPAWNS` 에 적힌 것).
+static func boss_lv(village: String) -> int:
+	var b := boss_of(village)
+	for k in SPAWNS.get(village, []):
+		if String(k[0]) == b:
+			return int(k[1])
+	return 1
+
+
+## 우두머리의 길에 서는 졸개 수. 마을보다 적고 조금 세다 - 한 번에 훑고 지나가는 길이다.
+const ROAD_COUNT := 10
+
+
+## 우두머리의 길(`BossRoad`)의 졸개들 `[종, 레벨]`. 그 구역 몬스터가
+## 마을보다 한두 레벨 높게 선다 - 우두머리 앞이라 기가 올라 있다.
+static func road_spawns(village: String) -> Array:
+	var kinds: Array = []
+	var top := 1
+	for k in SPAWNS.get(village, []):
+		if bool(ENEMIES.get(String(k[0]), {}).get("boss", false)):
+			continue
+		kinds.append(String(k[0]))
+		top = maxi(top, int(k[1]))
+	if kinds.is_empty():
+		return []
+	var out: Array = []
+	for i in ROAD_COUNT:
+		out.append([String(kinds[i % kinds.size()]), clampi(top - 1 + i % 3, 1, LEVEL_MAX)])
+	return out
+
+
+## 우두머리 방(`BossLair`) - 우두머리 하나와 곁을 지키는 졸개 둘.
+static func lair_spawns(village: String) -> Array:
+	var b := boss_of(village)
+	if b == "":
+		return []
+	var road := road_spawns(village)
+	var out: Array = [[b, boss_lv(village)]]
+	for i in mini(2, road.size()):
+		out.append([String(road[i][0]), int(road[i][1]) + 1])
 	return out
 
 

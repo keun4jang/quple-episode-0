@@ -202,6 +202,41 @@ static func strike(id: String, foe: Dictionary) -> Dictionary:
 	return out
 
 
+## 동료 너구리의 한 방 (`Buddy`). 쿼카 공격력의 이만큼, 속성 없음 -
+## 거드는 손이지 대신 싸워 주는 손이 아니다. 흔들린 몬스터에는 더 든다.
+const BUDDY_POWER := 0.5
+
+
+static func buddy_strike(foe: Dictionary) -> Dictionary:
+	var out := {"dmg": 0, "hits": [], "eff": 1.0, "weak": false, "crit": false,
+		"killed": false, "stagger": 0.0, "events": []}
+	if int(foe["hp"]) <= 0:
+		return out
+	var v := float(Battle.attack_power()) * BUDDY_POWER * Battle._mitigation(int(foe["def"]))
+	if foe_has(foe, "shake") or foe_has(foe, "sway"):
+		v *= 1.3
+	if jitter:
+		v *= randf_range(0.9, 1.1)
+	var dmg := maxi(1, int(round(v)))
+	foe["hp"] = maxi(0, int(foe["hp"]) - dmg)
+	foe["dealt"] = int(foe["dealt"]) + dmg
+	out["dmg"] = dmg
+	out["hits"].append({"dmg": dmg, "crit": false})
+	out["killed"] = int(foe["hp"]) <= 0
+	return out
+
+
+## 동료가 나눠 주는 도토리 - 체력 최대치의 이만큼.
+const BUDDY_HEAL := 0.2
+
+
+## 쿼카를 조금 채운다. 채운 양을 돌려준다.
+static func buddy_heal() -> int:
+	var before := Battle.hp
+	Battle.hp = mini(Battle.hp_max(), Battle.hp + maxi(1, int(Battle.hp_max() * BUDDY_HEAL)))
+	return Battle.hp - before
+
+
 static func _give_foe(foe: Dictionary, id: String, evs: Array) -> void:
 	if not Battle.ENEMY_STATUSES.has(id):
 		return

@@ -268,8 +268,11 @@ func _ready() -> void:
 	_build_ui()
 	_start_sound()
 	on_built()
+	# 꿈의 틈(우두머리의 길·꿈의 탑)도 사람 자리를 피해야 해서 인연 뒤에.
+	_build_gates()
 	# **인연을 다 세운 뒤에** 그늘을 세운다 — 사람 옆자리를 피해야 한다.
 	_build_shades()
+	_build_buddy()
 	_block_folk_tiles()
 	# **인연을 다 세운 뒤에** 도착 카드를 띄운다. `_build_ui()` 때는
 	# 아직 아무도 없어서 "지금 해볼 일" 이 엉뚱한 것을 짚었다 —
@@ -1104,7 +1107,7 @@ const SHADE_APART := 2
 
 func _build_shades() -> void:
 	# 실내에는 안 선다. 가게 안·집 안은 쉬는 자리다.
-	if is_indoors():
+	if not fights_here():
 		return
 	var want := shades()
 	if want.is_empty():
@@ -1270,9 +1273,21 @@ func combat_paused() -> bool:
 	return sv != null and sv.visible
 
 
+## 몬스터가 서는 곳인가. 실내(가게·등대)는 쉬는 자리라 거짓이다 -
+## 우두머리의 길·방과 꿈의 탑은 실내 씬이지만 스스로 참을 돌려준다.
+func fights_here() -> bool:
+	return not is_indoors()
+
+
 ## 이 마을에서 싸울 수 있나 (그늘이 서는 곳인가). 버튼을 띄울지 정한다.
 func can_fight() -> bool:
-	return not is_indoors() and not shades().is_empty()
+	return fights_here() and not shades().is_empty()
+
+
+## 이 문이 지금 잠겼나. 잠겼으면 왜인지 한 줄, 아니면 "".
+## (우두머리의 길 - 졸개를 다 쓰러뜨려야 우두머리 방이 열린다.)
+func door_locked(_d: Dictionary) -> String:
+	return ""
 
 
 ## 방금 싸웠나 - 공격·스킬을 쓰면 이만큼(초) 버튼이 남는다.
@@ -1615,15 +1630,27 @@ func _on_level_up(ev: Dictionary) -> void:
 ##   구역 보스   → 꿈의 문이 열린다 (`Quests.is_unlocked` 의 두 번째 길)
 ##   꽃눈벌 보스 → 꿈이 금 가고 정류장에 잿마루 타워가 나타난다
 ##   야근 대마왕 → 깨어난다
+const BOSS_FIRST_STONES := 3
+
+
 func _boss_story(kind: String) -> void:
 	var v := quest_village()
 	if String(Battle.REGION_BOSS.get(v, "")) == kind and not Battle.boss_down(v):
 		JourneyState.mark_quest("보스:" + v)
+		# **첫 처치 보상** - 강화석 셋과 영웅 이상 장비 하나. 구역마다 한 번뿐이다.
+		Gear.stones += BOSS_FIRST_STONES
+		var it := Gear.roll_gear("", Battle.boss_lv(v), true)
+		Gear._reroll(it, maxi(3, int(it["rar"])))
+		Gear.items.append(it)
 		if hud != null:
 			if v == String(Quests.ORDER[-1]):
 				hud._celebrate("꿈이 금 가기 시작했어요!", "정류장에 잿마루 타워가 나타났어요")
 			else:
 				hud._celebrate("꿈의 문이 열렸어요!", "다음 구역으로 가는 길이 열렸어요")
+			hud._celebrate("첫 처치 보상", "강화석 +%d · %s %s" % [BOSS_FIRST_STONES,
+				String(Gear.RARITY[int(it["rar"])]["name"]), Gear.name_of(it)])
+			if v == "윤슬":
+				hud._celebrate("꿈의 탑이 열렸어요!", "마을마다 푸른 틈으로 올라갈 수 있어요")
 	if kind == "night" and not JourneyState.quest_done("엔딩:대마왕"):
 		JourneyState.mark_quest("엔딩:대마왕")
 		SaveManager.save_now()
@@ -2814,6 +2841,10 @@ func talk_to_near() -> void:
 	if f.heart() >= JourneyState.HEART_CLOSE and not FAMILY_IDS.has(f.folk_id):
 		JourneyState.give_postcard(f.folk_id, f.who)
 	say.say(f.who, what, weight_at)
+	# 제목 대사가 놓인 재회에서는 권하지 않는다 - 그 줄이 대화의 끝으로
+	# 남아야 한다 (`put_wanderer` 주석). 다음에 말을 걸면 권한다.
+	if f.wanderer and weight_at < 0:
+		_offer_party(f)
 	_did("talk")
 	# 인연을 직접 탭해서 말을 건 것도 "오른쪽 버튼" 이 가르치려던 것과
 	# 같은 일이다. 버튼을 한 번도 안 눌러도 길잡이의 "act" 단계가
@@ -3349,6 +3380,14 @@ func _on_chose(_path: String) -> void:
 func _do_enter(d) -> void:
 	if d == null or walker == null:
 		return
+	var why := door_locked(d)
+	if why != "":
+		if hud != null:
+			hud._say_hint(why, false, 2.0)
+		return
+	# 꿈의 탑 - 몇 층으로 가는 문인가 (`Loop.tower_now`).
+	if d.has("tower_floor"):
+		Loop.tower_now = int(d["tower_floor"])
 	var scene := String(d.get("scene", ""))
 	if scene == "":
 		# 실내 문의 "나가는 곳"은 `JourneyState.exit_scene` 을 그대로
@@ -4016,9 +4055,23 @@ func goal_world(item: Dictionary) -> Vector2:
 				if is_instance_valid(f) and f.is_spot and f.who == key:
 					return f.global_position
 		"door":
-			for d in doors():
+			for d in doors() + _gates:
 				if String(d.get("enter_key", "가게")) == key:
 					return world_of(d["tile"])
+		# 가장 가까운 몬스터 (우두머리의 길의 졸개들).
+		"shade":
+			var sb := Vector2.INF
+			var sn := INF
+			var sfrom: Vector2 = walker.global_position if walker != null \
+				else Vector2.ZERO
+			for sh in _shades:
+				if not is_instance_valid(sh) or sh.state == "gone":
+					continue
+				var sd := sfrom.distance_squared_to(sh.global_position)
+				if sd < sn:
+					sn = sd
+					sb = sh.global_position
+			return sb
 		"visit":
 			for z in quest_zones():
 				if String(z[0]) == key:
@@ -4165,6 +4218,11 @@ func open_goals() -> Array:
 	for q in Quests.quest_list(place_name()):
 		if _goal_shown(q):
 			out.append(q)
+	# 우두머리 - 마을 할 일 **뒤에** 선다. 할 일을 다 했거나 목록에서
+	# 골랐을 때 화살표가 붉은 틈을 짚는다 (`Quests.boss_row`).
+	var br := Quests.boss_row(place_name())
+	if not is_indoors() and not br.is_empty() and _goal_shown(br):
+		out.append(br)
 	# **자정이 넘으면 남은 할 일이 뭐든 다음 길은 하나다** — 자야
 	# 아침이 온다. 이때 지도가 딴 걸(혹은 아무것도) 가리키면 안내
 	# 한 줄(1.6초)을 놓친 사람은 갈 곳을 모른다.
@@ -4287,6 +4345,10 @@ func put_wanderer(sheet: String, who: String, folk_id: String,
 		lines: Array, flavour: Array) -> Folk:
 	var t := wanderer_tile()
 	if t.x < 0 or not JourneyState.wanderer_here(place_name()):
+		return null
+	# 이 구역에서 이미 동료가 됐다 - 서 있지 않고 곁에서 따라다닌다 (`Buddy`).
+	if JourneyState.party_with == place_name():
+		JourneyState.meet_wanderer(place_name())
 		return null
 	var f := put_folk(t, sheet, who, folk_id, lines, Vector2.DOWN, true)
 	if JourneyState.is_reunion(place_name()):
@@ -4439,3 +4501,199 @@ func put_folk(t: Vector2i, sheet: String, who: String, folk_id: String,
 	f.face(facing)
 	_folk.append(f)
 	return f
+
+
+# ── 꿈의 틈 - 우두머리의 길 · 꿈의 탑 ───────────────────────────────
+#
+# 구역 보스는 이제 마을 한가운데 안 선다 (`Battle.spawns`). 마을 한쪽에
+# 열린 **붉은 틈**으로 들어가 졸개들이 선 길(`BossRoad`)을 지나 우두머리
+# 방(`BossLair`)에서 만난다. 윤슬 보스를 쓰러뜨린 뒤로는 옆에 **푸른 틈**이
+# 하나 더 열린다 - 층마다 세지는 꿈의 탑(`TowerFloor`).
+#
+# 자리는 손으로 안 적는다. 아홉 마을 지도를 고칠 때마다 틈이 나무 속에
+# 박히지 않게, 걸을 수 있는 칸 중에서 **도착한 자리에서 아홉 칸 남짓**
+# 떨어진 곳을 고른다 - 오자마자 보이되 발에 채이지는 않게.
+
+const BOSS_ROAD_SCENE := "res://scenes/journey/interiors/BossRoad.tscn"
+const TOWER_SCENE := "res://scenes/journey/interiors/TowerFloor.tscn"
+## 도착한 자리에서 이만큼(칸) 떨어진 곳을 고른다.
+const GATE_DIST := 9.0
+
+## `doors()` 밖에서 새로 연 문들. `_doors` 에도 들어간다.
+var _gates: Array = []
+
+
+func _build_gates() -> void:
+	_gates = []
+	if is_indoors() or Battle.boss_of(place_name()) == "":
+		return
+	var keep: Array = [spawn_tile(), sleep_tile(), depart_tile(), wanderer_tile()]
+	for f in _folk:
+		if is_instance_valid(f):
+			keep.append(f.at_tile)
+	for d in _doors:
+		keep.append(Vector2i(d["tile"]))
+	var boss_at := _gate_spot(keep, Vector2i(-1, -1))
+	if boss_at.x < 0:
+		return
+	_add_gate(boss_at, "boss", "우두머리의 길", {
+		"scene": BOSS_ROAD_SCENE, "label": "우두머리의 길 들어가기",
+		"enter_key": "우두머리길"})
+	if Loop.tower_open():
+		keep.append(boss_at)
+		var tower_at := _gate_spot(keep, boss_at)
+		if tower_at.x >= 0:
+			_add_gate(tower_at, "tower", "꿈의 탑", {
+				"scene": TOWER_SCENE, "label": "꿈의 탑 %d층으로" % Loop.tower_start(),
+				"enter_key": "꿈의탑", "tower_floor": Loop.tower_start()})
+
+
+func _add_gate(t: Vector2i, kind: String, title: String, d: Dictionary) -> void:
+	d["tile"] = t
+	d["world"] = world_of(t)
+	d["gate"] = kind
+	_gates.append(d)
+	_doors.append(d)
+	var g := DreamGate.new()
+	g.name = "Gate_" + kind
+	g.kind = kind
+	g.title = title
+	g.position = world_of(t)
+	add_child(g)
+
+
+## 틈 하나 설 자리. 제 칸과 위로 두 칸, 옆 한 칸씩이 다 트여 있어야
+## 한다 (틈이 세 칸 높이로 그려진다). `away` 가 있으면 거기서 여섯 칸은 뗀다.
+func _gate_spot(keep: Array, away: Vector2i) -> Vector2i:
+	var boxes: Array = []
+	for pr in props():
+		var tex := load("res://assets/sprites/%s.png" % pr[2]) as Texture2D
+		if tex == null:
+			continue
+		var pb: float = (float(pr[1]) + 1.0) * TILE
+		boxes.append([Rect2(float(pr[0]) * TILE + TILE * 0.5
+			- tex.get_width() / 2.0, pb - tex.get_height(),
+			tex.get_width(), tex.get_height()), pb])
+	var from := spawn_tile()
+	var w: int = _orig_size.x if _orig_size.x > 0 else _size.x
+	var h: int = _orig_size.y if _orig_size.y > 0 else _size.y
+	var best := Vector2i(-1, -1)
+	var score := INF
+	for y in range(3, h - 1):
+		for x in range(2, w - 2):
+			var t := Vector2i(x, y)
+			var clear := true
+			for o in [Vector2i(0, 0), Vector2i(-1, 0), Vector2i(1, 0),
+					Vector2i(0, -1), Vector2i(0, -2), Vector2i(0, 1)]:
+				if not _walkable(t + o):
+					clear = false
+					break
+			if not clear or _too_near(t, keep, 3) or _hidden_by_prop(t, boxes) \
+					or _hidden_by_prop(t + Vector2i(0, -1), boxes):
+				continue
+			if away.x >= 0 and Vector2(t - away).length() < 6.0:
+				continue
+			var sc := absf(Vector2(t - from).length() - GATE_DIST)
+			if sc < score:
+				score = sc
+				best = t
+	return best
+
+
+# ── 파티 동료 - 배낭 멘 너구리 (`Buddy`) ─────────────────────────────
+
+var buddy: Buddy = null
+
+
+## 여기서 너구리가 같이 다니나 - 그 구역에서 동료가 됐고, 아직 그 구역에 있다.
+func buddy_here() -> bool:
+	var v := quest_village()
+	return fights_here() and v != "" and JourneyState.party_with == v \
+		and JourneyState.wanderer_here(v)
+
+
+func _build_buddy() -> void:
+	if buddy != null or walker == null or not buddy_here():
+		return
+	buddy = Buddy.new()
+	buddy.name = "Buddy"
+	buddy.sheet = "res://assets/sprites/raccoon-walk.png"
+	buddy.who = "동료 너구리"
+	buddy.folk_id = "buddy"
+	buddy.position = walker.position + Vector2(-16, 2)
+	add_child(buddy)
+
+
+## 너구리가 칠 몬스터. 쿼카가 겨눈 것이 먼저, 없으면 덤벼 오는 것 중 가장 가까운 것.
+func buddy_target() -> Shade:
+	if walker == null:
+		return null
+	var me := walker.global_position
+	if _target != null and is_instance_valid(_target) and _target.state != "gone" \
+			and _target.is_fighting() and _target.global_position.distance_to(me) <= Buddy.SEEK:
+		return _target
+	var best: Shade = null
+	var near := INF
+	for sh in _shades:
+		if not is_instance_valid(sh) or sh.state == "gone" or not sh.is_fighting():
+			continue
+		var d := sh.global_position.distance_to(me)
+		if d <= Buddy.SEEK and d < near:
+			near = d
+			best = sh
+	return best
+
+
+func buddy_strike(b: Node2D, sh: Shade) -> void:
+	if not is_instance_valid(sh) or sh.state == "gone":
+		return
+	var res := Field.buddy_strike(sh.foe)
+	var dir: Vector2 = (sh.global_position - b.global_position).normalized()
+	FieldFx.swing(self, b.global_position + Vector2(0, -8), dir, "wood")
+	FieldFx.number(self, sh.global_position + Vector2(6, -24), "%d" % int(res["dmg"]),
+		Buddy.TAG_COL, 12)
+	sh.take_hit(res, b.global_position)
+	_fight_t = maxf(_fight_t, 2.0)
+	if bool(res["killed"]):
+		on_shade_down(sh)
+
+
+func buddy_heal(b: Node2D) -> void:
+	var got := Field.buddy_heal()
+	if got <= 0 or walker == null:
+		return
+	FieldFx.burst(self, walker.global_position + Vector2(0, -10), "heal")
+	FieldFx.number(self, walker.global_position + Vector2(0, -34), "+%d" % got,
+		Color("#8CE99A"), 13)
+	FieldFx.number(self, b.global_position + Vector2(0, -40), "도토리 나눠 먹자!",
+		Buddy.TAG_COL, 10)
+
+
+## 너구리와 이야기를 마쳤다 - 이 구역 동안 같이 다니자고 한다.
+func _offer_party(f: Folk) -> void:
+	var v := place_name()
+	if not fights_here() or JourneyState.party_with == v or Battle.boss_of(v) == "":
+		return
+	while is_inside_tree() and say != null and say.is_busy():
+		await get_tree().process_frame
+	if not is_inside_tree() or not is_instance_valid(f):
+		return
+	say.say(f.who, [
+		"여기 몬스터들, 혼자 상대하긴 좀 벅차지?",
+		"이 구역에 있는 동안은 같이 다니자. 이래 봬도 먼저 떨어진 몸이라고.",
+	])
+	while is_inside_tree() and say.is_busy():
+		await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	JourneyState.party_with = v
+	_folk.erase(f)
+	var at: Vector2 = f.global_position
+	f.queue_free()
+	_block_folk_tiles()
+	_build_buddy()
+	if buddy != null:
+		buddy.global_position = at
+	if hud != null:
+		hud._celebrate("너구리가 동료가 됐어요!", "이 구역에서 같이 싸우고, 가끔 도토리를 나눠 줘요")
+	SaveManager.save_now()

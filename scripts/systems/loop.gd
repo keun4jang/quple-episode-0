@@ -217,6 +217,88 @@ static func check_idle() -> int:
 	return got
 
 
+# ── 꿈의 탑 ──────────────────────────────────────────────────────────
+#
+# 끝이 없는 층 오르기 (`TowerFloor`). 층을 다 쓸면 계단이 열린다. 층마다
+# 몬스터가 두 레벨쯤 세지고, **다섯 층마다 우두머리 층**이다 - 아홉 구역
+# 보스가 차례로 다시 선다. 처음 넘는 층마다 꿈조각, 우두머리 층은 강화석과
+# 고급 이상 장비. **다섯 층마다 쉼터** - 다음에 들어오면 거기서 시작한다.
+#
+# 윤슬 보스를 쓰러뜨려 첫 꿈의 문이 열리면 마을마다 푸른 틈으로 열린다.
+
+## 가장 높이 넘은 층 (기록).
+static var tower_best := 0
+## 지금 서 있는 층. 탑 씬이 이걸 보고 층을 짓는다.
+static var tower_now := 1
+const TOWER_BOSS_EVERY := 5
+## 층에 서는 몬스터 (뒷층일수록 뒷구역 종이 섞인다).
+const TOWER_KINDS := ["drop", "ember", "sprout", "pebble", "gust", "whirl", "thorn",
+	"mole", "storm", "blaze"]
+
+
+static func tower_open() -> bool:
+	return Battle.boss_down("윤슬")
+
+
+## 들어가면 시작하는 층 - 넘은 쉼터(5의 배수) 바로 위.
+static func tower_start() -> int:
+	return (tower_best / TOWER_BOSS_EVERY) * TOWER_BOSS_EVERY + 1
+
+
+static func is_boss_floor(n: int) -> bool:
+	return n % TOWER_BOSS_EVERY == 0
+
+
+## 그 층 몬스터의 레벨. 30층이 LV 50 쯤이다.
+static func floor_lv(n: int) -> int:
+	return clampi(2 + int(float(n) * 1.6), 1, 99)
+
+
+## 그 층에 서는 몬스터 `[종, 레벨]`. 층 번호로 씨를 심는다 - 같은 층은 늘 같은 무리.
+static func floor_spawns(n: int) -> Array:
+	var lv := floor_lv(n)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("tower|%d" % n)
+	var pool: Array = TOWER_KINDS.slice(0, mini(TOWER_KINDS.size(), 3 + n / 2))
+	var out: Array = []
+	if is_boss_floor(n):
+		var bosses: Array = []
+		for v in Quests.ORDER:
+			if Battle.boss_of(String(v)) != "":
+				bosses.append(Battle.boss_of(String(v)))
+		out.append([String(bosses[(n / TOWER_BOSS_EVERY - 1) % bosses.size()]), lv + 2])
+		for i in 2:
+			out.append([String(pool[rng.randi_range(0, pool.size() - 1)]), lv])
+		return out
+	for i in mini(4 + n / 3, 10):
+		out.append([String(pool[rng.randi_range(0, pool.size() - 1)]),
+			clampi(lv + rng.randi_range(-1, 1), 1, 99)])
+	return out
+
+
+## 그 층을 처음 넘으면 받는 것.
+static func floor_reward(n: int) -> Dictionary:
+	var boss := is_boss_floor(n)
+	return {"coins": 60 + 25 * n, "stones": 3 if boss else (1 if n % 2 == 0 else 0),
+		"gear": boss}
+
+
+## 층을 다 쓸었다. **처음 넘는 층**이면 보상을 주고 그 내용을, 아니면 빈 것.
+static func clear_floor(n: int) -> Dictionary:
+	if n <= tower_best:
+		return {}
+	tower_best = n
+	var r := floor_reward(n)
+	Gear.coins += int(r["coins"])
+	Gear.stones += int(r["stones"])
+	if bool(r["gear"]):
+		var it := Gear.roll_gear("", floor_lv(n), true)
+		Gear._reroll(it, maxi(2, int(it["rar"])))
+		Gear.items.append(it)
+		r["item"] = it
+	return r
+
+
 # ── 저장 ─────────────────────────────────────────────────────────────
 
 static func reset() -> void:
@@ -229,12 +311,15 @@ static func reset() -> void:
 	daily = {}
 	attend = {"last": "", "count": 0}
 	last_seen = 0
+	tower_best = 0
+	tower_now = 1
 
 
 static func to_dict() -> Dictionary:
 	return {"kills": kills.duplicate(), "titles": titles.duplicate(), "title": title,
 		"daily": daily.duplicate(true), "attend": attend.duplicate(),
-		"last_seen": int(Time.get_unix_time_from_system()), "best_combo": best_combo}
+		"last_seen": int(Time.get_unix_time_from_system()), "best_combo": best_combo,
+		"tower_best": tower_best, "tower_now": tower_now}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -250,3 +335,5 @@ static func from_dict(d: Dictionary) -> void:
 		attend = d["attend"].duplicate()
 	last_seen = int(d.get("last_seen", 0))
 	best_combo = int(d.get("best_combo", 0))
+	tower_best = maxi(0, int(d.get("tower_best", 0)))
+	tower_now = maxi(1, int(d.get("tower_now", 1)))

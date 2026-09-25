@@ -106,6 +106,9 @@ func _ready() -> void:
 	await _char_ui_tests()
 	_loop_tests()
 	await _story_tests()
+	await _boss_map_tests()
+	await _tower_tests()
+	await _buddy_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -7544,9 +7547,9 @@ func _hunt_tests() -> void:
 				bosses += 1
 			else:
 				normal += 1
-		if sp.size() != normal * Battle.SPAWN_MULT + bosses:
+		if sp.size() != normal * Battle.SPAWN_MULT or bosses != 1:
 			bad.append("%s:%d" % [v, sp.size()])
-	ok(bad.is_empty(), "그늘이 여섯 배로 선다 (우두머리는 하나) %s" % str(bad))
+	ok(bad.is_empty(), "그늘이 여섯 배로 선다 (우두머리는 마을에 안 선다) %s" % str(bad))
 
 	# 마을마다 퇴치 할 일이 있고, 받는 것이 다 표에 있다
 	var missing: Array = []
@@ -7856,17 +7859,20 @@ func _story_tests() -> void:
 	# 인트로는 야근하다 잠드는 데까지
 	ok(String(load("res://scripts/menu/intro_slides.gd").SLIDES[-1][0]).contains("눈 좀 붙이자"),
 		"인트로는 잠드는 데서 끝난다")
-	# 구역마다 보스가 하나씩, 한 마리만 선다
+	# 구역마다 보스가 하나씩 - 마을이 아니라 우두머리 방에, 한 마리만 선다
 	var bad: Array = []
 	for v in Quests.ORDER:
 		var boss := String(Battle.REGION_BOSS.get(v, ""))
 		var n := 0
-		for sp in Battle.spawns(String(v)):
-			if String(sp[0]) == boss:
+		for sp in Battle.lair_spawns(String(v)):
+			if bool(Battle.ENEMIES[String(sp[0])].get("boss", false)):
 				n += 1
-		if boss == "" or n != 1 or not bool(Battle.ENEMIES[boss].get("boss", false)):
+		for sp in Battle.spawns(String(v)) + Battle.road_spawns(String(v)):
+			if bool(Battle.ENEMIES[String(sp[0])].get("boss", false)):
+				n += 100
+		if boss == "" or n != 1 or String(Battle.lair_spawns(String(v))[0][0]) != boss:
 			bad.append(v)
-	ok(bad.is_empty(), "구역마다 보스가 하나 선다 %s" % str(bad))
+	ok(bad.is_empty(), "구역마다 보스가 하나, 우두머리 방에만 선다 %s" % str(bad))
 	ok(ResourceLoader.exists("res://assets/sprites/s-drop_king-walk.png")
 		and ResourceLoader.exists("res://assets/sprites/mongi-walk.png"), "보스·몽이 그림이 있다")
 	# 꿈의 문 - 할 일을 다 하거나, 보스를 쓰러뜨리거나
@@ -7897,14 +7903,16 @@ func _story_tests() -> void:
 	JourneyState.here = "윤슬"
 	p.queue_free()
 	await get_tree().process_frame
-	p = load(GOAL_SCENES["윤슬"]).instantiate()
+	JourneyState.exit_scene = GOAL_SCENES["윤슬"]
+	JourneyState.exit_tile = Vector2i(10, 10)
+	p = load("res://scenes/journey/interiors/BossLair.tscn").instantiate()
 	add_child(p)
 	await get_tree().process_frame
 	var king: Shade = null
 	for sh in p._shades:
 		if sh.shade_kind == "drop_king":
 			king = sh
-	ok(king != null, "윤슬에 물방울 대왕이 선다")
+	ok(king != null, "윤슬 우두머리 방에 물방울 대왕이 선다")
 	if king != null:
 		p.on_shade_down(king)
 		ok(Battle.boss_down("윤슬") and Quests.is_unlocked("볕뉘"), "대왕을 쓰러뜨리면 꿈의 문이 열린다")
@@ -7951,3 +7959,275 @@ func _story_tests() -> void:
 	await get_tree().process_frame
 	JourneyState.reset()
 	Battle.reset()
+
+
+
+# ── 우두머리의 길 · 우두머리 방 (`BossRoad` · `BossLair`) ─────────────
+
+func _clean_state() -> void:
+	JourneyState.reset()
+	Battle.reset()
+	Field.jitter = false
+	Battle.level = 20
+	Battle.hp = Battle.hp_max()
+
+
+func _boss_map_tests() -> void:
+	print("\n[우두머리의 길 · 방]")
+	_clean_state()
+	# 아홉 마을 모두 붉은 틈이 하나 - 걸을 수 있는 칸에, 사람·문과 떨어져
+	var no_gate: Array = []
+	var tower_gate: Array = []
+	JourneyState.mark_quest("보스:윤슬")
+	for v in Quests.ORDER:
+		JourneyState.here = String(v)
+		var vp: Place = load(GOAL_SCENES[v]).instantiate()
+		add_child(vp)
+		await get_tree().process_frame
+		var kinds: Array = []
+		for g in vp._gates:
+			kinds.append(String(g["gate"]))
+			var t: Vector2i = g["tile"]
+			var clash := not vp._walkable(t)
+			for f in vp._folk:
+				if is_instance_valid(f) and absi(f.at_tile.x - t.x) <= 1 and absi(f.at_tile.y - t.y) <= 1:
+					clash = true
+			if clash:
+				no_gate.append("%s:%s 자리" % [v, g["gate"]])
+		if not kinds.has("boss"):
+			no_gate.append(String(v))
+		if kinds.has("tower"):
+			tower_gate.append(String(v))
+		# 우두머리 줄이 붉은 틈을 짚는다
+		if vp.goal_world(Quests.boss_row(String(v))) == Vector2.INF and String(v) != "윤슬":
+			no_gate.append("%s 화살표" % v)
+		# 마을에는 우두머리가 없다
+		for sh in vp._shades:
+			if bool(sh.foe["boss"]):
+				no_gate.append("%s 에 보스" % v)
+		vp.queue_free()
+		await get_tree().process_frame
+	ok(no_gate.is_empty(), "마을마다 붉은 틈이 비어 있는 자리에 열리고 마을엔 보스가 없다 %s" % str(no_gate))
+	ok(tower_gate.size() == Quests.ORDER.size(), "윤슬 보스 뒤로 마을마다 푸른 틈(탑)도 열린다 %s" % str(tower_gate))
+	_clean_state()
+	JourneyState.here = "윤슬"
+	var yp: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yp)
+	await get_tree().process_frame
+	var only_boss := true
+	for g in yp._gates:
+		if String(g["gate"]) == "tower":
+			only_boss = false
+	ok(only_boss and yp._gates.size() == 1, "처음엔 붉은 틈 하나뿐 (탑은 아직)")
+	var br := Quests.boss_row("윤슬")
+	ok(String(br["label"]).contains("물방울 대왕") and not bool(br["done"]),
+		"윤슬 우두머리 퀘스트: %s" % br["label"])
+	ok(Quests.quest_list("윤슬").filter(func(q): return String(q.get("id", "")).begins_with("보스:")).is_empty(),
+		"우두머리 줄은 마을 할 일 목록 밖에 따로 선다")
+	var re: Array = Rewards.entries("윤슬").filter(func(e): return String(e["key"]) == "보스:윤슬")
+	ok(re.size() == 1 and String(re[0]["item"]) == "b-lunchbox" and int(re[0]["xp"]) == Rewards.XP_BOSS,
+		"우두머리 퀘스트에 보상이 붙는다")
+	yp.queue_free()
+	await get_tree().process_frame
+
+	# 길 - 들어가면 졸개가 열, 방 문은 잠겨 있다
+	JourneyState.exit_scene = GOAL_SCENES["윤슬"]
+	JourneyState.exit_tile = Vector2i(10, 10)
+	var r: Place = load("res://scenes/journey/interiors/BossRoad.tscn").instantiate()
+	add_child(r)
+	await get_tree().process_frame
+	ok(r.place_name() == "물거품 굴길" and r.quest_village() == "윤슬", "윤슬의 길은 물거품 굴길")
+	ok(r._shades.size() == Battle.ROAD_COUNT, "길에 졸개 %d마리 (%d)" % [Battle.ROAD_COUNT, r._shades.size()])
+	var lv_ok := true
+	for sh in r._shades:
+		if bool(sh.foe["boss"]) or int(sh.foe["lv"]) < 6:
+			lv_ok = false
+	ok(lv_ok, "졸개는 보스가 아니고 마을보다 조금 세다")
+	var path: Array = r._find_path(r.spawn_tile(), r.lair_door_tile())
+	ok(not path.is_empty(), "들어온 자리에서 방 문까지 걸어갈 수 있다")
+	var lair_door: Dictionary = r.doors()[1]
+	ok(r.door_locked(lair_door).contains("10마리"), "졸개가 남으면 방 문이 잠겨 있다: %s" % r.door_locked(lair_door))
+	ok(String(r.open_goals()[0]["kind"]) == "shade" and r.goal_world(r.open_goals()[0]) != Vector2.INF,
+		"화살표가 가까운 졸개를 짚는다")
+	ok(String(r.doors()[0]["scene"]) == GOAL_SCENES["윤슬"], "나가는 문은 들어온 마을로")
+	for sh in r._shades.duplicate():
+		sh.foe["hp"] = 0
+		r.on_shade_down(sh)
+	ok(r.door_locked(lair_door) == "" and String(r.open_goals()[0]["key"]) == "우두머리방",
+		"졸개를 다 쓰러뜨리면 방 문이 열리고 화살표가 그리로")
+	ok(JourneyState.defeated("윤슬", "") >= Battle.ROAD_COUNT, "길의 졸개도 윤슬 퇴치로 센다")
+	r.queue_free()
+	await get_tree().process_frame
+
+	# 방 - 보스와 졸개 둘
+	var l: Place = load("res://scenes/journey/interiors/BossLair.tscn").instantiate()
+	add_child(l)
+	await get_tree().process_frame
+	ok(l._shades.size() == 3 and l._boss_shade() != null
+		and l._boss_shade().shade_kind == "drop_king", "방에는 물방울 대왕과 졸개 둘")
+	ok(String(l.open_goals()[0]["kind"]) == "boss", "방에서는 화살표가 우두머리를 짚는다")
+	ok(String(l.doors()[0]["scene"]) == Place.BOSS_ROAD_SCENE
+		and Vector2i(l.doors()[0]["spawn"]) == BossRoad.back_tile(), "방에서 나가면 길의 방 문 앞으로")
+	var bt := BossRoad.back_tile()
+	ok(absi(bt.y - BossRoad.center(bt.x)) <= BossRoad.HALF, "길의 되돌아오는 자리는 길 위다")
+	var b: Shade = l._boss_shade()
+	l.walker.global_position = b.global_position + Vector2(0, 20)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(l._boss_bar != null and l._boss_bar.visible, "우두머리 가까이 가면 화면 위에 긴 체력 막대가 뜬다")
+	var stones := Gear.stones
+	var items := Gear.items.size()
+	b.foe["hp"] = 0
+	l.on_shade_down(b)
+	ok(Battle.boss_down("윤슬") and Quests.is_unlocked("볕뉘"), "방에서 대왕을 쓰러뜨리면 꿈의 문이 열린다")
+	ok(Gear.stones >= stones + Place.BOSS_FIRST_STONES and Gear.items.size() >= items + 1
+		and int(Gear.items[-1]["rar"]) >= 3, "첫 처치 보상 - 강화석과 영웅 이상 장비")
+	ok(bool(Quests.boss_row("윤슬")["done"]), "우두머리 퀘스트가 끝난다")
+	stones = Gear.stones
+	l._boss_story("drop_king")
+	ok(Gear.stones == stones, "첫 처치 보상은 한 번뿐")
+	l.queue_free()
+	await get_tree().process_frame
+	# 한 번 잡은 뒤로는 길의 방 문이 늘 열려 있다
+	var r2: Place = load("res://scenes/journey/interiors/BossRoad.tscn").instantiate()
+	add_child(r2)
+	await get_tree().process_frame
+	ok(r2.door_locked(r2.doors()[1]) == "", "보스를 잡은 뒤로는 방 문이 늘 열려 있다")
+	r2.queue_free()
+	await get_tree().process_frame
+	Field.jitter = true
+
+
+# ── 꿈의 탑 (`Loop` · `TowerFloor`) ──────────────────────────────────
+
+func _tower_tests() -> void:
+	print("\n[꿈의 탑]")
+	_clean_state()
+	Loop.reset()
+	ok(not Loop.tower_open(), "처음엔 탑이 닫혀 있다")
+	JourneyState.mark_quest("보스:윤슬")
+	ok(Loop.tower_open() and Loop.tower_start() == 1, "윤슬 보스 뒤로 열리고 1층부터")
+	ok(Loop.floor_spawns(1).size() == 4 and Loop.floor_spawns(1) == Loop.floor_spawns(1),
+		"1층은 넷, 같은 층은 늘 같은 무리")
+	var b5: Array = Loop.floor_spawns(5)
+	ok(bool(Battle.ENEMIES[String(b5[0][0])].get("boss", false)) and b5.size() == 3,
+		"5층은 우두머리 층 (%s)" % b5[0][0])
+	ok(Loop.floor_lv(30) >= 48 and Loop.floor_lv(10) > Loop.floor_lv(9), "층마다 세진다 (30층 LV%d)" % Loop.floor_lv(30))
+	var coins := Gear.coins
+	var r1 := Loop.clear_floor(1)
+	ok(int(r1["coins"]) > 0 and Gear.coins == coins + int(r1["coins"]) and Loop.tower_best == 1,
+		"처음 넘는 층은 꿈조각을 준다")
+	ok(Loop.clear_floor(1).is_empty(), "같은 층을 또 넘으면 보상은 없다")
+	for n in range(2, 6):
+		Loop.clear_floor(n)
+	ok(Loop.tower_best == 5 and Loop.tower_start() == 6, "5층을 넘으면 다음엔 6층부터 (쉼터)")
+	var d := Loop.to_dict()
+	Loop.reset()
+	Loop.from_dict(d)
+	ok(Loop.tower_best == 5, "탑 기록이 저장된다")
+
+	# 층 씬 - 볕뉘에서 들어와 10층(우두머리 층, 불꽃 도깨비)
+	JourneyState.exit_scene = GOAL_SCENES["볕뉘"]
+	JourneyState.exit_tile = Vector2i(10, 10)
+	Loop.tower_now = 10
+	var t: Place = load("res://scenes/journey/interiors/TowerFloor.tscn").instantiate()
+	add_child(t)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(t.place_name() == "꿈의 탑 10층" and t._shades.size() == 3, "10층 - 우두머리와 졸개 둘")
+	var stairs: Dictionary = t.doors()[1]
+	ok(t.door_locked(stairs) != "" and int(stairs["tower_floor"]) == 11, "다 쓰러뜨리기 전엔 계단이 잠겨 있다")
+	ok(String(t.doors()[0]["scene"]) == GOAL_SCENES["볕뉘"], "탑에서 나가면 들어온 마을로")
+	var boss_kind := ""
+	for sh in t._shades.duplicate():
+		if bool(sh.foe["boss"]):
+			boss_kind = sh.shade_kind
+		sh.foe["hp"] = 0
+		t.on_shade_down(sh)
+	ok(boss_kind == "dokkaebi" and not Battle.boss_down("볕뉘"),
+		"탑의 우두머리는 꿈의 문을 안 연다 (%s)" % boss_kind)
+	ok(t.door_locked(stairs) == "" and Loop.tower_best == 10, "다 쓰러뜨리면 계단이 열리고 기록이 오른다")
+	t.queue_free()
+	await get_tree().process_frame
+	# 마을의 푸른 틈은 쉼터 층으로 간다
+	JourneyState.here = "윤슬"
+	var yp: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yp)
+	await get_tree().process_frame
+	var tg: Dictionary = {}
+	for g in yp._gates:
+		if String(g["gate"]) == "tower":
+			tg = g
+	ok(not tg.is_empty() and int(tg["tower_floor"]) == 11, "푸른 틈은 11층으로 간다")
+	yp.queue_free()
+	await get_tree().process_frame
+	Loop.reset()
+	Field.jitter = true
+
+
+# ── 파티 동료 너구리 (`Buddy`) ───────────────────────────────────────
+
+func _buddy_tests() -> void:
+	print("\n[파티 동료 너구리]")
+	_clean_state()
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	ok(p.buddy == null, "처음엔 혼자다")
+	var rac: Folk = null
+	for f in p._folk:
+		if is_instance_valid(f) and f.wanderer:
+			rac = f
+	ok(rac != null, "윤슬에 너구리가 서 있다")
+	if rac != null:
+		p._offer_party(rac)
+		for i in 40:
+			if p.say.is_busy():
+				p.say.advance()
+			await get_tree().process_frame
+			if p.buddy != null:
+				break
+	ok(JourneyState.party_with == "윤슬" and p.buddy != null, "말을 걸면 이 구역 동안 동료가 된다")
+	var standing := false
+	for f in p._folk:
+		if is_instance_valid(f) and f.wanderer:
+			standing = true
+	ok(not standing, "동료가 되면 서 있던 너구리는 곁으로 온다")
+	# 거든다 - 쿼카가 붙은 몬스터를 친다
+	var sh: Shade = p.put_shade(p.tile_of(p.walker.global_position) + Vector2i(2, 0), "drop", 5)
+	await get_tree().process_frame
+	sh.take_hit({"stagger": 0.0}, p.walker.global_position)
+	ok(p.buddy_target() == sh, "덤벼 오는 몬스터를 노린다")
+	var hp0 := int(sh.foe["hp"])
+	p.buddy_strike(p.buddy, sh)
+	ok(int(sh.foe["hp"]) < hp0, "너구리가 친다 (%d → %d)" % [hp0, int(sh.foe["hp"])])
+	var idle: Shade = p.put_shade(p.tile_of(p.walker.global_position) + Vector2i(-3, 0), "drop", 5)
+	await get_tree().process_frame
+	sh.foe["hp"] = 0
+	p.on_shade_down(sh)
+	ok(p.buddy_target() != idle, "가만있는 몬스터에게는 먼저 덤비지 않는다")
+	Battle.hp = 1
+	p.buddy_heal(p.buddy)
+	ok(Battle.hp > 1, "체력이 낮으면 도토리를 나눠 준다")
+	p.queue_free()
+	await get_tree().process_frame
+	# 딸린 길(우두머리의 길)에도 따라온다
+	JourneyState.exit_scene = GOAL_SCENES["윤슬"]
+	JourneyState.exit_tile = Vector2i(10, 10)
+	var r: Place = load("res://scenes/journey/interiors/BossRoad.tscn").instantiate()
+	add_child(r)
+	await get_tree().process_frame
+	ok(r.buddy != null, "우두머리의 길에도 따라온다")
+	r.queue_free()
+	await get_tree().process_frame
+	# 저장
+	var d := JourneyState.to_dict()
+	JourneyState.party_with = ""
+	JourneyState.from_dict(d)
+	ok(JourneyState.party_with == "윤슬", "동료인 것이 저장된다")
+	# 다음 구역으로 떠나면 제 갈 길로 간다
+	JourneyState.move_wanderer("볕뉘", "윤슬")
+	ok(JourneyState.party_with == "", "떠나면 동료가 풀린다")
+	JourneyState.here = "윤슬"
+	Field.jitter = true

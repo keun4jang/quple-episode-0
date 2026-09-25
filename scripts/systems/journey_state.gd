@@ -94,6 +94,9 @@ var visited: Dictionary = {}
 var wanderer_place := "윤슬"
 ## 어디서 만났었나
 var wanderer_seen: Dictionary = {}
+## 너구리가 **동료로 같이 다니는** 구역 ("" 이면 혼자). 너구리가 떠나면
+## (`move_wanderer`) 풀린다 - 구역마다 다시 만나 다시 같이 다닌다.
+var party_with := ""
 ## 여행자가 갈 수 있는 곳 (고향은 뺀다 — 남의 고향에 갈 리 없다)
 ##
 ## **2탄 다섯 곳도 돈다.** 여기 빠져 있던 동안 게임 후반 절반에서
@@ -203,6 +206,7 @@ func move_wanderer(dest: String = "", from: String = "") -> void:
 	# 스쳐 지나가고, 그 뒤로 계속 어긋난다.
 	if from == "잿마루":
 		return
+	party_with = ""
 	departures += 1
 	# **마지막 재회에서 두 번 떠나면 겹친다.** 처음엔 "세 번째 떠남마다 +
 	# 안 가 본 곳에서만" 이었는데, 그러면 재회가 3·6·9번째 떠남에 왔다 —
@@ -769,6 +773,7 @@ func to_dict() -> Dictionary:
 		"visited": visited.duplicate(),
 		"wanderer_place": wanderer_place,
 		"wanderer_seen": wanderer_seen.duplicate(),
+		"party_with": party_with,
 		"letters": letters.duplicate(true),
 		"letters_sent": letters_sent,
 		"letters_skipped": letters_skipped,
@@ -886,6 +891,7 @@ func from_dict(d: Dictionary) -> void:
 	minutes = clampf(float(d.get("minutes", DAY_START)), DAY_START, DAY_END)
 	visited = d.get("visited", {}).duplicate() if d.get("visited") is Dictionary else {}
 	wanderer_place = String(d.get("wanderer_place", "윤슬"))
+	party_with = String(d.get("party_with", ""))
 	wanderer_seen = d.get("wanderer_seen", {}).duplicate() \
 		if d.get("wanderer_seen") is Dictionary else {}
 	letters = d.get("letters", []).duplicate(true) if d.get("letters") is Array else []
@@ -962,6 +968,7 @@ func reset() -> void:
 	visited = {}
 	wanderer_place = "윤슬"
 	wanderer_seen = {}
+	party_with = ""
 	letters = []
 	letters_sent = 0
 	letters_skipped = []
