@@ -233,6 +233,16 @@ func battle_defeat() -> void:
 
 # ── 재생 ────────────────────────────────────────────────────────────────
 
+## 삐삐삐삐 - 현실의 알람이 꿈으로 새어 든다 (`DreamSky`).
+func alarm() -> void:
+	_play("alarm", -14.0)
+
+
+## 하늘이 쩍 갈라지는 소리 (`DreamSky.break_open`).
+func sky_crack() -> void:
+	_play("sky_crack", -8.0)
+
+
 func _play(kind: String, db: float, pitch: float = 1.0) -> void:
 	if _sfx_volume <= 0.001:
 		return
@@ -275,7 +285,26 @@ func _build(kind: String) -> AudioStreamWAV:
 		"battle_hurt":  return _make_norm(0.18, _battle_hurt_wave, 0.62)
 		"battle_heal":  return _make(0.52, _battle_heal_wave)
 		"battle_defeat": return _make_norm(0.85, _battle_defeat_wave, 0.60)
+		"alarm":        return _make_norm(0.62, _alarm_wave, 0.55)
+		"sky_crack":    return _make_norm(1.10, _sky_crack_wave, 0.70)
 	return null
+
+
+## 디지털 알람 - 짧은 삐 넷. 네모에 가까운 파형이라 "기계" 소리가 난다.
+func _alarm_wave(t: float, _dur: float) -> float:
+	var k := fmod(t, 0.15)
+	if k > 0.08:
+		return 0.0
+	var tone := sin(TAU * 2048.0 * t)
+	return clampf(tone * 3.0, -1.0, 1.0) * 0.5 * minf(1.0, k * 400.0)
+
+
+## 쩍 - 날카로운 금 가는 소리 뒤로 낮게 우르릉.
+func _sky_crack_wave(t: float, _dur: float) -> float:
+	var snap := (randf() * 2.0 - 1.0) * exp(-t * 28.0)
+	var ring := sin(TAU * 1320.0 * t * (1.0 - t * 0.4)) * 0.25 * exp(-t * 9.0)
+	var rumble := sin(TAU * 52.0 * t) * 0.6 * exp(-t * 2.6) * minf(1.0, t * 12.0)
+	return clampf(snap * 0.8 + ring + rumble, -1.0, 1.0)
 
 ## 부드럽고 낮은 툭 소리 (발소리)
 func _footstep_wave(t: float, dur: float) -> float:

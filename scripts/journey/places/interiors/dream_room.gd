@@ -66,6 +66,11 @@ func fights_here() -> bool:
 	return true
 
 
+## 꿈의 틈 너머도 꿈결 하늘 아래다 (`DreamSky`).
+func sky_open() -> bool:
+	return true
+
+
 func pad_wide() -> bool:
 	return false
 

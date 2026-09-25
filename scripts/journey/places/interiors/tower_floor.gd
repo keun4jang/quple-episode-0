@@ -145,6 +145,11 @@ func _check_done() -> void:
 		hud._say_hint("쉼터에 닿았어요. 다음엔 %d층부터 올라요." % (n + 1), true, 2.4)
 
 
+## 탑 안에서는 하늘이 안 보인다.
+func sky_open() -> bool:
+	return false
+
+
 ## 탑의 우두머리는 꿈의 문을 열지 않는다 (위 주석).
 func _boss_story(_kind: String) -> void:
 	pass

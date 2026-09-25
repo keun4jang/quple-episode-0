@@ -273,6 +273,7 @@ func _ready() -> void:
 	# **인연을 다 세운 뒤에** 그늘을 세운다 — 사람 옆자리를 피해야 한다.
 	_build_shades()
 	_build_buddy()
+	_build_sky()
 	_block_folk_tiles()
 	# **인연을 다 세운 뒤에** 도착 카드를 띄운다. `_build_ui()` 때는
 	# 아직 아무도 없어서 "지금 해볼 일" 이 엉뚱한 것을 짚었다 —
@@ -1632,6 +1633,24 @@ func _on_level_up(ev: Dictionary) -> void:
 ##   야근 대마왕 → 깨어난다
 const BOSS_FIRST_STONES := 3
 
+## 이야기가 하늘을 바꾸는 구역 - 여기 보스를 처음 쓰러뜨리면 하늘에 금이 간다 (`DreamSky`).
+const SKY_BREAK := {"솔은재": 1, "꽃눈벌": 2}
+
+
+## 하늘이 보이는 곳인가. 마을 밖(실외)만 - 가게·등대 안에서는 하늘이 없다.
+## 우두머리의 길·방은 스스로 참을, 탑 안은 거짓을 돌려준다.
+func sky_open() -> bool:
+	return not is_indoors() and Quests.ORDER.has(place_name())
+
+
+## 이야기 단계에 맞는 하늘을 단다. 꿈속 잿마루 타워는 더 거세다.
+func _build_sky() -> void:
+	var st := DreamSky.stage_now()
+	var tower: bool = has_method("tower") and bool(call("tower"))
+	if st <= 0 or not (sky_open() or tower):
+		return
+	DreamSky.attach(self, st, tower)
+
 
 func _boss_story(kind: String) -> void:
 	var v := quest_village()
@@ -1642,7 +1661,12 @@ func _boss_story(kind: String) -> void:
 		var it := Gear.roll_gear("", Battle.boss_lv(v), true)
 		Gear._reroll(it, maxi(3, int(it["rar"])))
 		Gear.items.append(it)
+		# 하늘이 바뀌는 구역이면 그 자리에서 금이 간다.
+		if SKY_BREAK.has(v):
+			DreamSky.attach(self, 0).break_open(int(SKY_BREAK[v]))
 		if hud != null:
+			if v == "솔은재":
+				hud._celebrate("하늘에 현실이 새어 들어와요", "알람 소리가 들리고 결재 서류가 떨어져요")
 			if v == String(Quests.ORDER[-1]):
 				hud._celebrate("꿈이 금 가기 시작했어요!", "정류장에 잿마루 타워가 나타났어요")
 			else:
@@ -1662,6 +1686,8 @@ func _wake_up() -> void:
 	await get_tree().create_timer(1.6).timeout
 	if not is_inside_tree():
 		return
+	# 하늘이 아침빛으로 걷힌다 - 대사가 말하는 것을 눈으로도.
+	DreamSky.attach(self, 2, true).dawn()
 	if say != null:
 		say.say("", [
 			["야근 대마왕", "…내일 아침까지… 부탁…"],

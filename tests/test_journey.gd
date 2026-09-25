@@ -109,6 +109,7 @@ func _ready() -> void:
 	await _boss_map_tests()
 	await _tower_tests()
 	await _buddy_tests()
+	await _sky_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -8229,5 +8230,85 @@ func _buddy_tests() -> void:
 	# 다음 구역으로 떠나면 제 갈 길로 간다
 	JourneyState.move_wanderer("볕뉘", "윤슬")
 	ok(JourneyState.party_with == "", "떠나면 동료가 풀린다")
+	JourneyState.here = "윤슬"
+	Field.jitter = true
+
+
+
+# ── 꿈이 금 가는 하늘 (`DreamSky`) ───────────────────────────────────
+
+func _sky_tests() -> void:
+	print("\n[꿈이 금 가는 하늘]")
+	_clean_state()
+	ok(DreamSky.stage_now() == 0, "처음엔 맑은 하늘")
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	ok(p.get_node_or_null("DreamSky") == null, "처음엔 하늘에 아무것도 없다")
+	p.queue_free()
+	await get_tree().process_frame
+	JourneyState.mark_quest("보스:솔은재")
+	ok(DreamSky.stage_now() == 1, "솔은재 보스 뒤엔 현실이 새어 든다 (1단계)")
+	p = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var sky := p.get_node_or_null("DreamSky") as DreamSky
+	ok(sky != null and sky.stage == 1 and sky._papers.size() == DreamSky.PAPERS[1],
+		"마을 하늘에 서류가 드문드문 떨어진다")
+	ok(sky != null and sky._canvas.mouse_filter == Control.MOUSE_FILTER_IGNORE
+		and sky.layer < p.hud.layer, "하늘은 누르는 걸 안 막고 HUD 밑에 그린다")
+	if sky != null:
+		var before := sky.get_child_count()
+		sky.leak("결재 부탁드립니다")
+		ok(sky.get_child_count() == before + 3, "현실의 말이 하늘에 번쩍 뜬다")
+	p.queue_free()
+	await get_tree().process_frame
+	# 가게 안에서는 하늘이 없다
+	JourneyState.exit_scene = GOAL_SCENES["윤슬"]
+	JourneyState.exit_tile = Vector2i(10, 10)
+	var shop: Place = load("res://scenes/journey/interiors/ShopInterior.tscn").instantiate()
+	add_child(shop)
+	await get_tree().process_frame
+	ok(shop.get_node_or_null("DreamSky") == null, "가게 안에서는 하늘이 안 보인다")
+	shop.queue_free()
+	await get_tree().process_frame
+	# 꽃눈벌 우두머리 방 - 쓰러뜨리는 그 자리에서 금이 간다
+	JourneyState.exit_scene = GOAL_SCENES["꽃눈벌"]
+	var l: Place = load("res://scenes/journey/interiors/BossLair.tscn").instantiate()
+	add_child(l)
+	await get_tree().process_frame
+	var sky1 := l.get_node_or_null("DreamSky") as DreamSky
+	ok(sky1 != null and sky1.stage == 1, "우두머리 방도 꿈결 하늘 아래다")
+	var deer: Shade = l._boss_shade()
+	deer.foe["hp"] = 0
+	l.on_shade_down(deer)
+	var sky2 := l.get_node_or_null("DreamSky") as DreamSky
+	ok(DreamSky.stage_now() == 2 and sky2 != null and sky2.stage == 2 and sky2._reveal < 1.0,
+		"꽃눈벌 보스를 쓰러뜨리면 그 자리에서 하늘에 금이 간다")
+	ok(sky2 != null and sky2._papers.size() > DreamSky.PAPERS[2], "서류가 한꺼번에 쏟아진다")
+	l.queue_free()
+	await get_tree().process_frame
+	# 꿈속 잿마루 타워 - 더 거세다
+	JourneyState.here = "잿마루"
+	var jm: Place = load(GOAL_SCENES["잿마루"]).instantiate()
+	add_child(jm)
+	await get_tree().process_frame
+	var sky3 := jm.get_node_or_null("DreamSky") as DreamSky
+	ok(sky3 != null and sky3.strong and sky3._papers.size() == DreamSky.PAPERS_TOWER,
+		"잿마루 타워 하늘은 서류가 비처럼 내린다")
+	# 탑 안은 하늘이 없다
+	ok(not (load("res://scenes/journey/interiors/TowerFloor.tscn").instantiate() as Place).sky_open(),
+		"꿈의 탑 안에서는 하늘이 안 보인다")
+	# 아침 - 대마왕 뒤
+	if sky3 != null:
+		sky3.dawn()
+		await get_tree().create_timer(2.8).timeout
+		ok(sky3._papers.is_empty() and sky3._haze_a < 0.01 and sky3._dawn.color.a > 0.3,
+			"아침빛이 번지고 금·서류가 걷힌다")
+	JourneyState.mark_quest("엔딩:대마왕")
+	ok(DreamSky.stage_now() == 0, "깨어난 뒤로는 다시 맑다")
+	jm.queue_free()
+	await get_tree().process_frame
 	JourneyState.here = "윤슬"
 	Field.jitter = true
