@@ -276,6 +276,11 @@ func _build() -> void:
 	root.add_child(xp_bar)
 	# 피버 타임 테두리 (`FeverFrame`).
 	root.add_child(FeverFrame.new())
+	# PC 키보드 단축키 (`DesktopKeys`) - 폰에서는 아무 일도 안 한다.
+	var dk := DesktopKeys.new()
+	dk.name = "DesktopKeys"
+	dk.hud = self
+	add_child(dk)
 
 	# 무엇을 주웠는지 잠깐 알려 주는 줄
 	_hint = Label.new()

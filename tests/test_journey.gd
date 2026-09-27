@@ -8651,6 +8651,22 @@ func _design_tests() -> void:
 	SaveManager.game_saved.emit()
 	await get_tree().process_frame
 	ok(p.hud.save_mark.modulate.a > 0.5, "저장되면 '자동 저장' 이 잠깐 뜬다")
+	# PC 키보드 - I 로 배낭, Esc 로 닫기
+	var dk := p.hud.get_node_or_null("DesktopKeys") as DesktopKeys
+	ok(dk != null, "PC 키보드 단축키가 붙어 있다")
+	if dk != null:
+		var ki := InputEventKey.new()
+		ki.keycode = KEY_I
+		ki.pressed = true
+		dk._unhandled_key_input(ki)
+		ok(p.hud.bag_open(), "I 를 누르면 배낭이 열린다")
+		var ke := InputEventKey.new()
+		ke.keycode = KEY_ESCAPE
+		ke.pressed = true
+		dk._unhandled_key_input(ke)
+		await get_tree().process_frame
+		ok(not p.hud.bag_open(), "Esc 를 누르면 닫힌다")
+	ok(HowToPlay.PC_KEYS.contains("F11") and HowToPlay.PC_KEYS.contains("Z 공격"), "하는 법에 PC 키가 적혀 있다")
 	p.queue_free()
 	await get_tree().process_frame
 	Gear.reset()

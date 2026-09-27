@@ -58,6 +58,10 @@ const HOWS := [
 ]
 
 
+## PC 키보드 (`DesktopKeys`).
+const PC_KEYS := "PC  ·  화살표 이동 · Z 공격 · 1~7 스킬 · 스페이스 말 걸기 · 마우스 클릭으로 걷기\nI 배낭 · Q 할 일 · C 캐릭터 · M 지도 · H 하는 법 · F11 전체 화면 · Esc 닫기"
+
+
 ## 지금 띄운다. 이미 떠 있으면 아무것도 안 한다.
 static func open(tree: SceneTree) -> HowToPlay:
 	if tree.get_first_node_in_group("how_to_play") != null:
@@ -149,6 +153,17 @@ func _build() -> void:
 		l.add_theme_constant_override("outline_size", 8)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(l)
+
+	# PC 에서는 키보드도 적는다 (`DesktopKeys`).
+	if OS.has_feature("pc") and not OS.has_feature("mobile"):
+		var kl := Label.new()
+		kl.text = PC_KEYS
+		kl.add_theme_font_size_override("font_size", 20)
+		kl.add_theme_color_override("font_color", Color("#B5E3FF"))
+		kl.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+		kl.add_theme_constant_override("outline_size", 6)
+		kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(kl)
 
 	var tail := Label.new()
 	tail.text = "왼쪽 위 \"이 마을\" 에서 언제든 다시 볼 수 있어요."

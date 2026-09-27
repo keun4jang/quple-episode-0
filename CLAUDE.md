@@ -139,6 +139,15 @@ python3 tools/pixel/check-font-glyphs.py    # 화면에 뜨는 글자 전부 검
 늘 다음 목표 하나(메인 퀘스트), 겹겹의 보상 간격, 막히지 않기(쓰러져도 일어남·다음 구역으로 바로 가기·
 자동 저장). 구역마다 상점이 그 단계의 **직업별 장비**를 판다 (맵을 옮기면 더 좋은 장비).
 
+### PC 버전 (윈도우 · 맥)
+
+`GODOT=... bash tools/build-desktop.sh` → `build/desktop/진짜행복-윈도우-<버전>.zip` · `진짜행복-맥-<버전>.zip`.
+내보내기 설정은 `export_presets.desktop.cfg`(스크립트가 `export_presets.cfg` 에 붙인다), 템플릿은
+`~/.local/share/godot/export_templates/4.3.stable/` 의 `windows_release_x86_64.exe`·`macos.zip`.
+맥은 임시 서명(ad-hoc)만 - 처음 열 때 오른쪽 클릭 → 열기 (zip 안 안내 파일). PC 도 켤 때 폰과 같은
+갱신 팩(`update/quple.pck`)을 받는다 - 그림이 전부 무손실이라 플랫폼을 안 탄다.
+키보드는 `DesktopKeys` (I 배낭 · Q 할 일 · C 캐릭터 · M 지도 · H 하는 법 · F11 · Esc).
+
 ### 꿈결 대개편 (2026-09) — **이것이 현재 방향이다**
 
 `docs/redesign-dream.md`(이야기·직업·레벨·장비·고리), `docs/elements.md`(속성).
