@@ -35,6 +35,14 @@ const EVERY_BOSS := 2.3
 ## "때려 볼 그늘" 이 같은 색으로 깜빡이면 고르고 말고가 없다.
 const SHADE_TALK := Color(0.88, 0.44, 0.50, 0.92)
 
+## 황금 꿈방울 (`Battle.ENEMIES` 의 `gold`). **덤비지 않고 달아난다** - 맞으면
+## 쿼카 반대쪽으로 도망치고, `ESCAPE` 초 안에 못 잡으면 사라진다.
+var golden := false
+const FLEE := 56.0
+const ESCAPE := 14.0
+const GOLD := Color(1.35, 1.12, 0.45)
+var _flee_left := 0.0
+
 var _t := 0.0
 var _bar: Node2D
 var _intent: Label
@@ -58,6 +66,12 @@ func _ready() -> void:
 	if tag != null:
 		tag.add_theme_color_override("font_color",
 			Battle.elem_col(String(foe.get("elem", "none"))).lightened(0.35))
+	if golden:
+		scale = Vector2(1.3, 1.3)
+		if sprite != null:
+			sprite.modulate = GOLD
+		if tag != null:
+			tag.add_theme_color_override("font_color", Color("#FFE066"))
 	# **정예는 크고 금빛이다** - 멀리서 봐도 "저건 잡아야 한다".
 	if bool(foe.get("elite", false)):
 		scale = Vector2(1.35, 1.35)
@@ -146,6 +160,17 @@ func _physics_process(delta: float) -> void:
 			_t -= delta
 			if _t <= 0.0:
 				_strike_now(p, to.length())
+		"flee":
+			# 쿼카 반대쪽으로. 벽에 막히면 옆으로 비껴 간다.
+			_flee_left -= delta
+			if _flee_left <= 0.0:
+				if p.has_method("on_gold_escape"):
+					p.on_gold_escape(self)
+				return
+			var away := -to.normalized() if to.length() > 0.1 else Vector2.RIGHT
+			if get_real_velocity().length() < 8.0:
+				away = away.rotated(PI * 0.5 * (1.0 if int(_flee_left * 2.0) % 2 == 0 else -1.0))
+			set_input(away)
 		"back":
 			var h := home - global_position
 			if h.length() < 3.0:
@@ -196,7 +221,7 @@ func calm() -> void:
 
 
 func is_fighting() -> bool:
-	return state == "chase" or state == "windup"
+	return state == "chase" or state == "windup" or state == "flee"
 
 
 ## 맞았다. `res` 는 `Field.strike` 의 결과.
@@ -205,6 +230,18 @@ func take_hit(res: Dictionary, from: Vector2) -> void:
 		return
 	_bar.visible = true
 	_bar.queue_redraw()
+	if golden:
+		if state != "flee":
+			state = "flee"
+			_flee_left = ESCAPE
+			speed = FLEE
+		if sprite != null:
+			if _flash_tw != null and _flash_tw.is_valid():
+				_flash_tw.kill()
+			sprite.modulate = Color(3, 3, 3)
+			_flash_tw = create_tween()
+			_flash_tw.tween_property(sprite, "modulate", GOLD, 0.14)
+		return
 	# 맞으면 그때부터 덤빈다. 첫 덤빔까지는 조금 틈을 준다.
 	if state == "idle" or state == "back":
 		state = "chase"
@@ -232,7 +269,7 @@ func take_hit(res: Dictionary, from: Vector2) -> void:
 func pulse_color() -> Color:
 	var t := float(Time.get_ticks_msec()) / 1000.0
 	var k: float = 0.5 + 0.5 * sin(t * TAU / QuoWalker.TALK_PULSE_SECS)
-	if bool(foe.get("elite", false)):
+	if golden or bool(foe.get("elite", false)):
 		return Color("#FFD43B").lerp(Color("#FFF3BF"), k)
 	return QuoWalker.OUTLINE_DARK.lerp(SHADE_TALK, k)
 

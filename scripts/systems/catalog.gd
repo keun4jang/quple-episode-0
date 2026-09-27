@@ -258,6 +258,8 @@ const ITEMS := {
 		"desc": "아직 따지 않았다."},
 	"m-bat": {"name": "읽음 표시", "kind": "shade", "guard": "bat",
 		"desc": "1 이 사라졌다."},
+	"m-gold_drop": {"name": "황금 꿈방울 조각", "kind": "shade", "guard": "gold_drop",
+		"desc": "달아나던 뒷모습이 아직 반짝인다."},
 	"m-night": {"name": "야근 대마왕의 조각", "kind": "shade", "guard": "night",
 		"desc": "긴 밤도 결국 아침이 된다."},
 

@@ -29,6 +29,11 @@ static func hit(n: int = 1) -> void:
 
 
 static func tick(delta: float) -> void:
+	if fever_t > 0.0:
+		fever_t = maxf(0.0, fever_t - delta)
+	_fever_idle += delta
+	if _fever_idle > FEVER_IDLE and not fever_on() and fever > 0.0:
+		fever = maxf(0.0, fever - delta * 3.0)
 	if combo_t > 0.0:
 		combo_t -= delta
 		if combo_t <= 0.0:
@@ -44,6 +49,52 @@ static func combo_bonus() -> float:
 	if combo >= 10:
 		return 1.1
 	return 1.0
+
+
+# ── 피버 타임 ────────────────────────────────────────────────────────
+#
+# **몇 분마다 한 번 터지는 것.** 쓰러뜨릴 때마다 게이지가 차고, 가득 차면
+# 12초 동안 주는 피해 1.5배 · 경험과 꿈조각 2배. 화면 테두리가 무지개로 돈다.
+# 한참 안 싸우면 게이지가 천천히 빠진다 - 몰아서 잡을수록 자주 터진다.
+
+const FEVER_MAX := 100.0
+const FEVER_SECS := 12.0
+const FEVER_KILL := 9.0
+const FEVER_ELITE := 35.0
+const FEVER_BOSS := 60.0
+const FEVER_WEAK := 2.0
+## 이만큼(초) 안 싸우면 게이지가 빠지기 시작한다.
+const FEVER_IDLE := 8.0
+static var fever := 0.0
+static var fever_t := 0.0
+static var _fever_idle := 0.0
+
+
+static func fever_on() -> bool:
+	return fever_t > 0.0
+
+
+## 게이지를 채운다. **이번에 피버가 터졌으면 참.**
+static func fever_add(v: float) -> bool:
+	_fever_idle = 0.0
+	if fever_on():
+		return false
+	fever = minf(FEVER_MAX, fever + v * (1.0 + bless("fever")))
+	if fever >= FEVER_MAX:
+		fever = 0.0
+		fever_t = FEVER_SECS
+		return true
+	return false
+
+
+## 주는 피해 배율.
+static func fever_dmg() -> float:
+	return 1.5 if fever_on() else 1.0
+
+
+## 경험·꿈조각 배율.
+static func fever_gain() -> float:
+	return 2.0 if fever_on() else 1.0
 
 
 # ── 정예 ─────────────────────────────────────────────────────────────
@@ -276,10 +327,69 @@ static func floor_spawns(n: int) -> Array:
 	return out
 
 
+## 30층을 넘으면 층마다 몸과 힘이 6% 씩 더 붙는다 - 레벨 50 뒤로도 끝이 없게.
+## (레벨만 올려서는 LV 50 장비가 다 갖춰지면 60층까지 그냥 걸어 올라갔다 - 시뮬레이션.)
+static func floor_power(n: int) -> float:
+	return pow(1.06, float(maxi(0, n - 30)))
+
+
+## 몬스터 하나를 탑의 배율만큼 세게 한다.
+static func power_up(foe: Dictionary, k: float) -> void:
+	foe["hp"] = int(float(foe["hp"]) * k)
+	foe["hp_max"] = foe["hp"]
+	foe["atk"] = int(float(foe["atk"]) * k)
+
+
+# ── 탑의 축복 (한 번 오르는 동안만) ─────────────────────────────────
+#
+# 층을 넘을 때마다 **셋 중 하나**를 고른다 (`BlessPick`). 고른 것은 이번에
+# 오르는 동안 쌓인다 - 마을에서 푸른 틈으로 새로 들어오면 비운다.
+# 같은 층을 매번 똑같이 오르지 않게, 그리고 "이번엔 이렇게 짜 볼까" 가 되게.
+
+const BLESSINGS := {
+	"might": {"name": "꿈의 힘", "desc": "주는 피해 +20퍼센트", "atk": 0.2},
+	"keen": {"name": "날카로운 꿈", "desc": "치명타 확률 +12퍼센트", "crit": 0.12},
+	"shell": {"name": "단단한 꿈", "desc": "받는 피해 -15퍼센트", "guard": 0.15},
+	"leech": {"name": "배부른 꿈", "desc": "쓰러뜨릴 때마다 체력 8퍼센트 회복", "leech": 0.08},
+	"flow": {"name": "샘솟는 꿈", "desc": "마음력이 두 배로 찬다", "mp": 1.0},
+	"gold": {"name": "반짝이는 꿈", "desc": "꿈조각 +40퍼센트", "coin": 0.4},
+	"hot": {"name": "달아오른 꿈", "desc": "피버 게이지가 두 배로 찬다", "fever": 1.0},
+}
+## 받는 피해는 여기까지만 줄어든다 - 겹쳐 쌓아도 무적이 되지 않게.
+const BLESS_GUARD_CAP := 0.6
+static var blessings: Array = []
+
+
+## 고른 축복이 주는 그 값의 합.
+static func bless(key: String) -> float:
+	var v := 0.0
+	for id in blessings:
+		v += float(BLESSINGS.get(String(id), {}).get(key, 0.0))
+	if key == "guard":
+		v = minf(v, BLESS_GUARD_CAP)
+	return v
+
+
+## 층을 넘었다 - 고를 것 셋. 층과 지금까지 고른 수로 씨를 심는다.
+static func bless_offer(n: int) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("bless|%d|%d" % [n, blessings.size()])
+	var pool: Array = BLESSINGS.keys()
+	var out: Array = []
+	while out.size() < 3 and not pool.is_empty():
+		out.append(pool.pop_at(rng.randi_range(0, pool.size() - 1)))
+	return out
+
+
+static func add_blessing(id: String) -> void:
+	if BLESSINGS.has(id):
+		blessings.append(id)
+
+
 ## 그 층을 처음 넘으면 받는 것.
 static func floor_reward(n: int) -> Dictionary:
 	var boss := is_boss_floor(n)
-	return {"coins": 60 + 25 * n, "stones": 3 if boss else (1 if n % 2 == 0 else 0),
+	return {"coins": 40 + 12 * n, "stones": 3 if boss else (1 if n % 2 == 0 else 0),
 		"gear": boss}
 
 
@@ -313,13 +423,17 @@ static func reset() -> void:
 	last_seen = 0
 	tower_best = 0
 	tower_now = 1
+	blessings = []
+	fever = 0.0
+	fever_t = 0.0
 
 
 static func to_dict() -> Dictionary:
 	return {"kills": kills.duplicate(), "titles": titles.duplicate(), "title": title,
 		"daily": daily.duplicate(true), "attend": attend.duplicate(),
 		"last_seen": int(Time.get_unix_time_from_system()), "best_combo": best_combo,
-		"tower_best": tower_best, "tower_now": tower_now}
+		"tower_best": tower_best, "tower_now": tower_now, "blessings": blessings.duplicate(),
+		"fever": fever}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -337,3 +451,6 @@ static func from_dict(d: Dictionary) -> void:
 	best_combo = int(d.get("best_combo", 0))
 	tower_best = maxi(0, int(d.get("tower_best", 0)))
 	tower_now = maxi(1, int(d.get("tower_now", 1)))
+	if d.get("blessings") is Array:
+		blessings = d["blessings"].duplicate()
+	fever = clampf(float(d.get("fever", 0.0)), 0.0, FEVER_MAX - 1.0)

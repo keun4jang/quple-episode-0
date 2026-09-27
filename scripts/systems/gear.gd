@@ -73,6 +73,8 @@ const LEGEND := {"elem": 20, "crit": 8}
 ## 강화 +0 ~ +15. 한 칸마다 기본 수치 6% 오른다.
 const PLUS_MAX := 15
 const PLUS_STEP := 0.06
+## 몬스터 하나가 강화석을 떨어뜨릴 확률. 0.08 이면 3구역에 이미 +10 이었다.
+const STONE_CHANCE := 0.04
 
 # ── 가진 것 ───────────────────────────────────────────────────────────
 
@@ -257,10 +259,11 @@ static func _roll_rarity(odds: Array) -> int:
 ## 줍는 것은 부르는 쪽이 `take()` 로 한다.
 static func roll_drops(kind: String, lv: int, boss: bool, elite: bool = false) -> Dictionary:
 	var out := {"coins": 0, "stones": 0, "gear": []}
-	var c := lv * 3 + randi_range(0, maxi(1, lv))
+	# 시뮬레이션으로 줄였다 - 끝판에 26만 꿈조각이 남아 상점이 뜻을 잃었다.
+	var c := lv * 2 + randi_range(0, maxi(1, lv / 2))
 	c = int(c * (1.0 + bonus("coin") / 100.0))
-	out["coins"] = c * (20 if boss else (5 if elite else 1))
-	if boss or elite or randf() < 0.08:
+	out["coins"] = c * (12 if boss else (5 if elite else 1))
+	if boss or elite or randf() < STONE_CHANCE:
 		out["stones"] = 3 if boss else 1
 	var n := 2 if boss else (1 if elite or randf() < DROP_CHANCE * (1.0 + bonus("drop") / 100.0) else 0)
 	for i in n:
@@ -352,7 +355,7 @@ static func unequip(slot: String) -> void:
 
 ## 강화에 드는 꿈조각.
 static func plus_cost(it: Dictionary) -> int:
-	return (int(it["tier"]) + 1) * 25 * (int(it.get("plus", 0)) + 1)
+	return (int(it["tier"]) + 1) * 75 * (int(it.get("plus", 0)) + 1)
 
 
 ## 성공 확률 (0~1). +1~+5 는 늘 성공, 그 뒤로 내려간다.

@@ -256,6 +256,8 @@ func _build() -> void:
 	# 화면 맨 아래 경험 막대 - 늘 뜬다 (`XpBar`).
 	xp_bar = XpBar.new()
 	root.add_child(xp_bar)
+	# 피버 타임 테두리 (`FeverFrame`).
+	root.add_child(FeverFrame.new())
 
 	# 무엇을 주웠는지 잠깐 알려 주는 줄
 	_hint = Label.new()

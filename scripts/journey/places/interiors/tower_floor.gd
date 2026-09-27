@@ -79,6 +79,14 @@ func _shade_spots(n: int) -> Array:
 	return [Vector2i(13, 6), Vector2i(8, 8), Vector2i(18, 8)].slice(0, n)
 
 
+## 30층 위로는 몬스터가 층마다 더 세진다 (`Loop.floor_power`).
+func put_shade(t: Vector2i, kind: String, lv: int = 1, elite: bool = false) -> Shade:
+	var s := super(t, kind, lv, elite)
+	if s != null and Loop.floor_power(floor_no()) > 1.0:
+		Loop.power_up(s.foe, Loop.floor_power(floor_no()))
+	return s
+
+
 func door_locked(d: Dictionary) -> String:
 	if String(d.get("enter_key", "")) != "탑계단" or foes_left() <= 0:
 		return ""
@@ -131,6 +139,8 @@ func _check_done() -> void:
 	SaveManager.save_now()
 	if hud == null:
 		return
+	# 축복 셋 중 하나 - 이번에 오르는 동안 쌓인다 (`BlessPick`).
+	_offer_blessing(n)
 	if r.is_empty():
 		hud._say_hint("계단이 열렸어요. 위로 올라가요.", false, 1.8)
 		return
@@ -143,6 +153,21 @@ func _check_done() -> void:
 	hud._celebrate("%d층 돌파! 최고 기록" % n, " · ".join(bits))
 	if n % Loop.TOWER_BOSS_EVERY == 0:
 		hud._say_hint("쉼터에 닿았어요. 다음엔 %d층부터 올라요." % (n + 1), true, 2.4)
+
+
+func _offer_blessing(n: int) -> void:
+	await get_tree().create_timer(1.2).timeout
+	if not is_inside_tree():
+		return
+	var bp := BlessPick.new()
+	bp.name = "BlessPick"
+	bp.offer = Loop.bless_offer(n)
+	bp.picked.connect(func(id: String) -> void:
+		SaveManager.save_now()
+		if hud != null:
+			hud._say_hint("%s - %s" % [String(Loop.BLESSINGS[id]["name"]),
+				String(Loop.BLESSINGS[id]["desc"])], false, 2.0))
+	add_child(bp)
 
 
 ## 탑 안에서는 하늘이 안 보인다.

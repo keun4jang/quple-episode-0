@@ -46,6 +46,29 @@ func _ready() -> void:
 	_attack.offset_bottom = -EDGE
 	var al := _btn_label(_attack, "공격", 32, Color("#3A1E1A"))
 	al.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# 피버 게이지 - 공격 버튼을 두르는 고리. 차오를수록 주황 호가 길어지고,
+	# 피버 동안은 무지개로 돈다 (`Loop.fever`).
+	var ring := Control.new()
+	ring.name = "FeverRing"
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ring.draw.connect(func() -> void:
+		var c := Vector2(ATTACK, ATTACK) * 0.5
+		var r := ATTACK * 0.5 + 9.0
+		ring.draw_arc(c, r, 0.0, TAU, 48, Color(0.12, 0.09, 0.14, 0.55), 8.0)
+		if Loop.fever_on():
+			var t := float(Time.get_ticks_msec()) / 1000.0
+			var k := Loop.fever_t / Loop.FEVER_SECS
+			for i in 24:
+				var a0 := -PI * 0.5 + TAU * k * float(i) / 24.0
+				var a1 := -PI * 0.5 + TAU * k * float(i + 1) / 24.0
+				ring.draw_arc(c, r, a0, a1, 4,
+					Color.from_hsv(fmod(t + float(i) / 24.0, 1.0), 0.6, 1.0), 7.0)
+		elif Loop.fever > 0.0:
+			var k2 := Loop.fever / Loop.FEVER_MAX
+			ring.draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * k2, 40,
+				Color("#FFB347") if k2 < 0.8 else Color("#FFE066"), 6.0))
+	_attack.add_child(ring)
 	_rebuild()
 	_build_vitals()
 	_combo = Label.new()
@@ -248,6 +271,7 @@ func _process(_delta: float) -> void:
 		_rebuild()
 	_vitals.get_node("Bars").queue_redraw()
 	_attack.get_node("Cooldown").queue_redraw()
+	_attack.get_node("FeverRing").queue_redraw()
 	for id in _skills:
 		var b: Button = _skills[id]
 		if not is_instance_valid(b):

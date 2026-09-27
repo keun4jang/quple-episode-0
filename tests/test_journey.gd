@@ -111,6 +111,7 @@ func _ready() -> void:
 	await _buddy_tests()
 	await _sky_tests()
 	await _hud_help_tests()
+	await _hit_feature_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -6681,12 +6682,15 @@ func _battle_tests() -> void:
 			var hp_was := Battle.hp
 			Field.foe_attack(f)
 			var lost := hp_was - Battle.hp
-			if lost != told:
+			# 예고한 한 방이 남은 체력보다 크면 체력이 0 에서 멈춘다 - 그것도 맞은 것이다.
+			if lost != mini(told, hp_was):
 				ok(false, "%s %d번째: %d 온다고 하고 %d 왔다" % [kind, i + 1, told, lost])
 	ok(true, "모든 몬스터가 예고한 만큼만 때린다")
 	Battle.reset()
 
-	# ④ 레벨 곡선 - 같은 레벨이면 기본 공격 네댓 번, 아홉 번쯤 맞으면 쓰러진다
+	# ④ 레벨 곡선 - **맨몸에 [공격] 만으로** 잰다. 0.1.178 에 시뮬레이션
+	# (`tools/sim/SimBalance`)으로 다시 맞췄다: 스킬·장비를 갖춘 사람 기준으로
+	# 몬스터 하나 2~4초, 우두머리 20~50초. 그래서 맨몸 [공격] 은 더 오래 걸린다.
 	var curve_bad: Array = []
 	for lv in [1, 10, 20, 30, 40]:
 		Battle.reset()
@@ -6699,7 +6703,7 @@ func _battle_tests() -> void:
 		var hits_to_kill := ceili(float(ft["hp"]) / maxf(1.0, float(Field.strike("tap",
 			Field.new_foe("drop", lv))["dmg"])))
 		var hits_to_die := ceili(float(Battle.hp_max()) / maxf(1.0, float(Field._one_hit(ft, 1.0))))
-		if hits_to_kill < 2 or hits_to_kill > 9 or hits_to_die < 5 or hits_to_die > 20:
+		if hits_to_kill < 2 or hits_to_kill > 24 or hits_to_die < 4 or hits_to_die > 20:
 			curve_bad.append("LV%d 잡기%d 버티기%d" % [lv, hits_to_kill, hits_to_die])
 	ok(curve_bad.is_empty(), "레벨마다 싸움 길이가 비슷하다 %s" % str(curve_bad))
 	Battle.reset()
@@ -6953,7 +6957,7 @@ func _shade_tests() -> void:
 	add_child(p)
 	await get_tree().process_frame
 
-	var found: Array = p._shades.duplicate()
+	var found: Array = p._shades.filter(func(sh): return not sh.golden)
 	ok(found.size() == Battle.spawns("윤슬").size(),
 		"윤슬에 그늘이 선다 (%d)" % found.size())
 
@@ -7005,7 +7009,8 @@ func _shade_tests() -> void:
 	await get_tree().process_frame
 	var again: Array = []
 	for c in p2._shades:
-		again.append(c.at_tile)
+		if not c.golden:
+			again.append(c.at_tile)
 	again.sort()
 	ok(again == first, "같은 날에는 같은 자리에 선다")
 
@@ -8408,3 +8413,121 @@ func _hud_help_tests() -> void:
 	yp.queue_free()
 	await get_tree().process_frame
 	Field.jitter = true
+
+
+
+# ── 시뮬레이션으로 맞춘 밸런스 · 피버 · 황금 꿈방울 · 탑의 축복 ─────
+
+func _hit_feature_tests() -> void:
+	print("\n[밸런스 · 피버 · 황금 꿈방울 · 탑의 축복]")
+	_clean_state()
+	Loop.reset()
+	# 밸런스 지킴줄 (`tools/sim/SimBalance` 로 맞춘 것 - 크게 벗어나면 다시 돌려 볼 것)
+	for lv in [5, 20, 40]:
+		var f := Battle.foe_stats("drop", lv)
+		var b := Battle.foe_stats("drop_king", lv)
+		ok(float(b["hp"]) / float(f["hp"]) >= 10.0, "LV%d 우두머리 체력은 보통의 열 배 넘게" % lv)
+	ok(Battle.foe_hp_k(1) < Battle.foe_hp_k(20), "초반 몬스터는 가볍고 뒤로 갈수록 단단하다")
+	ok(Battle.foe_stats("drop", 30)["xp"] < 90, "경험은 구역마다 레벨이 너무 튀지 않게 (%d)" % Battle.foe_stats("drop", 30)["xp"])
+	Battle.level = 30
+	var carp := Field.new_foe("carp", 25)
+	carp["dealt"] = 999999
+	ok(Field.foe_expected(carp) <= int(Battle.hp_max() * Field.REFLECT_CAP) + 1,
+		"되받아치기는 체력의 30퍼센트를 안 넘는다")
+	# 피버
+	var started := false
+	var adds := 0
+	while not started and adds < 30:
+		started = Loop.fever_add(Loop.FEVER_KILL)
+		adds += 1
+	ok(started and Loop.fever_on() and adds >= 10, "쓰러뜨리다 보면 피버 타임이 터진다 (%d마리)" % adds)
+	var f1 := Field.new_foe("drop", 30)
+	var d_on := int(Field.strike("tap", f1)["dmg"])
+	Loop.tick(Loop.FEVER_SECS + 0.1)
+	ok(not Loop.fever_on(), "피버는 12초 뒤에 끝난다")
+	var f2 := Field.new_foe("drop", 30)
+	var d_off := int(Field.strike("tap", f2)["dmg"])
+	ok(d_on > d_off, "피버 동안은 더 세게 친다 (%d > %d)" % [d_on, d_off])
+	Loop.fever = 50.0
+	Loop.tick(Loop.FEVER_IDLE + 2.0)
+	ok(Loop.fever < 50.0, "한참 안 싸우면 게이지가 빠진다")
+	# 탑의 축복
+	Loop.reset()
+	var o := Loop.bless_offer(3)
+	ok(o.size() == 3 and o[0] != o[1] and o[1] != o[2] and o[0] != o[2], "축복은 서로 다른 셋을 내민다")
+	var f3 := Field.new_foe("drop", 30)
+	var base := int(Field.strike("tap", f3)["dmg"])
+	Loop.add_blessing("might")
+	var f4 := Field.new_foe("drop", 30)
+	ok(int(Field.strike("tap", f4)["dmg"]) > base, "꿈의 힘을 고르면 더 세게 친다")
+	for i in 6:
+		Loop.add_blessing("shell")
+	ok(Loop.bless("guard") <= Loop.BLESS_GUARD_CAP, "받는 피해 줄이기는 겹쳐도 상한이 있다")
+	var sd := Loop.to_dict()
+	Loop.reset()
+	Loop.from_dict(sd)
+	ok(Loop.blessings.size() == 7, "고른 축복이 저장된다")
+	Loop.reset()
+	# 탑 한 층을 쓸면 축복 고르기가 뜬다
+	JourneyState.exit_scene = GOAL_SCENES["윤슬"]
+	JourneyState.exit_tile = Vector2i(10, 10)
+	Loop.tower_now = 2
+	var t: Place = load("res://scenes/journey/interiors/TowerFloor.tscn").instantiate()
+	add_child(t)
+	await get_tree().process_frame
+	for sh in t._shades.duplicate():
+		sh.foe["hp"] = 0
+		t.on_shade_down(sh)
+	var bp: BlessPick = null
+	var until := Time.get_ticks_msec() + 3000
+	while bp == null and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
+		bp = t.get_node_or_null("BlessPick") as BlessPick
+	ok(bp != null and bp.offer.size() == 3, "층을 넘으면 축복 셋 중 고르기가 뜬다")
+	if bp != null:
+		bp.choose(String(bp.offer[0]))
+		ok(Loop.blessings.size() == 1, "고르면 이번에 오르는 동안 쌓인다")
+	t.queue_free()
+	await get_tree().process_frame
+	Loop.reset()
+	# 황금 꿈방울 - 맞으면 달아나고, 놓치면 사라지고, 잡으면 꿈조각이 쏟아진다
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	var gt := p._nearest_walkable(p.tile_of(p.walker.global_position) + Vector2i(4, 0))
+	var g: Shade = p.put_shade(gt, "gold_drop", 10)
+	await get_tree().process_frame
+	ok(g != null and g.golden and g.scale.x > 1.2, "황금 꿈방울은 크고 금빛이다")
+	g.take_hit({"stagger": 0.0}, p.walker.global_position)
+	ok(g.state == "flee" and g.is_fighting(), "맞으면 달아난다")
+	var coins := Gear.coins
+	g.foe["hp"] = 0
+	p.on_shade_down(g)
+	ok(Gear.coins >= coins + 10 * Field.GOLD_COINS, "잡으면 꿈조각이 쏟아진다 (+%d)" % (Gear.coins - coins))
+	var g2: Shade = p.put_shade(gt, "gold_drop", 10)
+	await get_tree().process_frame
+	g2.take_hit({"stagger": 0.0}, p.walker.global_position)
+	g2._flee_left = 0.01
+	var until2 := Time.get_ticks_msec() + 2000
+	while p._shades.has(g2) and Time.get_ticks_msec() < until2:
+		await get_tree().physics_frame
+	ok(not p._shades.has(g2), "못 잡으면 달아나 사라진다")
+	# 피버 테두리와 게이지 고리가 붙어 있다
+	ok(p.hud.get_node_or_null("Root/FeverFrame") != null or _find_named(p.hud, "FeverFrame") != null,
+		"피버 테두리가 있다")
+	ok(p.hud.fight._attack.get_node_or_null("FeverRing") != null, "공격 버튼에 피버 고리가 있다")
+	p.queue_free()
+	await get_tree().process_frame
+	Loop.reset()
+	Field.jitter = true
+
+
+func _find_named(n: Node, nm: String) -> Node:
+	if n.name == nm:
+		return n
+	for c in n.get_children():
+		var r := _find_named(c, nm)
+		if r != null:
+			return r
+	return null

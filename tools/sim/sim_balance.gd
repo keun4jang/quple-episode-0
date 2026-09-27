@@ -1,0 +1,267 @@
+extends Node
+## **밸런스 시뮬레이션** - 봇이 실제 싸움 규칙(`Field`·`Battle`·`Gear`)으로
+## 1구역부터 대마왕과 꿈의 탑까지 싸워 올라간다. 화면은 안 띄운다.
+##
+##     xvfb-run -a godot --headless --path . res://tools/sim/SimBalance.tscn
+##
+## 봇이 하는 것 (사람이 할 법한 만큼만):
+##   - 가장 센 공격 스킬을 쓰고, 없으면 [공격]. 체력이 35% 밑이면 먹을 것을 먹는다
+##   - 싸움 사이에 체력이 반 밑이면 쉰다(심호흡·마음력 도는 것만으로 - 저절로 차는 게 있으면 그것도)
+##   - LV 10 에 전직, 떨어진 장비가 더 좋으면 입고, 강화석이 있으면 무기를 강화한다
+##   - 몬스터 공격은 **피하지 않는다** (예고를 보고 비키는 건 사람 몫 - 최악을 잰다)
+## 구역마다: 마을 몬스터 한 바퀴 → 우두머리의 길 졸개 → 방의 호위 둘 → 우두머리.
+
+const DT := 0.05
+const WALK := 4.0          # 몬스터 하나 찾아가는 데 드는 초
+const SHADE_EVERY := 1.8
+const BOSS_EVERY := 2.3
+const WINDUP := 0.6
+
+var job := "warrior"
+var t_total := 0.0
+var t_rest := 0.0
+var deaths := 0
+var eaten := 0
+var low_hp := 1.0
+var report: Array = []
+var _rng := RandomNumberGenerator.new()
+
+
+func _ready() -> void:
+	var jobs: Array = ["warrior", "mage", "archer", "thief"]
+	var arg := OS.get_environment("SIM_JOB")
+	if arg != "":
+		jobs = [arg]
+	var all: Dictionary = {}
+	for j in jobs:
+		all[j] = _run_job(j)
+	var out := OS.get_environment("SIM_OUT")
+	if out != "":
+		var f := FileAccess.open(out, FileAccess.WRITE)
+		f.store_string(JSON.stringify(all, "  "))
+	get_tree().quit()
+
+
+func _run_job(j: String) -> Dictionary:
+	job = j
+	_rng.seed = 7
+	seed(7)
+	JourneyState.reset()
+	Loop.reset()
+	Battle.reset()
+	Field.reset()
+	Field.jitter = true
+	t_total = 0.0
+	t_rest = 0.0
+	deaths = 0
+	eaten = 0
+	report = []
+	print("\n==================== 직업: %s ====================" % j)
+	for v in Quests.ORDER:
+		_zone(String(v))
+	# 꿈속 잿마루 타워 → 대마왕
+	var z := _zone_start("잿마루 타워")
+	for k in Battle.tower_spawns():
+		_fight(String(k[0]), int(k[1]), z)
+	_zone_end(z, "night")
+	# 꿈의 탑 - 어디까지 오르나 (한 층에서 세 번 쓰러지면 멈춘다)
+	var floor_n := 1
+	var tower_t := t_total
+	while floor_n <= 60:
+		var d0 := deaths
+		var zz := _zone_start("탑 %d층" % floor_n)
+		for k in Loop.floor_spawns(floor_n):
+			_fight(String(k[0]), int(k[1]), zz, false, Loop.floor_power(floor_n))
+		if deaths - d0 >= 3:
+			break
+		Loop.clear_floor(floor_n)
+		floor_n += 1
+	print("꿈의 탑: %d층까지 (탑에서 %.0f분)" % [Loop.tower_best, (t_total - tower_t) / 60.0])
+	var res := {"zones": report, "total_min": t_total / 60.0, "rest_min": t_rest / 60.0,
+		"deaths": deaths, "tower": Loop.tower_best, "level": Battle.level,
+		"coins": Gear.coins, "stones": Gear.stones}
+	print("전체 %.0f분 (쉬는 데 %.0f분) · 쓰러짐 %d · LV %d · 꿈조각 %d · 강화석 %d" % [
+		t_total / 60.0, t_rest / 60.0, deaths, Battle.level, Gear.coins, Gear.stones])
+	return res
+
+
+func _zone(v: String) -> void:
+	var z := _zone_start(v)
+	var list: Array = Battle.spawns(v)
+	# 사람은 약한 것부터 고른다 - 머리 위 레벨을 보고.
+	list.sort_custom(func(a, b): return int(a[1]) < int(b[1]))
+	for k in list:
+		_fight(String(k[0]), int(k[1]), z)
+	for k in Battle.road_spawns(v):
+		_fight(String(k[0]), int(k[1]), z)
+	var lair := Battle.lair_spawns(v)
+	for i in range(1, lair.size()):
+		_fight(String(lair[i][0]), int(lair[i][1]), z)
+	var b: Array = lair[0]
+	_fight(String(b[0]), int(b[1]), z, true)
+	JourneyState.mark_quest("보스:" + v)
+	_zone_end(z, String(b[0]))
+
+
+func _zone_start(v: String) -> Dictionary:
+	return {"v": v, "lv0": Battle.level, "t0": t_total, "deaths": 0, "kills": 0,
+		"coins0": Gear.coins, "boss_secs": 0.0, "boss_deaths": 0, "boss_lv": 0,
+		"ttk": [], "hits_taken": [], "rest0": t_rest, "eat0": eaten, "hp_low": 1.0}
+
+
+func _zone_end(z: Dictionary, boss: String) -> void:
+	var ttk: Array = z["ttk"]
+	var avg := 0.0
+	for s in ttk:
+		avg += float(s)
+	avg /= maxf(1.0, float(ttk.size()))
+	var line := {"eaten": eaten - int(z["eat0"]), "hp_low": z["hp_low"], "zone": z["v"], "lv_in": z["lv0"], "lv_boss": z["boss_lv"], "lv_out": Battle.level,
+		"minutes": (t_total - float(z["t0"])) / 60.0, "rest_min": (t_rest - float(z["rest0"])) / 60.0,
+		"kills": z["kills"], "deaths": z["deaths"], "avg_kill_secs": avg,
+		"boss": boss, "boss_secs": z["boss_secs"], "boss_deaths": z["boss_deaths"],
+		"coins_gain": Gear.coins - int(z["coins0"]), "weapon": Gear.name_of(Gear.worn("weapon")),
+		"atk": Battle.attack_power(), "hp_max": Battle.hp_max(), "def": Battle.defense()}
+	var probe := Field.new_foe(String(Battle.SPAWNS.get(z["v"], [["drop", Battle.level]])[0][0]), Battle.level)
+	line["hits_to_fall"] = float(Battle.hp_max()) / maxf(1.0, float(Field._one_hit(probe, 1.0)))
+	report.append(line)
+	print("   같은 레벨 몬스터에게 %.1f대 맞으면 쓰러진다 · 꿈조각 %d" % [line["hits_to_fall"], Gear.coins])
+	print("%-8s LV %2d~%2d (보스 LV%2d vs 나 %2d) %5.1f분 쉼%4.1f · 한마리 %4.1f초 · 보스 %4.0f초 · 쓰러짐 %d(보스 %d) · 먹음 %d · 최저체력 %2d%% · 꿈조각 +%d 강화석 %d · %s" % [
+		z["v"], z["lv0"], Battle.level, _boss_lv_of(String(z["v"])), z["boss_lv"], line["minutes"], line["rest_min"],
+		avg, z["boss_secs"], z["deaths"], z["boss_deaths"], line["eaten"], int(float(z["hp_low"]) * 100.0),
+		line["coins_gain"], Gear.stones, line["weapon"]])
+
+
+func _boss_lv_of(v: String) -> int:
+	return Battle.boss_lv(v) if Battle.boss_of(v) != "" else 50
+
+
+## 싸움 한 판. 걸어가서 → 때리고 → 맞고 → 쓰러뜨린다.
+func _fight(kind: String, lv: int, z: Dictionary, boss := false, power := 1.0) -> void:
+	_rest_before()
+	t_total += WALK
+	var foe := Field.new_foe(kind, lv, false)
+	if power > 1.0:
+		Loop.power_up(foe, power)
+	if boss:
+		z["boss_lv"] = Battle.level
+	var t := 0.0
+	var foe_t := 0.7          # 첫 덤빔까지 틈 (`Shade.take_hit`)
+	var winding := -1.0
+	var every := BOSS_EVERY if bool(foe["boss"]) else SHADE_EVERY
+	var d0 := deaths
+	while int(foe["hp"]) > 0 and t < 600.0:
+		t += DT
+		Field.tick(DT)
+		Loop.tick(DT)
+		Field.foe_tick(foe, DT)
+		if int(foe["hp"]) <= 0:
+			break
+		# 내 차례
+		if Battle.hp < Battle.hp_max() * 0.35:
+			_eat_something()
+		var id := _pick_skill(foe)
+		if id != "":
+			var sk: Dictionary = Battle.SKILLS[id]
+			var evs := Field.use(id)
+			if not evs.is_empty() and String(sk["type"]) == "attack":
+				var res := Field.strike(id, foe)
+				Loop.hit(int(res["hits"].size()))
+				if float(res.get("stagger", 0.0)) > 0.0:
+					foe_t = maxf(foe_t, float(res["stagger"]))
+					winding = -1.0
+		# 몬스터 차례
+		if winding >= 0.0:
+			winding -= DT
+			if winding < 0.0:
+				Field.foe_attack(foe)
+				foe_t = every
+				z["hp_low"] = minf(float(z["hp_low"]), maxf(0.0, float(Battle.hp) / float(Battle.hp_max())))
+				if Battle.hp <= 0:
+					deaths += 1
+					z["deaths"] = int(z["deaths"]) + 1
+					Field.fall()
+		else:
+			foe_t -= DT * Field.foe_slow(foe)
+			if foe_t <= 0.0:
+				winding = WINDUP
+	t_total += t
+	(z["ttk"] as Array).append(t)
+	if boss:
+		z["boss_secs"] = t
+		z["boss_deaths"] = deaths - d0
+	z["kills"] = int(z["kills"]) + 1
+	Loop.fever_add(Loop.FEVER_BOSS if bool(foe["boss"]) else Loop.FEVER_KILL)
+	for ev in Field.defeat(foe):
+		if String(ev.get("kind", "")) == "level_up" and bool(ev.get("job_ready", false)):
+			Battle.set_job(job)
+	_gear_up()
+
+
+## 가장 센 것부터. 공격 스킬 중 쓸 수 있는 것, 없으면 회복(반 밑일 때), 없으면 [공격].
+func _pick_skill(foe: Dictionary) -> String:
+	var best := ""
+	var best_v := 0.0
+	for id in Battle.skills():
+		var sk: Dictionary = Battle.SKILLS[id]
+		if Field.why_not(id) != "":
+			continue
+		var typ := String(sk["type"])
+		if typ == "heal":
+			if Battle.hp < Battle.hp_max() * 0.5:
+				return id
+			continue
+		if typ != "attack":
+			continue
+		var v := float(sk["mult"]) * float(sk.get("hits", 1)) * Battle.skill_power(id) \
+			* Battle.matchup(Battle.skill_elem(id), String(foe["elem"]))
+		if v > best_v:
+			best_v = v
+			best = id
+	return best
+
+
+func _eat_something() -> void:
+	var best := ""
+	var best_hp := 0
+	for id in JourneyState.bag.keys():
+		if JourneyState.count(id) <= 0 or not Catalog.edible(id):
+			continue
+		var f := Battle.food_effect(id)
+		var h := 99999 if bool(f.get("full", false)) else int(f.get("hp", 0))
+		if h > best_hp:
+			best_hp = h
+			best = id
+	if best != "":
+		if Battle.eat(best) != "":
+			eaten += 1
+	elif Gear.coins >= 25:
+		Gear.buy("b-riceball")
+		if Battle.eat("b-riceball") != "":
+			eaten += 1
+
+
+## 싸움 사이 - 반 밑이면 찰 때까지 쉰다 (심호흡 + 저절로 도는 것).
+func _rest_before() -> void:
+	var guard := 0.0
+	while Battle.hp < Battle.hp_max() * 0.6 and guard < 240.0:
+		guard += DT
+		t_rest += DT
+		t_total += DT
+		Field.tick(DT)
+		if Field.why_not("breathe") == "":
+			Field.use("breathe")
+	if guard >= 240.0:
+		# 4분을 쉬어도 안 차면 먹는다
+		_eat_something()
+
+
+func _gear_up() -> void:
+	for it in Gear.items.duplicate():
+		if Gear.better(it):
+			Gear.equip(int(it["uid"]))
+	var w := Gear.worn("weapon")
+	while not w.is_empty() and Gear.stones > 0 and int(w.get("plus", 0)) < 10 \
+			and Gear.coins >= Gear.plus_cost(w):
+		Gear.enhance(int(w["uid"]))
+		w = Gear.worn("weapon")
+	Gear.sell_junk(1)

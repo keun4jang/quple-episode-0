@@ -61,7 +61,8 @@ static func tick(delta: float) -> Array:
 		# **마음력은 저절로 조금씩 찬다.** 스킬이 싸움의 중심이라, 먹을 것
 		# 없이도 한 판에 몇 번은 쓸 수 있어야 한다.
 		if Battle.mp < Battle.mp_max():
-			Battle.mp = mini(Battle.mp_max(), Battle.mp + maxi(1, Battle.mp_max() / 30))
+			Battle.mp = mini(Battle.mp_max(), Battle.mp
+				+ int(maxi(1, Battle.mp_max() / 30) * (1.0 + Loop.bless("mp"))))
 	for id in my_status.keys():
 		var st: Dictionary = Battle.STATUSES.get(id, {})
 		if beat and st.has("hp_pct") and Battle.hp > 0:
@@ -176,7 +177,9 @@ static func strike(id: String, foe: Dictionary) -> Dictionary:
 		raw *= 0.75
 	if foe_has(foe, "shake") or foe_has(foe, "sway"):
 		raw *= 1.3
-	var rate := Battle.crit_rate() + (0.5 if has_status("keen") else 0.0)
+	# 피버 타임 · 탑의 축복
+	raw *= Loop.fever_dmg() * (1.0 + Loop.bless("atk"))
+	var rate := Battle.crit_rate() + (0.5 if has_status("keen") else 0.0) + Loop.bless("crit")
 	var total := 0
 	for i in int(s.get("hits", 1)):
 		if int(foe["hp"]) <= 0:
@@ -286,7 +289,18 @@ static func _one_hit(foe: Dictionary, mult: float) -> int:
 	var v := float(foe["atk"]) * mult * _foe_out(foe)
 	if has_status("firm"):
 		v *= 0.7
+	v *= 1.0 - Loop.bless("guard")
 	return maxi(1, int(round(v * Battle._mitigation(Battle.defense()))))
+
+
+## 되받아치기. **체력 최대치의 30% 를 넘지 않는다** - 시뮬레이션에서 큰 스킬
+## 한 방을 되받아 한 번에 쓰러지는 일이 났다 (소용돌이 잉어왕).
+const REFLECT_CAP := 0.3
+
+
+static func _reflect(foe: Dictionary, plan: Dictionary) -> int:
+	var back := maxi(1, int(round(float(foe["dealt"]) * float(plan["back"]))))
+	return mini(back, maxi(1, int(Battle.hp_max() * REFLECT_CAP)))
 
 
 ## 다음에 얼마쯤 맞을까.
@@ -296,7 +310,7 @@ static func foe_expected(foe: Dictionary) -> int:
 		"rest", "inflict":
 			return 0
 		"reflect":
-			return maxi(1, int(round(float(foe["dealt"]) * float(plan["back"]))))
+			return _reflect(foe, plan)
 	return _one_hit(foe, float(plan.get("mult", 1.0))) * int(plan.get("times", 1))
 
 
@@ -328,8 +342,7 @@ static func foe_attack(foe: Dictionary) -> Array:
 			if invuln <= 0.0:
 				_give_me(String(plan["status"]), evs)
 		"reflect":
-			var back := maxi(1, int(round(float(foe["dealt"]) * float(plan["back"]))))
-			_hurt(back, evs)
+			_hurt(_reflect(foe, plan), evs)
 		_:
 			for i in int(plan.get("times", 1)):
 				if Battle.hp <= 0:
@@ -351,14 +364,18 @@ static func _hurt(dmg: int, evs: Array) -> void:
 
 # ── 끝 ───────────────────────────────────────────────────────────────
 
+## 황금 꿈방울 하나가 쏟는 꿈조각 (레벨마다).
+const GOLD_COINS := 40
+
+
 ## 쓰러뜨렸다. 경험 · 늘 남기는 먹을 것 · 처음이면 조각 · 꿈조각과 장비.
 ## 사건: `xp`, `level_up`, `loot`(`Gear.roll_drops` 의 것 - 이미 주웠다).
 static func defeat(foe: Dictionary) -> Array:
 	var kind := String(foe["kind"])
 	var e: Dictionary = Battle.ENEMIES.get(kind, {})
 	var got := int(foe.get("xp", Battle.foe_stats(kind, int(foe.get("lv", 1)))["xp"]))
-	# 연타가 길면 더 준다 (`Loop.combo_bonus`).
-	got = int(round(got * Loop.combo_bonus()))
+	# 연타가 길면 더 준다 (`Loop.combo_bonus`). 피버 동안은 두 배.
+	got = int(round(got * Loop.combo_bonus() * Loop.fever_gain()))
 	var evs: Array = [{"kind": "xp", "amount": got}]
 	evs.append_array(Battle.gain_xp(got))
 	var drop := String(e.get("drop", ""))
@@ -369,7 +386,18 @@ static func defeat(foe: Dictionary) -> Array:
 		JourneyState.pick(piece)
 	var loot := Gear.roll_drops(kind, int(foe.get("lv", 1)), bool(foe.get("boss", false)),
 		bool(foe.get("elite", false)))
+	# 황금 꿈방울 - 꿈조각이 쏟아진다. 강화석 셋, 넷에 하나는 영웅 이상 장비.
+	if bool(e.get("gold", false)):
+		loot = {"coins": int(foe.get("lv", 1)) * GOLD_COINS, "stones": 3, "gear": []}
+		if randf() < 0.25:
+			var it := Gear.roll_gear("", int(foe.get("lv", 1)), true)
+			Gear._reroll(it, maxi(3, int(it["rar"])))
+			loot["gear"].append(it)
+	loot["coins"] = int(float(loot["coins"]) * Loop.fever_gain() * (1.0 + Loop.bless("coin")))
 	Gear.take(loot)
+	# 탑의 축복 - 쓰러뜨릴 때마다 체력 조금.
+	if Loop.bless("leech") > 0.0:
+		Battle.hp = mini(Battle.hp_max(), Battle.hp + int(Battle.hp_max() * Loop.bless("leech")))
 	evs.append({"kind": "loot", "drops": loot})
 	return evs
 

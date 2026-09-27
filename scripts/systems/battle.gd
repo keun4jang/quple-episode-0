@@ -114,7 +114,7 @@ const JOBS := {
 		"auto": {"dex": 4, "str": 1}, "hp": 3, "mp": 2,
 		"desc": "멀리서 연사한다. 치고 빠진다. 치명타가 잘 터진다."},
 	"thief": {"name": "도적", "main": "luk", "weapon": "dagger",
-		"auto": {"luk": 3, "dex": 2}, "hp": 3, "mp": 2,
+		"auto": {"luk": 3, "dex": 2}, "hp": 5, "mp": 2,
 		"desc": "빠른 연타와 급소 찌르기. 치명타 피해가 가장 크다."},
 }
 const JOB_ORDER := ["warrior", "mage", "archer", "thief"]
@@ -201,20 +201,20 @@ const SKILLS := {
 		"type": "attack", "elem": "earth", "mult": 2.6, "aoe": 60.0, "cd": 8.0},
 	# 마법사 - 속성 다섯을 다 쓴다 (`docs/elements.md` 2절)
 	"splash": {"name": "물총", "job": "mage", "lv": 10, "mp": 3, "type": "attack",
-		"elem": "water", "mult": 1.8, "range": 72.0, "foe": "wet", "cd": 1.2},
+		"elem": "water", "mult": 1.25, "range": 72.0, "foe": "wet", "cd": 1.5},
 	"flame": {"name": "불꽃", "job": "mage", "lv": 10, "mp": 3, "type": "attack",
-		"elem": "fire", "mult": 1.8, "range": 72.0, "foe": "burn", "cd": 1.2},
+		"elem": "fire", "mult": 1.25, "range": 72.0, "foe": "burn", "cd": 1.5},
 	"leaf": {"name": "나뭇잎 날리기", "job": "mage", "lv": 12, "mp": 3, "type": "attack",
-		"elem": "wood", "mult": 1.8, "range": 72.0, "foe": "tangle", "cd": 1.2},
+		"elem": "wood", "mult": 1.25, "range": 72.0, "foe": "tangle", "cd": 1.5},
 	"rock": {"name": "돌멩이 던지기", "job": "mage", "lv": 14, "mp": 3, "type": "attack",
-		"elem": "earth", "mult": 1.8, "range": 72.0, "grants": "firm", "cd": 1.2},
+		"elem": "earth", "mult": 1.25, "range": 72.0, "grants": "firm", "cd": 1.5},
 	"breeze": {"name": "산들바람", "job": "mage", "lv": 16, "mp": 3, "type": "attack",
-		"elem": "wind", "mult": 1.8, "range": 72.0, "foe": "sway", "cd": 1.2},
+		"elem": "wind", "mult": 1.25, "range": 72.0, "foe": "sway", "cd": 1.5},
 	"rainbow": {"name": "무지개 한 방", "job": "mage", "lv": 22, "mp": 14,
 		"type": "attack", "elem": "none", "mult": 2.6, "aoe": 64.0, "cd": 6.0},
 	# 궁수 - 멀리서 쏜다
 	"double": {"name": "연속 쏘기", "job": "archer", "lv": 10, "mp": 2, "type": "attack",
-		"elem": "weapon", "mult": 1.0, "hits": 2, "range": 84.0, "cd": 0.9},
+		"elem": "weapon", "mult": 0.85, "hits": 2, "range": 84.0, "cd": 0.9},
 	"pierce": {"name": "꿰뚫기", "job": "archer", "lv": 13, "mp": 5, "type": "attack",
 		"elem": "weapon", "mult": 1.7, "range": 96.0, "line": true, "cd": 2.5},
 	"leap": {"name": "뒤로 뛰기", "job": "archer", "lv": 16, "mp": 3, "type": "buff",
@@ -225,7 +225,7 @@ const SKILLS := {
 		"elem": "weapon", "mult": 3.4, "range": 120.0, "cd": 7.0},
 	# 도적 - 빠른 연타, 급소
 	"flurry": {"name": "빠른 찌르기", "job": "thief", "lv": 10, "mp": 2, "type": "attack",
-		"elem": "weapon", "mult": 0.7, "hits": 3, "cd": 0.9},
+		"elem": "weapon", "mult": 0.55, "hits": 3, "cd": 1.0},
 	"star": {"name": "표창 던지기", "job": "thief", "lv": 13, "mp": 3, "type": "attack",
 		"elem": "weapon", "mult": 1.1, "hits": 2, "range": 80.0, "cd": 1.5},
 	"shadow": {"name": "그림자 걸음", "job": "thief", "lv": 16, "mp": 5, "type": "buff",
@@ -283,8 +283,13 @@ static func next_skill() -> String:
 
 
 ## 스킬 레벨 한 칸마다 10% 세진다.
+## 스킬 레벨 하나에 오르는 위력. 0.1 이던 것을 줄였다 - 스킬 점수가 레벨마다
+## 들어오니, 후반엔 같은 스킬이 두 배 가까이 세져 몬스터가 한 방에 녹았다.
+const SKILL_GROW := 0.06
+
+
 static func skill_power(id: String) -> float:
-	return 1.0 + 0.1 * float(maxi(1, int(skill_lv.get(id, 1))) - 1)
+	return 1.0 + SKILL_GROW * float(maxi(1, int(skill_lv.get(id, 1))) - 1)
 
 
 ## 스킬이 치는 속성. "weapon" 이면 든 무기의 것.
@@ -358,7 +363,7 @@ const ENEMIES := {
 		"pattern": {"kind": "burst", "rest": 2, "mult": 2.3, "inflict": "numb"},
 		"desc": "두 번 쉬고 활활"},
 	# ── 구역 보스 - 구역마다 하나. 쓰러뜨리면 꿈의 문이 열린다 (`docs/redesign-dream.md` 2절).
-	"drop_king": {"name": "물방울 대왕", "elem": "water", "hp": 0.8, "atk": 0.9, "def": 1.0,
+	"drop_king": {"name": "물방울 대왕", "elem": "water", "hp": 0.65, "atk": 0.75, "def": 1.0,
 		"xp": 1.0, "sheet": "drop_king", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "multi", "times": 3, "mult": 0.6}, "desc": "세 번 연달아 튄다"},
 	"dokkaebi": {"name": "불꽃 도깨비", "elem": "fire", "hp": 0.85, "atk": 1.0, "def": 1.0,
@@ -400,6 +405,11 @@ const ENEMIES := {
 	"bat": {"name": "메신저 박쥐", "elem": "water", "hp": 0.8, "atk": 1.0, "def": 0.9,
 		"xp": 1.15, "sheet": "bat", "drop": "b-cookie",
 		"pattern": {"kind": "multi", "times": 4, "mult": 0.4}, "desc": "알림이 네 번 연달아 온다"},
+	# 황금 꿈방울 - 날마다 몇 마을에 하나. 덤비지 않고 **달아난다** (`Shade.golden`).
+	# 잡으면 꿈조각이 쏟아진다 (`Field.defeat`). 놓치면 그만이다.
+	"gold_drop": {"name": "황금 꿈방울", "elem": "none", "hp": 2.2, "atk": 0.3, "def": 1.0,
+		"xp": 3.0, "sheet": "gold_drop", "drop": "b-honeycake", "gold": true,
+		"pattern": {"kind": "heavy", "every": 99, "mult": 1.0}, "desc": "맞으면 달아난다"},
 	# 끝판 - 떨어진 사람들의 "야근하는 마음" 이 뭉친 것. 꿈속 잿마루 타워 꼭대기.
 	"night": {"name": "야근 대마왕", "elem": "dark", "hp": 1.2, "atk": 1.1, "def": 1.3,
 		"xp": 1.5, "sheet": "night", "boss": true, "drop": "b-lunchbox",
@@ -415,9 +425,29 @@ const REGION_BOSS := {
 }
 
 ## 우두머리는 몸집이 다르다.
-const BOSS_HP := 10.0
+const BOSS_HP := 18.0
 const BOSS_ATK := 1.4
-const BOSS_XP := 20.0
+const BOSS_XP := 8.0
+## 몬스터 몸·경험 배율 - `tools/sim/SimBalance` 로 맞춘 값 (`docs/redesign-dream.md` 10절).
+## 시뮬레이션을 돌려 보니 LV 10 부터 스킬 한두 방에 몬스터가 쓰러져 **덤빌 틈이
+## 없었고**, 구역마다 레벨이 5~7씩 올라 늘 우두머리보다 서너 레벨 위였다.
+## 초반(전직 전, [공격] 하나뿐)은 가볍게, 스킬이 붙는 LV 15 쯤부터 단단하게.
+const FOE_HP_LOW := 1.3
+const FOE_HP_HIGH := 3.4
+
+
+## 몬스터 힘도 레벨 따라 붙인다. 방어구 방어가 빨리 자라서 후반엔 같은 레벨
+## 몬스터에게 마흔 대 넘게 맞아야 쓰러졌다 - 예고를 보고 피할 까닭이 없었다.
+const FOE_ATK_HIGH := 2.6
+
+
+static func foe_atk_k(lv: int) -> float:
+	return lerpf(1.0, FOE_ATK_HIGH, clampf(float(lv - 1) / 25.0, 0.0, 1.0))
+
+
+static func foe_hp_k(lv: int) -> float:
+	return lerpf(FOE_HP_LOW, FOE_HP_HIGH, clampf(float(lv - 1) / 14.0, 0.0, 1.0))
+const FOE_XP_K := 0.75
 
 ## 옛 이름(감정 그늘) → 새 종. 옛 세이브의 조각·퇴치 기록을 옮긴다.
 ## 옛 밤그늘(꽃눈벌 우두머리)은 그 자리의 새 보스 화염 꽃사슴으로 간다.
@@ -425,16 +455,17 @@ const OLD_KINDS := {"worry": "drop", "hurry": "ember", "lonely": "gust",
 	"tired": "pebble", "regret": "thorn", "envy": "blaze", "night": "deer"}
 
 
-## 그 종이 그 레벨일 때의 몸. 레벨 곡선은 **같은 레벨의 사람이 기본
-## 공격 네댓 번에 쓰러뜨리고, 아홉 번쯤 맞으면 쓰러지는** 데 맞췄다
-## (`docs/redesign-dream.md` 3절).
+## 그 종이 그 레벨일 때의 몸. 0.1.178 에 **시뮬레이션으로 다시 맞췄다**
+## (`tools/sim/SimBalance`, `docs/redesign-dream.md` 10절): 같은 레벨에 장비·스킬을
+## 갖춘 사람이 몬스터 하나를 2~4초, 우두머리를 20~50초에 쓰러뜨리고, 열두 대쯤
+## 맞으면 쓰러진다. 구역마다 레벨은 네다섯 오르고 우두머리와 ±1 로 만난다.
 static func foe_stats(kind: String, lv: int) -> Dictionary:
 	var e: Dictionary = ENEMIES.get(kind, ENEMIES["drop"])
 	var boss := bool(e.get("boss", false))
 	var d := int(round((1.0 + lv / 4.0) * float(e["def"])))
-	var hp_v := 4.5 * (3.0 + 5.4 * lv) * _mitigation(d) * float(e["hp"])
-	var atk_v := (62.0 + 12.0 * lv) / 9.0 * (1.0 + 2.2 * lv / 100.0) * float(e["atk"])
-	var xp_v := (3.0 + 1.1 * pow(float(lv), 1.3)) * float(e["xp"])
+	var hp_v := 4.5 * (3.0 + 5.4 * lv) * _mitigation(d) * float(e["hp"]) * foe_hp_k(lv)
+	var atk_v := (62.0 + 12.0 * lv) / 9.0 * (1.0 + 2.2 * lv / 100.0) * float(e["atk"]) * foe_atk_k(lv)
+	var xp_v := (3.0 + 1.1 * pow(float(lv), 1.3)) * float(e["xp"]) * FOE_XP_K
 	if boss:
 		hp_v *= BOSS_HP
 		atk_v *= BOSS_ATK
@@ -449,7 +480,7 @@ static func foe_stats(kind: String, lv: int) -> Dictionary:
 ##
 ## 프롤로그(잿마루)와 고향에는 없다 - 거기는 현실이다.
 const SPAWNS := {
-	"윤슬": [["drop", 2], ["drop", 3], ["drop", 5], ["ember", 7], ["drop_king", 8]],
+	"윤슬": [["drop", 2], ["drop", 3], ["drop", 5], ["ember", 7], ["drop_king", 7]],
 	"볕뉘": [["ember", 10], ["ember", 11], ["drop", 9], ["sprout", 12], ["dokkaebi", 13]],
 	"가풀재": [["pebble", 14], ["pebble", 15], ["sprout", 13], ["ember", 16], ["golem", 17]],
 	"하늬섬": [["gust", 18], ["gust", 19], ["pebble", 17], ["drop", 18], ["sprout", 20],

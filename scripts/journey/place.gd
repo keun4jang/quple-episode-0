@@ -1105,6 +1105,9 @@ func _outline_sprite(s: Sprite2D) -> Node2D:
 ## 그늘끼리, 그리고 사람·문·잠자리·정류장에서 이만큼은 떨어뜨린다(칸).
 const SHADE_CLEAR := 3
 const SHADE_APART := 2
+## 도착 자리에서는 더 멀리 - 문을 지나 들어서자마자 싸움이 붙으면 안 된다.
+## (지도 시뮬레이션에서 스물여덟 맵 중 열 곳이 도착 자리 곁에 몬스터가 서 있었다.)
+const SHADE_SPAWN_CLEAR := 7
 
 func _build_shades() -> void:
 	# 실내에는 안 선다. 가게 안·집 안은 쉬는 자리다.
@@ -1128,12 +1131,54 @@ func _build_shades() -> void:
 		var elite := erng.randf() < Loop.ELITE_CHANCE
 		if put_shade(t, String(w[0]), int(w[1]), elite) != null:
 			put += 1
+	_maybe_gold(want)
 	# **처음 한 번은 말해 준다.** 그늘이 뭔지 모르면 그냥 지나친다 —
 	# 인연과 테두리 색이 다르다는 것만으로는 눌러도 되는 건지 알 수 없다.
 	# 도착 카드가 덮고 있는 동안은 기다렸다 뜬다(patient).
 	if put > 0 and hud != null and not JourneyState.quest_done("그늘:첫안내"):
 		JourneyState.mark_quest("그늘:첫안내")
 		hud._say_hint("몬스터가 있어요. 다가가서 공격 버튼으로 쓰러뜨려요.", true, 2.4)
+
+
+## 황금 꿈방울 - 마을마다 날마다 `GOLD_CHANCE` 로 하나. 날짜로 씨를 심어
+## 같은 날 다시 들어와도 같다 - 가게에 들렀다 나와서 다시 굴리는 꼼수를 막는다.
+const GOLD_CHANCE := 0.3
+
+
+func _maybe_gold(want: Array) -> void:
+	if is_indoors() or not Quests.ORDER.has(place_name()) or want.is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("gold|%s|%d" % [place_name(), JourneyState.day])
+	if rng.randf() >= GOLD_CHANCE:
+		return
+	# 몬스터들이 선 자리와 겹치지 않는 한 칸.
+	var used := _shade_spots(want.size())
+	var t := Vector2i(-1, -1)
+	for c in _shade_spots(want.size() + 4):
+		if not used.has(c):
+			t = c
+			break
+	if t.x < 0 or Battle.is_cleared(place_name(), t):
+		return
+	var top := 1
+	for w in want:
+		top = maxi(top, int(w[1]))
+	if put_shade(t, "gold_drop", top) != null and hud != null:
+		hud._say_hint("반짝! 황금 꿈방울이 어딘가 숨어 있어요", true, 2.6)
+
+
+## 황금 꿈방울이 달아났다. 보상 없이 사라진다 - 오늘은 끝.
+func on_gold_escape(sh: Shade) -> void:
+	if not is_instance_valid(sh) or sh.state == "gone":
+		return
+	Battle.mark_cleared(place_name(), sh.at_tile)
+	_shades.erase(sh)
+	if _target == sh:
+		_target = null
+	sh.dissolve()
+	if hud != null:
+		hud._say_hint("황금 꿈방울이 달아났어요…", false, 2.0)
 
 
 ## 걸을 수 있는 칸 중에서 고른다.
@@ -1164,6 +1209,10 @@ func _shade_spots(n: int) -> Array:
 			- tex.get_width() / 2.0, pb - tex.get_height(),
 			tex.get_width(), tex.get_height()), pb])
 
+	# 도착 자리 - 문으로 들어왔으면 그 문 앞(`pending_spawn` 은 이미 쓰였으니 몸의 자리로).
+	var arrive: Array = [spawn_tile()]
+	if walker != null:
+		arrive.append(tile_of(walker.global_position))
 	var cands: Array = []
 	# **이어 붙인 여백은 뺀다.** 넓게 보기를 위해 오른쪽·아래로 늘린
 	# 자리라, 거기 세우면 지도 바깥에 홀로 선 것처럼 보인다.
@@ -1175,6 +1224,8 @@ func _shade_spots(n: int) -> Array:
 			if not _walkable(t):
 				continue
 			if _too_near(t, keep_off, SHADE_CLEAR):
+				continue
+			if _too_near(t, arrive, SHADE_SPAWN_CLEAR):
 				continue
 			if _hidden_by_prop(t, boxes):
 				continue
@@ -1233,6 +1284,7 @@ func put_shade(t: Vector2i, kind: String, lv: int = 1, elite: bool = false) -> S
 		push_warning("그런 몬스터가 없다: %s" % kind)
 		return null
 	var s := Shade.new()
+	s.golden = bool(e.get("gold", false))
 	s.sheet = "res://assets/sprites/s-%s-walk.png" % String(e["sheet"])
 	s.foe = Field.new_foe(kind, lv, elite)
 	s.who = "%sLv.%d %s" % ["정예 " if bool(s.foe["elite"]) else "", lv, String(e["name"])]
@@ -1526,6 +1578,8 @@ func _hit_shade(sh: Shade, id: String) -> void:
 	Loop.hit(res["hits"].size())
 	if eff > 1.01:
 		Loop.note("weak")
+		if Loop.fever_add(Loop.FEVER_WEAK):
+			_fever_start()
 	if crit:
 		_hitstop(0.07)
 	sh.take_hit(res, walker.global_position)
@@ -1593,8 +1647,17 @@ func on_shade_down(sh: Shade) -> void:
 	_shades.erase(sh)
 	if _target == sh:
 		_target = null
+	var golden := sh.golden
 	var evs := Field.defeat(sh.foe)
 	sh.dissolve()
+	if golden and hud != null:
+		hud._celebrate("황금 꿈방울을 잡았어요!", "꿈조각이 쏟아져요")
+		FieldFx.shake(cam, 6.0, 0.4)
+	# 피버 게이지 - 정예·우두머리는 많이 찬다.
+	var fv := Loop.FEVER_BOSS if bool(sh.foe.get("boss", false)) else \
+		(Loop.FEVER_ELITE if bool(sh.foe.get("elite", false)) or golden else Loop.FEVER_KILL)
+	if Loop.fever_add(fv):
+		_fever_start()
 	Loop.note("kill")
 	Loop.note("kill_elem", 1, String(sh.foe.get("elem", "")))
 	if bool(sh.foe.get("elite", false)):
@@ -1620,6 +1683,18 @@ func on_shade_down(sh: Shade) -> void:
 
 ## 떨어진 것을 보여 준다 - 꿈조각은 반짝이며 튀고, 장비는 등급 빛기둥이 선다.
 ## (주운 것은 이미 가방에 들었다 - `Field.defeat`. 여기는 눈으로 보는 것.)
+## 피버 타임이 터졌다.
+func _fever_start() -> void:
+	AudioManager.warm_swell()
+	if hud != null:
+		hud._celebrate("피버 타임!", "12초 동안 피해 1.5배 · 경험과 꿈조각 2배")
+		hud.tint_flash(Color("#FFD43B"), 0.35, 0.4)
+	if cam != null:
+		FieldFx.shake(cam, 4.0, 0.3)
+	if walker != null:
+		FieldFx.burst(self, walker.global_position + Vector2(0, -10), "rainbow", true)
+
+
 func _show_loot(at: Vector2, drops: Dictionary) -> void:
 	var coins := int(drops.get("coins", 0))
 	if coins > 0:
@@ -3441,9 +3516,12 @@ func _do_enter(d) -> void:
 		if hud != null:
 			hud._say_hint(why, false, 2.0)
 		return
-	# 꿈의 탑 - 몇 층으로 가는 문인가 (`Loop.tower_now`).
+	# 꿈의 탑 - 몇 층으로 가는 문인가 (`Loop.tower_now`). 마을에서 새로
+	# 들어가면 지난번에 고른 축복은 비운다 (한 번 오르는 동안만).
 	if d.has("tower_floor"):
 		Loop.tower_now = int(d["tower_floor"])
+		if String(d.get("enter_key", "")) == "꿈의탑":
+			Loop.blessings.clear()
 	var scene := String(d.get("scene", ""))
 	if scene == "":
 		# 실내 문의 "나가는 곳"은 `JourneyState.exit_scene` 을 그대로
