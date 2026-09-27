@@ -363,9 +363,11 @@ const ENEMIES := {
 		"pattern": {"kind": "burst", "rest": 2, "mult": 2.3, "inflict": "numb"},
 		"desc": "두 번 쉬고 활활"},
 	# ── 구역 보스 - 구역마다 하나. 쓰러뜨리면 꿈의 문이 열린다 (`docs/redesign-dream.md` 2절).
-	"drop_king": {"name": "물방울 대왕", "elem": "water", "hp": 0.65, "atk": 0.75, "def": 1.0,
+	# 첫 우두머리 - 싸우는 법을 익히는 자리라 가장 순하다 (0.1.179 에 한 번 더 낮췄다:
+	# 예고를 안 피하는 봇이 두세 번 쓰러졌다 - `tools/sim/SimBalance`).
+	"drop_king": {"name": "물방울 대왕", "elem": "water", "hp": 0.5, "atk": 0.55, "def": 0.8,
 		"xp": 1.0, "sheet": "drop_king", "boss": true, "drop": "b-lunchbox",
-		"pattern": {"kind": "multi", "times": 3, "mult": 0.6}, "desc": "세 번 연달아 튄다"},
+		"pattern": {"kind": "multi", "times": 3, "mult": 0.5}, "desc": "세 번 연달아 튄다"},
 	"dokkaebi": {"name": "불꽃 도깨비", "elem": "fire", "hp": 0.85, "atk": 1.0, "def": 1.0,
 		"xp": 1.0, "sheet": "dokkaebi", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "escalate", "step": 0.25, "cap": 2.4}, "desc": "갈수록 불붙는다"},

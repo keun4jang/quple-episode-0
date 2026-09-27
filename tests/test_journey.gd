@@ -8425,8 +8425,18 @@ func _hit_feature_tests() -> void:
 	# 밸런스 지킴줄 (`tools/sim/SimBalance` 로 맞춘 것 - 크게 벗어나면 다시 돌려 볼 것)
 	for lv in [5, 20, 40]:
 		var f := Battle.foe_stats("drop", lv)
-		var b := Battle.foe_stats("drop_king", lv)
+		var b := Battle.foe_stats("golem", lv)
 		ok(float(b["hp"]) / float(f["hp"]) >= 10.0, "LV%d 우두머리 체력은 보통의 열 배 넘게" % lv)
+	# 첫 우두머리는 싸우는 법을 익히는 자리 - 우두머리 가운데 가장 순하다
+	var soft := true
+	for bk in Battle.REGION_BOSS.values():
+		if String(bk) == "drop_king":
+			continue
+		var e1: Dictionary = Battle.ENEMIES["drop_king"]
+		var e2: Dictionary = Battle.ENEMIES[String(bk)]
+		if float(e1["hp"]) >= float(e2["hp"]) or float(e1["atk"]) >= float(e2["atk"]):
+			soft = false
+	ok(soft, "첫 우두머리(물방울 대왕)가 가장 순하다")
 	ok(Battle.foe_hp_k(1) < Battle.foe_hp_k(20), "초반 몬스터는 가볍고 뒤로 갈수록 단단하다")
 	ok(Battle.foe_stats("drop", 30)["xp"] < 90, "경험은 구역마다 레벨이 너무 튀지 않게 (%d)" % Battle.foe_stats("drop", 30)["xp"])
 	Battle.level = 30
