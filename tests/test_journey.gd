@@ -8437,6 +8437,16 @@ func _hit_feature_tests() -> void:
 		if float(e1["hp"]) >= float(e2["hp"]) or float(e1["atk"]) >= float(e2["atk"]):
 			soft = false
 	ok(soft, "첫 우두머리(물방울 대왕)가 가장 순하다")
+	# 두 번째(불꽃 도깨비)는 첫째 다음으로 순하다 - 전직 직후라
+	var soft2 := true
+	for bk2 in Battle.REGION_BOSS.values():
+		if String(bk2) in ["drop_king", "dokkaebi"]:
+			continue
+		var d1: Dictionary = Battle.ENEMIES["dokkaebi"]
+		var d2: Dictionary = Battle.ENEMIES[String(bk2)]
+		if float(d1["hp"]) >= float(d2["hp"]) or float(d1["atk"]) >= float(d2["atk"]):
+			soft2 = false
+	ok(soft2, "두 번째 우두머리(불꽃 도깨비)가 그다음으로 순하다")
 	ok(Battle.foe_hp_k(1) < Battle.foe_hp_k(20), "초반 몬스터는 가볍고 뒤로 갈수록 단단하다")
 	ok(Battle.foe_stats("drop", 30)["xp"] < 90, "경험은 구역마다 레벨이 너무 튀지 않게 (%d)" % Battle.foe_stats("drop", 30)["xp"])
 	Battle.level = 30

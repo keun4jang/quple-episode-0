@@ -368,9 +368,11 @@ const ENEMIES := {
 	"drop_king": {"name": "물방울 대왕", "elem": "water", "hp": 0.5, "atk": 0.55, "def": 0.8,
 		"xp": 1.0, "sheet": "drop_king", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "multi", "times": 3, "mult": 0.5}, "desc": "세 번 연달아 튄다"},
-	"dokkaebi": {"name": "불꽃 도깨비", "elem": "fire", "hp": 0.85, "atk": 1.0, "def": 1.0,
+	# 두 번째 우두머리 - 전직 직후라 아직 순하게 (0.1.180: 갈수록 세지는 폭을 줄였다 -
+	# 예고를 안 피하는 봇이 체력 1~9퍼센트까지 몰렸다 - `tools/sim/SimBalance`).
+	"dokkaebi": {"name": "불꽃 도깨비", "elem": "fire", "hp": 0.7, "atk": 0.8, "def": 1.0,
 		"xp": 1.0, "sheet": "dokkaebi", "boss": true, "drop": "b-lunchbox",
-		"pattern": {"kind": "escalate", "step": 0.25, "cap": 2.4}, "desc": "갈수록 불붙는다"},
+		"pattern": {"kind": "escalate", "step": 0.15, "cap": 1.8}, "desc": "갈수록 불붙는다"},
 	"golem": {"name": "바위 거인", "elem": "earth", "hp": 1.1, "atk": 1.0, "def": 1.5,
 		"xp": 1.0, "sheet": "golem", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "burst", "rest": 2, "mult": 2.6, "inflict": "numb"},

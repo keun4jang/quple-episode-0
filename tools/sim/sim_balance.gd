@@ -106,7 +106,7 @@ func _zone(v: String) -> void:
 func _zone_start(v: String) -> Dictionary:
 	return {"v": v, "lv0": Battle.level, "t0": t_total, "deaths": 0, "kills": 0,
 		"coins0": Gear.coins, "boss_secs": 0.0, "boss_deaths": 0, "boss_lv": 0,
-		"ttk": [], "hits_taken": [], "rest0": t_rest, "eat0": eaten, "hp_low": 1.0}
+		"ttk": [], "hits_taken": [], "rest0": t_rest, "eat0": eaten, "hp_low": 1.0, "boss_low": 1.0}
 
 
 func _zone_end(z: Dictionary, boss: String) -> void:
@@ -125,9 +125,9 @@ func _zone_end(z: Dictionary, boss: String) -> void:
 	line["hits_to_fall"] = float(Battle.hp_max()) / maxf(1.0, float(Field._one_hit(probe, 1.0)))
 	report.append(line)
 	print("   같은 레벨 몬스터에게 %.1f대 맞으면 쓰러진다 · 꿈조각 %d" % [line["hits_to_fall"], Gear.coins])
-	print("%-8s LV %2d~%2d (보스 LV%2d vs 나 %2d) %5.1f분 쉼%4.1f · 한마리 %4.1f초 · 보스 %4.0f초 · 쓰러짐 %d(보스 %d) · 먹음 %d · 최저체력 %2d%% · 꿈조각 +%d 강화석 %d · %s" % [
+	print("%-8s LV %2d~%2d (보스 LV%2d vs 나 %2d) %5.1f분 쉼%4.1f · 한마리 %4.1f초 · 보스 %4.0f초(최저 %2d%%) · 쓰러짐 %d(보스 %d) · 먹음 %d · 최저체력 %2d%% · 꿈조각 +%d 강화석 %d · %s" % [
 		z["v"], z["lv0"], Battle.level, _boss_lv_of(String(z["v"])), z["boss_lv"], line["minutes"], line["rest_min"],
-		avg, z["boss_secs"], z["deaths"], z["boss_deaths"], line["eaten"], int(float(z["hp_low"]) * 100.0),
+		avg, z["boss_secs"], int(float(z["boss_low"]) * 100.0), z["deaths"], z["boss_deaths"], line["eaten"], int(float(z["hp_low"]) * 100.0),
 		line["coins_gain"], Gear.stones, line["weapon"]])
 
 
@@ -176,6 +176,8 @@ func _fight(kind: String, lv: int, z: Dictionary, boss := false, power := 1.0) -
 				Field.foe_attack(foe)
 				foe_t = every
 				z["hp_low"] = minf(float(z["hp_low"]), maxf(0.0, float(Battle.hp) / float(Battle.hp_max())))
+				if boss:
+					z["boss_low"] = minf(float(z["boss_low"]), maxf(0.0, float(Battle.hp) / float(Battle.hp_max())))
 				if Battle.hp <= 0:
 					deaths += 1
 					z["deaths"] = int(z["deaths"]) + 1
