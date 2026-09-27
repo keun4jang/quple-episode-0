@@ -140,6 +140,8 @@ func _fight(kind: String, lv: int, z: Dictionary, boss := false, power := 1.0) -
 	_rest_before()
 	t_total += WALK
 	var foe := Field.new_foe(kind, lv, false)
+	# 타워 꼭대기의 대마왕처럼 목록 안에 섞여 나오는 우두머리도 보스전으로 센다.
+	boss = boss or (bool(foe["boss"]) and power <= 1.0)
 	if power > 1.0:
 		Loop.power_up(foe, power)
 	if boss:

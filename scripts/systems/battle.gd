@@ -384,21 +384,23 @@ const ENEMIES := {
 	"gull": {"name": "태풍 갈매기", "elem": "wind", "hp": 0.75, "atk": 0.9, "def": 0.9,
 		"xp": 1.0, "sheet": "gull", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "multi", "times": 4, "mult": 0.35}, "desc": "네 번 휘몰아친다"},
-	"carp": {"name": "소용돌이 잉어왕", "elem": "water", "hp": 0.95, "atk": 1.0, "def": 1.1,
+	# 5~9번째와 대마왕 - 0.1.183 에 한꺼번에 순하게 (위험한 한 방·되받아치기부터 줄였다,
+	# 예고를 안 피하는 봇의 보스전 최저 체력 13~33퍼센트 → `docs/redesign-dream.md` 10절).
+	"carp": {"name": "소용돌이 잉어왕", "elem": "water", "hp": 0.85, "atk": 0.85, "def": 1.1,
 		"xp": 1.0, "sheet": "carp", "boss": true, "drop": "b-lunchbox",
-		"pattern": {"kind": "reflect", "back": 0.45}, "desc": "맞은 만큼 되받아친다"},
-	"lotus": {"name": "연꽃 정령", "elem": "wood", "hp": 0.95, "atk": 1.0, "def": 1.1,
+		"pattern": {"kind": "reflect", "back": 0.2}, "desc": "맞은 만큼 되받아친다"},
+	"lotus": {"name": "연꽃 정령", "elem": "wood", "hp": 0.85, "atk": 0.85, "def": 1.1,
 		"xp": 1.0, "sheet": "lotus", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "inflict", "every": 3, "status": "numb"}, "desc": "세 번째마다 먹먹하게"},
-	"thorn_queen": {"name": "가시덩굴 여왕", "elem": "wood", "hp": 1.0, "atk": 1.05, "def": 1.2,
+	"thorn_queen": {"name": "가시덩굴 여왕", "elem": "wood", "hp": 0.9, "atk": 0.9, "def": 1.2,
 		"xp": 1.0, "sheet": "thorn_queen", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "inflict", "every": 3, "status": "shrink"}, "desc": "세 번째마다 옭아맨다"},
-	"mole_king": {"name": "산골 두더지왕", "elem": "earth", "hp": 1.05, "atk": 1.1, "def": 1.3,
+	"mole_king": {"name": "산골 두더지왕", "elem": "earth", "hp": 0.95, "atk": 0.9, "def": 1.3,
 		"xp": 1.0, "sheet": "mole_king", "boss": true, "drop": "b-lunchbox",
-		"pattern": {"kind": "heavy", "every": 3, "mult": 2.2}, "desc": "세 번째마다 땅이 꺼진다"},
-	"deer": {"name": "화염 꽃사슴", "elem": "fire", "hp": 1.0, "atk": 1.15, "def": 1.1,
+		"pattern": {"kind": "heavy", "every": 3, "mult": 1.8}, "desc": "세 번째마다 땅이 꺼진다"},
+	"deer": {"name": "화염 꽃사슴", "elem": "fire", "hp": 0.9, "atk": 0.95, "def": 1.1,
 		"xp": 1.0, "sheet": "deer", "boss": true, "drop": "b-lunchbox",
-		"pattern": {"kind": "burst", "rest": 2, "mult": 2.6, "inflict": "numb"},
+		"pattern": {"kind": "burst", "rest": 2, "mult": 2.1, "inflict": "numb"},
 		"desc": "두 번 숨 고르고 활활"},
 	# ── 회사 몬스터 - 꿈이 금 간 뒤 꿈속 잿마루 타워에만 선다 (`TOWER_SPAWNS`).
 	"paper": {"name": "결재 서류 골렘", "elem": "earth", "hp": 1.2, "atk": 1.05, "def": 1.3,
@@ -419,9 +421,9 @@ const ENEMIES := {
 		"xp": 3.0, "sheet": "gold_drop", "drop": "b-honeycake", "gold": true,
 		"pattern": {"kind": "heavy", "every": 99, "mult": 1.0}, "desc": "맞으면 달아난다"},
 	# 끝판 - 떨어진 사람들의 "야근하는 마음" 이 뭉친 것. 꿈속 잿마루 타워 꼭대기.
-	"night": {"name": "야근 대마왕", "elem": "dark", "hp": 1.2, "atk": 1.1, "def": 1.3,
+	"night": {"name": "야근 대마왕", "elem": "dark", "hp": 1.1, "atk": 0.9, "def": 1.3,
 		"xp": 1.5, "sheet": "night", "boss": true, "drop": "b-lunchbox",
-		"pattern": {"kind": "heavy", "every": 4, "mult": 2.1}, "desc": "네 번째마다 무거운 한 방"},
+		"pattern": {"kind": "heavy", "every": 4, "mult": 1.8}, "desc": "네 번째마다 무거운 한 방"},
 }
 
 ## 구역마다의 보스 (차례대로). 쓰러뜨리면 `JourneyState.quest_flags` 에

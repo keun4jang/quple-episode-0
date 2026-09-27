@@ -8460,7 +8460,7 @@ func _hit_feature_tests() -> void:
 	var carp := Field.new_foe("carp", 25)
 	carp["dealt"] = 999999
 	ok(Field.foe_expected(carp) <= int(Battle.hp_max() * Field.REFLECT_CAP) + 1,
-		"되받아치기는 체력의 30퍼센트를 안 넘는다")
+		"되받아치기는 체력의 20퍼센트를 안 넘는다")
 	# 피버
 	var started := false
 	var adds := 0

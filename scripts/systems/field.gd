@@ -293,9 +293,10 @@ static func _one_hit(foe: Dictionary, mult: float) -> int:
 	return maxi(1, int(round(v * Battle._mitigation(Battle.defense()))))
 
 
-## 되받아치기. **체력 최대치의 30% 를 넘지 않는다** - 시뮬레이션에서 큰 스킬
-## 한 방을 되받아 한 번에 쓰러지는 일이 났다 (소용돌이 잉어왕).
-const REFLECT_CAP := 0.3
+## 되받아치기. **체력 최대치의 20% 를 넘지 않는다** - 시뮬레이션에서 큰 스킬
+## 한 방을 되받아 한 번에 쓰러지는 일이 났다 (소용돌이 잉어왕). 0.1.183 에 30→20:
+## 연타형(도적·궁수)은 준 피해가 커서 매번 상한까지 되받아 18~22퍼센트까지 몰렸다.
+const REFLECT_CAP := 0.2
 
 
 static func _reflect(foe: Dictionary, plan: Dictionary) -> int:
