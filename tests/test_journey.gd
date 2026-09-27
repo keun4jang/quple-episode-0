@@ -8450,6 +8450,10 @@ func _hit_feature_tests() -> void:
 	# 세 번째(바위 거인)의 내리찍기는 뒤 구역 보스(화염 꽃사슴)보다 약하다
 	ok(float(Battle.ENEMIES["golem"]["pattern"]["mult"]) < float(Battle.ENEMIES["deer"]["pattern"]["mult"])
 		and float(Battle.ENEMIES["golem"]["atk"]) < 1.0, "세 번째 우두머리의 내리찍기는 순하게")
+	# 네 번째(태풍 갈매기) - 넷이 한꺼번에 몰아치니 한 방은 가볍게
+	var gp: Dictionary = Battle.ENEMIES["gull"]["pattern"]
+	ok(float(gp["mult"]) * int(gp["times"]) <= 1.4 and float(Battle.ENEMIES["gull"]["atk"]) < 1.0,
+		"네 번째 우두머리의 휘몰아치기는 합쳐도 1.4배까지")
 	ok(Battle.foe_hp_k(1) < Battle.foe_hp_k(20), "초반 몬스터는 가볍고 뒤로 갈수록 단단하다")
 	ok(Battle.foe_stats("drop", 30)["xp"] < 90, "경험은 구역마다 레벨이 너무 튀지 않게 (%d)" % Battle.foe_stats("drop", 30)["xp"])
 	Battle.level = 30

@@ -379,9 +379,11 @@ const ENEMIES := {
 		"xp": 1.0, "sheet": "golem", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "burst", "rest": 2, "mult": 2.0, "inflict": "numb"},
 		"desc": "두 번 쉬고 내리찍는다"},
-	"gull": {"name": "태풍 갈매기", "elem": "wind", "hp": 0.8, "atk": 1.05, "def": 0.9,
+	# 네 번째 우두머리 (0.1.182: 휘몰아치기 한 방 0.45→0.35 - 넷이 한꺼번에 몰아쳐
+	# 예고를 안 피하는 봇이 체력 26~46퍼센트까지 몰렸다 - `tools/sim/SimBalance`).
+	"gull": {"name": "태풍 갈매기", "elem": "wind", "hp": 0.75, "atk": 0.9, "def": 0.9,
 		"xp": 1.0, "sheet": "gull", "boss": true, "drop": "b-lunchbox",
-		"pattern": {"kind": "multi", "times": 4, "mult": 0.45}, "desc": "네 번 휘몰아친다"},
+		"pattern": {"kind": "multi", "times": 4, "mult": 0.35}, "desc": "네 번 휘몰아친다"},
 	"carp": {"name": "소용돌이 잉어왕", "elem": "water", "hp": 0.95, "atk": 1.0, "def": 1.1,
 		"xp": 1.0, "sheet": "carp", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "reflect", "back": 0.45}, "desc": "맞은 만큼 되받아친다"},
