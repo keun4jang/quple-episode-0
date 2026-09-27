@@ -373,9 +373,11 @@ const ENEMIES := {
 	"dokkaebi": {"name": "불꽃 도깨비", "elem": "fire", "hp": 0.7, "atk": 0.8, "def": 1.0,
 		"xp": 1.0, "sheet": "dokkaebi", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "escalate", "step": 0.15, "cap": 1.8}, "desc": "갈수록 불붙는다"},
-	"golem": {"name": "바위 거인", "elem": "earth", "hp": 1.1, "atk": 1.0, "def": 1.5,
+	# 세 번째 우두머리 (0.1.181: 내리찍기 2.6→2.0배 - 예고를 안 피하는 봇이 체력
+	# 11~21퍼센트까지 몰렸다 - `tools/sim/SimBalance`).
+	"golem": {"name": "바위 거인", "elem": "earth", "hp": 0.95, "atk": 0.85, "def": 1.3,
 		"xp": 1.0, "sheet": "golem", "boss": true, "drop": "b-lunchbox",
-		"pattern": {"kind": "burst", "rest": 2, "mult": 2.6, "inflict": "numb"},
+		"pattern": {"kind": "burst", "rest": 2, "mult": 2.0, "inflict": "numb"},
 		"desc": "두 번 쉬고 내리찍는다"},
 	"gull": {"name": "태풍 갈매기", "elem": "wind", "hp": 0.8, "atk": 1.05, "def": 0.9,
 		"xp": 1.0, "sheet": "gull", "boss": true, "drop": "b-lunchbox",
