@@ -357,18 +357,25 @@ func _place_name_of(path: String) -> String:
 
 
 func _pick(path: String) -> void:
+	travel_to(path, _from)
+
+
+## 그 구역으로 떠난다. 정류장 판(`_pick`)과 우두머리 승리 판(`BossClear`)이 같이 쓴다 -
+## 도착 처리(여행자·아침·저장·페이드)가 두 길에서 어긋나지 않게 한 곳에 둔다.
+func travel_to(path: String, from: String, tell := true) -> void:
 	visible = false
 	# 내가 떠나면 여행자도 떠난다. (타워로는 안 따라온다 - 거긴 혼자 간다.)
 	var dest := _place_name_of(path)
 	if dest != Quests.TOWER:
-		JourneyState.move_wanderer(dest, _from)
+		JourneyState.move_wanderer(dest, from)
 	# 다음 마을에는 아침에 닿는다. `Place` 가 지도를 깔면서 처리한다.
 	JourneyState.arriving = true
 	# **도착지**를 적어야 한다. `save_now()` 는 지금 씬을 보는데, 여기서는
 	# 아직 떠나기 전 장소다. 그대로 두면 앱이 죽었을 때 이어하기가 방금
 	# 떠나온 곳으로 되돌아간다.
 	SaveManager.save_game(path)
-	chose.emit(path)
+	if tell:
+		chose.emit(path)
 	# **페이드를 거쳐 간다.** 게임에서 실제로 쓰는 씬 이동은 여기 하나뿐인데,
 	# 이것만 `change_scene_to_file` 로 곧장 넘어가 한 프레임에 툭 바뀌었다.
 	# `SceneTransition` 안의 문 여는 소리도 그래서 한 번도 안 났다.

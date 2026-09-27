@@ -112,6 +112,7 @@ func _ready() -> void:
 	await _sky_tests()
 	await _hud_help_tests()
 	await _hit_feature_tests()
+	await _design_tests()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [_pass, _fail])
 	get_tree().quit(1 if _fail > 0 else 0)
 
@@ -8127,7 +8128,7 @@ func _tower_tests() -> void:
 	var b5: Array = Loop.floor_spawns(5)
 	ok(bool(Battle.ENEMIES[String(b5[0][0])].get("boss", false)) and b5.size() == 3,
 		"5층은 우두머리 층 (%s)" % b5[0][0])
-	ok(Loop.floor_lv(30) >= 48 and Loop.floor_lv(10) > Loop.floor_lv(9), "층마다 세진다 (30층 LV%d)" % Loop.floor_lv(30))
+	ok(Loop.floor_lv(30) >= 38 and Loop.floor_lv(10) > Loop.floor_lv(9), "층마다 세진다 (30층 LV%d)" % Loop.floor_lv(30))
 	var coins := Gear.coins
 	var r1 := Loop.clear_floor(1)
 	ok(int(r1["coins"]) > 0 and Gear.coins == coins + int(r1["coins"]) and Loop.tower_best == 1,
@@ -8493,7 +8494,7 @@ func _hit_feature_tests() -> void:
 	var sd := Loop.to_dict()
 	Loop.reset()
 	Loop.from_dict(sd)
-	ok(Loop.blessings.size() == 7, "고른 축복이 저장된다")
+	ok(Loop.blessings.size() == 1 + Loop.BLESS_MAX, "고른 축복이 저장된다 (같은 것은 세 번까지)")
 	Loop.reset()
 	# 탑 한 층을 쓸면 축복 고르기가 뜬다
 	JourneyState.exit_scene = GOAL_SCENES["윤슬"]
@@ -8558,3 +8559,100 @@ func _find_named(n: Node, nm: String) -> Node:
 		if r != null:
 			return r
 	return null
+
+
+
+# ── 기획서 (`docs/game-design.md`) 0.1.184 ─────────────────────────
+
+func _design_tests() -> void:
+	print("\n[기획서 - 직업별 상점 · 승리 판 · 레벨 비교 · 자동 저장 · 탑]")
+	_clean_state()
+	Gear.reset()
+	# 직업별 상점 - 구역마다 단계, 내 직업 무기
+	ok(Gear.VILLAGE_TIER["윤슬"] < Gear.VILLAGE_TIER["볕뉘"]
+		and Gear.VILLAGE_TIER["하늬섬"] < Gear.VILLAGE_TIER["갈밭머리"]
+		and Gear.VILLAGE_TIER["갈밭머리"] < Gear.VILLAGE_TIER["꽃눈벌"], "뒤 구역일수록 상점 장비 단계가 높다")
+	Battle.job = "novice"
+	ok(String(Gear.shop_gear("윤슬")[0]["kind"]) == "stick", "전직 전엔 막대기를 판다")
+	var jobs_ok := true
+	for j in ["warrior", "mage", "archer", "thief"]:
+		Battle.job = j
+		var w: Dictionary = Gear.shop_gear("볕뉘")[0]
+		if String(w["kind"]) != String(Battle.JOBS[j]["weapon"]) or not Gear.can_wield(w["item"]):
+			jobs_ok = false
+	ok(jobs_ok, "전직하면 상점이 그 직업 무기를 판다 (검·지팡이·활·단검)")
+	Battle.job = "warrior"
+	var sg := Gear.shop_gear("하늬섬")
+	ok(sg.size() == Gear.SLOTS.size() and int(sg[0]["tier"]) == 2 and int(sg[0]["item"]["rar"]) == 1,
+		"상점은 여섯 칸 - 그 구역 단계 고급 장비")
+	ok(Gear.shop_gear("하늬섬")[0]["item"]["opts"] == sg[0]["item"]["opts"], "상점 장비는 운이 없다 - 늘 같은 것")
+	Gear.coins = 10
+	ok(not bool(Gear.buy_gear("하늬섬", "weapon")["ok"]), "꿈조각이 모자라면 못 산다")
+	Gear.coins = 5000
+	var r := Gear.buy_gear("하늬섬", "weapon")
+	ok(bool(r["ok"]) and bool(r["worn"]) and Gear.worn("weapon")["tier"] == 2
+		and Gear.coins == 5000 - int(sg[0]["price"]), "사면 값을 내고, 더 좋으면 바로 입는다")
+	ok(Gear.compare_text(Gear.shop_gear("볕뉘")[0]["item"]) == "지금 것이 더 좋아요",
+		"입은 것보다 못하면 그렇다고 알려 준다")
+	# 꿈 상자는 내 직업 것만
+	var all_mine := true
+	for i in 30:
+		Gear.coins = 1000
+		var got: Dictionary = Gear.buy("box").get("got", {})
+		if not got.is_empty() and not Gear.can_wield(got):
+			all_mine = false
+	ok(all_mine, "꿈 상자는 내 직업이 들 수 있는 것만 나온다")
+	# 메인 퀘스트 - 레벨 비교
+	JourneyState.mark_quest("잿마루:정류장")
+	Battle.level = 2
+	var m := MainQuest.now()
+	ok(bool(m["low"]) and MainQuest.level_note(m).contains("더 잡아"), "레벨이 모자라면 무엇을 할지 알려 준다")
+	Battle.level = 9
+	ok(not bool(MainQuest.now()["low"]), "레벨이 되면 도전할 만하다고")
+	# 탑 - 축복은 세 번까지, 층 레벨은 완만하게
+	Loop.reset()
+	for i in 6:
+		Loop.add_blessing("might")
+	ok(Loop.blessings.count("might") == Loop.BLESS_MAX, "같은 축복은 세 번까지만 쌓인다")
+	ok(not Loop.bless_offer(9).has("might"), "다 찬 축복은 더 내밀지 않는다")
+	ok(Loop.floor_lv(10) <= 14 and Loop.floor_lv(30) <= 40, "층 몬스터 레벨은 층 x1.3 쯤 (10층 LV%d)" % Loop.floor_lv(10))
+	Loop.reset()
+	# 우두머리 승리 판 - 방에서 처음 쓰러뜨리면 뜨고, "다음 구역으로 바로" 가 있다
+	JourneyState.reset()
+	JourneyState.exit_scene = GOAL_SCENES["볕뉘"]
+	JourneyState.exit_tile = Vector2i(10, 10)
+	Battle.level = 15
+	var l: Place = load("res://scenes/journey/interiors/BossLair.tscn").instantiate()
+	add_child(l)
+	await get_tree().process_frame
+	var b: Shade = l._boss_shade()
+	b.foe["hp"] = 0
+	l.on_shade_down(b)
+	var bc: BossClear = null
+	var until := Time.get_ticks_msec() + 4000
+	while bc == null and Time.get_ticks_msec() < until:
+		await get_tree().process_frame
+		bc = l.get_node_or_null("BossClear") as BossClear
+	ok(bc != null and bc.chapter == 2 and bc.next_title.contains("가풀재")
+		and bc.next_title.contains("바위 거인"), "우두머리를 잡으면 승리 판 - 다음 장 미리보기")
+	ok(bc != null and bc.get_node_or_null("Next") == null and _find_named(bc, "Next") != null,
+		"승리 판에 '다음 구역으로 바로 가기' 가 있다")
+	if bc != null:
+		bc.pick(false)
+	l.queue_free()
+	await get_tree().process_frame
+	# 자동 저장 - 표시가 있고, 일정 초마다 저장한다
+	JourneyState.here = "윤슬"
+	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(p)
+	await get_tree().process_frame
+	ok(p.hud.save_mark != null and p.hud.save_mark.text == "자동 저장", "자동 저장 표시가 있다")
+	ok(Place.AUTOSAVE_SECS <= 30.0, "30초마다 자동 저장한다")
+	SaveManager.game_saved.emit()
+	await get_tree().process_frame
+	ok(p.hud.save_mark.modulate.a > 0.5, "저장되면 '자동 저장' 이 잠깐 뜬다")
+	p.queue_free()
+	await get_tree().process_frame
+	Gear.reset()
+	Battle.reset()
+	JourneyState.reset()

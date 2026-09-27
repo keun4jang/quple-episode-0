@@ -281,6 +281,7 @@ func _ready() -> void:
 	hud.announce_place(display_name())
 	_refresh_title()
 	_welcome()
+	_shop_notice()
 	if place_name() == "고향":
 		JourneyState.came_home()
 	else:
@@ -1770,16 +1771,47 @@ func _boss_story(kind: String) -> void:
 				hud._celebrate("하늘에 현실이 새어 들어와요", "알람 소리가 들리고 결재 서류가 떨어져요")
 			if v == String(Quests.ORDER[-1]):
 				hud._celebrate("꿈이 금 가기 시작했어요!", "정류장에 잿마루 타워가 나타났어요")
-			else:
-				hud._celebrate("꿈의 문이 열렸어요!", "다음 구역으로 가는 길이 열렸어요")
-			hud._celebrate("첫 처치 보상", "강화석 +%d · %s %s" % [BOSS_FIRST_STONES,
-				String(Gear.RARITY[int(it["rar"])]["name"]), Gear.name_of(it)])
-			if v == "윤슬":
-				hud._celebrate("꿈의 탑이 열렸어요!", "마을마다 푸른 틈으로 올라갈 수 있어요")
+		# **승리 판** - 받은 것 + 다음 장 + [다음 구역으로 바로 가기].
+		var got: Array = ["첫 처치 보상 · 강화석 +%d · %s %s" % [BOSS_FIRST_STONES,
+			String(Gear.RARITY[int(it["rar"])]["name"]), Gear.name_of(it)]]
+		got.append("꿈의 문이 열렸어요 - 다음 구역으로 갈 수 있어요")
+		if v == "윤슬":
+			got.append("꿈의 탑이 열렸어요 - 마을마다 푸른 틈")
+		_show_boss_clear(v, kind, got)
 	if kind == "night" and not JourneyState.quest_done("엔딩:대마왕"):
 		JourneyState.mark_quest("엔딩:대마왕")
 		SaveManager.save_now()
 		_wake_up()
+
+
+## 승리 판을 띄운다 (`BossClear`). 하늘이 갈라지는 연출이 먼저 보이게 조금 기다린다.
+func _show_boss_clear(v: String, kind: String, got: Array) -> void:
+	var idx := Quests.ORDER.find(v)
+	var next_v := String(Quests.ORDER[idx + 1]) if idx >= 0 and idx + 1 < Quests.ORDER.size() else ""
+	var next_path := ""
+	var next_title := ""
+	if next_v != "":
+		next_path = String(TravelBoard.PLACES[next_v][0])
+		var nb := Battle.boss_of(next_v)
+		next_title = "%d장 · %s - %s (LV %d) · 상점에 %s 장비" % [idx + 2, next_v,
+			String(Battle.ENEMIES[nb]["name"]), Battle.boss_lv(next_v),
+			String(Gear.TIERS[int(Gear.VILLAGE_TIER.get(next_v, 0))]["name"])]
+	elif v == String(Quests.ORDER[-1]):
+		next_path = String(TravelBoard.PLACES[Quests.TOWER][0])
+		next_title = "10장 · 꿈속 잿마루 타워 - 야근 대마왕 (LV 50)"
+	await get_tree().create_timer(2.2).timeout
+	if not is_inside_tree():
+		return
+	var bc := BossClear.new()
+	bc.name = "BossClear"
+	bc.chapter = idx + 1
+	bc.boss_name = String(Battle.ENEMIES[kind]["name"])
+	bc.rewards = got
+	bc.next_title = next_title
+	bc.chose.connect(func(go: bool) -> void:
+		if go and next_path != "" and board != null:
+			board.travel_to(next_path, v, false))
+	add_child(bc)
 
 
 ## 깨어난다. 몇 마디 뒤에 선택 판(`EndingChoice`).
@@ -1848,6 +1880,19 @@ func _refresh_title() -> void:
 		_title_tag.position = Vector2(-60, -36)
 	_title_tag.text = Loop.title
 	_title_tag.visible = Loop.title != ""
+
+
+## 새 구역에 처음 닿으면 **이 마을 가게에 한 단계 위 장비가 있다**고 한 번 알린다
+## (`docs/game-design.md` 4절 - 맵을 옮기면 더 좋은 장비).
+func _shop_notice() -> void:
+	var v := place_name()
+	if is_indoors() or not Gear.VILLAGE_TIER.has(v) or hud == null \
+			or JourneyState.quest_done("상점안내:" + v) or v == "잿마루":
+		return
+	JourneyState.mark_quest("상점안내:" + v)
+	var tier := int(Gear.VILLAGE_TIER[v])
+	hud._say_hint("이 마을 가게에서 %s %s 장비를 팔아요" % [String(Gear.TIERS[tier]["name"]),
+		Battle.job_name()], true, 2.6)
 
 
 ## 켜자마자 한 번 - **잠든 사이 모인 꿈조각**과 **출석 보상**.
@@ -4073,7 +4118,18 @@ func _tick_goto(delta: float) -> Vector2:
 	return to.normalized() * k
 
 
+## 자동 저장 - 이만큼(초)마다 (`docs/game-design.md` 8절). 몬스터를 쓰러뜨릴 때·맵을
+## 옮길 때·사고팔 때·앱을 내릴 때는 따로 저장된다. 이건 그 사이 한 일을 잃지 않게.
+const AUTOSAVE_SECS := 30.0
+var _autosave_t := 0.0
+
+
 func _process(delta: float) -> void:
+	_autosave_t += delta
+	if _autosave_t >= AUTOSAVE_SECS:
+		_autosave_t = 0.0
+		if not _sleeping and is_inside_tree() and get_tree().current_scene == self:
+			SaveManager.save_now()
 	# **대화가 막 닫혔으면 잠깐은 다시 안 연다.** 대사는 타자 효과라
 	# 자연히 연타하게 되는데, 마지막 줄에서 대화가 닫히는 즉시 같은
 	# 자리 버튼이 "다음"→"말 걸기" 로 바뀌어(쿨다운 없이) 연타의

@@ -55,10 +55,15 @@ func _run_job(j: String) -> Dictionary:
 	t_rest = 0.0
 	deaths = 0
 	eaten = 0
+	bought = 0
 	report = []
 	print("\n==================== 직업: %s ====================" % j)
-	for v in Quests.ORDER:
-		_zone(String(v))
+	var tower_at := {}
+	for i in Quests.ORDER.size():
+		_zone(String(Quests.ORDER[i]))
+		# 게임 중간에 탑에 들어가 보면 어디까지 가나 (들어갔다 나오면 상태는 되돌린다).
+		if i in [0, 2, 5, 8]:
+			tower_at[String(Quests.ORDER[i])] = _tower_try(String(Quests.ORDER[i]) + " 뒤")
 	# 꿈속 잿마루 타워 → 대마왕
 	var z := _zone_start("잿마루 타워")
 	for k in Battle.tower_spawns():
@@ -77,15 +82,74 @@ func _run_job(j: String) -> Dictionary:
 		Loop.clear_floor(floor_n)
 		floor_n += 1
 	print("꿈의 탑: %d층까지 (탑에서 %.0f분)" % [Loop.tower_best, (t_total - tower_t) / 60.0])
-	var res := {"zones": report, "total_min": t_total / 60.0, "rest_min": t_rest / 60.0,
+	var res := {"tower_at": tower_at, "zones": report, "total_min": t_total / 60.0, "rest_min": t_rest / 60.0,
 		"deaths": deaths, "tower": Loop.tower_best, "level": Battle.level,
-		"coins": Gear.coins, "stones": Gear.stones}
-	print("전체 %.0f분 (쉬는 데 %.0f분) · 쓰러짐 %d · LV %d · 꿈조각 %d · 강화석 %d" % [
-		t_total / 60.0, t_rest / 60.0, deaths, Battle.level, Gear.coins, Gear.stones])
+		"coins": Gear.coins, "stones": Gear.stones, "bought": bought}
+	print("전체 %.0f분 (쉬는 데 %.0f분) · 쓰러짐 %d · LV %d · 꿈조각 %d · 강화석 %d · 상점에서 산 장비 %d" % [
+		t_total / 60.0, t_rest / 60.0, deaths, Battle.level, Gear.coins, Gear.stones, bought])
 	return res
 
 
+## 꿈의 탑을 1층부터 한 번 올라 본다. 층마다 축복을 고르고(힘 > 단단함 > 흡혈 > ...),
+## 한 층에서 세 번 쓰러지면 멈춘다. 끝나면 오르기 전 상태로 되돌린다.
+const BLESS_PREF := ["might", "shell", "leech", "keen", "flow", "hot", "gold"]
+
+
+func _tower_try(label: String) -> int:
+	var snap := JourneyState.to_dict()
+	var t0 := t_total
+	var d_save := deaths
+	var lv := Battle.level
+	Loop.blessings.clear()
+	Battle.hp = Battle.hp_max()
+	Battle.mp = Battle.mp_max()
+	var n := 1
+	var stuck_lv := 0
+	while n <= 80:
+		var d0 := deaths
+		var zz := _zone_start("탑")
+		for k in Loop.floor_spawns(n):
+			_fight(String(k[0]), int(k[1]), zz, false, Loop.floor_power(n))
+			if deaths - d0 >= 3:
+				break
+		if deaths - d0 >= 3:
+			stuck_lv = Loop.floor_lv(n)
+			break
+		var offer := Loop.bless_offer(n)
+		for id in BLESS_PREF:
+			if offer.has(id):
+				Loop.add_blessing(id)
+				break
+		n += 1
+	var reached := n - 1
+	print("   꿈의 탑 (%s, LV %d 로 들어감): %d층까지 · 막힌 층 몬스터 LV %d · %.0f분" % [
+		label, lv, reached, stuck_lv, (t_total - t0) / 60.0])
+	JourneyState.from_dict(snap)
+	Field.reset()
+	Loop.blessings.clear()
+	t_total = t0
+	deaths = d_save
+	return reached
+
+
+## 새 구역에 닿으면 상점에서 산다 - 무기 먼저, 방어구는 돈 되는 대로 (`Gear.shop_gear`).
+## 먹을 것 값(꿈조각 100)은 남겨 둔다.
+var bought := 0
+
+
+func _shop(v: String) -> void:
+	for e in Gear.shop_gear(v):
+		if Gear.coins - int(e["price"]) < 100:
+			continue
+		if not Gear.better(e["item"]) and not Gear.worn(String(e["slot"])).is_empty():
+			continue
+		if bool(Gear.buy_gear(v, String(e["slot"]))["ok"]):
+			bought += 1
+
+
 func _zone(v: String) -> void:
+	cur_zone = v
+	_shop(v)
 	var z := _zone_start(v)
 	var list: Array = Battle.spawns(v)
 	# 사람은 약한 것부터 고른다 - 머리 위 레벨을 보고.
@@ -259,13 +323,28 @@ func _rest_before() -> void:
 		_eat_something()
 
 
+## 사람다운 차례: 이 구역 상점에서 **아직 안 산 더 좋은 것**이 있으면 그 값만큼은 남겨 두고
+## 강화한다 - 강화로 꿈조각을 다 녹여 새 단계 장비를 못 사는 일이 없게.
+var cur_zone := ""
+
+
+func _shop_reserve() -> int:
+	var need := 0
+	for e in Gear.shop_gear(cur_zone):
+		if Gear.worn(String(e["slot"])).is_empty() or Gear.better(e["item"]):
+			need = maxi(need, int(e["price"]))
+	return need
+
+
 func _gear_up() -> void:
 	for it in Gear.items.duplicate():
 		if Gear.better(it):
 			Gear.equip(int(it["uid"]))
+	if cur_zone != "":
+		_shop(cur_zone)
 	var w := Gear.worn("weapon")
 	while not w.is_empty() and Gear.stones > 0 and int(w.get("plus", 0)) < 10 \
-			and Gear.coins >= Gear.plus_cost(w):
+			and Gear.coins - _shop_reserve() >= Gear.plus_cost(w):
 		Gear.enhance(int(w["uid"]))
 		w = Gear.worn("weapon")
 	Gear.sell_junk(1)

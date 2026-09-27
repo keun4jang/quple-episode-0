@@ -300,9 +300,9 @@ static func is_boss_floor(n: int) -> bool:
 	return n % TOWER_BOSS_EVERY == 0
 
 
-## 그 층 몬스터의 레벨. 30층이 LV 50 쯤이다.
+## 그 층 몬스터의 레벨. 층 x1.3 (0.1.184 에 x1.6 에서 낮췄다 - `docs/game-design.md` 7절).
 static func floor_lv(n: int) -> int:
-	return clampi(2 + int(float(n) * 1.6), 1, 99)
+	return clampi(1 + int(float(n) * 1.3), 1, 99)
 
 
 ## 그 층에 서는 몬스터 `[종, 레벨]`. 층 번호로 씨를 심는다 - 같은 층은 늘 같은 무리.
@@ -357,6 +357,9 @@ const BLESSINGS := {
 }
 ## 받는 피해는 여기까지만 줄어든다 - 겹쳐 쌓아도 무적이 되지 않게.
 const BLESS_GUARD_CAP := 0.6
+## **같은 축복은 이만큼까지만 쌓인다.** 끝없이 쌓이면 LV 9 로도 60층을 넘었다
+## (0.1.184 시뮬레이션). 다 찬 축복은 더 내밀지 않는다.
+const BLESS_MAX := 3
 static var blessings: Array = []
 
 
@@ -374,7 +377,7 @@ static func bless(key: String) -> float:
 static func bless_offer(n: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("bless|%d|%d" % [n, blessings.size()])
-	var pool: Array = BLESSINGS.keys()
+	var pool: Array = BLESSINGS.keys().filter(func(k): return blessings.count(k) < BLESS_MAX)
 	var out: Array = []
 	while out.size() < 3 and not pool.is_empty():
 		out.append(pool.pop_at(rng.randi_range(0, pool.size() - 1)))
@@ -382,7 +385,7 @@ static func bless_offer(n: int) -> Array:
 
 
 static func add_blessing(id: String) -> void:
-	if BLESSINGS.has(id):
+	if BLESSINGS.has(id) and blessings.count(id) < BLESS_MAX:
 		blessings.append(id)
 
 

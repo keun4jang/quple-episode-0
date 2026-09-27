@@ -15,6 +15,17 @@ extends RefCounted
 ##   끝        깨어난 뒤 - 꿈의 탑
 
 const TOTAL := 10
+## 우두머리보다 이만큼 넘게 낮으면 "레벨이 모자라요" 로 알린다.
+const LOW_GAP := 2
+
+
+## 메인 퀘스트 칸 둘째 줄 끝에 붙일 한 마디 - 레벨이 모자라면 무엇을 하면 되는지.
+static func level_note(m: Dictionary) -> String:
+	if not m.has("boss_lv"):
+		return ""
+	if bool(m.get("low", false)):
+		return "내 LV %d · 몬스터를 더 잡아 레벨을 올려요" % Battle.level
+	return "내 LV %d · 도전할 만해요" % Battle.level
 
 
 ## `{chapter, head, goal, village}` - head 는 "3장 / 10" 같은 머리글.
@@ -30,8 +41,9 @@ static func now() -> Dictionary:
 		var b := Battle.boss_of(v)
 		if b == "" or Battle.boss_down(v):
 			continue
+		var blv := Battle.boss_lv(v)
 		return {"chapter": i + 1, "head": "%d장 / %d  ·  %s" % [i + 1, TOTAL, v],
-			"goal": "우두머리 %s 쓰러뜨리기  (LV %d)" % [String(Battle.ENEMIES[b]["name"]),
-				Battle.boss_lv(v)], "village": v}
+			"goal": "우두머리 %s 쓰러뜨리기  (LV %d)" % [String(Battle.ENEMIES[b]["name"]), blv],
+			"village": v, "boss_lv": blv, "low": Battle.level < blv - LOW_GAP}
 	return {"chapter": TOTAL, "head": "%d장 / %d  ·  잿마루 타워" % [TOTAL, TOTAL],
 		"goal": "타워 꼭대기의 야근 대마왕 쓰러뜨리기  (LV 50)", "village": "잿마루"}

@@ -31,6 +31,9 @@ var _hint: Label
 var _cam_btn: TextureButton
 ## 오른쪽 아래 공격·스킬 버튼과 체력·마음력 막대 (`FightPad`).
 var fight: FightPad
+## "자동 저장" 표시.
+var save_mark: Label
+var _save_tw: Tween
 ## 화면 맨 아래 경험 막대.
 var xp_bar: XpBar
 var _bag_title: Label
@@ -129,6 +132,21 @@ func _build() -> void:
 	_clock.position = Vector2(28, 18)
 	_clock.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_clock)
+
+	# 자동 저장 표시 - 저장될 때마다 시계 옆에 잠깐 (`docs/game-design.md` 8절).
+	save_mark = Label.new()
+	save_mark.name = "SaveMark"
+	save_mark.text = "자동 저장"
+	save_mark.add_theme_font_size_override("font_size", 16)
+	save_mark.add_theme_color_override("font_color", Color("#B4E6C0"))
+	save_mark.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	save_mark.add_theme_constant_override("outline_size", 6)
+	save_mark.position = Vector2(214, 24)
+	save_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	save_mark.modulate.a = 0.0
+	root.add_child(save_mark)
+	if not SaveManager.game_saved.is_connected(_on_saved):
+		SaveManager.game_saved.connect(_on_saved)
 
 	# 마을 이름표. 도착하거나 이어하기로 들어오면 가운데 크게 떴다 없어진다.
 	_place_title = Label.new()
@@ -571,6 +589,7 @@ const MENU_COLS := 2
 var main_quest: Button
 var _mq_head: Label
 var _mq_goal: Label
+var _mq_lv: Label
 var _mq_t := 0.0
 
 
@@ -604,6 +623,11 @@ func _build_main_quest(root: Control) -> void:
 	_mq_goal.add_theme_constant_override("outline_size", 4)
 	_mq_goal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	main_quest.add_child(_mq_goal)
+	_mq_lv = Label.new()
+	_mq_lv.position = Vector2(12, 56)
+	_mq_lv.add_theme_font_size_override("font_size", 15)
+	_mq_lv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_quest.add_child(_mq_lv)
 	_refresh_main_quest()
 
 
@@ -613,8 +637,27 @@ func _refresh_main_quest() -> void:
 	var m := MainQuest.now()
 	_mq_head.text = "메인 퀘스트  ·  " + String(m["head"])
 	_mq_goal.text = String(m["goal"])
-	var w: float = maxf(_mq_head.get_minimum_size().x, _mq_goal.get_minimum_size().x) + 28.0
-	main_quest.size = Vector2(maxf(240.0, w), 62)
+	# 셋째 줄 - 내 레벨과 견준다. 모자라면 붉게, 무엇을 하면 되는지까지.
+	var note := MainQuest.level_note(m)
+	_mq_lv.text = note
+	_mq_lv.visible = note != ""
+	_mq_lv.add_theme_color_override("font_color",
+		Color("#FF9A8A") if bool(m.get("low", false)) else Color("#B4E6C0"))
+	var w: float = maxf(_mq_head.get_minimum_size().x, _mq_goal.get_minimum_size().x)
+	if note != "":
+		w = maxf(w, _mq_lv.get_minimum_size().x)
+	main_quest.size = Vector2(maxf(240.0, w + 28.0), 86 if note != "" else 62)
+
+
+func _on_saved() -> void:
+	if save_mark == null or not is_instance_valid(save_mark) or not is_inside_tree():
+		return
+	if _save_tw != null and _save_tw.is_valid():
+		_save_tw.kill()
+	save_mark.modulate.a = 1.0
+	_save_tw = create_tween()
+	_save_tw.tween_interval(1.2)
+	_save_tw.tween_property(save_mark, "modulate:a", 0.0, 0.6)
 
 
 ## i 번째 버튼이 앉을 자리. 고리·점도 같은 셈을 써서 어긋나지 않는다.

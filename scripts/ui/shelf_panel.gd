@@ -49,7 +49,9 @@ func _title() -> String:
 		KIND_KEEP:
 			return "이 마을 물건"
 		KIND_SHOP:
-			return "꿈조각 상점  ·  꿈조각 %d  ·  강화석 %d" % [Gear.coins, Gear.stones]
+			var tier := int(Gear.VILLAGE_TIER.get(_village, 0))
+			return "꿈조각 상점 · %s 장비 · 꿈조각 %d · 강화석 %d" % [
+				String(Gear.TIERS[tier]["name"]), Gear.coins, Gear.stones]
 	return "기억 선반"
 
 
@@ -61,7 +63,8 @@ func _rows() -> Array:
 		KIND_KEEP:
 			return d.get("keep", [])
 		KIND_SHOP:
-			return Gear.SHOP
+			# 맨 위에 이 구역 단계의 **내 직업 장비** 여섯 칸, 그 아래 강화석·상자·먹을 것.
+			return Gear.shop_gear(_village) + Gear.SHOP
 	# 기억 선반에는 **지금 가진 것만** 올린다. 없는 것을 흐리게 늘어놓으면
 	# 그것도 모으라는 숙제가 된다.
 	var out: Array = []
@@ -179,7 +182,10 @@ func _row(it: Dictionary) -> Control:
 	var done := false
 	var why := ""
 	if _kind == KIND_SHOP:
-		why = "꿈조각 %d  ·  %s" % [int(it["price"]), String(it.get("desc", ""))]
+		if it.has("slot"):
+			why = "꿈조각 %d  ·  %s" % [int(it["price"]), Gear.compare_text(it["item"])]
+		else:
+			why = "꿈조각 %d  ·  %s" % [int(it["price"]), String(it.get("desc", ""))]
 		done = Gear.coins < int(it["price"])
 	match _kind:
 		KIND_FOOD:
@@ -290,7 +296,8 @@ func _tap(it: Dictionary) -> void:
 
 ## 산다. 판은 닫지 않는다 - 여러 개를 이어서 사게. 꿈조각이 바뀌니 다시 그린다.
 func _buy(it: Dictionary) -> void:
-	var r := Gear.buy(String(it["id"]))
+	var r := Gear.buy_gear(_village, String(it["slot"])) if it.has("slot") \
+		else Gear.buy(String(it["id"]))
 	var hud := get_tree().get_first_node_in_group("journey_hud")
 	if not bool(r["ok"]):
 		AudioManager.battle_hurt()
@@ -299,7 +306,10 @@ func _buy(it: Dictionary) -> void:
 		return
 	AudioManager.ui_confirm()
 	var got: Dictionary = r.get("got", {})
-	if hud != null:
+	if hud != null and it.has("slot"):
+		hud._say_hint("%s - %s" % [Gear.name_of(got),
+			"바로 입었어요" if bool(r.get("worn", false)) else "배낭에 넣었어요"], false, 1.8)
+	elif hud != null:
 		if not got.is_empty():
 			var rar := int(got["rar"])
 			if rar >= 3:

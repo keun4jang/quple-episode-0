@@ -476,8 +476,11 @@ static func buy(id: String) -> Dictionary:
 			stones += 5
 		"box":
 			# 상자는 몬스터보다 조금 후하다 - 일반은 안 나온다.
+			# **내 직업이 들 수 있는 것만** 나온다 (`docs/game-design.md` 4절).
 			var lv := Battle.level
 			var it := roll_gear("", lv, false)
+			if String(it["slot"]) == "weapon":
+				it["kind"] = my_weapon_kind()
 			_reroll(it, _roll_rarity([0.0, 70.0, 23.0, 6.0, 1.0]))
 			items.append(it)
 			got = it
@@ -487,6 +490,97 @@ static func buy(id: String) -> Dictionary:
 		_:
 			JourneyState.pick(id)
 	return {"ok": true, "why": "", "got": got}
+
+
+# ── 마을 상점 장비 (직업별) ───────────────────────────────────────────
+#
+# `docs/game-design.md` 4절. **맵을 옮기면 한 단계 위 장비를 살 수 있다** - 구역마다
+# 파는 단계가 정해져 있고, 내 직업이 드는 무기와 방어구 다섯 칸을 판다. 늘 고급(초록),
+# 옵션 한 줄은 내 주 능력치. 드랍(운)과 달리 **믿을 수 있는 바닥**이다.
+
+## 구역 → 상점 장비 단계 (나무·쇠·은빛·용맹·꿈결).
+const VILLAGE_TIER := {
+	"윤슬": 0, "볕뉘": 1, "가풀재": 1, "하늬섬": 2, "굽이나루": 2, "방울못": 2,
+	"갈밭머리": 3, "솔은재": 3, "꽃눈벌": 4, "잿마루": 4,
+}
+## 단계별 무기 값. 방어구 한 칸은 이것의 `ARMOR_PRICE` 배.
+const WEAPON_PRICE := [80, 700, 1600, 2800, 4200]
+const ARMOR_PRICE := 0.3
+const SHOP_RAR := 1
+
+
+## 내 직업이 드는 무기 종류. 전직 전엔 막대기.
+static func my_weapon_kind() -> String:
+	var k := String(Battle.JOBS[Battle.job]["weapon"])
+	return k if k != "" else "stick"
+
+
+static func gear_price(slot: String, tier: int) -> int:
+	var w := int(WEAPON_PRICE[clampi(tier, 0, WEAPON_PRICE.size() - 1)])
+	return w if slot == "weapon" else int(round(w * ARMOR_PRICE / 5.0) * 5)
+
+
+## 그 구역 상점이 파는 장비 여섯 줄 (사기 전 모양). `{id, slot, kind, tier, price, name, icon}`.
+static func shop_gear(village: String) -> Array:
+	if not VILLAGE_TIER.has(village):
+		return []
+	var tier := int(VILLAGE_TIER[village])
+	var out: Array = []
+	for slot in SLOTS:
+		var kind := my_weapon_kind() if slot == "weapon" else String(slot)
+		var probe := _shop_piece(slot, kind, tier)
+		out.append({"id": "gear:" + String(slot), "slot": slot, "kind": kind, "tier": tier,
+			"price": gear_price(slot, tier), "name": name_of(probe), "item": probe,
+			"icon": ("w-" + kind) if slot == "weapon" else ("a-" + String(slot))})
+	return out
+
+
+## 상점 한 벌 - 고급, 옵션 한 줄은 내 주 능력치(장신구는 체력).
+static func _shop_piece(slot: String, kind: String, tier: int) -> Dictionary:
+	var it := {"uid": -1, "slot": slot, "kind": kind, "tier": tier, "rar": SHOP_RAR,
+		"elem": "none", "plus": 0, "opts": []}
+	var key := String(Battle.JOBS[Battle.job]["main"])
+	if slot == "ring":
+		key = "hp"
+	# 상점 것은 운이 없다 - 옵션 값은 늘 가운데.
+	var o: Dictionary = OPTS[key]
+	var v := float(o["base"]) * (1.0 + 0.8 * tier)
+	it["opts"].append([key, maxi(1, int(round(v)))])
+	return it
+
+
+## 지금 입은 것과 견준 한 줄 - "공격력 +12" / "지금 것이 더 좋아요".
+static func compare_text(it: Dictionary) -> String:
+	var cur := worn(String(it["slot"]))
+	if cur.is_empty():
+		return "빈 칸에 바로 입어요"
+	var d := score(it) - score(cur)
+	if d <= 0.5:
+		return "지금 것이 더 좋아요"
+	if String(it["slot"]) == "weapon":
+		return "공격력 +%d" % (atk_of(it) - atk_of(cur))
+	return "지금 것보다 좋아요 (+%d)" % int(round(d))
+
+
+## 산다. 더 좋으면 바로 입는다. `{ok, why, got}`.
+static func buy_gear(village: String, slot: String) -> Dictionary:
+	for e in shop_gear(village):
+		if String(e["slot"]) != slot:
+			continue
+		var price := int(e["price"])
+		if coins < price:
+			return {"ok": false, "why": "꿈조각이 모자라요 (%d 더)" % (price - coins)}
+		coins -= price
+		var it: Dictionary = (e["item"] as Dictionary).duplicate(true)
+		it["uid"] = _uid
+		_uid += 1
+		items.append(it)
+		var worn_now := false
+		if better(it):
+			equip(int(it["uid"]))
+			worn_now = true
+		return {"ok": true, "why": "", "got": it, "worn": worn_now}
+	return {"ok": false, "why": "여기서는 안 팔아요"}
 
 
 # ── 저장 ─────────────────────────────────────────────────────────────
