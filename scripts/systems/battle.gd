@@ -471,8 +471,19 @@ static func foe_atk_k(lv: int) -> float:
 	return lerpf(1.0, FOE_ATK_HIGH, clampf(float(lv - 1) / 25.0, 0.0, 1.0))
 
 
+## **첫 구역은 더 가볍다** (0.1.190) - LV 1 에서 이만큼, `FOE_HP_EARLY_TO` 에서 1배.
+## 전직 전이라 [공격] 하나에 막대기뿐이고 공격력은 거의 레벨이 전부라, LV 2 몬스터에도
+## 열 대쯤 걸려 한 마리 5초 - 첫 구역이 5.7분으로 가장 느렸다 (시뮬레이션). 첫 인상이다.
+## LV 9(2구역 시작)부터는 그대로라 뒷구역은 안 바뀐다.
+const FOE_HP_EARLY := 0.5
+const FOE_HP_EARLY_TO := 9
+
+
 static func foe_hp_k(lv: int) -> float:
-	return lerpf(FOE_HP_LOW, FOE_HP_HIGH, clampf(float(lv - 1) / 14.0, 0.0, 1.0))
+	var k := lerpf(FOE_HP_LOW, FOE_HP_HIGH, clampf(float(lv - 1) / 14.0, 0.0, 1.0))
+	if lv < FOE_HP_EARLY_TO:
+		k *= lerpf(FOE_HP_EARLY, 1.0, float(lv - 1) / float(FOE_HP_EARLY_TO - 1))
+	return k
 const FOE_XP_K := 0.75
 
 ## 옛 이름(감정 그늘) → 새 종. 옛 세이브의 조각·퇴치 기록을 옮긴다.

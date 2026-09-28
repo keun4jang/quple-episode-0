@@ -8544,6 +8544,16 @@ func _hit_feature_tests() -> void:
 	ok(float(gp["mult"]) * int(gp["times"]) <= 1.4 and float(Battle.ENEMIES["gull"]["atk"]) < 1.0,
 		"네 번째 우두머리의 휘몰아치기는 합쳐도 1.4배까지")
 	ok(Battle.foe_hp_k(1) < Battle.foe_hp_k(20), "초반 몬스터는 가볍고 뒤로 갈수록 단단하다")
+	# 첫 구역은 더 가볍다 (0.1.190) - 2구역(LV 9)부터는 원래 곡선 그대로
+	var base2 := lerpf(Battle.FOE_HP_LOW, Battle.FOE_HP_HIGH, 1.0 / 14.0)
+	var base9 := lerpf(Battle.FOE_HP_LOW, Battle.FOE_HP_HIGH, 8.0 / 14.0)
+	ok(Battle.foe_hp_k(2) < base2 * 0.7 and absf(Battle.foe_hp_k(9) - base9) < 0.0001,
+		"첫 구역(LV 2) 몬스터는 원래의 70퍼센트 밑, LV 9 부터는 그대로")
+	var early_ok := true
+	for elv in range(1, 12):
+		if Battle.foe_hp_k(elv + 1) <= Battle.foe_hp_k(elv):
+			early_ok = false
+	ok(early_ok, "레벨이 오를수록 몬스터가 늘 조금씩 단단해진다 (끊김 없이)")
 	ok(Battle.foe_stats("drop", 30)["xp"] < 90, "경험은 구역마다 레벨이 너무 튀지 않게 (%d)" % Battle.foe_stats("drop", 30)["xp"])
 	Battle.level = 30
 	var carp := Field.new_foe("carp", 25)

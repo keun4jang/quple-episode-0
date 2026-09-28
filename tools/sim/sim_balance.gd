@@ -59,6 +59,13 @@ func _run_job(j: String) -> Dictionary:
 	report = []
 	print("\n==================== 직업: %s ====================" % j)
 	var tower_at := {}
+	# SIM_ZONES=n - 앞의 n 구역만 (탑·마지막 장 없이). 초반만 빨리 재 볼 때.
+	var only := int(OS.get_environment("SIM_ZONES")) if OS.get_environment("SIM_ZONES") != "" else 0
+	if only > 0:
+		for i in mini(only, Quests.ORDER.size()):
+			_zone(String(Quests.ORDER[i]))
+			_zone_detail()
+		return {"zones": report}
 	for i in Quests.ORDER.size():
 		_zone(String(Quests.ORDER[i]))
 		# 게임 중간에 탑에 들어가 보면 어디까지 가나 (들어갔다 나오면 상태는 되돌린다).
@@ -166,15 +173,20 @@ func _zone(v: String) -> void:
 	var list: Array = Battle.spawns(v)
 	# 사람은 약한 것부터 고른다 - 머리 위 레벨을 보고.
 	list.sort_custom(func(a, b): return int(a[1]) < int(b[1]))
+	_part = "마을"
 	for k in list:
 		_fight(String(k[0]), int(k[1]), z)
+	_part = "길"
 	for k in Battle.road_spawns(v):
 		_fight(String(k[0]), int(k[1]), z)
+	_part = "방 호위"
 	var lair := Battle.lair_spawns(v)
 	for i in range(1, lair.size()):
 		_fight(String(lair[i][0]), int(lair[i][1]), z)
+	_part = "우두머리"
 	var b: Array = lair[0]
 	_fight(String(b[0]), int(b[1]), z, true)
+	_part = ""
 	JourneyState.mark_quest("보스:" + v)
 	_zone_end(z, String(b[0]))
 
@@ -207,6 +219,20 @@ func _zone_end(z: Dictionary, boss: String) -> void:
 		z["v"], z["lv0"], Battle.level, _boss_lv_of(String(z["v"])), z["boss_lv"], line["minutes"], line["rest_min"],
 		avg, z["boss_secs"], int(float(z["boss_low"]) * 100.0), z["deaths"], z["boss_deaths"], line["eaten"], int(float(z["hp_low"]) * 100.0),
 		line["coins_gain"], Gear.stones, line["weapon"]])
+
+
+## 구역 안을 나눠 본다 - 마을·길·방 몬스터 각각 평균 몇 초 (SIM_ZONES 일 때).
+var _parts: Dictionary = {}
+
+
+func _zone_detail() -> void:
+	for k in _parts:
+		var a: Array = _parts[k]
+		var sum := 0.0
+		for v in a:
+			sum += float(v)
+		print("      %s: %d마리 평균 %.1f초 (합 %.0f초)" % [k, a.size(), sum / maxf(1.0, a.size()), sum])
+	_parts = {}
 
 
 func _boss_lv_of(v: String) -> int:
@@ -270,6 +296,10 @@ func _fight(kind: String, lv: int, z: Dictionary, boss := false, power := 1.0, t
 				winding = WINDUP
 	t_total += t
 	(z["ttk"] as Array).append(t)
+	if _part != "":
+		if not _parts.has(_part):
+			_parts[_part] = []
+		(_parts[_part] as Array).append(t)
 	if boss:
 		z["boss_secs"] = t
 		z["boss_deaths"] = deaths - d0
@@ -342,6 +372,7 @@ func _rest_before() -> void:
 ## 사람다운 차례: 이 구역 상점에서 **아직 안 산 더 좋은 것**이 있으면 그 값만큼은 남겨 두고
 ## 강화한다 - 강화로 꿈조각을 다 녹여 새 단계 장비를 못 사는 일이 없게.
 var cur_zone := ""
+var _part := ""
 
 
 func _shop_reserve() -> int:
