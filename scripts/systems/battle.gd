@@ -444,6 +444,10 @@ const REGION_BOSS := {
 	"윤슬": "drop_king", "볕뉘": "dokkaebi", "가풀재": "golem", "하늬섬": "gull",
 	"굽이나루": "carp", "방울못": "lotus", "갈밭머리": "thorn_queen", "솔은재": "mole_king",
 	"꽃눈벌": "deer",
+	# 10장 - 꿈속 잿마루 타워. 다른 구역처럼 **길과 방**을 거쳐 만난다 (0.1.189).
+	# 여태 타워 한 장에 몬스터 스물과 함께 서 있어서 마지막 장이 2분 남짓으로
+	# 가장 짧았다 (시뮬레이션). 키는 타워 씬의 `place_name()` 인 "잿마루".
+	"잿마루": "night",
 }
 
 ## 우두머리는 몸집이 다르다.
@@ -522,15 +526,24 @@ const TOWER_SPAWNS := [["paper", 44], ["memo", 45], ["vending", 46], ["bat", 45]
 	["paper", 47], ["night", 50]]
 
 
+## 타워 한 장에 서는 회사 몬스터들. 대마왕은 여기 없다 - 붉은 틈 너머
+## 야근 계단길(`BossRoad`)을 지나 대마왕의 방(`BossLair`)에 있다.
 static func tower_spawns() -> Array:
 	var out: Array = []
 	for i in 4:
 		for k in TOWER_SPAWNS:
-			var boss := bool(ENEMIES[String(k[0])].get("boss", false))
-			if i > 0 and boss:
+			if bool(ENEMIES[String(k[0])].get("boss", false)):
 				continue
-			out.append([String(k[0]), int(k[1]) + (0 if boss else (i % 3) - 1)])
+			out.append([String(k[0]), int(k[1]) + (i % 3) - 1])
 	return out
+
+
+## 구역의 몬스터 표 - 마을은 `SPAWNS`, 마지막 장(잿마루)은 `TOWER_SPAWNS`.
+## 우두머리 레벨·길의 졸개가 이걸 본다.
+static func spawn_table(village: String) -> Array:
+	if village == "잿마루":
+		return TOWER_SPAWNS
+	return SPAWNS.get(village, [])
 
 
 ## 그 구역의 보스를 쓰러뜨렸나 - 꿈의 문이 열렸나.
@@ -569,7 +582,7 @@ static func boss_of(village: String) -> String:
 ## 그 구역 우두머리의 레벨 (`SPAWNS` 에 적힌 것).
 static func boss_lv(village: String) -> int:
 	var b := boss_of(village)
-	for k in SPAWNS.get(village, []):
+	for k in spawn_table(village):
 		if String(k[0]) == b:
 			return int(k[1])
 	return 1
@@ -584,7 +597,7 @@ const ROAD_COUNT := 10
 static func road_spawns(village: String) -> Array:
 	var kinds: Array = []
 	var top := 1
-	for k in SPAWNS.get(village, []):
+	for k in spawn_table(village):
 		if bool(ENEMIES.get(String(k[0]), {}).get("boss", false)):
 			continue
 		kinds.append(String(k[0]))

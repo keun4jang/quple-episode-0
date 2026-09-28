@@ -11,7 +11,7 @@ extends RefCounted
 ##
 ##   프롤로그  꿈속 사무실 → 정류장
 ##   1~9장     구역마다 우두머리 (`Battle.REGION_BOSS`)
-##   10장      꿈속 잿마루 타워 꼭대기의 야근 대마왕
+##   10장      꿈속 잿마루 타워 → 야근 계단길 → 야근 대마왕의 방 (다른 장과 같은 세 단계)
 ##   끝        깨어난 뒤 - 꿈의 탑
 
 const TOTAL := 10
@@ -45,5 +45,7 @@ static func now() -> Dictionary:
 		return {"chapter": i + 1, "head": "%d장 / %d  ·  %s" % [i + 1, TOTAL, v],
 			"goal": "우두머리 %s 쓰러뜨리기  (LV %d)" % [String(Battle.ENEMIES[b]["name"]), blv],
 			"village": v, "boss_lv": blv, "low": Battle.level < blv - LOW_GAP}
+	var flv := Battle.boss_lv("잿마루")
 	return {"chapter": TOTAL, "head": "%d장 / %d  ·  잿마루 타워" % [TOTAL, TOTAL],
-		"goal": "타워 꼭대기의 야근 대마왕 쓰러뜨리기  (LV 50)", "village": "잿마루"}
+		"goal": "야근 계단길 끝의 야근 대마왕 쓰러뜨리기  (LV %d)" % flv, "village": "잿마루",
+		"boss_lv": flv, "low": Battle.level < flv - LOW_GAP}

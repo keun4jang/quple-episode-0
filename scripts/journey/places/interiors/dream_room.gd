@@ -32,6 +32,9 @@ const THEME := {
 		"road": "두더지 굴길"},
 	"꽃눈벌": {"floor": "grass", "edge": "basalt", "deco": ["tree", "fence", "shrub"],
 		"road": "불꽃 들길"},
+	# 10장 - 꿈속 잿마루 타워 위로 끝없이 이어지는 사무실 복도 (0.1.189).
+	"잿마루": {"floor": "office-carpet", "edge": "wall-stone",
+		"deco": ["desk", "cabinet", "office-chair"], "road": "야근 계단길"},
 }
 
 ## 들어온 마을. 정상적인 길로는 늘 있다 - 비었으면 윤슬 결로 짓는다.
@@ -69,6 +72,11 @@ func fights_here() -> bool:
 ## 꿈의 틈 너머도 꿈결 하늘 아래다 (`DreamSky`).
 func sky_open() -> bool:
 	return true
+
+
+## 꿈의 틈 안은 시계가 멈춘다 (`Place.clock_runs`).
+func clock_runs() -> bool:
+	return false
 
 
 func pad_wide() -> bool:

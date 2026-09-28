@@ -23,7 +23,19 @@ const TAUNT := {
 	"thorn_queen": "가시덩굴이 너를 놓아주지 않을 거야.",
 	"mole_king": "땅 밑이 내 왕국이다! 꺼져라, 땅아!",
 	"deer": "꽃눈벌을 태우는 불꽃, 그게 나다.",
+	"night": "…왔군요. 이것만 끝내고 가요. 내일 아침까지.",
 }
+
+## **마지막 우두머리의 2단계** (0.1.189) - 체력이 이만큼 아래로 떨어지면 한 번,
+## 곁에 졸개를 부르며 말한다. 마지막 장이 한 방 싸움으로 끝나지 않게.
+## 다른 구역 우두머리는 그대로다 - 쉽게 해 달라고 한 싸움들이다.
+const PHASE2 := {
+	"night": {"at": 0.5, "adds": [["paper", 49], ["memo", 49]],
+		"line": "…추가 업무예요. 이것도 내일 아침까지.",
+		"head": "야근 대마왕이 추가 업무를 불렀어요!", "sub": "결재 서류와 회의록이 나타났어요"},
+}
+const PHASE2_SPOTS := [Vector2i(11, 10), Vector2i(19, 10)]
+var _phase2_done := false
 
 
 func place_name() -> String:
@@ -92,3 +104,30 @@ func on_built() -> void:
 
 func room_tint() -> Color:
 	return Color(0.92, 0.74, 0.78)
+
+
+func _process(delta: float) -> void:
+	super(delta)
+	_tick_phase2()
+
+
+func _tick_phase2() -> void:
+	if _phase2_done:
+		return
+	var b := _boss_shade()
+	if b == null:
+		return
+	var p2: Dictionary = PHASE2.get(b.shade_kind, {})
+	if p2.is_empty() or float(b.foe["hp"]) > float(b.foe["hp_max"]) * float(p2["at"]):
+		return
+	_phase2_done = true
+	var adds: Array = p2["adds"]
+	for i in mini(adds.size(), PHASE2_SPOTS.size()):
+		var sh := put_shade(PHASE2_SPOTS[i], String(adds[i][0]), int(adds[i][1]))
+		if sh != null:
+			FieldFx.burst(self, sh.global_position + Vector2(0, -10), "gone", true)
+	FieldFx.shake(cam, 7.0, 0.5)
+	if hud != null:
+		hud._celebrate(String(p2["head"]), String(p2["sub"]))
+	if say != null and not say.is_busy():
+		say.say(String(Battle.ENEMIES[b.shade_kind]["name"]), [String(p2["line"])])

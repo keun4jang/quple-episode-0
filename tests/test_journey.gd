@@ -7948,19 +7948,40 @@ func _story_tests() -> void:
 	for sh2 in jm._shades:
 		if sh2.shade_kind == "night":
 			big = sh2
-	ok(big != null, "꼭대기에 야근 대마왕이 있다")
-	ok(String(Quests.quest_list("잿마루")[0]["label"]).contains("야근 대마왕"),
-		"할 일 맨 위가 대마왕이다")
+	# 0.1.189 - 대마왕은 다른 구역처럼 붉은 틈 너머 길과 방을 지나서 만난다.
+	var red := false
+	for g2 in jm._gates:
+		if String(g2["gate"]) == "boss":
+			red = true
+	ok(big == null and red, "타워 한 장에는 대마왕이 없고, 붉은 틈(야근 계단길)이 열려 있다")
+	ok(String(Quests.boss_row("잿마루").get("label", "")).contains("야근 대마왕")
+		and Battle.boss_lv("잿마루") == 50 and Battle.road_spawns("잿마루").size() == Battle.ROAD_COUNT,
+		"대마왕 줄이 서고, LV 50, 길에 졸개 열")
 	jm.board.open(jm.place_name())
 	var rows2: Array = []
 	for b2 in jm.board._list.get_children():
 		rows2.append(String((b2 as Button).text))
 	jm.board.close()
 	ok(not str(rows2).contains("잿마루 타워"), "여기 있으니 타워 줄은 안 뜬다")
-	if big != null:
-		jm.on_shade_down(big)
-		ok(JourneyState.quest_done("엔딩:대마왕"), "대마왕을 쓰러뜨리면 깨어난다")
 	jm.queue_free()
+	await get_tree().process_frame
+	# 대마왕의 방 - 반쯤 깎으면 추가 업무 둘, 쓰러뜨리면 승리 판 대신 깨어난다.
+	JourneyState.exit_scene = GOAL_SCENES["잿마루"]
+	JourneyState.exit_tile = Vector2i(10, 10)
+	var nl: Place = load("res://scenes/journey/interiors/BossLair.tscn").instantiate()
+	add_child(nl)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	big = nl._boss_shade()
+	ok(big != null and big.shade_kind == "night", "야근 대마왕의 방에 대마왕이 선다")
+	if big != null:
+		var n0: int = nl.foes_left()
+		big.foe["hp"] = int(float(big.foe["hp_max"]) * 0.45)
+		await get_tree().process_frame
+		ok(nl.foes_left() == n0 + 2, "반쯤 깎으면 추가 업무 둘을 부른다 (%d ~ %d)" % [n0, nl.foes_left()])
+		nl.on_shade_down(big)
+		ok(JourneyState.quest_done("엔딩:대마왕") and Battle.boss_down("잿마루"), "대마왕을 쓰러뜨리면 깨어난다")
+	nl.queue_free()
 	await get_tree().process_frame
 	# 선택 판
 	var ec := EndingChoice.new()

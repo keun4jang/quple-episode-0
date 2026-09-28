@@ -1329,6 +1329,13 @@ func combat_paused() -> bool:
 
 ## 몬스터가 서는 곳인가. 실내(가게·등대)는 쉬는 자리라 거짓이다 -
 ## 우두머리의 길·방과 꿈의 탑은 실내 씬이지만 스스로 참을 돌려준다.
+## 여기서 시계가 흐르나. 꿈의 틈 너머(`DreamRoom` - 우두머리의 길·방, 꿈의 탑)는
+## 멈춘다: 거긴 늘 같은 빛인데, 흐르게 두면 마지막 장처럼 밤 11시에 들어온 사람에게
+## 대마왕과 싸우는 도중 "오늘은 여기까지예요. 정류장에서 떠나면…" 이 떴다 (0.1.189).
+func clock_runs() -> bool:
+	return true
+
+
 ## 쓰러뜨린 자리를 그날 동안 기억하나 - 다시 들어와도 빈 채로 둔다 (`Battle.is_cleared`).
 ## 꿈의 탑은 오를 때마다 새로 선다 (`TowerFloor`).
 func remembers_clears() -> bool:
@@ -1784,7 +1791,9 @@ func _boss_story(kind: String) -> void:
 		got.append("꿈의 문이 열렸어요 - 다음 구역으로 갈 수 있어요")
 		if v == "윤슬":
 			got.append("꿈의 탑이 열렸어요 - 마을마다 푸른 틈")
-		_show_boss_clear(v, kind, got)
+		# 마지막 우두머리 뒤에는 승리 판 대신 깨어남(엔딩)이 온다 - 아래.
+		if kind != "night":
+			_show_boss_clear(v, kind, got)
 	if kind == "night" and not JourneyState.quest_done("엔딩:대마왕"):
 		JourneyState.mark_quest("엔딩:대마왕")
 		SaveManager.save_now()
@@ -2381,7 +2390,7 @@ func _tick_clock(delta: float) -> void:
 	# 정류장으로 떠밀렸다. **밤 11시는 어차피 고정된 무드다** - 여기
 	# 있는 동안은 시계를 그 자리에 묶어 둔다. 떠나면(씬이 바뀌면)
 	# 다음 마을은 어차피 아침부터 다시 시작한다(`JourneyState.arriving`).
-	if place_name() == "잿마루":
+	if place_name() == "잿마루" or not clock_runs():
 		paused = true
 	if not paused:
 		JourneyState.advance_time(delta * MINUTES_PER_SECOND)
@@ -4825,7 +4834,9 @@ var _gates: Array = []
 
 func _build_gates() -> void:
 	_gates = []
-	if is_indoors() or Battle.boss_of(place_name()) == "":
+	# `boss_row` 가 비면 틈도 없다 - 우두머리 없는 곳, 그리고 프롤로그의 사무실
+	# (잿마루는 꿈이 금 간 뒤에만 대마왕의 길이 열린다).
+	if is_indoors() or Quests.boss_row(place_name()).is_empty():
 		return
 	var keep: Array = [spawn_tile(), sleep_tile(), depart_tile(), wanderer_tile()]
 	for f in _folk:
@@ -4839,7 +4850,8 @@ func _build_gates() -> void:
 	_add_gate(boss_at, "boss", "우두머리의 길", {
 		"scene": BOSS_ROAD_SCENE, "label": "우두머리의 길 들어가기",
 		"enter_key": "우두머리길"})
-	if Loop.tower_open():
+	# 푸른 틈(꿈의 탑)은 아홉 마을에만 - 마지막 장 타워 안에 또 탑 틈이 있으면 헷갈린다.
+	if Loop.tower_open() and Quests.ORDER.has(place_name()):
 		keep.append(boss_at)
 		var tower_at := _gate_spot(keep, boss_at)
 		if tower_at.x >= 0:

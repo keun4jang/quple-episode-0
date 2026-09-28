@@ -65,9 +65,19 @@ func _run_job(j: String) -> Dictionary:
 		if i in [0, 2, 5, 8]:
 			tower_at[String(Quests.ORDER[i])] = _tower_try(String(Quests.ORDER[i]) + " 뒤")
 	# 꿈속 잿마루 타워 ~ 대마왕
+	# 타워 → 야근 계단길 → 대마왕의 방 (다른 구역과 같은 세 단계). 대마왕은 반쯤
+	# 지치면 졸개 둘을 부른다 (`BossLair.PHASE2`) - 대마왕 뒤에 이어 싸운 것으로 친다.
 	var z := _zone_start("잿마루 타워")
 	for k in Battle.tower_spawns():
 		_fight(String(k[0]), int(k[1]), z)
+	for k in Battle.road_spawns("잿마루"):
+		_fight(String(k[0]), int(k[1]), z)
+	var fl := Battle.lair_spawns("잿마루")
+	for i in range(1, fl.size()):
+		_fight(String(fl[i][0]), int(fl[i][1]), z)
+	_fight(String(fl[0][0]), int(fl[0][1]), z, true)
+	for a in BossLair.PHASE2["night"]["adds"]:
+		_fight(String(a[0]), int(a[1]), z)
 	_zone_end(z, "night")
 	JourneyState.mark_quest("엔딩:대마왕")
 	# 꿈의 탑 - 어디까지 오르나 (한 층에서 세 번 쓰러지면 멈춘다)

@@ -216,24 +216,74 @@ func _final() -> void:
 	if not Quests.is_unlocked(Quests.TOWER):
 		_bad("꽃눈벌 우두머리를 잡았는데 잿마루 타워가 안 열렸다")
 	Battle.level = 50
+	JourneyState.minutes = JourneyState.DAY_START
 	JourneyState.here = Quests.TOWER
-	var p: Place = await _open(String(TravelBoard.PLACES[Quests.TOWER][0]))
-	var night: Shade = null
+	var tpath := String(TravelBoard.PLACES[Quests.TOWER][0])
+	var p: Place = await _open(tpath)
+	var gate := {}
+	for d in p._gates:
+		if String(d.get("gate", "")) == "boss":
+			gate = d
+		elif String(d.get("gate", "")) == "tower":
+			_bad("잿마루 타워 안에 꿈의 탑(푸른 틈)이 있다")
 	for sh in p._shades:
-		if is_instance_valid(sh) and sh.shade_kind == "night":
-			night = sh
-	if night == null:
-		_bad("잿마루 타워에 야근 대마왕이 없다")
-	else:
-		var s := _secs(p, p.spawn_tile(), night.at_tile)
-		print("   타워: 몬스터 %d · 도착 ~ 대마왕 %.1f초" % [p._shades.size(), s])
-		if s < 0.0:
-			_bad("잿마루 타워: 대마왕까지 길이 없다")
+		if is_instance_valid(sh) and bool(sh.foe["boss"]):
+			_bad("잿마루 타워 한 장에 우두머리(%s)가 서 있다 - 방에 있어야" % sh.shade_kind)
 	var cg := p.current_goal()
-	print("   타워 화살표: %s (%s)" % [cg.get("label", "-"), cg.get("kind", "-")])
-	if cg.is_empty() or p.goal_world(cg) == Vector2.INF:
-		_bad("잿마루 타워: 화살표가 아무것도 안 짚는다")
+	print("   타워: 몬스터 %d · 화살표 %s (%s)" % [p._shades.size(), cg.get("label", "-"), cg.get("kind", "-")])
+	if gate.is_empty():
+		_bad("잿마루 타워에 붉은 틈(야근 계단길)이 없다")
+		await _close(p)
+		return
+	var gs := _secs(p, p.spawn_tile(), Vector2i(gate["tile"]))
+	print("   타워: 도착 ~ 붉은 틈 %.1f초" % gs)
+	if gs < 0.0:
+		_bad("잿마루 타워: 붉은 틈까지 길이 없다")
+	if String(cg.get("key", "")) != "우두머리길":
+		_bad("잿마루 타워: LV 50 인데 화살표가 붉은 틈이 아니라 %s" % cg.get("label", "없음"))
 	await _close(p)
+	# 야근 계단길
+	JourneyState.exit_scene = tpath
+	JourneyState.exit_tile = Vector2i(gate["tile"])
+	var r: Place = await _open(Place.BOSS_ROAD_SCENE)
+	var lair_door: Dictionary = r.doors()[1]
+	print("   길: %s · 졸개 %d · 들어온 자리 ~ 방 문 %.1f초" % [r.place_name(), r.foes_left(),
+		_secs(r, r.spawn_tile(), Vector2i(lair_door["tile"]))])
+	if r.place_name() != "야근 계단길" or r.foes_left() != Battle.ROAD_COUNT:
+		_bad("마지막 장 길이 이상하다: %s · 졸개 %d" % [r.place_name(), r.foes_left()])
+	if r.door_locked(lair_door) == "":
+		_bad("야근 계단길: 졸개가 있는데 방 문이 열려 있다")
+	for sh in r._shades.duplicate():
+		r.on_shade_down(sh)
+	await get_tree().process_frame
+	if r.door_locked(lair_door) != "":
+		_bad("야근 계단길: 졸개를 다 잡았는데 방 문이 잠겨 있다")
+	await _close(r)
+	# 야근 대마왕의 방
+	var l: Place = await _open(BossRoad.LAIR_SCENE)
+	var boss: Shade = l._boss_shade()
+	if boss == null or boss.shade_kind != "night":
+		_bad("대마왕의 방에 야근 대마왕이 없다")
+		await _close(l)
+		return
+	var n0: int = l.foes_left()
+	boss.foe["hp"] = int(float(boss.foe["hp_max"]) * 0.45)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var n1: int = l.foes_left()
+	print("   방: %s · 몬스터 %d ~ 반쯤 깎으니 %d (추가 업무)" % [l.place_name(), n0, n1])
+	if n1 != n0 + 2:
+		_bad("대마왕 2단계: 반쯤 깎았는데 졸개가 안 나왔다 (%d ~ %d)" % [n0, n1])
+	for sh in l._shades.duplicate():
+		if sh != boss:
+			l.on_shade_down(sh)
+	l.on_shade_down(boss)
+	if not JourneyState.quest_done("엔딩:대마왕") or not Battle.boss_down("잿마루"):
+		_bad("대마왕을 쓰러뜨렸는데 엔딩이 안 적혔다")
+	await get_tree().create_timer(2.6).timeout
+	if l.get_node_or_null("BossClear") != null:
+		_bad("대마왕 뒤에 승리 판(다음 구역)이 떴다 - 엔딩이 와야 한다")
+	await _close(l)
 
 
 ## 처음 켠 사람 - 꿈속 사무실. 화살표가 무언가를 짚고, 정류장까지 걸어갈 길이 있나.
@@ -250,6 +300,8 @@ func _prologue() -> void:
 		cg.get("label", "-"), cg.get("kind", "-"), s])
 	if not p._shades.is_empty():
 		_bad("프롤로그 사무실에 몬스터가 있다")
+	if not p._gates.is_empty():
+		_bad("프롤로그 사무실에 틈(%d)이 열려 있다" % p._gates.size())
 	if cg.is_empty() or p.goal_world(cg) == Vector2.INF:
 		_bad("프롤로그: 화살표가 아무것도 안 짚는다")
 	if s < 0.0:

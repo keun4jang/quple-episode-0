@@ -767,6 +767,9 @@ static func boss_row(village: String) -> Dictionary:
 	var b := Battle.boss_of(village)
 	if b == "":
 		return {}
+	# 잿마루는 프롤로그(현실 사무실)이기도 하다 - 대마왕은 꿈이 금 간 뒤(타워)에만.
+	if village == "잿마루" and not is_unlocked(TOWER):
+		return {}
 	return {"label": "우두머리 %s 쓰러뜨리기" % String(Battle.ENEMIES[b]["name"]),
 		"id": "보스:" + village, "kind": "door", "key": "우두머리길",
 		"done": Battle.boss_down(village)}
@@ -783,12 +786,8 @@ static func quest_list(village: String) -> Array:
 	# 참이다. 다 안 해도 떠날 수 있다 — 벌이 없다는 원칙 그대로,
 	# 이 목록은 "해도 되는 것"을 적어 둔 것뿐이다.
 	if village == "잿마루":
-		# 끝판(타워)에 왔으면 할 일은 하나 - 맨 위에 세운다.
-		var boss_row: Array = []
-		if Battle.boss_down(String(ORDER[-1])) and not JourneyState.quest_done("엔딩:대마왕"):
-			boss_row = [{"label": "타워 꼭대기의 야근 대마왕 쓰러뜨리기", "kind": "boss",
-				"key": "night", "done": false}]
-		return boss_row + [
+		# 끝판(타워)의 대마왕 줄은 다른 구역처럼 `boss_row` 가 따로 세운다 (0.1.189).
+		return [
 			{"label": "옆자리 동료에게 인사하기", "kind": "talk", "key": "coworker",
 				"done": JourneyState.heart("coworker") >= 1},
 			{"label": "창가에서 밖을 내다보기", "kind": "prop", "key": "창밖",

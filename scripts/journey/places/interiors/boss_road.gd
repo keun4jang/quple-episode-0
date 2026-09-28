@@ -45,8 +45,8 @@ func props() -> Array:
 	for x in range(LEFT + 6, W - 5, 5):
 		var up := i % 2 == 0
 		out.append([x, center(x) + (-HALF if up else HALF), String(deco[i % deco.size()]), true])
-		# 가운데 조금 비켜 조약돌 - 길이라는 게 보이게.
-		if i % 3 == 1:
+		# 가운데 조금 비켜 조약돌 - 길이라는 게 보이게. 사무실 바닥(마지막 장)엔 안 깐다.
+		if i % 3 == 1 and String(theme()["floor"]) != "office-carpet":
 			out.append([x + 2, center(x + 2) + (1 if up else -1), "pebbles", false])
 		i += 1
 	return out
