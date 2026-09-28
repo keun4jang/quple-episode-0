@@ -223,9 +223,10 @@ const SKILLS := {
 		"elem": "wind", "mult": 1.25, "range": 72.0, "foe": "sway", "cd": 1.5, "group": "bolt"},
 	"rainbow": {"name": "무지개 한 방", "job": "mage", "lv": 22, "mp": 14,
 		"type": "attack", "elem": "none", "mult": 2.6, "aoe": 64.0, "cd": 6.0},
-	# 궁수 - 멀리서 쏜다
+	# 궁수 - 멀리서 쏜다. 0.1.193 에 연속 쏘기 0.85 → 0.75, 저격 3.4 → 3.0 - 우두머리를
+	# 다른 직업보다 늘 조금 빨리(보통 12~27초, 겹치면 7초) 잡았다 (시드 셋 시뮬레이션).
 	"double": {"name": "연속 쏘기", "job": "archer", "lv": 10, "mp": 2, "type": "attack",
-		"elem": "weapon", "mult": 0.85, "hits": 2, "range": 84.0, "cd": 0.9},
+		"elem": "weapon", "mult": 0.75, "hits": 2, "range": 84.0, "cd": 0.9},
 	"pierce": {"name": "꿰뚫기", "job": "archer", "lv": 13, "mp": 5, "type": "attack",
 		"elem": "weapon", "mult": 1.7, "range": 96.0, "line": true, "cd": 2.5},
 	"leap": {"name": "뒤로 뛰기", "job": "archer", "lv": 16, "mp": 3, "type": "buff",
@@ -233,7 +234,7 @@ const SKILLS := {
 	"rain": {"name": "화살비", "job": "archer", "lv": 20, "mp": 8, "type": "attack",
 		"elem": "weapon", "mult": 1.3, "hits": 2, "aoe": 50.0, "range": 90.0, "cd": 5.0},
 	"snipe": {"name": "저격", "job": "archer", "lv": 25, "mp": 10, "type": "attack",
-		"elem": "weapon", "mult": 3.4, "range": 120.0, "cd": 7.0},
+		"elem": "weapon", "mult": 3.0, "range": 120.0, "cd": 7.0},
 	# 도적 - 빠른 연타, 급소. 0.1.187 에 표창 틈 1.5 → 2.0, 급소 2.4 → 2.0 (늘 치명타라
 	# 배율이 곱으로 붙는다) - 후반 우두머리 5~10초로 다른 직업의 절반이었다.
 	"flurry": {"name": "빠른 찌르기", "job": "thief", "lv": 10, "mp": 2, "type": "attack",
@@ -387,7 +388,8 @@ const ENEMIES := {
 		"pattern": {"kind": "escalate", "step": 0.15, "cap": 1.8}, "desc": "갈수록 불붙는다"},
 	# 세 번째 우두머리 (0.1.181: 내리찍기 2.6→2.0배 - 예고를 안 피하는 봇이 체력
 	# 11~21퍼센트까지 몰렸다 - `tools/sim/SimBalance`).
-	"golem": {"name": "바위 거인", "elem": "earth", "hp": 0.95, "atk": 0.85, "def": 1.3,
+	# 바위 거인 몸 0.95 → 0.8 (0.1.193) - 한 방이 약한 전사·마법사에게 30~48초로 가장 길었다.
+	"golem": {"name": "바위 거인", "elem": "earth", "hp": 0.8, "atk": 0.85, "def": 1.3,
 		"xp": 1.0, "sheet": "golem", "boss": true, "drop": "b-lunchbox",
 		"pattern": {"kind": "burst", "rest": 2, "mult": 2.0, "inflict": "numb"},
 		"desc": "두 번 쉬고 내리찍는다"},
