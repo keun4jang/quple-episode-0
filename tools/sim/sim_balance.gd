@@ -159,6 +159,9 @@ var bought := 0
 
 
 func _shop(v: String) -> void:
+	# SIM_NOSHOP=1 - 상점을 모르고 지나치는 사람 (드랍·첫 처치 보상 장비만 입는다).
+	if OS.get_environment("SIM_NOSHOP") != "":
+		return
 	for e in Gear.shop_gear(v):
 		if Gear.coins - int(e["price"]) < 100:
 			continue
