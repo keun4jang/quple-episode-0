@@ -548,6 +548,9 @@ static func shop_upgrade(village: String) -> Dictionary:
 		var cur := worn(String(e["slot"]))
 		if not cur.is_empty() and int(e["tier"]) <= int(cur["tier"]):
 			continue
+		# 전직 전에는 무기를 권하지 않는다 - LV 10 에 직업 무기를 거저 받아 곧장 든다.
+		if String(e["slot"]) == "weapon" and Battle.job == "novice":
+			continue
 		var d := score(e["item"]) - (score(cur) if not cur.is_empty() else 0.0)
 		if String(e["slot"]) == "weapon":
 			d += 10000.0

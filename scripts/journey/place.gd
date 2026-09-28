@@ -1580,7 +1580,8 @@ func _maybe_skill_hint() -> bool:
 	# 지금 바로 쓸 수 있는 공격 스킬 중 가장 센 것.
 	var best := ""
 	var best_v := 0.0
-	for sid in Battle.slot_skills():
+	# 버튼이 있는 칸만 (`FightPad.SLOT_MAX`) - 없는 스킬을 누르라고 하면 안 된다.
+	for sid in Battle.slot_skills().slice(0, FightPad.SLOT_MAX):
 		var sk: Dictionary = Battle.SKILLS[sid]
 		if String(sk["type"]) != "attack" or Field.why_not(sid) != "":
 			continue
@@ -1788,7 +1789,8 @@ func on_shade_down(sh: Shade) -> void:
 func _fever_start() -> void:
 	AudioManager.warm_swell()
 	if hud != null:
-		hud._celebrate("피버 타임!", "12초 동안 피해 1.5배 · 경험과 꿈조각 2배")
+		hud._celebrate("피버 타임!", "12초 동안 피해 1.5배(우두머리 %.1f배) · 경험과 꿈조각 2배"
+			% Loop.FEVER_BOSS_DMG)
 		hud.tint_flash(Color("#FFD43B"), 0.35, 0.4)
 	if cam != null:
 		FieldFx.shake(cam, 4.0, 0.3)
@@ -1881,8 +1883,10 @@ func _boss_story(kind: String) -> void:
 		# 한 줄로라도 알린다 (말없이 가방에만 들어가 있었다 - 0.1.191 점검).
 		if kind != "night":
 			_show_boss_clear(v, kind, got)
-		elif hud != null:
-			hud._celebrate("야근 대마왕을 쓰러뜨렸어요!", String(got[0]))
+		else:
+			# 가운데 카드로 띄우면 피버 카드 뒤에 줄 섰다가 곧장 깨어나는 대사·선택 판에
+			# 덮여 끝내 안 보였다 (0.1.196 점검) - 깨어나는 대사 한 줄로 넣는다.
+			_night_reward = String(got[0])
 	if kind == "night" and not JourneyState.quest_done("엔딩:대마왕"):
 		JourneyState.mark_quest("엔딩:대마왕")
 		SaveManager.save_now()
@@ -1892,7 +1896,7 @@ func _boss_story(kind: String) -> void:
 			if is_instance_valid(sh) and sh.state != "gone":
 				_shades.erase(sh)
 				sh.dissolve()
-		_wake_up()
+		_wake_up(_night_reward)
 
 
 ## 승리 판을 띄운다 (`BossClear`). 하늘이 갈라지는 연출이 먼저 보이게 조금 기다린다.
@@ -1932,7 +1936,10 @@ static func ending_pending() -> bool:
 
 
 ## 깨어난다. 몇 마디 뒤에 선택 판(`EndingChoice`).
-func _wake_up() -> void:
+var _night_reward := ""
+
+
+func _wake_up(reward := "") -> void:
 	await get_tree().create_timer(1.6).timeout
 	if not is_inside_tree():
 		return
@@ -1942,6 +1949,7 @@ func _wake_up() -> void:
 		say.say("", [
 			["야근 대마왕", "…내일 아침까지… 부탁…"],
 			["", "대마왕이 흩어지며 하늘이 아침빛으로 물든다."],
+		] + ([["", reward]] if reward != "" else []) + [
 			["", "삐삐삐삐. 알람 소리."],
 			["나", "…꿈이었나."],
 		])
@@ -2032,8 +2040,9 @@ func _tick_shop_nudge(delta: float) -> void:
 ## 알릴 것이 있으면 알리고 참을 돌려준다 (테스트가 바로 부른다).
 func shop_nudge() -> bool:
 	var v := place_name()
-	if is_indoors() or hud == null or not Gear.VILLAGE_TIER.has(v) or in_fight() \
-			or combat_paused():
+	# 가게가 있는 아홉 마을에서만 - 마지막 장 타워에는 가게가 없다 (0.1.196 점검).
+	if is_indoors() or hud == null or not Quests.ORDER.has(v) or not Gear.VILLAGE_TIER.has(v) \
+			or in_fight() or combat_paused():
 		return false
 	var e := Gear.shop_upgrade(v)
 	if e.is_empty():

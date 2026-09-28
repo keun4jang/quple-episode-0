@@ -328,19 +328,34 @@ static func tower_cap() -> int:
 ##
 ## **막힌 층을 실제로 올려 주는 우두머리**를 댄다. 바로 다음 우두머리가 아닐 수 있다 -
 ## `TOWER_CAP` 에 같은 값이 이어진 칸(20·20, 40·40)이 있어서, 그걸 잡아도 안 열리는데
-## "하늬섬 우두머리 처치 뒤에 열려요" 라고 했었다 (0.1.191 점검).
+## "하늬섬 우두머리 처치 뒤에 열려요" 라고 했었다 (0.1.191 점검). 한 마리로 안 열리면
+## **몇 마리 더** 인지로 말한다 - 이름으로 대면 순서를 건너뛴 사람(마을 할 일로 연 구역)
+## 에겐 그 우두머리를 잡아도 안 열렸다 (0.1.196 점검).
 static func tower_cap_note() -> String:
 	var now := tower_cap()
-	var n := bosses_down()
+	var down := bosses_down()
+	# 몇 마리 더 잡아야 열리나 - 순서를 건너뛴 사람도 있으니 누구를 잡든 수로 센다.
+	var need := 0
+	for k in range(1, TOWER_CAP.size()):
+		if down + k >= TOWER_CAP.size():
+			break
+		if int(TOWER_CAP[down + k]) > now:
+			need = k
+			break
+	var next_v := ""
+	var next_b := ""
 	for v in Quests.ORDER:
 		var b := Battle.boss_of(String(v))
-		if b == "" or Battle.boss_down(String(v)):
-			continue
-		n += 1
-		if int(TOWER_CAP[clampi(n, 0, TOWER_CAP.size() - 1)]) > now:
-			return "더 위층은 %s 우두머리 %s 처치 뒤에 열려요" % [String(v),
-				String(Battle.ENEMIES[b]["name"])]
-	return "더 위층은 야근 대마왕 처치 뒤에 열려요"
+		if b != "" and not Battle.boss_down(String(v)):
+			next_v = String(v)
+			next_b = String(Battle.ENEMIES[b]["name"])
+			break
+	if need == 0 or next_v == "":
+		return "더 위층은 야근 대마왕 처치 뒤에 열려요"
+	if need == 1:
+		return "더 위층은 %s 우두머리 %s 처치 뒤에 열려요" % [next_v, next_b]
+	return "더 위층은 우두머리 %d 마리를 더 쓰러뜨리면 열려요 - 다음은 %s 우두머리 %s" % [
+		need, next_v, next_b]
 
 
 ## 들어가면 시작하는 층 - 넘은 쉼터(5의 배수) 바로 위. 막힌 층까지 다 넘었으면

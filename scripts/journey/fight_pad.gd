@@ -18,9 +18,14 @@ extends Control
 const ATTACK := 128.0
 const SKILL := 80.0
 const GAP := 10.0
+const SKILL_SMALL := 72.0
+const GAP_SMALL := 8.0
 const EDGE := 32.0
-const SLOT_MAX := 7
-const KEYS := {KEY_1: 0, KEY_2: 1, KEY_3: 2, KEY_4: 3, KEY_5: 4, KEY_6: 5, KEY_7: 6}
+## 스킬 칸 수. **8 이어야 한다** - 마법사는 심호흡·몸통 박치기·원소 다섯·무지개 한 방으로
+## 여덟이라, 7 칸일 때 LV 22 의 무지개 한 방은 버튼도 키도 없었다 (0.1.196 점검). 한 줄에
+## 여덟 칸이어도 오른쪽에서 890px 남짓이라 왼쪽 아래는 비어 있다.
+const SLOT_MAX := 8
+const KEYS := {KEY_1: 0, KEY_2: 1, KEY_3: 2, KEY_4: 3, KEY_5: 4, KEY_6: 5, KEY_7: 6, KEY_8: 7}
 
 var _attack: Button
 var _skills: Dictionary = {}     # id → Button
@@ -94,6 +99,9 @@ func _rebuild() -> void:
 		(_skills[id] as Node).queue_free()
 	_skills.clear()
 	_slot_ids = Battle.slot_skills().slice(0, SLOT_MAX)
+	# 여덟 칸(마법사)이면 조금 작게 - 80 으로 두면 맨 왼쪽 칸이 체력·마음력 막대를 덮었다.
+	var sz := SKILL if _slot_ids.size() <= 7 else SKILL_SMALL
+	var gap := GAP if _slot_ids.size() <= 7 else GAP_SMALL
 	for i in _slot_ids.size():
 		var id: String = _slot_ids[i]
 		var sk: Dictionary = Battle.SKILLS[id]
@@ -102,14 +110,14 @@ func _rebuild() -> void:
 			col = Color("#63E6BE")
 		elif String(sk["type"]) == "buff":
 			col = Color("#FFD43B")
-		var b := _round_btn(id, SKILL, Color("#F4EDE2"), col.darkened(0.15))
+		var b := _round_btn(id, sz, Color("#F4EDE2"), col.darkened(0.15))
 		b.name = "Skill_" + id
 		b.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-		var right := -EDGE - ATTACK - GAP - float(i) * (SKILL + GAP)
+		var right := -EDGE - ATTACK - GAP - float(i) * (sz + gap)
 		b.offset_right = right
-		b.offset_left = right - SKILL
+		b.offset_left = right - sz
 		b.offset_bottom = -EDGE - 6.0
-		b.offset_top = -EDGE - 6.0 - SKILL
+		b.offset_top = -EDGE - 6.0 - sz
 		var box := VBoxContainer.new()
 		box.alignment = BoxContainer.ALIGNMENT_CENTER
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -118,8 +126,10 @@ func _rebuild() -> void:
 		b.add_child(box)
 		var name_s := String(sk["name"])
 		# 이름이 길면 두 줄로 - 칸이 80 이라 넉 자까지만 한 줄에 든다.
+		# 첫 띄어쓰기에서만 - 다 바꾸면 "무지개 한 방" 이 세 줄로 쪼개졌다.
 		if name_s.length() > 4 and name_s.contains(" "):
-			name_s = name_s.replace(" ", "\n")
+			var cut := name_s.find(" ")
+			name_s = name_s.substr(0, cut) + "\n" + name_s.substr(cut + 1)
 		var nm := _btn_label(box, name_s, 16 if name_s.length() > 3 else 18,
 			Color("#3A2C2C"))
 		nm.name = "Name"

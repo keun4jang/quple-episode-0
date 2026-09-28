@@ -162,7 +162,10 @@ func _check_done() -> void:
 	var n := floor_no()
 	# 이번에 오르며 처음 쓴 층이어야 축복을 내민다 (이어하기로 되살아난 층은 아니다).
 	var fresh := not Loop.climb_cleared.has(n)
-	if fresh:
+	# 축복을 내밀 층은 **고른 뒤에** 쓴 층으로 적는다 - 먼저 적어 두면 고르기 전에 앱이
+	# 꺼졌을 때 이어하기로 돌아와도 축복이 다시 안 나와 그 층 몫이 사라졌다 (0.1.196 점검).
+	var offering := fresh and not at_cap() and hud != null
+	if fresh and not offering:
 		Loop.climb_cleared.append(n)
 	var r := Loop.clear_floor(n)
 	SaveManager.save_now()
@@ -199,6 +202,8 @@ func _offer_blessing(n: int) -> void:
 	bp.name = "BlessPick"
 	bp.offer = Loop.bless_offer(n)
 	bp.picked.connect(func(id: String) -> void:
+		if not Loop.climb_cleared.has(n):
+			Loop.climb_cleared.append(n)
 		SaveManager.save_now()
 		if hud != null:
 			hud._say_hint("%s - %s" % [String(Loop.BLESSINGS[id]["name"]),

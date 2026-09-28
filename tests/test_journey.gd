@@ -8201,8 +8201,12 @@ func _audit_191_tests() -> void:
 	# 막힌 층 안내는 실제로 층을 올려 주는 우두머리를 댄다 (20·20, 40·40 칸)
 	for v in ["윤슬", "볕뉘", "가풀재"]:
 		JourneyState.mark_quest("보스:" + v)
-	ok(Loop.tower_cap() == 20 and Loop.tower_cap_note().contains("굽이나루"),
-		"우두머리 셋 뒤 막힌 20층 - 하늬섬(잡아도 20층)이 아니라 굽이나루를 댄다: %s" % Loop.tower_cap_note())
+	ok(Loop.tower_cap() == 20 and Loop.tower_cap_note().contains("2 마리")
+		and Loop.tower_cap_note().contains("하늬섬"),
+		"우두머리 셋 뒤 막힌 20층 - 한 마리로는 안 열리니 두 마리 더라고 말한다: %s" % Loop.tower_cap_note())
+	JourneyState.mark_quest("보스:하늬섬")
+	ok(Loop.tower_cap_note().contains("굽이나루") and not Loop.tower_cap_note().contains("마리"),
+		"한 마리면 열릴 때는 그 우두머리를 댄다: %s" % Loop.tower_cap_note())
 	# 탑의 축복은 탑 밖에 들어서면 비워진다
 	Loop.add_blessing("might")
 	JourneyState.here = "윤슬"
@@ -8248,7 +8252,10 @@ func _audit_191_tests() -> void:
 	await get_tree().process_frame
 	ok(not bp.shop_nudge(), "꿈조각이 모자라면 가게 권유가 안 뜬다")
 	Gear.coins = 99999
-	var up := Gear.shop_upgrade("볕뉘")
+	# 전사가 쇠 검(1단계)을 든 채 은빛(2단계) 가게 마을에 왔다
+	Battle.level = 12
+	Battle.set_job("warrior")
+	var up := Gear.shop_upgrade("하늬섬")
 	ok(not up.is_empty() and String(up["slot"]) == "weapon", "살 수 있는 더 좋은 것 중 무기가 먼저")
 	# 같은 단계 무기를 이미 들었으면 무기는 안 권한다 (옵션 한 줄 차이는 잔소리)
 	var same := Gear.make("weapon", Gear.my_weapon_kind(), int(Gear.VILLAGE_TIER["볕뉘"]), 0, "none")
@@ -8263,6 +8270,27 @@ func _audit_191_tests() -> void:
 		and not JourneyState.quest_done("상점권유:볕뉘:weapon:%d" % int(Gear.VILLAGE_TIER["볕뉘"])),
 		"같은 마을·같은 칸은 한 번만 권한다 (권한 칸은 기록된다: %s)" % first_slot)
 	bp.queue_free()
+	await get_tree().process_frame
+	Gear.coins = 0
+	_clean_state()
+	# 0.1.196 점검 - 마법사 여덟 스킬이 다 칸에 들고, 안내는 칸 있는 스킬만
+	Battle.level = 25
+	Battle.set_job("mage")
+	ok(Battle.slot_skills().size() <= FightPad.SLOT_MAX,
+		"마법사 스킬이 다 칸에 든다 (%d / %d) - 무지개 한 방도 버튼이 있다" % [Battle.slot_skills().size(), FightPad.SLOT_MAX])
+	_clean_state()
+	# 전직 전에는 가게 무기를 안 권한다 (LV 10 에 직업 무기를 거저 받는다)
+	Gear.coins = 99999
+	ok(String(Gear.shop_upgrade("볕뉘").get("slot", "")) != "weapon", "전직 전에는 가게 무기를 권하지 않는다")
+	# 마지막 장 타워에는 가게가 없다 - 권유도 없다
+	for v in Quests.ORDER:
+		JourneyState.mark_quest("보스:" + String(v))
+	JourneyState.here = "잿마루"
+	var jt: Place = load(GOAL_SCENES["잿마루"]).instantiate()
+	add_child(jt)
+	await get_tree().process_frame
+	ok(not jt.shop_nudge(), "가게가 없는 마지막 장 타워에서는 가게를 권하지 않는다")
+	jt.queue_free()
 	await get_tree().process_frame
 	Gear.coins = 0
 	_clean_state()
@@ -8736,8 +8764,10 @@ func _hit_feature_tests() -> void:
 		await get_tree().process_frame
 		bp = t.get_node_or_null("BlessPick") as BlessPick
 	ok(bp != null and bp.offer.size() == 3, "층을 넘으면 축복 셋 중 고르기가 뜬다")
+	ok(not Loop.climb_cleared.has(2), "고르기 전에는 쓴 층으로 안 적는다 - 꺼졌다 켜도 축복을 다시 받는다")
 	if bp != null:
 		bp.choose(String(bp.offer[0]))
+		ok(Loop.climb_cleared.has(2), "고르면 쓴 층으로 적는다 (다시 받아 가지 못한다)")
 		ok(Loop.blessings.size() == 1, "고르면 이번에 오르는 동안 쌓인다")
 	t.queue_free()
 	await get_tree().process_frame
