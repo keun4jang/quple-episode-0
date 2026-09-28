@@ -179,6 +179,9 @@ func _zone(v: String) -> void:
 	# 사람은 약한 것부터 고른다 - 머리 위 레벨을 보고.
 	list.sort_custom(func(a, b): return int(a[1]) < int(b[1]))
 	_part = "마을"
+	# SIM_RUSH=1 - 마을 몬스터는 건너뛰고 길 졸개와 우두머리만 (서두르는 사람).
+	if OS.get_environment("SIM_RUSH") != "":
+		list = []
 	for k in list:
 		_fight(String(k[0]), int(k[1]), z)
 	_part = "길"
@@ -323,6 +326,11 @@ func _fight(kind: String, lv: int, z: Dictionary, boss := false, power := 1.0, t
 
 ## 가장 센 것부터. 공격 스킬 중 쓸 수 있는 것, 없으면 회복(반 밑일 때), 없으면 [공격].
 func _pick_skill(foe: Dictionary) -> String:
+	# SIM_TAPONLY=1 - 공격 버튼만 누르는 사람 (체력이 반 밑이면 심호흡은 한다).
+	if OS.get_environment("SIM_TAPONLY") != "":
+		if Battle.hp < Battle.hp_max() * 0.5 and Field.why_not("breathe") == "":
+			return "breathe"
+		return "tap" if Field.why_not("tap") == "" else ""
 	var best := ""
 	var best_v := 0.0
 	for id in Battle.skills():
