@@ -333,7 +333,9 @@ func _pick_skill(foe: Dictionary) -> String:
 		return "tap" if Field.why_not("tap") == "" else ""
 	var best := ""
 	var best_v := 0.0
-	for id in Battle.skills():
+	# 사람이 누를 수 있는 것만 - [공격] + 전투 칸에 든 스킬 (`FightPad.SLOT_MAX`).
+	# 모든 스킬을 쓰게 두었더니 칸이 모자라 버튼이 없던 마법사 무지개 한 방을 봇만 썼다.
+	for id in ["tap"] + Battle.slot_skills().slice(0, FightPad.SLOT_MAX):
 		var sk: Dictionary = Battle.SKILLS[id]
 		if Field.why_not(id) != "":
 			continue

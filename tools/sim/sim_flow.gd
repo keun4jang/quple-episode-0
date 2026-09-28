@@ -28,6 +28,8 @@ func _ready() -> void:
 	Loop.reset()
 	Battle.reset()
 	Field.reset()
+	print("\n[스킬 칸]")
+	_skill_slots_check()
 	await _prologue()
 	JourneyState.mark_quest("잿마루:정류장")
 	for i in Quests.ORDER.size():
@@ -212,6 +214,24 @@ func _tower_cap_check() -> void:
 		_bad("탑 %d층: 새로 오르는데 몬스터가 %d/%d - 빈 층에서 축복만 받아 간다" % [cap, t2.foes_left(), n0])
 	await _close(t2)
 	Loop.tower_now = 1
+
+
+## 직업마다 LV 50 에 배운 스킬이 전투 칸에 다 드나 - 넘치면 버튼 없는 스킬이 생긴다.
+func _skill_slots_check() -> void:
+	var lv0 := Battle.level
+	var job0 := Battle.job
+	for j in Battle.JOB_ORDER:
+		Battle.reset()
+		Battle.level = 50
+		Battle.set_job(String(j))
+		var n := Battle.slot_skills().size()
+		print("   %s: 스킬 칸 %d / %d" % [j, n, FightPad.SLOT_MAX])
+		if n > FightPad.SLOT_MAX:
+			_bad("%s: LV 50 스킬 %d 개인데 전투 칸은 %d - 버튼 없는 스킬이 있다" % [j, n, FightPad.SLOT_MAX])
+	Battle.reset()
+	Battle.level = lv0
+	if job0 != "novice":
+		Battle.set_job(job0)
 
 
 func _final() -> void:
