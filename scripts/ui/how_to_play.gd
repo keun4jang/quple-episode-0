@@ -7,9 +7,12 @@ extends CanvasLayer
 ## **네 귀퉁이에 뭐가 있는지를 모른다.** 시계가 어디고 배낭이 어딘지
 ## 몰라서, 알려 줄 것도 없이 헤맨다.
 ##
-## 그래서 딱 한 장. 화면을 잠깐 어둡게 하고 **실제 그 자리에** 고리를
-## 그려서 이름을 붙인다. 글로 "오른쪽 아래" 라고 쓰는 것보다 그 자리에
-## 점을 찍는 편이 빠르다.
+## 화면을 잠깐 어둡게 하고 **실제 그 자리에** 고리를 그려서 이름을 붙인다.
+## 글로 "오른쪽 아래" 라고 쓰는 것보다 그 자리에 점을 찍는 편이 빠르다.
+##
+## **한 장에 하나씩** (0.1.197). 예전엔 설명 다섯 줄·PC 키 두 줄·귀퉁이 고리 여섯을
+## 한 화면에 다 띄워서 "한 번에 나와 버리니 눈에 안 들어온다" 는 말을 들었다.
+## 이제 장마다 주제 하나, 두세 줄, 그 주제의 자리만 짚는다. [다음] 으로 넘긴다.
 ##
 ## 지키는 선은 `Guide` 와 같다 — 한 번만 나오고, 아무 벌이 없고,
 ## 언제든 다시 볼 수 있다 ("이 마을" > 조작 안내 다시 보기).
@@ -49,17 +52,35 @@ const SPOTS := [
 	[Control.PRESET_BOTTOM_LEFT, 80, -80, "사진", "카메라를 받으면 켜져요", false, "cam"],
 ]
 
-const HOWS := [
-	"꿈속 액션 RPG예요. 몬스터를 쓰러뜨려 레벨을 올리고,\n아홉 구역의 우두머리를 차례로 쓰러뜨려 꿈에서 깨어나요.",
-	"왼쪽 메인 퀘스트가 지금 잡을 우두머리예요.\n마을 사람들 이야기는 보상이 붙는 곁가지예요.",
-	"가고 싶은 곳을 톡 누르면 그리로 걸어가요. 금빛 점을 따라가면 목표예요.",
-	"오른쪽 아래 공격을 누르면 휘둘러요. 꾹 누르면 계속 때려요.",
-	"두 손가락으로 벌리면 가까이, 오므리면 멀리 봐요.",
+## 넘겨 보는 장들. spots: "mq" 메인 퀘스트 칸 · "attack" 공격 버튼 · "corners" 귀퉁이 고리들.
+## pc: PC 에서만 나오는 장.
+const PAGES := [
+	{"title": "꿈속 액션 RPG", "lines": [
+		"몬스터를 쓰러뜨려 레벨을 올리고,",
+		"아홉 구역의 우두머리를 차례로 쓰러뜨려요.",
+		"마지막 우두머리를 쓰러뜨리면 꿈에서 깨어나요."], "spots": []},
+	{"title": "메인 퀘스트", "lines": [
+		"왼쪽 칸이 지금 잡을 우두머리예요.",
+		"마을 사람들 이야기는 보상이 붙는 곁가지예요."], "spots": ["mq"]},
+	{"title": "걷기", "lines": [
+		"가고 싶은 곳을 톡 누르면 그리로 걸어가요.",
+		"금빛 점을 따라가면 목표예요.",
+		"두 손가락으로 벌리면 가까이, 오므리면 멀리 봐요."], "spots": []},
+	{"title": "싸우기", "lines": [
+		"오른쪽 아래 공격을 누르면 휘둘러요.",
+		"꾹 누르면 계속 때려요.",
+		"몬스터 곁에서는 옆에 스킬 칸이 떠요."], "spots": ["attack"]},
+	{"title": "화면 둘레", "lines": [
+		"메뉴에서 가진 것 · 편지 · 해볼 일을 봐요.",
+		"오른쪽 위 설정에서 소리를 바꿔요."], "spots": ["corners"]},
+	{"title": "PC 키보드", "pc": true, "lines": [
+		"화살표 이동 · 마우스 클릭으로 걷기 · 스페이스 말 걸기",
+		"Z 공격 · 1~8 스킬",
+		"I 배낭 · Q 할 일 · C 캐릭터 · M 지도 · H 하는 법",
+		"F11 전체 화면 · Esc 닫기"], "spots": []},
 ]
-
-
-## PC 키보드 (`DesktopKeys`).
-const PC_KEYS := "PC  ·  화살표 이동 · Z 공격 · 1~7 스킬 · 스페이스 말 걸기 · 마우스 클릭으로 걷기\nI 배낭 · Q 할 일 · C 캐릭터 · M 지도 · H 하는 법 · F11 전체 화면 · Esc 닫기"
+## 귀퉁이 고리가 나오는 장 (테스트가 그 장으로 넘겨 본다).
+const CORNER_PAGE := 4
 
 
 ## 지금 띄운다. 이미 떠 있으면 아무것도 안 한다.
@@ -80,6 +101,7 @@ func _ready() -> void:
 	# 안드로이드 뒤로가기가 이걸 먼저 닫는다 (`back_handler.gd`).
 	add_to_group("overlay")
 	_hide_hud_texts()
+	_hide_layers()
 	_build()
 
 
@@ -98,105 +120,214 @@ func _hide_hud_texts() -> void:
 			(n as CanvasItem).visible = false
 
 
+## **대사창·단계 안내도 가린다.** 덮개가 반투명이라 그 밑에 대사창과 그 [다음] 버튼,
+## 안내 한 줄이 비쳐 보여 세 가지를 한꺼번에 읽게 됐다 (폰 화면으로 받은 말).
+## 닫힐 때 되돌린다.
+var _hidden_layers: Array = []
+
+
+func _hide_layers() -> void:
+	for g in ["journey_say", "guide"]:
+		for n in get_tree().get_nodes_in_group(g):
+			if n is CanvasLayer and (n as CanvasLayer).visible:
+				(n as CanvasLayer).visible = false
+				_hidden_layers.append(n)
+
+
 func _restore_hud_texts() -> void:
+	for n in _hidden_layers:
+		if is_instance_valid(n):
+			(n as CanvasLayer).visible = true
+	_hidden_layers.clear()
 	for n in _hidden_texts:
 		if is_instance_valid(n):
 			(n as CanvasItem).visible = true
 	_hidden_texts.clear()
 
 
+var _root: Control
+var _pages: Array = []
+var _at := 0
+## 지금 장에 그린 것들 - 넘길 때 지운다.
+var _page_nodes: Array = []
+
+
 func _build() -> void:
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(root)
-
-	var dim := ColorRect.new()
-	dim.color = Color(0.10, 0.09, 0.12, 0.88)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	# 바깥을 눌러도 닫힌다. 읽을 만큼 읽었으면 아무 데나 누르면 된다.
-	dim.gui_input.connect(func(e: InputEvent) -> void:
-		if e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed:
-			_close()
-		elif e is InputEventMouseButton and (e as InputEventMouseButton).pressed:
-			_close())
-	root.add_child(dim)
-
-	for s in SPOTS:
-		if s.size() > 6 and not _visible_now(String(s[6])):
+	for pg in PAGES:
+		if bool(pg.get("pc", false)) and not (OS.has_feature("pc") and not OS.has_feature("mobile")):
 			continue
-		root.add_child(_marker(_placed(s)))
+		_pages.append(pg)
+	_root = Control.new()
+	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_root)
+	var dim := ColorRect.new()
+	# 거의 불투명 - 밑의 글자가 비쳐 같이 읽히지 않게.
+	dim.color = Color(0.10, 0.09, 0.12, 0.94)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 바깥을 누르면 **다음 장** (닫히지 않는다 - 한 장씩 보게).
+	dim.gui_input.connect(func(e: InputEvent) -> void:
+		if (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed) \
+				or (e is InputEventMouseButton and (e as InputEventMouseButton).pressed):
+			next_page())
+	_root.add_child(dim)
+	# 건너뛰기 - 오른쪽 위, 작게. 다 아는 사람은 한 번에 닫는다.
+	var skip := _paper_button("건너뛰기", Vector2(150, 54), 22, Color("#E4DCCF"), Color("#6B5A48"))
+	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	skip.offset_left = -190
+	skip.offset_right = -40
+	skip.offset_top = 150
+	skip.offset_bottom = 204
+	skip.pressed.connect(_close)
+	_root.add_child(skip)
+	show_page(0)
 
-	# 가운데 — 무엇을 눌러서 무엇을 하는지 세 줄
+
+## i 번째 장을 그린다.
+func show_page(i: int) -> void:
+	_at = clampi(i, 0, _pages.size() - 1)
+	for n in _page_nodes:
+		if is_instance_valid(n):
+			n.queue_free()
+	_page_nodes.clear()
+	var pg: Dictionary = _pages[_at]
+	for sp in pg.get("spots", []):
+		match String(sp):
+			"corners":
+				for s in SPOTS:
+					if s.size() > 6 and not _visible_now(String(s[6])):
+						continue
+					_add(_marker(_placed(s)))
+			"mq":
+				var hud := get_tree().get_first_node_in_group("journey_hud")
+				var mq = hud.get("main_quest") if hud != null else null
+				if mq is Control and (mq as Control).visible:
+					_add(_rect_marker((mq as Control).get_global_rect(), "메인 퀘스트", "지금 잡을 우두머리", true))
+			"attack":
+				var hud2 := get_tree().get_first_node_in_group("journey_hud")
+				var fp = hud2.get("fight") if hud2 != null else null
+				var atk = fp.get("_attack") if fp != null else null
+				if atk is Control and (atk as Control).is_visible_in_tree():
+					_add(_rect_marker((atk as Control).get_global_rect(), "공격", "누르거나 꾹", false))
 	var box := VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_CENTER)
 	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	box.add_theme_constant_override("separation", 14)
+	box.add_theme_constant_override("separation", 16)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(box)
-
-	var title := Label.new()
-	title.text = "꿈결 RPG · 하는 법"
-	title.add_theme_font_size_override("font_size", 40)
-	title.add_theme_color_override("font_color", Color("#FFE39A"))
-	title.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	_add(box)
+	var count := _label("%d / %d" % [_at + 1, _pages.size()], 20, Color("#A79A8A"))
+	box.add_child(count)
+	var title := _label(String(pg["title"]), 44, Color("#FFE39A"))
 	title.add_theme_constant_override("outline_size", 10)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+	for line in pg["lines"]:
+		box.add_child(_label(String(line), 28, Color("#FFF2C8")))
+	var last := _at == _pages.size() - 1
+	if last:
+		box.add_child(_label("왼쪽 위 \"이 마을\" 에서 언제든 다시 볼 수 있어요.", 20, Color("#A79A8A")))
+	var btn := _paper_button("시작하기" if last else "다음", Vector2(240, 76), 30,
+		Color("#FFE39A"), Color("#4A3A22"))
+	btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	btn.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	btn.offset_left = -120
+	btn.offset_right = 120
+	btn.offset_top = -150
+	btn.offset_bottom = -74
+	btn.pressed.connect(next_page)
+	_add(btn)
 
-	for line in HOWS:
-		var l := Label.new()
-		l.text = line
-		l.add_theme_font_size_override("font_size", 24)
-		l.add_theme_color_override("font_color", Color("#FFF2C8"))
-		l.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
-		l.add_theme_constant_override("outline_size", 8)
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		box.add_child(l)
 
-	# PC 에서는 키보드도 적는다 (`DesktopKeys`).
-	if OS.has_feature("pc") and not OS.has_feature("mobile"):
-		var kl := Label.new()
-		kl.text = PC_KEYS
-		kl.add_theme_font_size_override("font_size", 20)
-		kl.add_theme_color_override("font_color", Color("#B5E3FF"))
-		kl.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
-		kl.add_theme_constant_override("outline_size", 6)
-		kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		box.add_child(kl)
+func next_page() -> void:
+	if _at >= _pages.size() - 1:
+		_close()
+	else:
+		show_page(_at + 1)
 
-	var tail := Label.new()
-	tail.text = "왼쪽 위 \"이 마을\" 에서 언제든 다시 볼 수 있어요."
-	tail.add_theme_font_size_override("font_size", 20)
-	tail.add_theme_color_override("font_color", Color("#A79A8A"))
-	tail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(tail)
 
+func page_count() -> int:
+	return _pages.size()
+
+
+func _add(n: Control) -> void:
+	_root.add_child(n)
+	_page_nodes.append(n)
+
+
+func _label(t: String, size: int, col: Color) -> Label:
+	var l := Label.new()
+	l.text = t
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", col)
+	l.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	l.add_theme_constant_override("outline_size", 8)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+func _paper_button(t: String, sz: Vector2, font: int, bg: Color, fg: Color) -> Button:
 	var btn := Button.new()
-	btn.text = "알겠어요"
+	btn.text = t
 	btn.focus_mode = Control.FOCUS_NONE
-	btn.custom_minimum_size = Vector2(220, 72)
-	btn.add_theme_font_size_override("font_size", 28)
+	btn.custom_minimum_size = sz
+	btn.add_theme_font_size_override("font_size", font)
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("#FFE39A")
-	sb.set_corner_radius_all(30)
+	sb.bg_color = bg
+	sb.set_corner_radius_all(28)
 	sb.set_border_width_all(3)
 	sb.border_color = Color("#8C6E3F")
 	Paper.lift(sb)
 	btn.add_theme_stylebox_override("normal", sb)
 	btn.add_theme_stylebox_override("hover", sb)
 	var pr := sb.duplicate() as StyleBoxFlat
-	pr.bg_color = Color("#FFD166")
+	pr.bg_color = bg.darkened(0.08)
 	btn.add_theme_stylebox_override("pressed", Paper.press(pr))
-	btn.add_theme_color_override("font_color", Color("#4A3A22"))
-	btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	btn.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	btn.offset_left = -110
-	btn.offset_right = 110
-	btn.offset_top = -140
-	btn.offset_bottom = -68
-	btn.pressed.connect(_close)
-	root.add_child(btn)
+	btn.add_theme_color_override("font_color", fg)
+	return btn
+
+
+## 화면의 한 덩어리(메인 퀘스트 칸·공격 버튼)를 **그 모양 그대로** 네모로 두른다.
+## to_right 면(화면 왼쪽 덩어리) 이름을 네모 아래 왼쪽 정렬로, 아니면 네모 위 오른쪽 정렬로.
+func _rect_marker(r: Rect2, name: String, desc: String, to_right: bool) -> Control:
+	var pad := 8.0
+	var c := Control.new()
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.position = r.position - Vector2(pad, pad)
+	c.size = r.size + Vector2(pad, pad) * 2.0
+	c.draw.connect(func() -> void:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0, 0, 0, 0)
+		sb.border_color = Color(1.0, 0.89, 0.60, 0.95)
+		sb.set_border_width_all(4)
+		sb.set_corner_radius_all(18)
+		c.draw_style_box(sb, Rect2(Vector2.ZERO, c.size)))
+	var w := 260.0
+	var n := Label.new()
+	n.text = name
+	n.add_theme_font_size_override("font_size", 24)
+	n.add_theme_color_override("font_color", Color("#FFE39A"))
+	n.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	n.add_theme_constant_override("outline_size", 8)
+	n.size = Vector2(w, 28)
+	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if to_right else HORIZONTAL_ALIGNMENT_RIGHT
+	# 이름은 네모 **아래**(왼쪽 덩어리) 또는 **위**(오른쪽 아래 덩어리)에 붙인다 - 옆에 붙이면
+	# 가운데 제목("메인 퀘스트")과 나란히 붙어 같은 말이 두 번 보였다.
+	n.position = Vector2(4.0, c.size.y + 8.0) if to_right \
+		else Vector2(c.size.x - w - 4.0, -64.0)
+	n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(n)
+	var d := Label.new()
+	d.text = desc
+	d.add_theme_font_size_override("font_size", 18)
+	d.add_theme_color_override("font_color", Color("#FFF2C8"))
+	d.add_theme_color_override("font_outline_color", Color(0.16, 0.13, 0.18))
+	d.add_theme_constant_override("outline_size", 7)
+	d.size = Vector2(w, 22)
+	d.horizontal_alignment = n.horizontal_alignment
+	d.position = n.position + Vector2(0, 30)
+	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(d)
+	return c
 
 
 ## "작은 지도" 자리를 실제 미니맵 위치로 맞춘다.
@@ -340,6 +471,11 @@ func _marker(s: Array) -> Control:
 ## `_exit_tree()` 에 둔다.
 func _exit_tree() -> void:
 	_restore_hud_texts()
+
+
+## 뒤로가기·Esc = 건너뛰기 (`BackHandler` 는 `close()` 가 있으면 그것을 부른다).
+func close() -> void:
+	_close()
 
 
 func _close() -> void:

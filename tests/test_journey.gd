@@ -1428,6 +1428,7 @@ func _how_to_play_visibility_tests() -> void:
 
 	var card := HowToPlay.open(get_tree())
 	ok(card != null, "카드가 뜬다")
+	card.show_page(HowToPlay.CORNER_PAGE)
 	var names: Array = []
 	# card(CanvasLayer) -> root(Control) -> 마커들. 마커마다 이름·설명
 	# Label 이 자식으로 붙어 있다.
@@ -1438,6 +1439,10 @@ func _how_to_play_visibility_tests() -> void:
 				names.append(String(gc.text))
 	ok(not names.any(func(n): return n == "작은 지도"),
 		"없는 지도는 안 가리킨다 (%s)" % str(names))
+	# 카드가 떠 있는 동안 대사창·단계 안내는 가려진다 (반투명 덮개 밑으로 비쳐 보였다)
+	var say_layer = get_tree().get_first_node_in_group("journey_say")
+	if say_layer != null:
+		ok(not (say_layer as CanvasLayer).visible, "카드가 떠 있는 동안 대사창은 가려진다")
 	ok(not names.any(func(n): return n == "행동"),
 		"없는 행동 버튼도 안 가리킨다 (%s)" % str(names))
 	ok(not names.any(func(n): return n == "사진"),
@@ -3929,7 +3934,16 @@ func _how_to_play_tests() -> void:
 		names.append(String(sp[3]))
 	for must in ["메뉴", "작은 지도", "설정"]:
 		ok(names.has(must), "%s 자리를 알려 준다" % must)
-	ok(HowToPlay.HOWS.size() == 5, "다섯 줄로 적는다 (무슨 게임인지·메인 퀘스트·걷기·싸우기·확대)")
+	# 한 장에 하나씩 (0.1.197) - "한 번에 나와 버리니 눈에 안 들어온다"
+	ok(HowToPlay.PAGES.size() >= 5, "여러 장으로 나눠 보여 준다 (%d장)" % HowToPlay.PAGES.size())
+	var short := true
+	for pg in HowToPlay.PAGES:
+		if (pg["lines"] as Array).size() > 4:
+			short = false
+	ok(short, "한 장에 네 줄까지만")
+	ok(card._at == 0 and card.page_count() >= 5, "첫 장부터 (%d장)" % card.page_count())
+	card.next_page()
+	ok(card._at == 1 and is_instance_valid(card), "[다음] 을 누르면 다음 장, 닫히지 않는다")
 
 	# 닫으면 표시가 남아 다시 안 뜬다
 	card._close()
@@ -3953,6 +3967,7 @@ func _how_to_play_marker_overlap_tests() -> void:
 	print("\n[화면 보는 법 - 고리와 이름이 안 겹치는가]")
 	SaveManager.set_flag(HowToPlay.FLAG, false)
 	var card := HowToPlay.open(get_tree())
+	card.show_page(HowToPlay.CORNER_PAGE)
 	await get_tree().process_frame
 	var root: Control = card.get_child(0)
 
@@ -4029,6 +4044,7 @@ func _how_to_play_minimap_alignment_tests() -> void:
 	await get_tree().process_frame
 	SaveManager.set_flag(HowToPlay.FLAG, false)
 	var card := HowToPlay.open(get_tree())
+	card.show_page(HowToPlay.CORNER_PAGE)
 	await get_tree().process_frame
 	var root: Control = card.get_child(0)
 	var map_mk: Control = null
@@ -8590,7 +8606,7 @@ func _hud_help_tests() -> void:
 		"정류장을 떠나면 1장 윤슬 우두머리: %s" % m1["goal"])
 	JourneyState.mark_quest("보스:윤슬")
 	ok(int(MainQuest.now()["chapter"]) == 2, "윤슬 보스 뒤엔 2장")
-	ok(HowToPlay.HOWS[0].contains("RPG") and HowToPlay.HOWS[1].contains("메인 퀘스트"),
+	ok(String(HowToPlay.PAGES[0]["title"]).contains("RPG") and String(HowToPlay.PAGES[1]["title"]).contains("메인 퀘스트"),
 		"하는 법 첫 줄이 이 게임이 무엇인지 말한다")
 	JourneyState.here = "윤슬"
 	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
@@ -8920,7 +8936,12 @@ func _design_tests() -> void:
 		dk._unhandled_key_input(ke)
 		await get_tree().process_frame
 		ok(not p.hud.bag_open(), "Esc 를 누르면 닫힌다")
-	ok(HowToPlay.PC_KEYS.contains("F11") and HowToPlay.PC_KEYS.contains("Z 공격"), "하는 법에 PC 키가 적혀 있다")
+	var pc_lines := ""
+	for pg in HowToPlay.PAGES:
+		if bool(pg.get("pc", false)):
+			pc_lines = " ".join(pg["lines"])
+	ok(pc_lines.contains("F11") and pc_lines.contains("Z 공격") and pc_lines.contains("1~8"),
+		"하는 법에 PC 키가 적혀 있다 (스킬 1~8)")
 	p.queue_free()
 	await get_tree().process_frame
 	Gear.reset()
