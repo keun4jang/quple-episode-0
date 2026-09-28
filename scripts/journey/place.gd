@@ -1126,7 +1126,7 @@ func _build_shades() -> void:
 	erng.seed = hash("elite|%s|%d" % [place_name(), JourneyState.day])
 	for i in mini(want.size(), spots.size()):
 		var t: Vector2i = spots[i]
-		if Battle.is_cleared(place, t):
+		if remembers_clears() and Battle.is_cleared(place, t):
 			continue        # 오늘 이미 걷어낸 자리
 		var w: Array = want[i]
 		var elite := erng.randf() < Loop.ELITE_CHANCE
@@ -1329,6 +1329,12 @@ func combat_paused() -> bool:
 
 ## 몬스터가 서는 곳인가. 실내(가게·등대)는 쉬는 자리라 거짓이다 -
 ## 우두머리의 길·방과 꿈의 탑은 실내 씬이지만 스스로 참을 돌려준다.
+## 쓰러뜨린 자리를 그날 동안 기억하나 - 다시 들어와도 빈 채로 둔다 (`Battle.is_cleared`).
+## 꿈의 탑은 오를 때마다 새로 선다 (`TowerFloor`).
+func remembers_clears() -> bool:
+	return true
+
+
 func fights_here() -> bool:
 	return not is_indoors()
 
@@ -1644,7 +1650,8 @@ func on_shade_down(sh: Shade) -> void:
 	# 퇴치 할 일(`Quests.hunt_list`)이 세는 기록. 날이 바뀌어도
 	# 안 지워진다 - 몬스터는 다시 서도 걷어낸 수는 쌓인다.
 	JourneyState.add_defeat(quest_village(), kind)
-	Battle.mark_cleared(place_name(), sh.at_tile)
+	if remembers_clears():
+		Battle.mark_cleared(place_name(), sh.at_tile)
 	_shades.erase(sh)
 	if _target == sh:
 		_target = null
@@ -4474,11 +4481,17 @@ func open_goals() -> Array:
 	for q in Quests.quest_list(place_name()):
 		if _goal_shown(q):
 			out.append(q)
-	# 우두머리 - 마을 할 일 **뒤에** 선다. 할 일을 다 했거나 목록에서
-	# 골랐을 때 화살표가 붉은 틈을 짚는다 (`Quests.boss_row`).
+	# 우두머리 - 레벨이 모자라면 마을 할 일 **뒤에** 선다(할 일을 다 했거나
+	# 목록에서 골랐을 때 화살표가 붉은 틈을 짚는다, `Quests.boss_row`).
+	# **레벨이 되면 맨 앞이다.** 늘 뒤에 두었더니 왼쪽 메인 퀘스트는 "도전할
+	# 만해요" 인데 화살표는 여섯 일곱 개의 인사·심부름을 먼저 돌게 했다 - 이 게임의
+	# 줄기가 우두머리라는 걸 화살표가 거꾸로 말하고 있었다 (0.1.186 흐름 시뮬레이션).
 	var br := Quests.boss_row(place_name())
 	if not is_indoors() and not br.is_empty() and _goal_shown(br):
-		out.append(br)
+		if Battle.level >= Battle.boss_lv(place_name()) - MainQuest.LOW_GAP:
+			out.push_front(br)
+		else:
+			out.append(br)
 	# **자정이 넘으면 남은 할 일이 뭐든 다음 길은 하나다** — 자야
 	# 아침이 온다. 이때 지도가 딴 걸(혹은 아무것도) 가리키면 안내
 	# 한 줄(1.6초)을 놓친 사람은 갈 곳을 모른다.

@@ -8043,6 +8043,14 @@ func _boss_map_tests() -> void:
 	var re: Array = Rewards.entries("윤슬").filter(func(e): return String(e["key"]) == "보스:윤슬")
 	ok(re.size() == 1 and String(re[0]["item"]) == "b-lunchbox" and int(re[0]["xp"]) == Rewards.XP_BOSS,
 		"우두머리 퀘스트에 보상이 붙는다")
+	# 화살표 차례 - 레벨이 모자라면 마을 할 일부터, 되면 붉은 틈부터 (0.1.186)
+	var lv0 := Battle.level
+	Battle.level = 1
+	ok(String(yp.current_goal().get("key", "")) != "우두머리길", "LV 1 에는 화살표가 마을 할 일부터 짚는다")
+	Battle.level = Battle.boss_lv("윤슬") - MainQuest.LOW_GAP
+	ok(String(yp.current_goal().get("key", "")) == "우두머리길",
+		"우두머리에 도전할 만한 레벨이면 화살표가 붉은 틈부터 짚는다 (메인 퀘스트와 같은 말)")
+	Battle.level = lv0
 	yp.queue_free()
 	await get_tree().process_frame
 
@@ -8162,8 +8170,29 @@ func _tower_tests() -> void:
 		t.on_shade_down(sh)
 	ok(boss_kind == "dokkaebi" and not Battle.boss_down("볕뉘"),
 		"탑의 우두머리는 꿈의 문을 안 연다 (%s)" % boss_kind)
-	ok(t.door_locked(stairs) == "" and Loop.tower_best == 10, "다 쓰러뜨리면 계단이 열리고 기록이 오른다")
+	ok(Loop.tower_best == 10, "다 쓰러뜨리면 기록이 오른다")
+	# **이야기만큼만 열린다** - 윤슬 보스만 잡았으면 10층이 끝 (0.1.186).
+	ok(Loop.tower_cap() == 10 and t.door_locked(stairs) != "" \
+		and String(t.current_goal().get("kind", "")) == "exit",
+		"윤슬 뒤로는 10층까지 - 계단이 잠기고 화살표는 나가는 문 (%s)" % t.door_locked(stairs))
+	ok(Loop.tower_start() == 6, "열린 끝까지 넘었으면 그 앞 쉼터(6층)부터 다시 오른다")
+	JourneyState.mark_quest("보스:볕뉘")
+	ok(Loop.tower_cap() == 15 and t.door_locked(stairs) == "",
+		"볕뉘 보스를 잡으면 15층까지 열려 계단이 열린다")
 	t.queue_free()
+	await get_tree().process_frame
+	# 탑은 오를 때마다 새로 선다 - 같은 날 다시 와도 빈 층이 아니다.
+	var t2: Place = load("res://scenes/journey/interiors/TowerFloor.tscn").instantiate()
+	add_child(t2)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(t2._shades.size() == 3, "같은 날 같은 층을 다시 오르면 몬스터가 다시 선다 (%d)" % t2._shades.size())
+	var tf := Field.new_foe("dokkaebi", 12)
+	var xp0 := int(tf["xp"])
+	Loop.tower_foe(tf, 10)
+	ok(int(tf["xp"]) < xp0 and int(tf["xp"]) == int(round(xp0 * Loop.TOWER_XP)),
+		"탑 몬스터는 경험을 덜 준다 (%d → %d)" % [xp0, int(tf["xp"])])
+	t2.queue_free()
 	await get_tree().process_frame
 	# 마을의 푸른 틈은 쉼터 층으로 간다
 	JourneyState.here = "윤슬"
@@ -8496,7 +8525,8 @@ func _hit_feature_tests() -> void:
 	Loop.from_dict(sd)
 	ok(Loop.blessings.size() == 1 + Loop.BLESS_MAX, "고른 축복이 저장된다 (같은 것은 세 번까지)")
 	Loop.reset()
-	# 탑 한 층을 쓸면 축복 고르기가 뜬다
+	# 탑 한 층을 쓸면 축복 고르기가 뜬다 (탑이 열려 있어야 - 윤슬 보스 뒤)
+	JourneyState.mark_quest("보스:윤슬")
 	JourneyState.exit_scene = GOAL_SCENES["윤슬"]
 	JourneyState.exit_tile = Vector2i(10, 10)
 	Loop.tower_now = 2

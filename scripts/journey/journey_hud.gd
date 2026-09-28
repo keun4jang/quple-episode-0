@@ -1795,8 +1795,10 @@ func _fill_quests() -> void:
 		_reward_line(village, Rewards.for_row(village, br), bdone)
 	# 꿈의 탑 기록 - 열린 뒤로.
 	if Loop.tower_open():
-		_bag_grid.add_child(_bag_line("꿈의 탑  ·  최고 %d층  ·  다음엔 %d층부터" % [Loop.tower_best,
-			Loop.tower_start()], 22, Color("#8FD0FF")))
+		var cap := Loop.tower_cap()
+		var cap_txt := "" if cap >= 9999 else "  ·  지금은 %d층까지" % cap
+		_bag_grid.add_child(_bag_line("꿈의 탑  ·  최고 %d층  ·  다음엔 %d층부터%s" % [Loop.tower_best,
+			Loop.tower_start(), cap_txt], 22, Color("#8FD0FF")))
 	var list := Quests.quest_list(village)
 	if list.is_empty():
 		_empty("여기서는 딱히 할 일이 없어요")

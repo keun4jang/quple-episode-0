@@ -106,6 +106,11 @@ static func use(id: String) -> Array:
 	var s: Dictionary = Battle.SKILLS[id]
 	Battle.mp -= int(s["mp"])
 	cooldown[id] = float(s.get("cd", 1.0))
+	# 같은 무리(`group` - 마법사의 원소 마법 다섯)는 틈을 같이 쓴다.
+	if s.has("group"):
+		for other in Battle.SKILLS:
+			if other != id and String(Battle.SKILLS[other].get("group", "")) == String(s["group"]):
+				cooldown[other] = maxf(float(cooldown.get(other, 0.0)), float(s.get("cd", 1.0)))
 	var evs: Array = [{"kind": "cast", "skill": id}]
 	if String(s["type"]) == "heal":
 		var amount := int(Battle.hp_max() * float(s["amount"]) * Battle.skill_power(id))

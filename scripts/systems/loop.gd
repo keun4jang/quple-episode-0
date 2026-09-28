@@ -291,9 +291,46 @@ static func tower_open() -> bool:
 	return Battle.boss_down("윤슬")
 
 
-## 들어가면 시작하는 층 - 넘은 쉼터(5의 배수) 바로 위.
+## **이야기만큼만 열린다** - 쓰러뜨린 구역 우두머리 수 → 오를 수 있는 가장 높은 층.
+## 대마왕을 물리친 뒤로는 끝이 없다.
+##
+## 0.1.186 시뮬레이션: 이 막힘이 없을 때는 윤슬 우두머리만 잡고 탑에 들어가도 **LV 9 → 50** 이
+## 40분 만에 됐다 (네 직업 다). 층 몬스터가 나와 함께 세지니 축복을 쌓으며 끝없이
+## 따라 오를 수 있었고, 나오면 남은 여덟 구역이 전부 싱거운 걸음이 됐다.
+## 막는 층은 그 구역을 막 넘은 사람보다 네다섯 레벨 위다 - 도전할 거리는 되고,
+## 앞질러 가는 사다리는 안 된다.
+const TOWER_CAP := [0, 10, 15, 20, 20, 25, 30, 35, 40, 40]
+
+
+static func bosses_down() -> int:
+	var n := 0
+	for v in Quests.ORDER:
+		if Battle.boss_of(String(v)) != "" and Battle.boss_down(String(v)):
+			n += 1
+	return n
+
+
+static func tower_cap() -> int:
+	if JourneyState.quest_done("엔딩:대마왕"):
+		return 9999
+	return int(TOWER_CAP[clampi(bosses_down(), 0, TOWER_CAP.size() - 1)])
+
+
+## 막힌 층 계단에 적을 말 - 어느 우두머리를 잡으면 더 열리나.
+static func tower_cap_note() -> String:
+	for v in Quests.ORDER:
+		var b := Battle.boss_of(String(v))
+		if b != "" and not Battle.boss_down(String(v)):
+			return "더 위층은 %s 우두머리 %s 처치 뒤에 열려요" % [String(v),
+				String(Battle.ENEMIES[b]["name"])]
+	return "더 위층은 야근 대마왕 처치 뒤에 열려요"
+
+
+## 들어가면 시작하는 층 - 넘은 쉼터(5의 배수) 바로 위. 막힌 층까지 다 넘었으면
+## 막힌 층 앞 쉼터부터 다시 오른다 (첫 보상은 없고 경험·꿈조각은 그대로).
 static func tower_start() -> int:
-	return (tower_best / TOWER_BOSS_EVERY) * TOWER_BOSS_EVERY + 1
+	var start := (tower_best / TOWER_BOSS_EVERY) * TOWER_BOSS_EVERY + 1
+	return maxi(1, mini(start, tower_cap() - TOWER_BOSS_EVERY + 1))
 
 
 static func is_boss_floor(n: int) -> bool:
@@ -338,6 +375,22 @@ static func power_up(foe: Dictionary, k: float) -> void:
 	foe["hp"] = int(float(foe["hp"]) * k)
 	foe["hp_max"] = foe["hp"]
 	foe["atk"] = int(float(foe["atk"]) * k)
+
+
+## 탑 몬스터가 주는 경험은 이만큼. 탑은 **장비·꿈조각·기록** 을 벌러 오는 곳이다.
+## 층 몬스터가 나와 함께 세지니, 경험을 그대로 주면 열린 층 안에서도 한 번 오를
+## 때마다 열 레벨 넘게 올라 다음 구역이 통째로 싱거워졌다 (0.1.186 시뮬레이션:
+## 가풀재 뒤 LV 21 → 34).
+const TOWER_XP := 0.3
+
+
+## 탑 n층의 몬스터로 만든다 - 30층 위의 힘과 줄인 경험. `TowerFloor` 와
+## 시뮬레이션(`tools/sim/SimBalance`)이 같이 쓴다.
+static func tower_foe(foe: Dictionary, n: int) -> void:
+	var k := floor_power(n)
+	if k > 1.0:
+		power_up(foe, k)
+	foe["xp"] = maxi(1, int(round(float(foe.get("xp", 1)) * TOWER_XP)))
 
 
 # ── 탑의 축복 (한 번 오르는 동안만) ─────────────────────────────────

@@ -9,7 +9,7 @@ extends Node
 ##   - 싸움 사이에 체력이 반 밑이면 쉰다(심호흡·마음력 도는 것만으로 - 저절로 차는 게 있으면 그것도)
 ##   - LV 10 에 전직, 떨어진 장비가 더 좋으면 입고, 강화석이 있으면 무기를 강화한다
 ##   - 몬스터 공격은 **피하지 않는다** (예고를 보고 비키는 건 사람 몫 - 최악을 잰다)
-## 구역마다: 마을 몬스터 한 바퀴 → 우두머리의 길 졸개 → 방의 호위 둘 → 우두머리.
+## 구역마다: 마을 몬스터 한 바퀴 ~ 우두머리의 길 졸개 ~ 방의 호위 둘 ~ 우두머리.
 
 const DT := 0.05
 const WALK := 4.0          # 몬스터 하나 찾아가는 데 드는 초
@@ -64,11 +64,12 @@ func _run_job(j: String) -> Dictionary:
 		# 게임 중간에 탑에 들어가 보면 어디까지 가나 (들어갔다 나오면 상태는 되돌린다).
 		if i in [0, 2, 5, 8]:
 			tower_at[String(Quests.ORDER[i])] = _tower_try(String(Quests.ORDER[i]) + " 뒤")
-	# 꿈속 잿마루 타워 → 대마왕
+	# 꿈속 잿마루 타워 ~ 대마왕
 	var z := _zone_start("잿마루 타워")
 	for k in Battle.tower_spawns():
 		_fight(String(k[0]), int(k[1]), z)
 	_zone_end(z, "night")
+	JourneyState.mark_quest("엔딩:대마왕")
 	# 꿈의 탑 - 어디까지 오르나 (한 층에서 세 번 쓰러지면 멈춘다)
 	var floor_n := 1
 	var tower_t := t_total
@@ -76,7 +77,7 @@ func _run_job(j: String) -> Dictionary:
 		var d0 := deaths
 		var zz := _zone_start("탑 %d층" % floor_n)
 		for k in Loop.floor_spawns(floor_n):
-			_fight(String(k[0]), int(k[1]), zz, false, Loop.floor_power(floor_n))
+			_fight(String(k[0]), int(k[1]), zz, false, Loop.floor_power(floor_n), floor_n)
 		if deaths - d0 >= 3:
 			break
 		Loop.clear_floor(floor_n)
@@ -105,11 +106,12 @@ func _tower_try(label: String) -> int:
 	Battle.mp = Battle.mp_max()
 	var n := 1
 	var stuck_lv := 0
-	while n <= 80:
+	var cap := mini(80, Loop.tower_cap())
+	while n <= cap:
 		var d0 := deaths
 		var zz := _zone_start("탑")
 		for k in Loop.floor_spawns(n):
-			_fight(String(k[0]), int(k[1]), zz, false, Loop.floor_power(n))
+			_fight(String(k[0]), int(k[1]), zz, false, Loop.floor_power(n), n)
 			if deaths - d0 >= 3:
 				break
 		if deaths - d0 >= 3:
@@ -122,8 +124,8 @@ func _tower_try(label: String) -> int:
 				break
 		n += 1
 	var reached := n - 1
-	print("   꿈의 탑 (%s, LV %d 로 들어감): %d층까지 · 막힌 층 몬스터 LV %d · %.0f분" % [
-		label, lv, reached, stuck_lv, (t_total - t0) / 60.0])
+	print("   꿈의 탑 (%s, LV %d 로 들어감 ~ LV %d 로 나옴): %d층까지 (열린 데 %d층) · 막힌 층 몬스터 LV %d · %.0f분 · 쓰러짐 %d" % [
+		label, lv, Battle.level, reached, cap, stuck_lv, (t_total - t0) / 60.0, deaths - d_save])
 	JourneyState.from_dict(snap)
 	Field.reset()
 	Loop.blessings.clear()
@@ -199,14 +201,16 @@ func _boss_lv_of(v: String) -> int:
 	return Battle.boss_lv(v) if Battle.boss_of(v) != "" else 50
 
 
-## 싸움 한 판. 걸어가서 → 때리고 → 맞고 → 쓰러뜨린다.
-func _fight(kind: String, lv: int, z: Dictionary, boss := false, power := 1.0) -> void:
+## 싸움 한 판. 걸어가서 ~ 때리고 ~ 맞고 ~ 쓰러뜨린다.
+func _fight(kind: String, lv: int, z: Dictionary, boss := false, power := 1.0, tower_n := 0) -> void:
 	_rest_before()
 	t_total += WALK
 	var foe := Field.new_foe(kind, lv, false)
 	# 타워 꼭대기의 대마왕처럼 목록 안에 섞여 나오는 우두머리도 보스전으로 센다.
 	boss = boss or (bool(foe["boss"]) and power <= 1.0)
-	if power > 1.0:
+	if tower_n > 0:
+		Loop.tower_foe(foe, tower_n)
+	elif power > 1.0:
 		Loop.power_up(foe, power)
 	if boss:
 		z["boss_lv"] = Battle.level

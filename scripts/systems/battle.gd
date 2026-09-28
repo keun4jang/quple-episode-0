@@ -199,17 +199,20 @@ const SKILLS := {
 		"grants": "firm", "cd": 14.0},
 	"quake": {"name": "대지 가르기", "job": "warrior", "lv": 25, "mp": 12,
 		"type": "attack", "elem": "earth", "mult": 2.6, "aoe": 60.0, "cd": 8.0},
-	# 마법사 - 속성 다섯을 다 쓴다 (`docs/elements.md` 2절)
+	# 마법사 - 속성 다섯을 다 쓴다 (`docs/elements.md` 2절). 다섯 원소 마법은
+	# **틈을 같이 쓴다** (`group`) - 하나를 쓰면 나머지도 그만큼 쉰다. 따로 돌면
+	# 다섯 단추를 차례로 다 누르는 게 늘 가장 셌다: 우두머리를 다른 직업의 절반도
+	# 안 되는 7~12초에 녹였고(0.1.186 시뮬레이션), 약점 하나를 골라 쏘는 맛이 없었다.
 	"splash": {"name": "물총", "job": "mage", "lv": 10, "mp": 3, "type": "attack",
-		"elem": "water", "mult": 1.25, "range": 72.0, "foe": "wet", "cd": 1.5},
+		"elem": "water", "mult": 1.25, "range": 72.0, "foe": "wet", "cd": 1.5, "group": "bolt"},
 	"flame": {"name": "불꽃", "job": "mage", "lv": 10, "mp": 3, "type": "attack",
-		"elem": "fire", "mult": 1.25, "range": 72.0, "foe": "burn", "cd": 1.5},
+		"elem": "fire", "mult": 1.25, "range": 72.0, "foe": "burn", "cd": 1.5, "group": "bolt"},
 	"leaf": {"name": "나뭇잎 날리기", "job": "mage", "lv": 12, "mp": 3, "type": "attack",
-		"elem": "wood", "mult": 1.25, "range": 72.0, "foe": "tangle", "cd": 1.5},
+		"elem": "wood", "mult": 1.25, "range": 72.0, "foe": "tangle", "cd": 1.5, "group": "bolt"},
 	"rock": {"name": "돌멩이 던지기", "job": "mage", "lv": 14, "mp": 3, "type": "attack",
-		"elem": "earth", "mult": 1.25, "range": 72.0, "grants": "firm", "cd": 1.5},
+		"elem": "earth", "mult": 1.25, "range": 72.0, "grants": "firm", "cd": 1.5, "group": "bolt"},
 	"breeze": {"name": "산들바람", "job": "mage", "lv": 16, "mp": 3, "type": "attack",
-		"elem": "wind", "mult": 1.25, "range": 72.0, "foe": "sway", "cd": 1.5},
+		"elem": "wind", "mult": 1.25, "range": 72.0, "foe": "sway", "cd": 1.5, "group": "bolt"},
 	"rainbow": {"name": "무지개 한 방", "job": "mage", "lv": 22, "mp": 14,
 		"type": "attack", "elem": "none", "mult": 2.6, "aoe": 64.0, "cd": 6.0},
 	# 궁수 - 멀리서 쏜다

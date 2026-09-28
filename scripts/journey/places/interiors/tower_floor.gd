@@ -79,26 +79,44 @@ func _shade_spots(n: int) -> Array:
 	return [Vector2i(13, 6), Vector2i(8, 8), Vector2i(18, 8)].slice(0, n)
 
 
-## 30층 위로는 몬스터가 층마다 더 세진다 (`Loop.floor_power`).
+## 30층 위로는 몬스터가 층마다 더 세지고, 경험은 줄여 준다 (`Loop.tower_foe`).
 func put_shade(t: Vector2i, kind: String, lv: int = 1, elite: bool = false) -> Shade:
 	var s := super(t, kind, lv, elite)
-	if s != null and Loop.floor_power(floor_no()) > 1.0:
-		Loop.power_up(s.foe, Loop.floor_power(floor_no()))
+	if s != null:
+		Loop.tower_foe(s.foe, floor_no())
 	return s
 
 
+## 이야기가 연 데까지 다 올랐나 (`Loop.tower_cap`).
+func at_cap() -> bool:
+	return floor_no() >= Loop.tower_cap()
+
+
 func door_locked(d: Dictionary) -> String:
-	if String(d.get("enter_key", "")) != "탑계단" or foes_left() <= 0:
+	if String(d.get("enter_key", "")) != "탑계단":
 		return ""
-	return "이 층 몬스터를 다 쓰러뜨려야 계단이 열려요 (%d마리 남음)." % foes_left()
+	if foes_left() > 0:
+		return "이 층 몬스터를 다 쓰러뜨려야 계단이 열려요 (%d마리 남음)." % foes_left()
+	if at_cap():
+		return Loop.tower_cap_note() + "."
+	return ""
 
 
 func open_goals() -> Array:
 	if foes_left() > 0:
 		return [{"label": "%d층 몬스터 쓰러뜨리기 (%d마리 남음)" % [floor_no(), foes_left()],
 			"kind": "shade", "key": "", "done": false}]
+	if at_cap():
+		return [{"label": "탑에서 나가기 - 다음 구역으로", "kind": "exit", "key": "",
+			"done": false}]
 	return [{"label": "%d층으로 올라가기" % (floor_no() + 1), "kind": "door",
 		"key": "탑계단", "done": false}]
+
+
+## **오를 때마다 새로 선다.** 마을처럼 "오늘 걷어낸 자리" 를 기억하면, 같은 날
+## 다시 들어왔을 때 이미 쓴 층이 빈 채로 열려 싸움 없이 축복만 받아 갔다.
+func remembers_clears() -> bool:
+	return false
 
 
 func display_name() -> String:
@@ -122,7 +140,7 @@ func on_built() -> void:
 func _process(delta: float) -> void:
 	super(delta)
 	if _stairs_fx != null:
-		_stairs_fx.modulate.a = 1.0 if foes_left() <= 0 else 0.3
+		_stairs_fx.modulate.a = 1.0 if foes_left() <= 0 and not at_cap() else 0.3
 
 
 func on_shade_down(sh: Shade) -> void:
@@ -139,10 +157,15 @@ func _check_done() -> void:
 	SaveManager.save_now()
 	if hud == null:
 		return
-	# 축복 셋 중 하나 - 이번에 오르는 동안 쌓인다 (`BlessPick`).
-	_offer_blessing(n)
+	# 축복 셋 중 하나 - 이번에 오르는 동안 쌓인다 (`BlessPick`). 막힌 층에선
+	# 더 오를 데가 없으니 고를 것도 없다.
+	if not at_cap():
+		_offer_blessing(n)
 	if r.is_empty():
-		hud._say_hint("계단이 열렸어요. 위로 올라가요.", false, 1.8)
+		if at_cap():
+			hud._say_hint(Loop.tower_cap_note(), true, 2.6)
+		else:
+			hud._say_hint("계단이 열렸어요. 위로 올라가요.", false, 1.8)
 		return
 	var bits: Array = ["꿈조각 +%d" % int(r["coins"])]
 	if int(r["stones"]) > 0:
@@ -151,7 +174,9 @@ func _check_done() -> void:
 		bits.append("%s %s" % [String(Gear.RARITY[int(r["item"]["rar"])]["name"]),
 			Gear.name_of(r["item"])])
 	hud._celebrate("%d층 돌파! 최고 기록" % n, " · ".join(bits))
-	if n % Loop.TOWER_BOSS_EVERY == 0:
+	if at_cap():
+		hud._say_hint(Loop.tower_cap_note(), true, 2.6)
+	elif n % Loop.TOWER_BOSS_EVERY == 0:
 		hud._say_hint("쉼터에 닿았어요. 다음엔 %d층부터 올라요." % (n + 1), true, 2.4)
 
 
