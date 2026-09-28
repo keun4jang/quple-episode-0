@@ -8051,6 +8051,17 @@ func _boss_map_tests() -> void:
 	Battle.level = Battle.boss_lv("윤슬") - MainQuest.LOW_GAP
 	ok(String(yp.current_goal().get("key", "")) == "우두머리길",
 		"우두머리에 도전할 만한 레벨이면 화살표가 붉은 틈부터 짚는다 (메인 퀘스트와 같은 말)")
+	# 자정 - 잘 곳이 생기되 우두머리 줄은 남는다 (0.1.188)
+	var min0 := JourneyState.minutes
+	JourneyState.minutes = JourneyState.DAY_END
+	var nk: Array = yp.open_goals().map(func(q): return String(q.get("kind", "")) + ":" + String(q.get("key", "")))
+	ok(nk.size() == 2 and String(nk[0]) == "door:우두머리길" and String(nk[1]).begins_with("sleep"),
+		"자정에도 우두머리 줄은 남고 레벨이 되면 앞, 잠자리가 뒤 %s" % str(nk))
+	Battle.level = 1
+	nk = yp.open_goals().map(func(q): return String(q.get("kind", "")) + ":" + String(q.get("key", "")))
+	ok(nk.size() == 2 and String(nk[0]).begins_with("sleep") and String(nk[1]) == "door:우두머리길",
+		"레벨이 모자라면 자정엔 잠자리가 앞 (자고 나면 몬스터가 다시 선다) %s" % str(nk))
+	JourneyState.minutes = min0
 	Battle.level = lv0
 	yp.queue_free()
 	await get_tree().process_frame
@@ -8227,6 +8238,10 @@ func _tower_tests() -> void:
 		if String(g["gate"]) == "tower":
 			tg = g
 	ok(not tg.is_empty() and int(tg["tower_floor"]) == 11, "푸른 틈은 11층으로 간다")
+	ok(yp._tower_row().is_empty(), "끝판 전에는 탑이 화살표 줄기가 아니다")
+	JourneyState.mark_quest("엔딩:대마왕")
+	ok(String(yp.current_goal().get("key", "")) == "꿈의탑",
+		"끝판 뒤에는 화살표가 푸른 틈(꿈의 탑)부터 짚는다 - 메인 퀘스트와 같은 말")
 	yp.queue_free()
 	await get_tree().process_frame
 	Loop.reset()

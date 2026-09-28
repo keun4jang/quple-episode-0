@@ -28,6 +28,7 @@ func _ready() -> void:
 	Loop.reset()
 	Battle.reset()
 	Field.reset()
+	await _prologue()
 	JourneyState.mark_quest("잿마루:정류장")
 	for i in Quests.ORDER.size():
 		var v := String(Quests.ORDER[i])
@@ -37,6 +38,7 @@ func _ready() -> void:
 		if i == 0:
 			await _tower_cap_check()
 	await _final()
+	await _after_ending()
 	print("\n==== 문제 %d개 ====" % issues.size())
 	for s in issues:
 		print("  - ", s)
@@ -51,6 +53,8 @@ func _bad(s: String) -> void:
 func _chapter(i: int, v: String) -> void:
 	Battle.level = Battle.boss_lv(v)
 	Battle.hp = Battle.hp_max()
+	# 시계는 아침에 맞춘다 - 자정은 아래에서 따로 본다.
+	JourneyState.minutes = JourneyState.DAY_START
 	var m := MainQuest.now()
 	print("\n[%d장 %s] 메인: %s / %s" % [i + 1, v, m["head"], m["goal"]])
 	if String(m.get("village", "")) != v:
@@ -97,6 +101,19 @@ func _chapter(i: int, v: String) -> void:
 	if String(cg.get("key", "")) != "우두머리길":
 		_bad("%s: LV %d (우두머리 LV %d) 인데 화살표가 붉은 틈이 아니라 %s 를 짚는다" % [
 			v, Battle.level, Battle.boss_lv(v), cg.get("label", "-")])
+	# 자정 - 하루는 실시간 6분이라 구역 도중에 자주 온다. 잘 곳과 우두머리가 둘 다 있어야.
+	JourneyState.minutes = JourneyState.DAY_END
+	var ng := p.current_goal()
+	var night_row := false
+	for q in p.open_goals():
+		if String(q.get("kind", "")) in ["sleep", "depart"]:
+			night_row = true
+	print("   자정 화살표: %s · 잘 곳 줄 %s" % [ng.get("label", "-"), night_row])
+	if String(ng.get("key", "")) != "우두머리길":
+		_bad("%s: 자정에 우두머리 레벨인데 화살표가 %s 를 짚는다" % [v, ng.get("label", "없음")])
+	if not night_row:
+		_bad("%s: 자정인데 잘 곳(잠자리·정류장) 줄이 없다" % v)
+	JourneyState.minutes = JourneyState.DAY_START
 	var exit_tile: Vector2i = Vector2i(gate["tile"]) if not gate.is_empty() else p.spawn_tile()
 	await _close(p)
 	# ── 우두머리의 길
@@ -216,6 +233,52 @@ func _final() -> void:
 	print("   타워 화살표: %s (%s)" % [cg.get("label", "-"), cg.get("kind", "-")])
 	if cg.is_empty() or p.goal_world(cg) == Vector2.INF:
 		_bad("잿마루 타워: 화살표가 아무것도 안 짚는다")
+	await _close(p)
+
+
+## 처음 켠 사람 - 꿈속 사무실. 화살표가 무언가를 짚고, 정류장까지 걸어갈 길이 있나.
+func _prologue() -> void:
+	var m := MainQuest.now()
+	print("\n[프롤로그] 메인: %s / %s" % [m["head"], m["goal"]])
+	if int(m["chapter"]) != 0:
+		_bad("새로 시작했는데 메인 퀘스트가 프롤로그가 아니다 (%d장)" % int(m["chapter"]))
+	JourneyState.here = "잿마루"
+	var p: Place = await _open(String(TravelBoard.PLACES[Quests.TOWER][0]))
+	var cg := p.current_goal()
+	var s := _secs(p, p.spawn_tile(), p.depart_tile())
+	print("   사무실: 몬스터 %d · 화살표 %s (%s) · 도착 ~ 정류장 %.1f초" % [p._shades.size(),
+		cg.get("label", "-"), cg.get("kind", "-"), s])
+	if not p._shades.is_empty():
+		_bad("프롤로그 사무실에 몬스터가 있다")
+	if cg.is_empty() or p.goal_world(cg) == Vector2.INF:
+		_bad("프롤로그: 화살표가 아무것도 안 짚는다")
+	if s < 0.0:
+		_bad("프롤로그: 정류장까지 걸어갈 길이 없다")
+	await _close(p)
+
+
+## 깨어난 뒤 "오늘도 출근한다" - 윤슬로 돌아와 끝판 뒤 놀이(꿈의 탑). 메인 퀘스트는
+## 탑을 말한다 - 화살표와 푸른 틈이 그리 이어지나.
+func _after_ending() -> void:
+	JourneyState.mark_quest("엔딩:대마왕")
+	JourneyState.mark_quest("엔딩:출근")
+	var m := MainQuest.now()
+	print("\n[끝판 뒤] 메인: %s / %s · 탑 열린 데 %d" % [m["head"], m["goal"], Loop.tower_cap()])
+	JourneyState.here = "윤슬"
+	JourneyState.minutes = JourneyState.DAY_START
+	var p: Place = await _open("res://scenes/journey/%s.tscn" % VILLAGE_SCENE["윤슬"])
+	var tgate := {}
+	for d in p._gates:
+		if String(d.get("gate", "")) == "tower":
+			tgate = d
+	var cg := p.current_goal()
+	print("   윤슬: 푸른 틈 %s · 화살표 %s (%s)" % [tgate.get("label", "없음"), cg.get("label", "-"), cg.get("kind", "-")])
+	if tgate.is_empty():
+		_bad("끝판 뒤 윤슬에 푸른 틈(탑)이 없다")
+	elif _secs(p, p.spawn_tile(), Vector2i(tgate["tile"])) < 0.0:
+		_bad("끝판 뒤: 푸른 틈까지 길이 없다")
+	if String(cg.get("key", "")) != "꿈의탑":
+		_bad("끝판 뒤 메인 퀘스트는 꿈의 탑인데 화살표는 %s 를 짚는다" % cg.get("label", "없음"))
 	await _close(p)
 
 

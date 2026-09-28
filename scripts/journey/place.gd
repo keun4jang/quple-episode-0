@@ -4487,21 +4487,41 @@ func open_goals() -> Array:
 	# 만해요" 인데 화살표는 여섯 일곱 개의 인사·심부름을 먼저 돌게 했다 - 이 게임의
 	# 줄기가 우두머리라는 걸 화살표가 거꾸로 말하고 있었다 (0.1.186 흐름 시뮬레이션).
 	var br := Quests.boss_row(place_name())
-	if not is_indoors() and not br.is_empty() and _goal_shown(br):
-		if Battle.level >= Battle.boss_lv(place_name()) - MainQuest.LOW_GAP:
-			out.push_front(br)
-		else:
-			out.append(br)
-	# **자정이 넘으면 남은 할 일이 뭐든 다음 길은 하나다** — 자야
-	# 아침이 온다. 이때 지도가 딴 걸(혹은 아무것도) 가리키면 안내
-	# 한 줄(1.6초)을 놓친 사람은 갈 곳을 모른다.
+	var boss_shown := not is_indoors() and not br.is_empty() and _goal_shown(br)
+	var boss_ready := boss_shown and \
+		Battle.level >= Battle.boss_lv(place_name()) - MainQuest.LOW_GAP
+	if boss_ready:
+		out.push_front(br)
+	elif boss_shown:
+		out.append(br)
+	# **끝판 뒤에는 꿈의 탑이 줄기다** - 메인 퀘스트가 "꿈의 탑 - 더 높이" 인데
+	# 화살표는 마을 인사를 짚고 있었다 (0.1.188 흐름 시뮬레이션). 푸른 틈을 맨 앞에.
+	var tr := _tower_row()
+	if not tr.is_empty():
+		out.push_front(tr)
+	# **자정이 넘으면 자야 아침이 온다** — 이때 지도가 딴 걸(혹은 아무것도)
+	# 가리키면 안내 한 줄(1.6초)을 놓친 사람은 갈 곳을 모른다.
+	#
+	# **그래도 줄기는 남긴다.** 하루는 실시간 6분인데 구역 하나는 4~8분이라,
+	# 우두머리를 향해 가던 사람도 자정이 되면 목록이 "하루 마치기" 하나로
+	# 바뀌고 우두머리 줄이 사라졌다 (0.1.188 흐름 시뮬레이션). 우두머리와 탑은
+	# 밤에도 싸울 수 있다. 레벨이 되면 그쪽이 앞, 모자라면 잠이 앞이다 -
+	# 자고 나면 몬스터가 다시 서서 레벨을 올릴 수 있다.
 	if JourneyState.day_is_over():
+		var night := {}
 		if _has_bed:
-			return [{"label": "하루 마치기", "kind": "sleep", "key": "",
-				"done": false}]
-		if _has_stop:
-			return [{"label": "다음 길로", "kind": "depart", "key": "",
-				"done": false}]
+			night = {"label": "하루 마치기", "kind": "sleep", "key": "", "done": false}
+		elif _has_stop:
+			night = {"label": "다음 길로", "kind": "depart", "key": "", "done": false}
+		if not night.is_empty():
+			var keep: Array = []
+			if not tr.is_empty():
+				keep.append(tr)
+			if boss_shown:
+				keep.append(br)
+			if boss_ready or not tr.is_empty():
+				return keep + [night]
+			return [night] + keep
 	if not out.is_empty():
 		return out
 	# 서브맵(가게 안·능 안쪽길·샛길)은 마을 할 일 목록에 없다. 그래도
@@ -4542,6 +4562,17 @@ func open_goals() -> Array:
 		out.append({"label": "다시 떠나기", "kind": "depart", "key": "",
 			"done": false})
 	return out
+
+
+## 끝판 뒤의 푸른 틈 줄 - 대마왕을 물리쳤고 여기 탑 틈이 있을 때만.
+func _tower_row() -> Dictionary:
+	if is_indoors() or not JourneyState.quest_done("엔딩:대마왕"):
+		return {}
+	for d in _gates:
+		if String(d.get("gate", "")) == "tower":
+			return {"label": "꿈의 탑 %d층으로 - 더 높이 (최고 %d층)" % [Loop.tower_start(),
+				Loop.tower_best], "kind": "door", "key": "꿈의탑", "done": false}
+	return {}
 
 
 ## 지금 가리키고 있는 할 일 하나. 고른 게 없으면 **남은 것 중 첫째**를
