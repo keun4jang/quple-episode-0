@@ -44,8 +44,10 @@ func _ready() -> void:
 
 func _run_job(j: String) -> Dictionary:
 	job = j
-	_rng.seed = 7
-	seed(7)
+	# SIM_SEED=n - 다른 운으로 한 판 (기본 7). 같은 시드면 늘 같은 숫자가 나온다.
+	var sd := int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 7
+	_rng.seed = sd
+	seed(sd)
 	JourneyState.reset()
 	Loop.reset()
 	Battle.reset()
