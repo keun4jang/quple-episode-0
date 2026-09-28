@@ -69,8 +69,15 @@ func doors() -> Array:
 	}]
 
 
+## 이번에 오르며 이미 쓴 층이면 비어 있다 - 껐다 켜서 같은 층으로 이어할 때 (`Loop.climb_cleared`).
 func shades() -> Array:
+	if Loop.climb_cleared.has(floor_no()):
+		return []
 	return Loop.floor_spawns(floor_no())
+
+
+func keeps_blessings() -> bool:
+	return true
 
 
 func _shade_spots(n: int) -> Array:
@@ -153,13 +160,17 @@ func _check_done() -> void:
 		return
 	_done = true
 	var n := floor_no()
+	# 이번에 오르며 처음 쓴 층이어야 축복을 내민다 (이어하기로 되살아난 층은 아니다).
+	var fresh := not Loop.climb_cleared.has(n)
+	if fresh:
+		Loop.climb_cleared.append(n)
 	var r := Loop.clear_floor(n)
 	SaveManager.save_now()
 	if hud == null:
 		return
 	# 축복 셋 중 하나 - 이번에 오르는 동안 쌓인다 (`BlessPick`). 막힌 층에선
 	# 더 오를 데가 없으니 고를 것도 없다.
-	if not at_cap():
+	if not at_cap() and fresh:
 		_offer_blessing(n)
 	if r.is_empty():
 		if at_cap():

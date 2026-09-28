@@ -317,10 +317,19 @@ static func tower_cap() -> int:
 
 
 ## 막힌 층 계단에 적을 말 - 어느 우두머리를 잡으면 더 열리나.
+##
+## **막힌 층을 실제로 올려 주는 우두머리**를 댄다. 바로 다음 우두머리가 아닐 수 있다 -
+## `TOWER_CAP` 에 같은 값이 이어진 칸(20·20, 40·40)이 있어서, 그걸 잡아도 안 열리는데
+## "하늬섬 우두머리 처치 뒤에 열려요" 라고 했었다 (0.1.191 점검).
 static func tower_cap_note() -> String:
+	var now := tower_cap()
+	var n := bosses_down()
 	for v in Quests.ORDER:
 		var b := Battle.boss_of(String(v))
-		if b != "" and not Battle.boss_down(String(v)):
+		if b == "" or Battle.boss_down(String(v)):
+			continue
+		n += 1
+		if int(TOWER_CAP[clampi(n, 0, TOWER_CAP.size() - 1)]) > now:
 			return "더 위층은 %s 우두머리 %s 처치 뒤에 열려요" % [String(v),
 				String(Battle.ENEMIES[b]["name"])]
 	return "더 위층은 야근 대마왕 처치 뒤에 열려요"
@@ -414,6 +423,16 @@ const BLESS_GUARD_CAP := 0.6
 ## (0.1.184 시뮬레이션). 다 찬 축복은 더 내밀지 않는다.
 const BLESS_MAX := 3
 static var blessings: Array = []
+## 이번에 오르는 동안 쓴 층들. 탑은 오를 때마다 새로 서지만(`TowerFloor`), 앱을
+## 껐다 켜 **같은 층으로 이어하면** 몬스터가 다시 서고 축복을 또 내밀었다 - 껐다
+## 켜기만으로 축복을 다 채울 수 있었다 (0.1.191 점검). 마을에서 새로 들어오면 비운다.
+static var climb_cleared: Array = []
+
+
+## 새로 오르기 시작한다 - 마을의 푸른 틈으로 들어올 때.
+static func start_climb() -> void:
+	blessings.clear()
+	climb_cleared.clear()
 
 
 ## 고른 축복이 주는 그 값의 합.
@@ -480,6 +499,7 @@ static func reset() -> void:
 	tower_best = 0
 	tower_now = 1
 	blessings = []
+	climb_cleared = []
 	fever = 0.0
 	fever_t = 0.0
 
@@ -489,7 +509,7 @@ static func to_dict() -> Dictionary:
 		"daily": daily.duplicate(true), "attend": attend.duplicate(),
 		"last_seen": int(Time.get_unix_time_from_system()), "best_combo": best_combo,
 		"tower_best": tower_best, "tower_now": tower_now, "blessings": blessings.duplicate(),
-		"fever": fever}
+		"climb_cleared": climb_cleared.duplicate(), "fever": fever}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -509,4 +529,6 @@ static func from_dict(d: Dictionary) -> void:
 	tower_now = maxi(1, int(d.get("tower_now", 1)))
 	if d.get("blessings") is Array:
 		blessings = d["blessings"].duplicate()
+	if d.get("climb_cleared") is Array:
+		climb_cleared = d["climb_cleared"].duplicate()
 	fever = clampf(float(d.get("fever", 0.0)), 0.0, FEVER_MAX - 1.0)

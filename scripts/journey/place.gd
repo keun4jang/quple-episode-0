@@ -251,6 +251,11 @@ func on_built() -> void:
 
 func _ready() -> void:
 	y_sort_enabled = true
+	# **탑의 축복은 탑 안에서만.** 나가도 남아 있어서, 열린 끝에서 "탑에서 나가기 -
+	# 다음 구역으로" 를 따라가면 +60퍼센트 힘·-45퍼센트 피해를 그대로 들고 다음 구역
+	# 우두머리를 쳤다 (0.1.191 점검). 탑 밖 어디든 들어서면 비운다.
+	if not keeps_blessings() and not Loop.blessings.is_empty():
+		Loop.blessings.clear()
 	JourneyState.arrive()
 	_read_map()
 	_build_ground()
@@ -281,6 +286,11 @@ func _ready() -> void:
 	hud.announce_place(display_name())
 	_refresh_title()
 	_welcome()
+	# **엔딩을 못 고르고 떠났으면 다시 띄운다.** 대마왕을 쓰러뜨리고 1.6초 안에 방을
+	# 나가면 깨어나는 장면이 통째로 날아갔는데, "엔딩:대마왕" 은 이미 적혀 있어서
+	# 다시는 안 떴다 (0.1.191 점검). 사직·출근 중 하나를 고를 때까지 어디서든 이어진다.
+	if ending_pending():
+		_wake_up()
 	_shop_notice()
 	if place_name() == "고향":
 		JourneyState.came_home()
@@ -1323,12 +1333,20 @@ func combat_paused() -> bool:
 		return true
 	if minimap != null and minimap.is_big():
 		return true
+	# 화면을 덮는 판(엔딩 선택·승리 판·축복 고르기·가게 선반) 뒤에서는 안 싸운다.
+	if get_tree().get_first_node_in_group("overlay") != null:
+		return true
 	var sv := get_tree().get_first_node_in_group("settings_ui")
 	return sv != null and sv.visible
 
 
 ## 몬스터가 서는 곳인가. 실내(가게·등대)는 쉬는 자리라 거짓이다 -
 ## 우두머리의 길·방과 꿈의 탑은 실내 씬이지만 스스로 참을 돌려준다.
+## 탑의 축복을 들고 있어도 되는 곳인가 - 꿈의 탑 층만 (`TowerFloor`).
+func keeps_blessings() -> bool:
+	return false
+
+
 ## 여기서 시계가 흐르나. 꿈의 틈 너머(`DreamRoom` - 우두머리의 길·방, 꿈의 탑)는
 ## 멈춘다: 거긴 늘 같은 빛인데, 흐르게 두면 마지막 장처럼 밤 11시에 들어온 사람에게
 ## 대마왕과 싸우는 도중 "오늘은 여기까지예요. 정류장에서 떠나면…" 이 떴다 (0.1.189).
@@ -1791,12 +1809,21 @@ func _boss_story(kind: String) -> void:
 		got.append("꿈의 문이 열렸어요 - 다음 구역으로 갈 수 있어요")
 		if v == "윤슬":
 			got.append("꿈의 탑이 열렸어요 - 마을마다 푸른 틈")
-		# 마지막 우두머리 뒤에는 승리 판 대신 깨어남(엔딩)이 온다 - 아래.
+		# 마지막 우두머리 뒤에는 승리 판 대신 깨어남(엔딩)이 온다 - 아래. 받은 것은
+		# 한 줄로라도 알린다 (말없이 가방에만 들어가 있었다 - 0.1.191 점검).
 		if kind != "night":
 			_show_boss_clear(v, kind, got)
+		elif hud != null:
+			hud._celebrate("야근 대마왕을 쓰러뜨렸어요!", String(got[0]))
 	if kind == "night" and not JourneyState.quest_done("엔딩:대마왕"):
 		JourneyState.mark_quest("엔딩:대마왕")
 		SaveManager.save_now()
+		# 대마왕이 흩어지면 곁의 졸개(추가 업무)도 같이 흩어진다 - 남아 있으면 깨어나는
+		# 대사와 선택 판 뒤에서 계속 때렸다 (0.1.191 점검).
+		for sh in _shades.duplicate():
+			if is_instance_valid(sh) and sh.state != "gone":
+				_shades.erase(sh)
+				sh.dissolve()
 		_wake_up()
 
 
@@ -1828,6 +1855,12 @@ func _show_boss_clear(v: String, kind: String, got: Array) -> void:
 		if go and next_path != "" and board != null:
 			board.travel_to(next_path, v, false))
 	add_child(bc)
+
+
+## 대마왕은 쓰러뜨렸는데 사직·출근을 아직 안 골랐다.
+static func ending_pending() -> bool:
+	return JourneyState.quest_done("엔딩:대마왕") and not JourneyState.quest_done("엔딩:사직") \
+		and not JourneyState.quest_done("엔딩:출근")
 
 
 ## 깨어난다. 몇 마디 뒤에 선택 판(`EndingChoice`).
@@ -3582,7 +3615,7 @@ func _do_enter(d) -> void:
 	if d.has("tower_floor"):
 		Loop.tower_now = int(d["tower_floor"])
 		if String(d.get("enter_key", "")) == "꿈의탑":
-			Loop.blessings.clear()
+			Loop.start_climb()
 	var scene := String(d.get("scene", ""))
 	if scene == "":
 		# 실내 문의 "나가는 곳"은 `JourneyState.exit_scene` 을 그대로

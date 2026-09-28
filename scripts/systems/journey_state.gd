@@ -927,6 +927,10 @@ func from_dict(d: Dictionary) -> void:
 	var bv := int((d["battle"] as Dictionary).get("v", 1)) if d.get("battle") is Dictionary else 1
 	if bv < 3:
 		_migrate_kinds()
+	# 0.1.189 전에는 대마왕이 타워 한 장에 서 있어서 쓰러뜨려도 "보스:잿마루" 를 안
+	# 남겼다. 그 세이브는 엔딩을 보고도 대마왕 줄이 "안 한 일" 로 되살아났다 - 채워 준다.
+	if quest_done("엔딩:대마왕") and not quest_done("보스:잿마루"):
+		mark_quest("보스:잿마루")
 	# **장비를 먼저** 읽는다 - 체력 최대가 장비에 달려 있어서, 레벨·체력을
 	# 먼저 읽으면 입은 옷만큼의 체력이 잘려 나간다.
 	if d.get("loop") is Dictionary:

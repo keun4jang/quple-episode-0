@@ -394,6 +394,8 @@ func _start_new(skip_prologue: bool) -> void:
 	# 새로 시작하면 쿼카컴퍼니(프롤로그)부터. 건너뛰면 첫 여행지로 간다.
 	JourneyState.reset()
 	if skip_prologue:
+		# 건너뛰었어도 프롤로그는 지난 것으로 친다 (`MainQuest.now`).
+		JourneyState.mark_quest("잿마루:정류장")
 		SaveManager.autosave("res://scenes/journey/Yunseul.tscn")
 		SceneTransition.go_to("res://scenes/journey/Yunseul.tscn", "hopeful")
 		return

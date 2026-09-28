@@ -126,6 +126,8 @@ func _tick_phase2() -> void:
 		var sh := put_shade(PHASE2_SPOTS[i], String(adds[i][0]), int(adds[i][1]))
 		if sh != null:
 			FieldFx.burst(self, sh.global_position + Vector2(0, -10), "gone", true)
+			# 부른 졸개는 곧장 싸움에 낀다 - 서 있기만 하면 2단계가 겉모습뿐이다.
+			sh.join_fight()
 	FieldFx.shake(cam, 7.0, 0.5)
 	if hud != null:
 		hud._celebrate(String(p2["head"]), String(p2["sub"]))

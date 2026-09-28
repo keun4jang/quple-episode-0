@@ -33,7 +33,11 @@ static func now() -> Dictionary:
 	if JourneyState.quest_done("엔딩:대마왕"):
 		return {"chapter": TOTAL + 1, "head": "꿈에서 깼어요",
 			"goal": "꿈의 탑 최고 %d층 - 더 높이" % Loop.tower_best, "village": ""}
-	if not JourneyState.quest_done("잿마루:정류장"):
+	# 프롤로그를 건너뛴 사람은 "잿마루:정류장" 이 없다 - 이미 떠난 여행(가 본 마을·
+	# 쓰러뜨린 우두머리)이 있으면 프롤로그는 지난 것이다. 안 그러면 한 판 내내
+	# 왼쪽 칸이 "프롤로그" 로 멈춰 있었다 (0.1.191 점검).
+	if not JourneyState.quest_done("잿마루:정류장") and JourneyState.places_visited() == 0 \
+			and not Battle.boss_down(String(Quests.ORDER[0])):
 		return {"chapter": 0, "head": "프롤로그",
 			"goal": "꿈속 사무실을 나가 정류장에서 첫 구역으로", "village": "잿마루"}
 	for i in Quests.ORDER.size():

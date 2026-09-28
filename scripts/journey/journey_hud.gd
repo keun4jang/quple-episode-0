@@ -1399,7 +1399,7 @@ func _fill_stats() -> void:
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 8)
 	var what := {"str": "근접 공격 · 체력", "dex": "원거리 · 치명타",
-		"int": "마법 · 마음력", "luk": "치명타 피해 · 드랍"}
+		"int": "마법 · 마음력", "luk": "치명타 피해 · %d까지" % int(round(Battle.CRIT_LUK_CAP / Battle.CRIT_LUK))}
 	var main := String(Battle.JOBS[Battle.job]["main"])
 	for st in Battle.STAT_ORDER:
 		var l := _bag_line("%s %d  (%s)%s" % [String(Battle.STAT_NAME[st]), Battle.stat(st),
@@ -1442,8 +1442,8 @@ func _fill_stats() -> void:
 
 ## 스킬 - 배운 것과 배울 것, 스킬 점수로 레벨 올리기.
 func _fill_skills() -> void:
-	_bag_grid.add_child(_bag_line("남은 스킬 점수 %d   ·   스킬 레벨 한 칸마다 10퍼센트 세진다"
-		% Battle.sp, 21, Color("#FFE39A") if Battle.sp > 0 else Color("#A79A8A")))
+	_bag_grid.add_child(_bag_line("남은 스킬 점수 %d   ·   스킬 레벨 한 칸마다 %d퍼센트 세진다"
+		% [Battle.sp, int(round(Battle.SKILL_GROW * 100.0))], 21, Color("#FFE39A") if Battle.sp > 0 else Color("#A79A8A")))
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 12)
@@ -1784,7 +1784,9 @@ func _fill_quests() -> void:
 	if not br.is_empty():
 		var bdone := bool(br["done"])
 		var bp := _place()
-		_bag_grid.add_child(_bag_line("우두머리  ·  붉은 틈 너머 · 잡으면 다음 구역이 열려요", 22,
+		# 마지막 우두머리(잿마루)는 다음 구역이 아니라 깨어남이다.
+		var after := "잡으면 꿈에서 깨어나요" if village == "잿마루" else "잡으면 다음 구역이 열려요"
+		_bag_grid.add_child(_bag_line("우두머리  ·  붉은 틈 너머 · " + after, 22,
 			Color("#FF8A8A")))
 		var btext := String(br["label"]) + ("  (다 했어요)" if bdone else "")
 		if not bdone and bp != null and bp.goal_world(br) != Vector2.INF:
@@ -1800,7 +1802,9 @@ func _fill_quests() -> void:
 		_bag_grid.add_child(_bag_line("꿈의 탑  ·  최고 %d층  ·  다음엔 %d층부터%s" % [Loop.tower_best,
 			Loop.tower_start(), cap_txt], 22, Color("#8FD0FF")))
 	var list := Quests.quest_list(village)
-	if list.is_empty():
+	if list.is_empty() and not br.is_empty():
+		pass            # 우두머리 줄이 할 일이다 (마지막 장 타워)
+	elif list.is_empty():
 		_empty("여기서는 딱히 할 일이 없어요")
 	else:
 		# **"해야 하는 이유를 모르겠다"는 말을 들었다.** 목록만 있고

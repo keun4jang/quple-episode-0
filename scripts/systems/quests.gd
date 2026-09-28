@@ -787,6 +787,11 @@ static func quest_list(village: String) -> Array:
 	# 이 목록은 "해도 되는 것"을 적어 둔 것뿐이다.
 	if village == "잿마루":
 		# 끝판(타워)의 대마왕 줄은 다른 구역처럼 `boss_row` 가 따로 세운다 (0.1.189).
+		# **타워가 되면 사무실 할 일은 없다.** 프롤로그를 건너뛰었거나 남겨 둔 사람은
+		# LV 48 전까지 화살표가 대마왕 대신 "옆자리 동료에게 인사하기"·"정류장에서 첫
+		# 구역 고르기" 를 짚었다 (0.1.191 점검).
+		if is_unlocked(TOWER):
+			return []
 		return [
 			{"label": "옆자리 동료에게 인사하기", "kind": "talk", "key": "coworker",
 				"done": JourneyState.heart("coworker") >= 1},

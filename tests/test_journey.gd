@@ -108,7 +108,7 @@ func _ready() -> void:
 	await _story_tests()
 	await _boss_map_tests()
 	await _tower_tests()
-	_crit_tests()
+	await _crit_tests()
 	await _buddy_tests()
 	await _sky_tests()
 	await _hud_help_tests()
@@ -8177,6 +8177,61 @@ func _crit_tests() -> void:
 		"늘 치명타인 급소 찌르기 한 방이 공격력 5배를 안 넘는다")
 	Battle.job = job0
 	Battle.stats = st0
+	await _audit_191_tests()
+
+
+## 0.1.191 코드 점검에서 나온 것들.
+func _audit_191_tests() -> void:
+	print("\n[0.1.191 점검]")
+	_clean_state()
+	Loop.reset()
+	# 막힌 층 안내는 실제로 층을 올려 주는 우두머리를 댄다 (20·20, 40·40 칸)
+	for v in ["윤슬", "볕뉘", "가풀재"]:
+		JourneyState.mark_quest("보스:" + v)
+	ok(Loop.tower_cap() == 20 and Loop.tower_cap_note().contains("굽이나루"),
+		"우두머리 셋 뒤 막힌 20층 - 하늬섬(잡아도 20층)이 아니라 굽이나루를 댄다: %s" % Loop.tower_cap_note())
+	# 탑의 축복은 탑 밖에 들어서면 비워진다
+	Loop.add_blessing("might")
+	JourneyState.here = "윤슬"
+	var yp: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yp)
+	await get_tree().process_frame
+	ok(Loop.blessings.is_empty() and Loop.bless("atk") == 0.0, "탑을 나와 마을에 들어서면 축복이 사라진다")
+	yp.queue_free()
+	await get_tree().process_frame
+	# 0.1.189 전에 엔딩을 본 세이브 - "보스:잿마루" 를 채운다
+	_clean_state()
+	for v in Quests.ORDER:
+		JourneyState.mark_quest("보스:" + String(v))
+	JourneyState.mark_quest("엔딩:대마왕")
+	JourneyState.mark_quest("엔딩:출근")
+	var sd := JourneyState.to_dict()
+	var qf: Dictionary = sd["quest_flags"]
+	qf.erase("보스:잿마루")
+	JourneyState.from_dict(sd)
+	ok(Battle.boss_down("잿마루") and bool(Quests.boss_row("잿마루")["done"]),
+		"옛 세이브도 엔딩을 봤으면 대마왕 줄이 끝난 것으로 읽힌다")
+	# 타워가 되면 사무실 할 일은 없다
+	ok(Quests.quest_list("잿마루").is_empty(), "마지막 장 타워에는 프롤로그 할 일이 안 뜬다")
+	# 엔딩 선택 판은 뒤로가기로 안 닫힌다
+	var ec := EndingChoice.new()
+	add_child(ec)
+	await get_tree().process_frame
+	ec.close()
+	await get_tree().process_frame
+	ok(is_instance_valid(ec) and ec.is_inside_tree(), "엔딩 선택 판은 뒤로가기·Esc 로 안 닫힌다 (골라야 한다)")
+	ec.queue_free()
+	await get_tree().process_frame
+	ok(not Place.ending_pending(), "엔딩을 골랐으면 다시 띄울 것이 없다")
+	_clean_state()
+	JourneyState.mark_quest("엔딩:대마왕")
+	ok(Place.ending_pending(), "대마왕만 쓰러뜨리고 못 골랐으면 다음에 들어서는 곳에서 다시 띄운다")
+	_clean_state()
+	# 프롤로그를 건너뛰어도 메인 퀘스트가 프롤로그에 멈추지 않는다
+	JourneyState.visited["윤슬"] = true
+	ok(int(MainQuest.now()["chapter"]) == 1, "프롤로그를 건너뛰고 윤슬에 왔으면 메인 퀘스트는 1장")
+	_clean_state()
+	Loop.reset()
 
 
 func _tower_tests() -> void:
@@ -8236,12 +8291,22 @@ func _tower_tests() -> void:
 		"볕뉘 보스를 잡으면 15층까지 열려 계단이 열린다")
 	t.queue_free()
 	await get_tree().process_frame
-	# 탑은 오를 때마다 새로 선다 - 같은 날 다시 와도 빈 층이 아니다.
+	# 껐다 켜서 같은 층으로 이어하면 - 이번에 오르며 쓴 층이라 빈 채로 열리고 축복도 없다.
+	var t1: Place = load("res://scenes/journey/interiors/TowerFloor.tscn").instantiate()
+	add_child(t1)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(t1._shades.is_empty() and t1.get_node_or_null("BlessPick") == null,
+		"이어하기로 같은 층에 돌아오면 빈 층 - 축복을 또 받아 가지 못한다 (%d)" % t1._shades.size())
+	t1.queue_free()
+	await get_tree().process_frame
+	# 마을에서 새로 오르기 시작하면(`Loop.start_climb`) 같은 날이어도 몬스터가 다시 선다.
+	Loop.start_climb()
 	var t2: Place = load("res://scenes/journey/interiors/TowerFloor.tscn").instantiate()
 	add_child(t2)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	ok(t2._shades.size() == 3, "같은 날 같은 층을 다시 오르면 몬스터가 다시 선다 (%d)" % t2._shades.size())
+	ok(t2._shades.size() == 3, "새로 오르면 같은 날 같은 층에도 몬스터가 다시 선다 (%d)" % t2._shades.size())
 	var tf := Field.new_foe("dokkaebi", 12)
 	var xp0 := int(tf["xp"])
 	Loop.tower_foe(tf, 10)

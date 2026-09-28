@@ -200,10 +200,16 @@ func _tower_cap_check() -> void:
 	await _close(t)
 	if Loop.tower_start() > cap:
 		_bad("탑: 열린 끝(%d)을 넘은 층(%d)부터 시작한다" % [cap, Loop.tower_start()])
-	# 같은 날 다시 - 층이 다시 차 있어야 한다.
+	# 껐다 켜서 같은 층으로 이어하면 - 이번에 오르며 쓴 층이라 비어 있어야 한다 (축복을 또 못 받게).
+	var t1: Place = await _open(Place.TOWER_SCENE)
+	if t1.foes_left() != 0:
+		_bad("탑 %d층: 이어하기로 돌아왔는데 몬스터가 다시 섰다 (%d) - 껐다 켜서 축복을 또 받는다" % [cap, t1.foes_left()])
+	await _close(t1)
+	# 마을에서 새로 오르면 같은 날이어도 층이 다시 차 있어야 한다.
+	Loop.start_climb()
 	var t2: Place = await _open(Place.TOWER_SCENE)
 	if t2.foes_left() != n0:
-		_bad("탑 %d층: 같은 날 다시 오르니 몬스터가 %d/%d - 빈 층에서 축복만 받아 간다" % [cap, t2.foes_left(), n0])
+		_bad("탑 %d층: 새로 오르는데 몬스터가 %d/%d - 빈 층에서 축복만 받아 간다" % [cap, t2.foes_left(), n0])
 	await _close(t2)
 	Loop.tower_now = 1
 

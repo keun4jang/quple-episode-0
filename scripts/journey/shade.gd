@@ -220,6 +220,17 @@ func calm() -> void:
 		_give_up()
 
 
+## 이미 붙은 싸움에 끼어든다 - 우두머리가 부른 졸개 (`BossLair.PHASE2`). 싸움은
+## 사람이 이미 걸었으니 "먼저 덤비지 않는다" 는 약속을 깨지 않는다. 첫 덤빔까지 틈을 준다.
+func join_fight() -> void:
+	if state == "gone":
+		return
+	state = "chase"
+	speed = CHASE
+	_t = 1.2
+	_bar.visible = true
+
+
 func is_fighting() -> bool:
 	return state == "chase" or state == "windup" or state == "flee"
 

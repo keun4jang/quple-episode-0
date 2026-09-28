@@ -59,3 +59,9 @@ func _ready() -> void:
 	sub.add_theme_font_size_override("font_size", 20)
 	sub.add_theme_color_override("font_color", Color("#A79A8A"))
 	box.add_child(sub)
+
+
+## 뒤로가기·Esc 로는 안 닫힌다 - 닫히면 고를 길이 사라져 엔딩이 영영 안 끝났다
+## (`BackHandler` 는 `close()` 가 있으면 그것만 부른다). 둘 중 하나를 골라야 한다.
+func close() -> void:
+	pass
