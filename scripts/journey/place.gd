@@ -1476,6 +1476,7 @@ func field_use(id: String) -> bool:
 	var evs := Field.use(id)
 	if evs.is_empty():
 		return false
+	_count_skill_use(id, attack)
 	stop_walk_to()
 	_did("fight")
 	_fight_t = 2.5
@@ -1532,6 +1533,73 @@ func field_use(id: String) -> bool:
 				hits.append(sh)
 	for sh in hits:
 		_hit_shade(sh, id)
+	return true
+
+
+# ── 스킬 쓰기 안내 (0.1.195) ─────────────────────────────────────────
+#
+# 공격 버튼만 누르는 봇(`SIM_TAPONLY`)은 우두머리전이 최대 2분, 한 판이 30~50퍼센트
+# 길어졌다. 스킬 칸은 붙었을 때만 떠서 모르고 지나치기 쉽다. **쓸 수 있는 공격 스킬이
+# 있는데 공격만 스무 번 넘게 누르면** 그 스킬 칸을 부풀리며 한 줄 알린다. 스킬을
+# 몇 번 써 본 사람에게는 더 안 뜨고, 모르는 사람에게도 세 번까지만.
+const SKILL_HINT_TAPS := 20
+const SKILL_HINT_MAX := 3
+const SKILL_LEARNED := 5
+var _taps_since_skill := 0
+
+
+func _count_skill_use(id: String, attack: bool) -> void:
+	if id == "tap":
+		_taps_since_skill += 1
+		_maybe_skill_hint()
+		return
+	_taps_since_skill = 0
+	if not attack:
+		return
+	if JourneyState.quest_done("스킬안내:익힘"):
+		return
+	for i in SKILL_LEARNED:
+		if not JourneyState.quest_done("스킬안내:씀%d" % i):
+			JourneyState.mark_quest("스킬안내:씀%d" % i)
+			if i == SKILL_LEARNED - 1:
+				JourneyState.mark_quest("스킬안내:익힘")
+			return
+
+
+## 알릴 것이 있으면 알리고 참 (테스트가 바로 부른다).
+func _maybe_skill_hint() -> bool:
+	if _taps_since_skill < SKILL_HINT_TAPS or hud == null \
+			or JourneyState.quest_done("스킬안내:익힘"):
+		return false
+	var shown := 0
+	for i in SKILL_HINT_MAX:
+		if JourneyState.quest_done("스킬안내:%d" % i):
+			shown += 1
+	if shown >= SKILL_HINT_MAX:
+		return false
+	# 지금 바로 쓸 수 있는 공격 스킬 중 가장 센 것.
+	var best := ""
+	var best_v := 0.0
+	for sid in Battle.slot_skills():
+		var sk: Dictionary = Battle.SKILLS[sid]
+		if String(sk["type"]) != "attack" or Field.why_not(sid) != "":
+			continue
+		var v := float(sk["mult"]) * float(sk.get("hits", 1))
+		if v > best_v:
+			best_v = v
+			best = sid
+	if best == "":
+		return false
+	_taps_since_skill = 0
+	JourneyState.mark_quest("스킬안내:%d" % shown)
+	var slot := -1
+	if hud.fight != null:
+		slot = hud.fight.pulse_skill(best)
+	var key := ""
+	if slot >= 0 and OS.has_feature("pc") and not OS.has_feature("mobile"):
+		key = " (숫자 %d 키)" % (slot + 1)
+	hud._say_hint("스킬도 눌러 보세요 - %s%s, 공격보다 훨씬 세요" % [
+		String(Battle.SKILLS[best]["name"]), key], false, 2.6)
 	return true
 
 

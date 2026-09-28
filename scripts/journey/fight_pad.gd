@@ -313,6 +313,21 @@ func _place() -> Node:
 
 ## 누른다. 부르는 곳은 셋 - 버튼, 걷는 손가락과 따로 누른 손가락
 ## (`try_touch`), 키보드.
+## 스킬 칸 하나를 몇 번 부풀려 눈에 띄게 한다 (`Place._maybe_skill_hint`).
+## 몇 번째 칸인지 돌려준다 - PC 에선 그 숫자 키를 같이 알린다 (없으면 -1).
+func pulse_skill(id: String) -> int:
+	var i := _slot_ids.find(id)
+	if i < 0 or not _skills.has(id) or not is_instance_valid(_skills[id]):
+		return -1
+	var b: Control = _skills[id]
+	b.pivot_offset = b.size * 0.5
+	var tw := create_tween()
+	for n in 4:
+		tw.tween_property(b, "scale", Vector2(1.22, 1.22), 0.22).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(b, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_SINE)
+	return i
+
+
 func press(id: String) -> bool:
 	var p := _place()
 	if p == null or not p.has_method("field_use"):

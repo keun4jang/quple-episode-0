@@ -8266,6 +8266,27 @@ func _audit_191_tests() -> void:
 	await get_tree().process_frame
 	Gear.coins = 0
 	_clean_state()
+	# 스킬 쓰기 안내 (0.1.195) - 공격만 스무 번 넘게 누르면, 세 번까지, 스킬을 익히면 끝
+	JourneyState.here = "볕뉘"
+	Battle.level = 12
+	Battle.set_job("warrior")
+	Battle.mp = Battle.mp_max()
+	var sp2: Place = load(GOAL_SCENES["볕뉘"]).instantiate()
+	add_child(sp2)
+	await get_tree().process_frame
+	sp2._taps_since_skill = Place.SKILL_HINT_TAPS - 1
+	ok(not sp2._maybe_skill_hint(), "공격을 몇 번 누른 것만으로는 스킬 안내가 안 뜬다")
+	sp2._taps_since_skill = Place.SKILL_HINT_TAPS
+	ok(sp2._maybe_skill_hint() and JourneyState.quest_done("스킬안내:0"),
+		"쓸 수 있는 스킬이 있는데 공격만 스무 번이면 스킬을 알린다")
+	for i in Place.SKILL_LEARNED:
+		sp2._count_skill_use("power", true)
+	sp2._taps_since_skill = Place.SKILL_HINT_TAPS
+	ok(JourneyState.quest_done("스킬안내:익힘") and not sp2._maybe_skill_hint(),
+		"스킬을 몇 번 써 본 사람에게는 더 안 뜬다")
+	sp2.queue_free()
+	await get_tree().process_frame
+	_clean_state()
 	# 프롤로그를 건너뛰어도 메인 퀘스트가 프롤로그에 멈추지 않는다
 	JourneyState.visited["윤슬"] = true
 	ok(int(MainQuest.now()["chapter"]) == 1, "프롤로그를 건너뛰고 윤슬에 왔으면 메인 퀘스트는 1장")
