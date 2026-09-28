@@ -32,6 +32,15 @@ func _ready() -> void:
 		await _probe("res://scenes/journey/interiors/BossLair.tscn", v + " 방")
 	Loop.tower_now = 5
 	await _probe("res://scenes/journey/interiors/TowerFloor.tscn", "탑 5층")
+	# 마지막 장 (0.1.189) - 타워 → 야근 계단길 → 대마왕의 방
+	for v in VILLAGES:
+		JourneyState.mark_quest("보스:" + String(v))
+	JourneyState.here = "잿마루"
+	await _probe("res://scenes/journey/Jaenmaru.tscn", "잿마루 타워")
+	JourneyState.exit_scene = "res://scenes/journey/Jaenmaru.tscn"
+	JourneyState.exit_tile = Vector2i(10, 10)
+	await _probe("res://scenes/journey/interiors/BossRoad.tscn", "타워 길")
+	await _probe("res://scenes/journey/interiors/BossLair.tscn", "타워 방")
 	print("\n==== 문제 %d개 ====" % issues.size())
 	for i in issues:
 		print("  - ", i)
