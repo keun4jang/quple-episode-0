@@ -190,7 +190,9 @@ func _zone_end(z: Dictionary, boss: String) -> void:
 	var probe := Field.new_foe(String(Battle.SPAWNS.get(z["v"], [["drop", Battle.level]])[0][0]), Battle.level)
 	line["hits_to_fall"] = float(Battle.hp_max()) / maxf(1.0, float(Field._one_hit(probe, 1.0)))
 	report.append(line)
-	print("   같은 레벨 몬스터에게 %.1f대 맞으면 쓰러진다 · 꿈조각 %d" % [line["hits_to_fall"], Gear.coins])
+	print("   같은 레벨 몬스터에게 %.1f대 맞으면 쓰러진다 · 꿈조각 %d · 공격력 %d · 주 능력치 %d · 치명타 %d퍼센트 x%.2f" % [
+		line["hits_to_fall"], Gear.coins, Battle.attack_power(), Battle.main_stat(),
+		int(Battle.crit_rate() * 100.0), Battle.crit_mult()])
 	print("%-8s LV %2d~%2d (보스 LV%2d vs 나 %2d) %5.1f분 쉼%4.1f · 한마리 %4.1f초 · 보스 %4.0f초(최저 %2d%%) · 쓰러짐 %d(보스 %d) · 먹음 %d · 최저체력 %2d%% · 꿈조각 +%d 강화석 %d · %s" % [
 		z["v"], z["lv0"], Battle.level, _boss_lv_of(String(z["v"])), z["boss_lv"], line["minutes"], line["rest_min"],
 		avg, z["boss_secs"], int(float(z["boss_low"]) * 100.0), z["deaths"], z["boss_deaths"], line["eaten"], int(float(z["hp_low"]) * 100.0),

@@ -108,6 +108,7 @@ func _ready() -> void:
 	await _story_tests()
 	await _boss_map_tests()
 	await _tower_tests()
+	_crit_tests()
 	await _buddy_tests()
 	await _sky_tests()
 	await _hud_help_tests()
@@ -8123,6 +8124,28 @@ func _boss_map_tests() -> void:
 
 
 # ── 꿈의 탑 (`Loop` · `TowerFloor`) ──────────────────────────────────
+
+## 치명타 배율 - 행운이 올리는 몫에 상한 (0.1.187, 도적이 후반 우두머리를 5초에 녹이던 것).
+func _crit_tests() -> void:
+	print("\n[치명타 상한]")
+	_clean_state()
+	var job0 := Battle.job
+	var st0: Dictionary = Battle.stats.duplicate()
+	Battle.job = "thief"
+	Battle.stats["luk"] = 40
+	var low := Battle.crit_mult()
+	Battle.stats["luk"] = 400
+	var high := Battle.crit_mult()
+	ok(high > low, "행운이 오르면 치명타 배율도 오른다 (x%.2f ~ x%.2f)" % [low, high])
+	ok(high <= 1.5 + Battle.CRIT_LUK_CAP + 0.3 + 0.001,
+		"행운을 아무리 올려도 도적 치명타 배율 상한 x%.2f (지금 x%.2f)" % [1.5 + Battle.CRIT_LUK_CAP + 0.3, high])
+	Battle.job = "warrior"
+	ok(Battle.crit_mult() < high, "도적의 치명타 배율이 가장 크다 (직업 설명)")
+	ok(float(Battle.SKILLS["vital"]["mult"]) * high < 5.0,
+		"늘 치명타인 급소 찌르기 한 방이 공격력 5배를 안 넘는다")
+	Battle.job = job0
+	Battle.stats = st0
+
 
 func _tower_tests() -> void:
 	print("\n[꿈의 탑]")

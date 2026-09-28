@@ -158,8 +158,16 @@ static func crit_rate() -> float:
 
 
 ## 치명타 배율. 행운이 올린다.
+##
+## **행운이 올리는 몫에 상한이 있다** (`CRIT_LUK_CAP`). 끝없이 오르면 행운이 주 능력치인
+## 도적은 공격력과 치명타 배율이 **같이** 자라, 후반엔 배율이 x2.7 까지 가서 우두머리를
+## 5초 만에 녹였다 (0.1.186 시뮬레이션 - 같은 때 전사는 x1.55, 16~27초).
+const CRIT_LUK := 0.003
+const CRIT_LUK_CAP := 0.3
+
+
 static func crit_mult() -> float:
-	return 1.5 + stat("luk") * 0.005 + (0.3 if job == "thief" else 0.0)
+	return 1.5 + minf(stat("luk") * CRIT_LUK, CRIT_LUK_CAP) + (0.3 if job == "thief" else 0.0)
 
 
 ## 다음 레벨까지. 앞은 빠르고(LV 10 까지 30분 남짓) 뒤로 갈수록 무겁다.
@@ -226,15 +234,16 @@ const SKILLS := {
 		"elem": "weapon", "mult": 1.3, "hits": 2, "aoe": 50.0, "range": 90.0, "cd": 5.0},
 	"snipe": {"name": "저격", "job": "archer", "lv": 25, "mp": 10, "type": "attack",
 		"elem": "weapon", "mult": 3.4, "range": 120.0, "cd": 7.0},
-	# 도적 - 빠른 연타, 급소
+	# 도적 - 빠른 연타, 급소. 0.1.187 에 표창 틈 1.5 → 2.0, 급소 2.4 → 2.0 (늘 치명타라
+	# 배율이 곱으로 붙는다) - 후반 우두머리 5~10초로 다른 직업의 절반이었다.
 	"flurry": {"name": "빠른 찌르기", "job": "thief", "lv": 10, "mp": 2, "type": "attack",
 		"elem": "weapon", "mult": 0.55, "hits": 3, "cd": 1.0},
 	"star": {"name": "표창 던지기", "job": "thief", "lv": 13, "mp": 3, "type": "attack",
-		"elem": "weapon", "mult": 1.1, "hits": 2, "range": 80.0, "cd": 1.5},
+		"elem": "weapon", "mult": 1.1, "hits": 2, "range": 80.0, "cd": 2.0},
 	"shadow": {"name": "그림자 걸음", "job": "thief", "lv": 16, "mp": 5, "type": "buff",
 		"grants": "keen", "guard": 1.2, "cd": 10.0},
 	"vital": {"name": "급소 찌르기", "job": "thief", "lv": 20, "mp": 6, "type": "attack",
-		"elem": "weapon", "mult": 2.4, "crit": true, "cd": 5.0},
+		"elem": "weapon", "mult": 2.0, "crit": true, "cd": 5.0},
 	"fan": {"name": "표창 부채", "job": "thief", "lv": 25, "mp": 12, "type": "attack",
 		"elem": "weapon", "mult": 1.2, "hits": 3, "aoe": 52.0, "cd": 7.0},
 }
