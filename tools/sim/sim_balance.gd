@@ -252,6 +252,7 @@ func _fight(kind: String, lv: int, z: Dictionary, boss := false, power := 1.0, t
 		Loop.power_up(foe, power)
 	if boss:
 		z["boss_lv"] = Battle.level
+		_boss_fever0 = Loop.fever_on()
 	var t := 0.0
 	var foe_t := 0.7          # 첫 덤빔까지 틈 (`Shade.take_hit`)
 	var winding := -1.0
@@ -296,6 +297,10 @@ func _fight(kind: String, lv: int, z: Dictionary, boss := false, power := 1.0, t
 				winding = WINDUP
 	t_total += t
 	(z["ttk"] as Array).append(t)
+	if boss and OS.get_environment("SIM_BOSSLOG") != "":
+		print("      [우두머리 %s] %.0f초 · 약점 %s · 피버로 시작 %s · 무기 %s" % [kind, t,
+			Battle.matchup(Battle.skill_elem("tap"), String(foe["elem"])) > 1.01,
+			_boss_fever0, Gear.name_of(Gear.worn("weapon"))])
 	if _part != "":
 		if not _parts.has(_part):
 			_parts[_part] = []
@@ -373,6 +378,7 @@ func _rest_before() -> void:
 ## 강화한다 - 강화로 꿈조각을 다 녹여 새 단계 장비를 못 사는 일이 없게.
 var cur_zone := ""
 var _part := ""
+var _boss_fever0 := false
 
 
 func _shop_reserve() -> int:

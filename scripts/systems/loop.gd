@@ -88,8 +88,16 @@ static func fever_add(v: float) -> bool:
 
 
 ## 주는 피해 배율.
-static func fever_dmg() -> float:
-	return 1.5 if fever_on() else 1.0
+## **우두머리에게는 덜 든다** (0.1.192) - 우두머리의 길 졸개 열과 호위 둘을 잡으면 피버가
+## 차서, 우두머리전 아홉 중 여섯이 피버로 시작했다 (시뮬레이션). 1.5배가 싸움 거의
+## 전부에 걸려 약점 무기와 겹치면 4~8초에 끝났다. 경험·꿈조각 두 배와 연출은 그대로다.
+const FEVER_BOSS_DMG := 1.2
+
+
+static func fever_dmg(boss := false) -> float:
+	if not fever_on():
+		return 1.0
+	return FEVER_BOSS_DMG if boss else 1.5
 
 
 ## 경험·꿈조각 배율.

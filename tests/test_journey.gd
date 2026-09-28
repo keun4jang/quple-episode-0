@@ -8175,6 +8175,19 @@ func _crit_tests() -> void:
 	ok(Battle.crit_mult() < high, "도적의 치명타 배율이 가장 크다 (직업 설명)")
 	ok(float(Battle.SKILLS["vital"]["mult"]) * high < 5.0,
 		"늘 치명타인 급소 찌르기 한 방이 공격력 5배를 안 넘는다")
+	# 우두머리는 흔들림 덤과 피버 1.5배를 덜 받는다 (0.1.192)
+	var foe_n := Field.new_foe("ember", 30)
+	var foe_b := Field.new_foe("lotus", 30)
+	foe_n["status"]["shake"] = 3.0
+	foe_b["status"]["shake"] = 3.0
+	ok(Field._shaken(foe_n) > 1.2 and is_equal_approx(Field._shaken(foe_b), Field.BOSS_SHAKE),
+		"약점 흔들림 덤은 보통 몬스터에만 (우두머리 x%.1f)" % Field._shaken(foe_b))
+	Loop.reset()
+	Loop.fever = Loop.FEVER_MAX - 1.0
+	Loop.fever_add(5)
+	ok(Loop.fever_on() and Loop.fever_dmg(true) < Loop.fever_dmg(false) and Loop.fever_dmg(true) > 1.0,
+		"피버 피해 덤은 우두머리에게 덜 든다 (x%.1f / x%.1f)" % [Loop.fever_dmg(true), Loop.fever_dmg(false)])
+	Loop.reset()
 	Battle.job = job0
 	Battle.stats = st0
 	await _audit_191_tests()

@@ -167,6 +167,9 @@ static func strike(id: String, foe: Dictionary) -> Dictionary:
 	var evs: Array = out["events"]
 	var elem := Battle.skill_elem(id)
 	var eff := Battle.matchup(elem, String(foe["elem"]))
+	# 우두머리는 약점을 찔려도 덜 흔들린다 (`BOSS_SUPER`).
+	if bool(foe.get("boss", false)) and eff > BOSS_SUPER:
+		eff = BOSS_SUPER
 	out["eff"] = eff
 	var weak := eff > 1.01
 	out["weak"] = weak
@@ -180,10 +183,9 @@ static func strike(id: String, foe: Dictionary) -> Dictionary:
 		raw *= 1.0 + Gear.bonus("elem") / 100.0
 	if has_status("shrink"):
 		raw *= 0.75
-	if foe_has(foe, "shake") or foe_has(foe, "sway"):
-		raw *= 1.3
+	raw *= _shaken(foe)
 	# 피버 타임 · 탑의 축복
-	raw *= Loop.fever_dmg() * (1.0 + Loop.bless("atk"))
+	raw *= Loop.fever_dmg(bool(foe.get("boss", false))) * (1.0 + Loop.bless("atk"))
 	var rate := Battle.crit_rate() + (0.5 if has_status("keen") else 0.0) + Loop.bless("crit")
 	var total := 0
 	for i in int(s.get("hits", 1)):
@@ -215,14 +217,32 @@ static func strike(id: String, foe: Dictionary) -> Dictionary:
 const BUDDY_POWER := 0.5
 
 
+## **우두머리에게 약점 덤은 덜 든다** (0.1.192). 약점 무기(1.5배)에 흔들림(+30퍼센트)이
+## 겹치면 1.95배라, 상성 무기와 피버가 겹친 날엔 우두머리가 4~8초에 끝났다 (시뮬레이션
+## - 다른 날은 15~30초). 상성을 고르는 맛(1.5배)은 그대로 두고 흔들림 덤만 뺀다.
+## 약점을 늘 찌르는 마법사가 우두머리마다 손해 보지 않게 약점 배율은 안 건드린다 -
+## 1.3배로 줄여 봤더니 마법사 우두머리전이 48초까지 늘었다. 보통 몬스터와
+## 마법사 산들바람(`sway`)은 그대로다. 피버 쪽은 `Loop.FEVER_BOSS_DMG`.
+const BOSS_SUPER := 1.5
+const BOSS_SHAKE := 1.0
+
+
+## 흔들림·휘청임으로 더 드는 몫.
+static func _shaken(foe: Dictionary) -> float:
+	if foe_has(foe, "sway"):
+		return 1.3
+	if foe_has(foe, "shake"):
+		return BOSS_SHAKE if bool(foe.get("boss", false)) else 1.3
+	return 1.0
+
+
 static func buddy_strike(foe: Dictionary) -> Dictionary:
 	var out := {"dmg": 0, "hits": [], "eff": 1.0, "weak": false, "crit": false,
 		"killed": false, "stagger": 0.0, "events": []}
 	if int(foe["hp"]) <= 0:
 		return out
 	var v := float(Battle.attack_power()) * BUDDY_POWER * Battle._mitigation(int(foe["def"]))
-	if foe_has(foe, "shake") or foe_has(foe, "sway"):
-		v *= 1.3
+	v *= _shaken(foe)
 	if jitter:
 		v *= randf_range(0.9, 1.1)
 	var dmg := maxi(1, int(round(v)))
