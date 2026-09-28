@@ -1944,6 +1944,48 @@ func _shop_notice() -> void:
 		Battle.job_name()], true, 2.6)
 
 
+## **가게 권유** (0.1.194) - 꿈조각이 넉넉한데 이 마을 가게에 지금 입은 것보다 좋은
+## 장비가 있으면 한 번 알린다. 마을에 들어설 때의 안내(`_shop_notice`) 한 줄만으로는
+## 가게를 모르고 지나치는 사람이 있다 - 상점을 안 쓰는 봇은 꿈조각을 7만 개까지 쌓아 두고
+## 대마왕전을 체력 4~6퍼센트로 버텼다 (`SIM_NOSHOP` 시뮬레이션). 마을·칸·단계마다
+## 한 번뿐이고, 싸우는 중엔 안 뜬다 - 잔소리가 되면 안 된다.
+const SHOP_NUDGE_CHECK := 4.0
+var _nudge_t := SHOP_NUDGE_CHECK
+
+
+func _tick_shop_nudge(delta: float) -> void:
+	_nudge_t -= delta
+	if _nudge_t > 0.0:
+		return
+	_nudge_t = SHOP_NUDGE_CHECK
+	shop_nudge()
+
+
+## 알릴 것이 있으면 알리고 참을 돌려준다 (테스트가 바로 부른다).
+func shop_nudge() -> bool:
+	var v := place_name()
+	if is_indoors() or hud == null or not Gear.VILLAGE_TIER.has(v) or in_fight() \
+			or combat_paused():
+		return false
+	var e := Gear.shop_upgrade(v)
+	if e.is_empty():
+		return false
+	var key := "상점권유:%s:%s:%d" % [v, String(e["slot"]), int(e["tier"])]
+	if JourneyState.quest_done(key):
+		return false
+	JourneyState.mark_quest(key)
+	var line := ""
+	if Gear.worn(String(e["slot"])).is_empty():
+		line = "꿈조각이 넉넉해요 - 가게에서 %s 사면 빈 %s 칸에 바로 입어요" % [
+			String(e["name"]), String(Gear.SLOT_NAME[String(e["slot"])])]
+	else:
+		line = "꿈조각이 넉넉해요 - 가게에 한 단계 위 %s: %s (%s)" % [
+			String(Gear.SLOT_NAME[String(e["slot"])]), String(e["name"]),
+			Gear.compare_text(e["item"])]
+	hud._say_hint(line, true, 3.0)
+	return true
+
+
 ## 켜자마자 한 번 - **잠든 사이 모인 꿈조각**과 **출석 보상**.
 ## 도착 카드가 걷힌 뒤에 뜨도록 조금 기다린다(잔치 줄에 선다).
 func _welcome() -> void:
@@ -4174,6 +4216,7 @@ var _autosave_t := 0.0
 
 
 func _process(delta: float) -> void:
+	_tick_shop_nudge(delta)
 	_autosave_t += delta
 	if _autosave_t >= AUTOSAVE_SECS:
 		_autosave_t = 0.0

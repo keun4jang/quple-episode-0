@@ -8240,6 +8240,32 @@ func _audit_191_tests() -> void:
 	JourneyState.mark_quest("엔딩:대마왕")
 	ok(Place.ending_pending(), "대마왕만 쓰러뜨리고 못 골랐으면 다음에 들어서는 곳에서 다시 띄운다")
 	_clean_state()
+	# 가게 권유 (0.1.194) - 넉넉하면 한 번, 같은 칸은 되풀이하지 않는다, 모자라면 조용
+	JourneyState.here = "볕뉘"
+	Gear.coins = 0
+	var bp: Place = load(GOAL_SCENES["볕뉘"]).instantiate()
+	add_child(bp)
+	await get_tree().process_frame
+	ok(not bp.shop_nudge(), "꿈조각이 모자라면 가게 권유가 안 뜬다")
+	Gear.coins = 99999
+	var up := Gear.shop_upgrade("볕뉘")
+	ok(not up.is_empty() and String(up["slot"]) == "weapon", "살 수 있는 더 좋은 것 중 무기가 먼저")
+	# 같은 단계 무기를 이미 들었으면 무기는 안 권한다 (옵션 한 줄 차이는 잔소리)
+	var same := Gear.make("weapon", Gear.my_weapon_kind(), int(Gear.VILLAGE_TIER["볕뉘"]), 0, "none")
+	Gear.items.append(same)
+	Gear.equip(int(same["uid"]))
+	ok(String(Gear.shop_upgrade("볕뉘").get("slot", "")) != "weapon",
+		"같은 단계 무기를 들었으면 가게 무기는 안 권한다")
+	ok(bp.shop_nudge(), "꿈조각이 넉넉하고 더 좋은 장비가 있으면 가게를 권한다")
+	var first_slot := String(Gear.shop_upgrade("볕뉘").get("slot", ""))
+	JourneyState.mark_quest("상점권유:볕뉘:%s:%d" % [first_slot, int(Gear.VILLAGE_TIER["볕뉘"])])
+	ok(String(Gear.shop_upgrade("볕뉘").get("slot", "")) == first_slot
+		and not JourneyState.quest_done("상점권유:볕뉘:weapon:%d" % int(Gear.VILLAGE_TIER["볕뉘"])),
+		"같은 마을·같은 칸은 한 번만 권한다 (권한 칸은 기록된다: %s)" % first_slot)
+	bp.queue_free()
+	await get_tree().process_frame
+	Gear.coins = 0
+	_clean_state()
 	# 프롤로그를 건너뛰어도 메인 퀘스트가 프롤로그에 멈추지 않는다
 	JourneyState.visited["윤슬"] = true
 	ok(int(MainQuest.now()["chapter"]) == 1, "프롤로그를 건너뛰고 윤슬에 왔으면 메인 퀘스트는 1장")

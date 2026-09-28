@@ -535,6 +535,28 @@ static func shop_gear(village: String) -> Array:
 	return out
 
 
+## 지금 꿈조각으로 살 수 있고 **확실히 나아지는** 이 마을 가게 장비 하나 (없으면 {}) -
+## 빈 칸이거나 입은 것보다 **한 단계 위**. 같은 단계 안에서 옵션 한 줄 차이(공격력 +2
+## 같은)로 700 꿈조각을 권하면 잔소리다. 무기가 먼저, 그다음은 가장 크게 나아지는 칸.
+## `Place.shop_nudge` 가 쓴다.
+static func shop_upgrade(village: String) -> Dictionary:
+	var best := {}
+	var gain := -1.0
+	for e in shop_gear(village):
+		if coins < int(e["price"]) or not better(e["item"]):
+			continue
+		var cur := worn(String(e["slot"]))
+		if not cur.is_empty() and int(e["tier"]) <= int(cur["tier"]):
+			continue
+		var d := score(e["item"]) - (score(cur) if not cur.is_empty() else 0.0)
+		if String(e["slot"]) == "weapon":
+			d += 10000.0
+		if d > gain:
+			gain = d
+			best = e
+	return best
+
+
 ## 상점 한 벌 - 고급, 옵션 한 줄은 내 주 능력치(장신구는 체력).
 static func _shop_piece(slot: String, kind: String, tier: int) -> Dictionary:
 	var it := {"uid": -1, "slot": slot, "kind": kind, "tier": tier, "rar": SHOP_RAR,
