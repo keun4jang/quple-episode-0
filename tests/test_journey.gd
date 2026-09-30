@@ -8228,6 +8228,7 @@ func _crit_tests() -> void:
 	Battle.stats = st0
 	await _audit_191_tests()
 	await _audit_198_tests()
+	await _phase2_tests()
 
 
 ## 0.1.191 코드 점검에서 나온 것들.
@@ -9069,4 +9070,61 @@ func _audit_198_tests() -> void:
 	ok(float(Battle.SKILLS["breathe"]["cd"]) >= 12.0, "심호흡 재사용 시간이 길다")
 	# 두 번째 스킬은 LV 2 에 온다
 	ok(int(Battle.SKILLS["bump"]["lv"]) == 2, "몸통 박치기는 첫 레벨업(LV 2)에 배운다")
+	_clean_state()
+
+
+## 0.1.198 - 구역 우두머리도 2단계가 있다.
+func _phase2_tests() -> void:
+	print("\n[우두머리 2단계]")
+	_clean_state()
+	var bad: Array = []
+	for v in Quests.ORDER:
+		var kind := String(Battle.REGION_BOSS.get(v, ""))
+		var adds := BossLair.phase2_adds(String(v), kind)
+		if adds.is_empty() or not BossLair.PHASE2.has(kind):
+			bad.append(v)
+			continue
+		for a in adds:
+			if not Battle.ENEMIES.has(String(a[0])) or bool(Battle.ENEMIES[String(a[0])].get("boss", false)):
+				bad.append("%s:%s" % [v, a[0]])
+		if String(BossLair.PHASE2[kind].get("line", "")) == "" or String(BossLair.PHASE2[kind].get("head", "")) == "":
+			bad.append("%s:대사" % v)
+	ok(bad.is_empty(), "아홉 구역 우두머리 모두 2단계가 있다 %s" % str(bad))
+	var first := BossLair.phase2_adds("윤슬", "drop_king")
+	var later := BossLair.phase2_adds("가풀재", "golem")
+	ok(first.size() == 1 and later.size() == 2, "앞의 둘은 졸개 하나, 뒤로는 둘 (%d / %d)" % [first.size(), later.size()])
+	ok(BossLair.phase2_sub(later).contains("졸개가 왔어요"), "부른 졸개 이름을 알린다: %s" % BossLair.phase2_sub(later))
+	ok(BossLair.phase2_adds("잿마루", "night").size() == 2, "마지막 우두머리는 정해 둔 졸개 둘")
+	# 실제로 반쯤 지치면 졸개가 선다
+	JourneyState.here = "윤슬"
+	var lair: BossLair = load("res://scenes/journey/interiors/BossLair.tscn").instantiate()
+	if lair != null:
+		add_child(lair)
+		await get_tree().create_timer(1.2).timeout
+		var n0 := lair._shades.size()
+		var boss = lair._boss_shade()
+		if boss != null:
+			boss.foe["hp"] = int(float(boss.foe["hp_max"]) * 0.4)
+			await get_tree().process_frame
+			await get_tree().process_frame
+			ok(lair._shades.size() == n0 + 1 and lair._phase2_done,
+				"우두머리가 반쯤 지치면 졸개를 부른다 (%d -> %d)" % [n0, lair._shades.size()])
+		lair.queue_free()
+		await get_tree().process_frame
+	# 호위 하나를 잡아도 우두머리는 그대로 서 있다 (우두머리가 쓰러질 때만 곁이 흩어진다)
+	var l2: BossLair = load("res://scenes/journey/interiors/BossLair.tscn").instantiate()
+	add_child(l2)
+	await get_tree().process_frame
+	var boss2 = l2._boss_shade()
+	var guard = null
+	for sh in l2._shades:
+		if sh != boss2:
+			guard = sh
+			break
+	if guard != null and boss2 != null:
+		l2.on_shade_down(guard)
+		ok(is_instance_valid(boss2) and boss2.state != "gone" and l2._boss_shade() != null,
+			"호위 하나를 잡아도 우두머리는 그대로 서 있다")
+	l2.queue_free()
+	await get_tree().process_frame
 	_clean_state()

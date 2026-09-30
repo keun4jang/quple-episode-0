@@ -85,7 +85,7 @@ func _run_job(j: String) -> Dictionary:
 	for i in range(1, fl.size()):
 		_fight(String(fl[i][0]), int(fl[i][1]), z)
 	_fight(String(fl[0][0]), int(fl[0][1]), z, true)
-	for a in BossLair.PHASE2["night"]["adds"]:
+	for a in BossLair.phase2_adds("잿마루", "night"):
 		_fight(String(a[0]), int(a[1]), z)
 	_zone_end(z, "night")
 	JourneyState.mark_quest("엔딩:대마왕")
@@ -197,6 +197,9 @@ func _zone(v: String) -> void:
 	_part = "우두머리"
 	var b: Array = lair[0]
 	_fight(String(b[0]), int(b[1]), z, true)
+	# 우두머리가 반쯤 지치면 졸개를 부른다 (`BossLair.PHASE2`) - 이어 싸운 것으로 친다.
+	for a in BossLair.phase2_adds(v, String(b[0])):
+		_fight(String(a[0]), int(a[1]), z)
 	_part = ""
 	JourneyState.mark_quest("보스:" + v)
 	_zone_end(z, String(b[0]))

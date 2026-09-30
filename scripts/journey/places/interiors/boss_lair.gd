@@ -26,15 +26,61 @@ const TAUNT := {
 	"night": "…왔군요. 이것만 끝내고 가요. 내일 아침까지.",
 }
 
-## **마지막 우두머리의 2단계** (0.1.189) - 체력이 이만큼 아래로 떨어지면 한 번,
-## 곁에 졸개를 부르며 말한다. 마지막 장이 한 방 싸움으로 끝나지 않게.
-## 다른 구역 우두머리는 그대로다 - 쉽게 해 달라고 한 싸움들이다.
+## **우두머리의 2단계** - 체력이 이만큼 아래로 떨어지면 한 번, 곁에 졸개를 부르며 말한다.
+## 마지막 우두머리(0.1.189)에 이어 구역 우두머리 아홉 모두에게 넣었다 (0.1.198) - 여덟은
+## 체력만 큰 한 덩어리라 "마지막 보스만 특별하다" 는 말이 나왔다. 순하게 해 달라던 싸움들이라
+## 부르는 졸개는 첫 둘이 하나, 나머지는 둘이다. 졸개는 그 방 호위와 같은 종(`Battle.lair_spawns`),
+## 마지막 우두머리만 정해 둔 `adds`. `phase2_adds()` 가 실제로 부를 것을 돌려준다.
 const PHASE2 := {
+	"drop_king": {"at": 0.5, "n": 1, "line": "이 물방울들, 다 내 부하야! 튀어라!",
+		"head": "물방울 대왕이 부하를 불렀어요!"},
+	"dokkaebi": {"at": 0.5, "n": 1, "line": "불이 붙었다! 다들 모여라!",
+		"head": "불꽃 도깨비가 부하를 불렀어요!"},
+	"golem": {"at": 0.5, "n": 2, "line": "…쿵. 돌… 일어나라…",
+		"head": "바위 거인이 돌을 깨웠어요!"},
+	"gull": {"at": 0.5, "n": 2, "line": "끼룩끼룩! 바람아, 다 모여라!",
+		"head": "태풍 갈매기가 바람을 불렀어요!"},
+	"carp": {"at": 0.5, "n": 2, "line": "소용돌이가 커진다… 같이 돌자.",
+		"head": "소용돌이 잉어왕이 물살을 불렀어요!"},
+	"lotus": {"at": 0.5, "n": 2, "line": "연못이 깨어난다… 너희도 일어나렴.",
+		"head": "연꽃 정령이 연못을 깨웠어요!"},
+	"thorn_queen": {"at": 0.5, "n": 2, "line": "덩굴들아, 저 애를 붙잡으렴.",
+		"head": "가시덩굴 여왕이 덩굴을 불렀어요!"},
+	"mole_king": {"at": 0.5, "n": 2, "line": "땅 밑 신하들아, 올라와라!",
+		"head": "산골 두더지왕이 신하를 불렀어요!"},
+	"deer": {"at": 0.5, "n": 2, "line": "꽃불이 번진다. 다 함께 타오르자.",
+		"head": "꽃사슴이 꽃불을 불렀어요!"},
 	"night": {"at": 0.5, "adds": [["paper", 49], ["memo", 49]],
 		"line": "…추가 업무예요. 이것도 내일 아침까지.",
 		"head": "야근 대마왕이 추가 업무를 불렀어요!", "sub": "결재 서류와 회의록이 나타났어요"},
 }
 const PHASE2_SPOTS := [Vector2i(11, 10), Vector2i(19, 10)]
+
+
+## 이 우두머리가 2단계에 부를 졸개 `[[종, 레벨], ...]` (없으면 빈 것).
+static func phase2_adds(village: String, kind: String) -> Array:
+	var p2: Dictionary = PHASE2.get(kind, {})
+	if p2.is_empty():
+		return []
+	if p2.has("adds"):
+		return p2["adds"]
+	var out: Array = []
+	var lair := Battle.lair_spawns(village)
+	for i in range(1, lair.size()):
+		if out.size() >= int(p2.get("n", 1)):
+			break
+		out.append([String(lair[i][0]), int(lair[i][1])])
+	return out
+
+
+## 부르는 졸개 이름들 - "졸개가 왔어요 - 물방울뭉·불꽃". (조사는 받침에 따라 틀리니 안 쓴다.)
+static func phase2_sub(adds: Array) -> String:
+	var names: Array = []
+	for a in adds:
+		var nm := String(Battle.ENEMIES[String(a[0])]["name"])
+		if not names.has(nm):
+			names.append(nm)
+	return "졸개가 왔어요 - %s" % "·".join(names)
 var _phase2_done := false
 
 
@@ -118,10 +164,12 @@ func _tick_phase2() -> void:
 	if b == null:
 		return
 	var p2: Dictionary = PHASE2.get(b.shade_kind, {})
-	if p2.is_empty() or float(b.foe["hp"]) > float(b.foe["hp_max"]) * float(p2["at"]):
+	# 이미 쓰러진 우두머리는 졸개를 부르지 않는다 (체력 0 도 "반 아래" 라서 막아 둔다).
+	if p2.is_empty() or int(b.foe["hp"]) <= 0 \
+			or float(b.foe["hp"]) > float(b.foe["hp_max"]) * float(p2["at"]):
 		return
 	_phase2_done = true
-	var adds: Array = p2["adds"]
+	var adds := phase2_adds(village(), b.shade_kind)
 	for i in mini(adds.size(), PHASE2_SPOTS.size()):
 		var sh := put_shade(PHASE2_SPOTS[i], String(adds[i][0]), int(adds[i][1]))
 		if sh != null:
@@ -130,6 +178,6 @@ func _tick_phase2() -> void:
 			sh.join_fight()
 	FieldFx.shake(cam, 7.0, 0.5)
 	if hud != null:
-		hud._celebrate(String(p2["head"]), String(p2["sub"]))
+		hud._celebrate(String(p2["head"]), String(p2.get("sub", phase2_sub(adds))))
 	if say != null and not say.is_busy():
 		say.say(String(Battle.ENEMIES[b.shade_kind]["name"]), [String(p2["line"])])

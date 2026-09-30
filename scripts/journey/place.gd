@@ -1879,6 +1879,13 @@ func _build_sky() -> void:
 
 func _boss_story(kind: String) -> void:
 	var v := quest_village()
+	# 우두머리 방에서 우두머리가 흩어지면 곁의 졸개도(2단계에 부른 것 포함) 같이 흩어진다 -
+	# 남아서 승리 판 뒤에서 계속 덤비지 않게. 대마왕은 아래에서 따로 한다.
+	if self is BossLair and kind != "night" and bool(Battle.ENEMIES.get(kind, {}).get("boss", false)):
+		for sh in _shades.duplicate():
+			if is_instance_valid(sh) and sh.state != "gone":
+				_shades.erase(sh)
+				sh.dissolve()
 	if String(Battle.REGION_BOSS.get(v, "")) == kind and not Battle.boss_down(v):
 		JourneyState.mark_quest("보스:" + v)
 		# **첫 처치 보상** - 강화석 셋과 영웅 이상 장비 하나. 구역마다 한 번뿐이다.
