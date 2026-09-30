@@ -948,6 +948,29 @@ def _():
     return render([(ring(8, 9, 5, 3), hx("#E9E4DA")), (ellipse(8, 3.5, 2, 2), hx("#F8F9FA"))],
                   dots=[((7, 3), hx("#FFFFFF"))])
 
+
+@icon("a-neck")
+def _():
+    chain = ring(8, 5, 6.2, 4.4) & rect(0, 5, 15, 15)
+    gem = ellipse(8, 11, 2.0, 2.4)
+    return render([(chain, hx("#E9E4DA")), (gem, hx("#F8F9FA"))], dots=[((7, 10), hx("#FFFFFF"))])
+
+
+@icon("a-wrist")
+def _():
+    band = ellipse(8, 9, 6.6, 4.8) - ellipse(8, 9, 4.0, 2.6)
+    gem = ellipse(8, 4.6, 1.8, 1.8)
+    return render([(band, hx("#E9E4DA")), (gem, hx("#F8F9FA"))], dots=[((7, 4), hx("#FFFFFF"))])
+
+
+@icon("a-cape")
+def _():
+    body = poly([(5, 2), (11, 2), (14.5, 14.5), (1.5, 14.5)])
+    collar = rect(5, 2, 10, 4)
+    return render([(body, hx("#E9E4DA")), (collar, hx("#CED4DA"))],
+                  dots=[((7, 4), hx("#F8F9FA")), ((8, 4), hx("#F8F9FA"))])
+
+
 def main():
     only = set(sys.argv[1:])
     n = 0

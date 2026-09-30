@@ -12,15 +12,19 @@ extends RefCounted
 
 # ── 칸 · 종류 · 단계 · 등급 ─────────────────────────────────────────
 
-const SLOTS := ["weapon", "hat", "top", "gloves", "shoes", "ring"]
+## 무기 하나, 방어구 넷(모자·옷·장갑·신발), **장신구 넷**(반지·목걸이·팔찌·망토).
+## 장신구는 방어구보다 값이 작은 옵션 위주라 칸이 늘어도 몸이 한꺼번에 세지지는 않는다.
+const SLOTS := ["weapon", "hat", "top", "gloves", "shoes", "ring", "neck", "wrist", "cape"]
 const SLOT_NAME := {"weapon": "무기", "hat": "모자", "top": "옷", "gloves": "장갑",
-	"shoes": "신발", "ring": "장신구"}
+	"shoes": "신발", "ring": "반지", "neck": "목걸이", "wrist": "팔찌", "cape": "망토"}
+## 장신구 칸들.
+const ACCESSORIES := ["ring", "neck", "wrist", "cape"]
 ## 무기 종류. 직업마다 드는 것이 다르다 (`Battle.JOBS[..]["weapon"]`).
 ## 막대기는 꿈나그네의 것 - 누구나 든다.
 const WEAPONS := {"stick": "막대기", "sword": "검", "staff": "지팡이",
 	"bow": "활", "dagger": "단검"}
 const ARMOR_NAME := {"hat": "모자", "top": "옷", "gloves": "장갑", "shoes": "신발",
-	"ring": "반지"}
+	"ring": "반지", "neck": "목걸이", "wrist": "팔찌", "cape": "망토"}
 ## 다섯 단계 - 몬스터 레벨 10 마다 한 단계.
 const TIERS := [
 	{"lv": 1, "name": "나무"}, {"lv": 10, "name": "쇠"}, {"lv": 20, "name": "은빛"},
@@ -32,6 +36,10 @@ const ARMOR_BASE := {
 	"hat": {"def": 2, "mp": 4}, "top": {"def": 3, "hp": 12},
 	"gloves": {"atk": 2, "crit": 1}, "shoes": {"def": 2, "hp": 6},
 	"ring": {"str": 1, "dex": 1, "int": 1, "luk": 1},
+	# 목걸이는 몸과 마음, 팔찌는 치명타·속성 피해, 망토는 방어와 꿈조각 - 칸마다 하는 일이 다르다.
+	"neck": {"hp": 8, "mp": 3},
+	"wrist": {"crit": 1, "elem": 1},
+	"cape": {"def": 1, "hp": 5, "coin": 1},
 }
 ## 등급 다섯. 떨어질 때 **빛기둥 색**으로 먼저 안다.
 const RARITY := [
@@ -89,11 +97,18 @@ static var equipped: Dictionary = {}
 static var _uid := 1
 
 
+## 최근에 판 것 - **되사기** 가 이걸 본다. 실수로 판 장비를 돌려받을 안전장치라서, 팔 때마다
+## 확인을 묻는 대신 여기 남겨 둔다. 오래된 것부터 밀려난다 (`SOLD_KEEP`).
+static var sold: Array = []
+const SOLD_KEEP := 8
+
+
 static func reset() -> void:
 	coins = 0
 	stones = 0
 	items = []
 	equipped = {}
+	sold = []
 	_uid = 1
 
 
@@ -333,7 +348,7 @@ static func roll_gear(kind: String, lv: int, boss: bool, mine_only := false) -> 
 		var el := fe if randf() < 0.5 and Battle.BEATS.has(fe) \
 			else String(Battle.ELEM_ORDER.pick_random())
 		return make("weapon", wk, tier, rar, el)
-	var slot := String(["hat", "top", "gloves", "shoes", "ring"].pick_random())
+	var slot := String(["hat", "top", "gloves", "shoes", "ring", "neck", "wrist", "cape"].pick_random())
 	return make(slot, slot, tier, rar, "none")
 
 
@@ -445,7 +460,41 @@ static func sell(uid: int) -> int:
 	var p := sell_price(it)
 	coins += p
 	items.erase(it)
+	sold.append({"item": it.duplicate(true), "price": p})
+	while sold.size() > SOLD_KEEP:
+		sold.pop_front()
 	return p
+
+
+## 판 것을 같은 값에 되산다 (오래된 순서가 아니라 최근 것이 앞). `{ok, why}`.
+static func buyback(index: int) -> Dictionary:
+	if index < 0 or index >= sold.size():
+		return {"ok": false, "why": "없는 물건"}
+	var e: Dictionary = sold[index]
+	var p := int(e["price"])
+	if coins < p:
+		return {"ok": false, "why": "꿈조각이 모자라요 (%d 더)" % (p - coins)}
+	coins -= p
+	items.append((e["item"] as Dictionary).duplicate(true))
+	sold.remove_at(index)
+	return {"ok": true, "why": "", "got": items[-1]}
+
+
+## 최근 판 것을 최근 순서로 (`ShelfPanel` 되사기 탭).
+static func sold_recent() -> Array:
+	var out: Array = sold.duplicate()
+	out.reverse()
+	return out
+
+
+## 지금 팔 수 있는 것 - 입지 않은 장비 전부, 비싼 것부터.
+static func sellable() -> Array:
+	var out: Array = []
+	for it in items:
+		if not is_worn(int(it["uid"])):
+			out.append(it)
+	out.sort_custom(func(a, b): return sell_price(a) > sell_price(b))
+	return out
 
 
 ## 입지 않은 일반·고급을 한꺼번에 판다. 판 값을 돌려준다.
@@ -633,8 +682,11 @@ static func _shop_piece(slot: String, kind: String, tier: int) -> Dictionary:
 	var it := {"uid": -1, "slot": slot, "kind": kind, "tier": tier, "rar": SHOP_RAR,
 		"elem": "none", "plus": 0, "opts": []}
 	var key := String(Battle.JOBS[Battle.job]["main"])
-	if slot == "ring":
-		key = "hp"
+	match slot:
+		"ring", "neck":
+			key = "hp" if slot == "ring" else "mp"
+		"cape":
+			key = "def"
 	# 상점 것은 운이 없다 - 옵션 값은 늘 가운데.
 	var o: Dictionary = OPTS[key]
 	var v := float(o["base"]) * (1.0 + 0.8 * tier)
@@ -680,7 +732,7 @@ static func buy_gear(village: String, slot: String) -> Dictionary:
 
 static func to_dict() -> Dictionary:
 	return {"coins": coins, "stones": stones, "items": items.duplicate(true),
-		"equipped": equipped.duplicate(), "uid": _uid}
+		"equipped": equipped.duplicate(), "uid": _uid, "sold": sold.duplicate(true)}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -697,6 +749,17 @@ static func from_dict(d: Dictionary) -> void:
 			c["plus"] = clampi(int(c.get("plus", 0)), 0, PLUS_MAX)
 			items.append(c)
 			_uid = maxi(_uid, int(c["uid"]) + 1)
+	var sd = d.get("sold", [])
+	if sd is Array:
+		for e in sd:
+			if e is Dictionary and e.get("item") is Dictionary and (e["item"] as Dictionary).has("uid") \
+					and SLOTS.has(String((e["item"] as Dictionary).get("slot", ""))):
+				var c2: Dictionary = (e["item"] as Dictionary).duplicate(true)
+				c2["uid"] = int(c2["uid"])
+				sold.append({"item": c2, "price": maxi(0, int(e.get("price", 0)))})
+				_uid = maxi(_uid, int(c2["uid"]) + 1)
+		while sold.size() > SOLD_KEEP:
+			sold.pop_front()
 	var eq = d.get("equipped", {})
 	if eq is Dictionary:
 		for s in eq:

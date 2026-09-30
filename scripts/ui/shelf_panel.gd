@@ -17,6 +17,11 @@ const KIND_SHOW := "show"
 ## 사고팔기를 넣었다 (`docs/redesign-dream.md` 4절). 현금 결제는 없다.
 const KIND_SHOP := "shop"
 
+## 꿈조각 상점의 탭 - 사기 / 팔기 / 되사기.
+const TAB_BUY := "buy"
+const TAB_SELL := "sell"
+const TAB_BACK := "back"
+var _tab := TAB_BUY
 var _village := ""
 var _kind := ""
 var _place: Node = null
@@ -63,7 +68,12 @@ func _rows() -> Array:
 		KIND_KEEP:
 			return d.get("keep", [])
 		KIND_SHOP:
-			# 맨 위에 이 구역 단계의 **내 직업 장비** 여섯 칸, 그 아래 강화석·상자·먹을 것.
+			match _tab:
+				TAB_SELL:
+					return _sell_rows()
+				TAB_BACK:
+					return _back_rows()
+			# 맨 위에 이 구역 단계의 **내 직업 장비**, 그 아래 강화석·상자·먹을 것.
 			return Gear.shop_gear(_village) + Gear.shop_list()
 	# 기억 선반에는 **지금 가진 것만** 올린다. 없는 것을 흐리게 늘어놓으면
 	# 그것도 모으라는 숙제가 된다.
@@ -71,6 +81,32 @@ func _rows() -> Array:
 	for s in d.get("show", []):
 		if JourneyState.count(String(s["id"])) > 0:
 			out.append(s)
+	return out
+
+
+## 팔기 탭의 줄 - 입지 않은 장비를 비싼 것부터.
+func _sell_rows() -> Array:
+	var out: Array = []
+	for it in Gear.sellable():
+		var slot := String(it["slot"])
+		out.append({"id": "sell:%d" % int(it["uid"]), "sell_uid": int(it["uid"]),
+			"name": Gear.name_of(it), "price": Gear.sell_price(it), "item": it,
+			"icon": ("w-" + String(it["kind"])) if slot == "weapon" else ("a-" + slot)})
+	return out
+
+
+## 되사기 탭의 줄 - 최근 판 것부터.
+func _back_rows() -> Array:
+	var out: Array = []
+	var recent := Gear.sold_recent()
+	for i in recent.size():
+		var e: Dictionary = recent[i]
+		var it: Dictionary = e["item"]
+		var slot := String(it["slot"])
+		# `Gear.sold` 는 오래된 것이 앞이라 되사는 번호를 뒤집어 준다.
+		out.append({"id": "back:%d" % i, "back_index": recent.size() - 1 - i,
+			"name": Gear.name_of(it), "price": int(e["price"]), "item": it,
+			"icon": ("w-" + String(it["kind"])) if slot == "weapon" else ("a-" + slot)})
 	return out
 
 
@@ -125,6 +161,8 @@ func _build() -> void:
 	title.add_theme_color_override("font_color", Color("#3A2C2C"))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+	if _kind == KIND_SHOP:
+		box.add_child(_tabs())
 
 	var scroll := ScrollContainer.new()
 	TouchScroll.setup(scroll)
@@ -137,9 +175,15 @@ func _build() -> void:
 	scroll.add_child(list)
 
 	var rows := _rows()
+	if _kind == KIND_SHOP and _tab == TAB_SELL and not rows.is_empty():
+		list.add_child(_sell_junk_button())
 	if rows.is_empty():
 		var e := Label.new()
 		e.text = "아직 올려놓을 게 없어요."
+		if _kind == KIND_SHOP and _tab == TAB_SELL:
+			e.text = "팔 수 있는 장비가 없어요. (입은 것은 못 팔아요)"
+		elif _kind == KIND_SHOP and _tab == TAB_BACK:
+			e.text = "최근에 판 것이 없어요."
 		e.add_theme_font_size_override("font_size", 22)
 		e.add_theme_color_override("font_color", Color("#A79A8A"))
 		e.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -155,6 +199,63 @@ func _build() -> void:
 	_style(close, Color("#E7E0D6"))
 	close.pressed.connect(_close)
 	box.add_child(close)
+
+
+func _tabs() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	for t in [[TAB_BUY, "사기"], [TAB_SELL, "팔기"], [TAB_BACK, "되사기"]]:
+		var b := Button.new()
+		b.name = "Tab_" + String(t[0])
+		b.text = String(t[1])
+		b.custom_minimum_size = Vector2(0, 56)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_size_override("font_size", 24)
+		b.add_theme_color_override("font_color", Color("#3A2C2C"))
+		_style(b, Color("#FFD97A") if _tab == String(t[0]) else Color("#EFE7DA"))
+		var id := String(t[0])
+		b.pressed.connect(func() -> void: _switch_tab(id))
+		row.add_child(b)
+	return row
+
+
+func _switch_tab(t: String) -> void:
+	if t == _tab:
+		return
+	_tab = t
+	AudioManager.ui_click()
+	_rebuild()
+
+
+func _rebuild() -> void:
+	for c in get_children():
+		c.queue_free()
+	_build()
+
+
+## 안 입은 일반·고급을 한꺼번에 - 더 좋은 것과 강화한 것은 남긴다 (`Gear.sell_junk`).
+func _sell_junk_button() -> Control:
+	var b := Button.new()
+	b.name = "SellJunk"
+	b.text = "안 쓰는 일반·고급 한꺼번에 팔기"
+	b.custom_minimum_size = Vector2(0, 60)
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", 22)
+	b.add_theme_color_override("font_color", Color("#3A2C2C"))
+	_style(b, Color("#E4EFD8"))
+	b.pressed.connect(func() -> void:
+		var hud := get_tree().get_first_node_in_group("journey_hud")
+		var got := Gear.sell_junk(1)
+		if got > 0:
+			AudioManager.ui_confirm()
+			SaveManager.save_now()
+			if hud != null:
+				hud._say_hint("꿈조각 +%d  (되사기 탭에서 되찾을 수 있어요)" % got, false, 1.6)
+		elif hud != null:
+			hud._say_hint("팔 만한 것이 없어요 - 더 좋은 것과 강화한 것은 남겨요", false, 1.6)
+		_rebuild())
+	return b
 
 
 ## 버튼 겉면. 기본 테마 버튼은 **어두운 회색**이라, 크림색 판 위에
@@ -182,11 +283,19 @@ func _row(it: Dictionary) -> Control:
 	var done := false
 	var why := ""
 	if _kind == KIND_SHOP:
-		if it.has("slot"):
+		if it.has("sell_uid"):
+			var sit: Dictionary = it["item"]
+			why = "팔면 꿈조각 %d  ·  %s" % [int(it["price"]),
+				String(Gear.RARITY[int(sit["rar"])]["name"])]
+		elif it.has("back_index"):
+			why = "되사면 꿈조각 %d" % int(it["price"])
+			done = Gear.coins < int(it["price"])
+		elif it.has("slot"):
 			why = "꿈조각 %d  ·  %s" % [int(it["price"]), Gear.compare_text(it["item"])]
+			done = Gear.coins < int(it["price"])
 		else:
 			why = "꿈조각 %d  ·  %s" % [int(it["price"]), String(it.get("desc", ""))]
-		done = Gear.coins < int(it["price"])
+			done = Gear.coins < int(it["price"])
 	match _kind:
 		KIND_FOOD:
 			done = Items.tasted(_village, it)
@@ -263,7 +372,12 @@ func _row(it: Dictionary) -> Control:
 
 func _tap(it: Dictionary) -> void:
 	if _kind == KIND_SHOP:
-		_buy(it)
+		if it.has("sell_uid"):
+			_sell(it)
+		elif it.has("back_index"):
+			_buyback(it)
+		else:
+			_buy(it)
 		return
 	var say: Variant = _place.get("say") if _place != null else null
 	var lines: Array = []
@@ -323,6 +437,36 @@ func _buy(it: Dictionary) -> void:
 	for c in get_children():
 		c.queue_free()
 	_build()
+
+
+## 판다. 판은 닫지 않는다. 실수는 되사기 탭에서 되돌릴 수 있다.
+func _sell(it: Dictionary) -> void:
+	var got := Gear.sell(int(it["sell_uid"]))
+	var hud := get_tree().get_first_node_in_group("journey_hud")
+	if got <= 0:
+		AudioManager.battle_hurt()
+		return
+	AudioManager.ui_confirm()
+	if hud != null:
+		hud._say_hint("%s - 꿈조각 +%d" % [String(it["name"]), got], false, 1.2)
+	SaveManager.save_now()
+	_rebuild()
+
+
+## 판 것을 같은 값에 되산다.
+func _buyback(it: Dictionary) -> void:
+	var r := Gear.buyback(int(it["back_index"]))
+	var hud := get_tree().get_first_node_in_group("journey_hud")
+	if not bool(r["ok"]):
+		AudioManager.battle_hurt()
+		if hud != null:
+			hud._say_hint(String(r["why"]), false, 1.2)
+		return
+	AudioManager.ui_confirm()
+	if hud != null:
+		hud._say_hint("%s - 되찾았어요" % String(it["name"]), false, 1.4)
+	SaveManager.save_now()
+	_rebuild()
 
 
 ## 사진첩에 한 줄 남긴다. 그림은 저장하지 않는다 — 이 게임의 사진은

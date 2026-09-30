@@ -2345,6 +2345,8 @@ func _build_walker() -> void:
 	# 새 무기를 얻으면 마을을 걸으며 보고 싶다.
 	_held = HeldWeapon.new()
 	walker.add_child(_held)
+	# 입은 모자·옷·장신구도 몸에 그린다 (`WornGear`).
+	walker.add_child(WornGear.new())
 
 
 func _build_camera() -> void:

@@ -8229,6 +8229,7 @@ func _crit_tests() -> void:
 	await _audit_191_tests()
 	await _audit_198_tests()
 	await _phase2_tests()
+	await _accessory_shop_tests()
 
 
 ## 0.1.191 코드 점검에서 나온 것들.
@@ -9126,5 +9127,111 @@ func _phase2_tests() -> void:
 		ok(is_instance_valid(boss2) and boss2.state != "gone" and l2._boss_shade() != null,
 			"호위 하나를 잡아도 우두머리는 그대로 서 있다")
 	l2.queue_free()
+	await get_tree().process_frame
+	_clean_state()
+
+
+## 0.1.200 - 장신구 칸이 늘고, 캐릭터에 입은 것이 보이고, 상점에서 팔고 되산다.
+func _accessory_shop_tests() -> void:
+	print("\n[장신구 · 외형 · 상점 팔기]")
+	_clean_state()
+	ok(Gear.SLOTS.size() == 9 and Gear.ACCESSORIES.size() == 4, "칸은 아홉 - 무기 하나, 방어구 넷, 장신구 넷")
+	var bad: Array = []
+	for slot in Gear.SLOTS:
+		if not Gear.SLOT_NAME.has(slot):
+			bad.append(slot)
+		if slot != "weapon" and (not Gear.ARMOR_BASE.has(slot) or not Gear.ARMOR_NAME.has(slot)):
+			bad.append(slot)
+		if slot != "weapon" and not ResourceLoader.exists("res://assets/sprites/a-%s.png" % String(slot)):
+			bad.append("아이콘:%s" % String(slot))
+	ok(bad.is_empty(), "칸마다 이름·기본 수치·아이콘이 있다 %s" % str(bad))
+	for slot in ["neck", "wrist", "cape"]:
+		var it := Gear.make(slot, slot, 2, 2, "none")
+		Gear.items.append(it)
+		ok(Gear.equip(int(it["uid"])) and Gear.worn(slot).get("uid", -1) == int(it["uid"]),
+			"%s 을 입는다" % String(Gear.SLOT_NAME[slot]))
+		ok(not Gear.stats_of(it).is_empty(), "%s 에 수치가 붙는다 %s" % [String(Gear.SLOT_NAME[slot]), str(Gear.stats_of(it))])
+	# 상점이 새 칸도 판다
+	var shop_slots: Array = []
+	for e in Gear.shop_gear("가풀재"):
+		shop_slots.append(e["slot"])
+	ok(shop_slots.has("neck") and shop_slots.has("wrist") and shop_slots.has("cape"), "상점이 새 장신구도 판다")
+	# 드랍에도 나온다
+	var seen := {}
+	for i in 400:
+		seen[String(Gear.roll_gear("drop", 30, false)["slot"])] = true
+	ok(seen.has("neck") and seen.has("wrist") and seen.has("cape"), "새 장신구도 떨어진다")
+	# 저장·불러오기
+	var gd := Gear.to_dict()
+	Gear.reset()
+	Gear.from_dict(gd)
+	ok(not Gear.worn("cape").is_empty() and not Gear.worn("neck").is_empty(), "새 칸에 입은 것이 저장된다")
+	# 캐릭터에 그려진다
+	JourneyState.here = "윤슬"
+	var yp: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(yp)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ok(yp.walker.get_node_or_null("WornGear") != null, "입은 것을 몸에 그리는 노드가 있다")
+	await get_tree().process_frame
+	ok(yp.walker.get_node_or_null("WornCape") != null, "망토는 몸 뒤 노드가 따로 있다")
+	yp.queue_free()
+	await get_tree().process_frame
+	# 팔기 · 되사기
+	_clean_state()
+	Gear.reset()
+	Gear.coins = 0
+	var a := Gear.make("hat", "hat", 1, 2, "none")
+	var b := Gear.make("ring", "ring", 0, 0, "none")
+	Gear.items.append(a)
+	Gear.items.append(b)
+	ok(Gear.sellable().size() == 2 and int(Gear.sellable()[0]["uid"]) == int(a["uid"]), "팔 수 있는 것은 비싼 것부터")
+	var got := Gear.sell(int(a["uid"]))
+	ok(got > 0 and Gear.coins == got and Gear.get_item(int(a["uid"])).is_empty() and Gear.sold.size() == 1, "팔면 꿈조각을 받고 판 목록에 남는다")
+	var r := Gear.buyback(0)
+	ok(bool(r["ok"]) and Gear.coins == 0 and not Gear.get_item(int(a["uid"])).is_empty() and Gear.sold.is_empty(),
+		"되사면 같은 값을 내고 장비가 돌아온다")
+	Gear.sell(int(a["uid"]))
+	Gear.coins = 0
+	ok(not bool(Gear.buyback(0)["ok"]), "꿈조각이 모자라면 못 되산다")
+	for i in 12:
+		var t := Gear.make("shoes", "shoes", 0, 0, "none")
+		Gear.items.append(t)
+		Gear.sell(int(t["uid"]))
+	ok(Gear.sold.size() == Gear.SOLD_KEEP, "판 목록은 %d 개까지만 남는다" % Gear.SOLD_KEEP)
+	var gd2 := Gear.to_dict()
+	var n_sold := Gear.sold.size()
+	Gear.reset()
+	Gear.from_dict(gd2)
+	ok(Gear.sold.size() == n_sold, "판 목록이 저장된다")
+	ok(Gear.sold_recent()[0]["item"] == Gear.sold[-1]["item"], "되사기 목록은 최근 것이 앞")
+	# 상점 판 - 탭
+	JourneyState.here = "윤슬"
+	var sp2: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(sp2)
+	await get_tree().process_frame
+	Gear.coins = 500
+	var panel := ShelfPanel.open(sp2, "윤슬", ShelfPanel.KIND_SHOP)
+	await get_tree().process_frame
+	ok(panel != null and panel.find_child("Tab_buy", true, false) != null
+		and panel.find_child("Tab_sell", true, false) != null and panel.find_child("Tab_back", true, false) != null,
+		"상점에 사기·팔기·되사기 탭이 있다")
+	if panel != null:
+		var before := Gear.sellable().size()
+		panel.find_child("Tab_sell", true, false).pressed.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		ok(panel._sell_rows().size() == before, "팔기 탭에 팔 수 있는 장비가 줄로 선다 (%d)" % before)
+		if before > 0:
+			var c0 := Gear.coins
+			panel._sell(panel._sell_rows()[0])
+			await get_tree().process_frame
+			ok(Gear.coins > c0 and Gear.sellable().size() == before - 1, "팔기 탭에서 팔면 꿈조각이 는다")
+		panel.find_child("Tab_back", true, false).pressed.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		ok(panel._back_rows().size() > 0, "되사기 탭에 판 것이 뜬다")
+		panel._close()
+	sp2.queue_free()
 	await get_tree().process_frame
 	_clean_state()
