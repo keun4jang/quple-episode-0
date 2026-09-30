@@ -81,14 +81,35 @@ const PAGES := [
 ]
 ## 귀퉁이 고리가 나오는 장 (테스트가 그 장으로 넘겨 본다).
 const CORNER_PAGE := 4
+## **한꺼번에 여섯 장을 안 보여 준다** (0.1.198 점검 - 싸움도 없는 프롤로그에서 어두운 카드가 다섯 장 뜨고,
+## 스킵한 뒤엔 공격법을 잊었다). 처음엔 걷기 한 장만, 나머지는 **그게 필요해지는 때** 한 장씩:
+## 메인 퀘스트 칸은 첫 마을에서, 싸우기는 처음 몬스터와 붙을 때. 전부 다시 보기는 "이 마을"·설정에서.
+const MQ_PAGE := 1
+const WALK_PAGE := 2
+const FIGHT_PAGE := 3
+const TOPIC_FLAGS := {1: "howto:mq", 3: "howto:fight"}
+## 이 장들을 보여 준 적 있나 - 처음 켠 사람만 (LV 6 넘게 큰 사람에게 뒤늦게 띄우지 않는다).
+const TOPIC_MAX_LV := 6
 
 
 ## 지금 띄운다. 이미 떠 있으면 아무것도 안 한다.
-static func open(tree: SceneTree) -> HowToPlay:
+static func open(tree: SceneTree, only: Array = []) -> HowToPlay:
 	if tree.get_first_node_in_group("how_to_play") != null:
 		return null
 	var h := HowToPlay.new()
+	h._only = only
 	tree.current_scene.add_child(h)
+	return h
+
+
+## 그 장 하나만 - 처음 한 번. 본 적 있거나 이미 큰 사람에게는 안 띄운다. 띄웠으면 그 카드.
+static func topic(tree: SceneTree, page: int) -> HowToPlay:
+	var flag := String(TOPIC_FLAGS.get(page, ""))
+	if flag == "" or SaveManager.get_flag(flag, false) or Battle.level > TOPIC_MAX_LV:
+		return null
+	var h := open(tree, [page])
+	if h != null:
+		SaveManager.set_flag(flag, true)
 	return h
 
 
@@ -152,8 +173,15 @@ var _at := 0
 var _page_nodes: Array = []
 
 
+## 보여 줄 장 번호들 (비면 전부).
+var _only: Array = []
+
+
 func _build() -> void:
-	for pg in PAGES:
+	for i in PAGES.size():
+		var pg: Dictionary = PAGES[i]
+		if not _only.is_empty() and not _only.has(i):
+			continue
 		if bool(pg.get("pc", false)) and not (OS.has_feature("pc") and not OS.has_feature("mobile")):
 			continue
 		_pages.append(pg)

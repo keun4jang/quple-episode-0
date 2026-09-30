@@ -137,26 +137,37 @@ static func _hunt_item(key: String) -> String:
 static func _hunt_xp(key: String) -> int:
 	var parts := key.split(":")
 	if parts.size() < 3:
-		return XP_LIGHT
+		return scaled(XP_LIGHT)
 	if parts[1] == "전체":
-		return 25 if int(parts[2]) >= 15 else 12
+		return scaled(25 if int(parts[2]) >= 15 else 12)
 	if bool(Battle.ENEMIES.get(parts[1], {}).get("boss", false)):
-		return 40
-	return 10
+		return scaled(40)
+	return scaled(10)
 
 
 ## 경험. 받는 것의 무게를 따른다.
+## **레벨이 오르면 같이 큰다.** 경험이 6·12·20 으로 고정이면 LV 30 (다음 레벨까지 약 1270) 에서는
+## 할머니 이야기를 다 들어도 0.5퍼센트라 "스킵할래" 가 됐다 (0.1.198 점검). 위 값이 **바닥**이고,
+## 그 일의 무게(`base`)만큼 다음 레벨에 필요한 경험의 몫을 준다 - 가벼운 일 60분의 1, 기념 30분의 1,
+## 마을 하나 18분의 1, 우두머리 6분의 1. 초반(LV 10 안팎)에는 바닥이 그대로다.
+const XP_SCALE_REF := 360.0
+
+
+static func scaled(base: int) -> int:
+	return maxi(base, int(float(Battle.xp_need()) * float(base) / XP_SCALE_REF))
+
+
 static func xp_for(village: String, key: String) -> int:
 	if key.begins_with("퇴치:"):
 		return _hunt_xp(key)
 	if key.begins_with("보스:"):
-		return XP_BOSS
+		return scaled(XP_BOSS)
 	if key == VILLAGE_KEY:
-		return XP_VILLAGE
+		return scaled(XP_VILLAGE)
 	var k := Catalog.kind_of(item_for(village, key))
 	if k == "keep" or k == "stamp":
-		return XP_KEEP
-	return XP_LIGHT
+		return scaled(XP_KEEP)
+	return scaled(XP_LIGHT)
 
 
 ## 목록의 한 줄(`Quests.quest_list` 의 사전)에 붙는 보상.

@@ -6,7 +6,8 @@ extends Folk
 ## **`Folk` 를 그대로 물려받는다.** 탭 판정(`Place._folk_at`)·이름표·
 ## 테두리를 새로 쓸 까닭이 없다. 누르면 그 앞까지 걸어가 겨눈다.
 ##
-## **먼저 덤비지 않는다.** 걷다가 저절로 붙으면 쉬러 온 사람이 방해받는다
+## **먼저 덤비지 않는다** (뒷구역 종만 예외 - `Battle.AGGRO_KINDS`, 눈치챌 틈을 주고 "!" 를 띄운다).
+## 걷다가 저절로 붙으면 쉬러 온 사람이 방해받는다
 ## - 이건 여행 게임이고, 싸울지 말지는 매번 사람이 고른다. 한 대 맞으면
 ## 그때부터 쫓아와 덤비고, 멀리 달아나면 제자리로 돌아간다(`LEASH`).
 ## 쫓는 걸음(`CHASE`)은 쿼카보다 느리다 - 언제든 빠져나갈 수 있다.
@@ -19,6 +20,11 @@ var foe: Dictionary = {}
 var home := Vector2.ZERO
 ## idle 서 있음 · chase 쫓음 · windup 덤비기 직전 · back 돌아감 · gone 걷힘
 var state := "idle"
+
+## 먼저 덤비는 종(`Battle.is_aggro`)이 알아채는 거리(px)와 알아채기까지 걸리는 시간.
+const AGGRO_R := 64.0
+const NOTICE := 0.9
+var _notice := 0.0
 
 const CHASE := 38.0
 ## 이만큼 붙으면 덤빈다(px).
@@ -142,6 +148,7 @@ func _physics_process(delta: float) -> void:
 	match state:
 		"idle":
 			set_input(Vector2.ZERO)
+			_tick_notice(delta, to.length(), p)
 		"chase":
 			# 휘감기면 걸음도 덤비는 박자도 느려진다.
 			_t -= delta * Field.foe_slow(foe)
@@ -180,6 +187,26 @@ func _physics_process(delta: float) -> void:
 			else:
 				set_input(h.normalized())
 	super._physics_process(delta)
+
+
+## 먼저 덤비는 종은 가까이 서 있으면 알아챈다 - 머리 위에 "!" 가 뜨고, 잠깐 뒤 쫓아온다.
+func _tick_notice(delta: float, dist: float, p: Node) -> void:
+	if golden or not Battle.is_aggro(shade_kind) or not p.has_method("can_fight") or not p.can_fight():
+		return
+	if dist > AGGRO_R:
+		if _notice > 0.0:
+			_notice = 0.0
+			_intent.visible = false
+		return
+	if _notice <= 0.0:
+		_intent.text = "!"
+		_intent.visible = true
+	_notice += delta
+	if _notice >= NOTICE:
+		_notice = 0.0
+		_intent.visible = false
+		state = "chase"
+		_t = 0.9
 
 
 func _wind_up() -> void:

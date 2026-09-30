@@ -548,6 +548,8 @@ const SHOP := [
 	{"id": "b-lunchbox", "price": 260, "desc": "체력·마음력이 가득 찬다."},
 	{"id": "reset", "name": "초기화 물약", "price": 400, "icon": "g-reset",
 		"desc": "능력치를 처음으로 되돌리고 점수를 돌려받는다. 자동 배분은 꺼진다."},
+	{"id": "jobreset", "name": "꿈 되돌리기 물약", "price": 1200, "icon": "g-reset",
+		"desc": "전직을 물려 꿈나그네로 돌아간다. 점수는 돌려받고, 다른 직업을 다시 고를 수 있다."},
 ]
 
 
@@ -582,6 +584,8 @@ static func buy(id: String) -> Dictionary:
 	if e.is_empty():
 		return {"ok": false, "why": "없는 물건"}
 	var price := int(e["price"])
+	if id == "jobreset" and Battle.job == "novice":
+		return {"ok": false, "why": "아직 직업이 없어요"}
 	if coins < price:
 		return {"ok": false, "why": "꿈조각이 모자라요"}
 	coins -= price
@@ -604,6 +608,8 @@ static func buy(id: String) -> Dictionary:
 		"reset":
 			Battle.auto_ap = false
 			Battle.reset_stats()
+		"jobreset":
+			Battle.reset_job()
 		_:
 			JourneyState.pick(id)
 	return {"ok": true, "why": "", "got": got}

@@ -358,6 +358,16 @@ const ENEMY_STATUSES := {
 }
 
 
+## **먼저 덤비는 몬스터** (0.1.198 점검 - 구역 3~9 에 위협이 전혀 없었다). 뒷구역 종과 회사 몬스터만,
+## 그리고 **눈치챌 틈**을 주고 - 가까이(`Shade.AGGRO_R`) 오래 서 있어야 알아채고, 머리 위에 "!" 가 뜬다.
+## 쫓는 걸음은 쿼카보다 느려서 언제든 따돌릴 수 있다. 앞구역은 그대로 (쉬러 온 사람을 방해하지 않는다).
+const AGGRO_KINDS := ["thorn", "mole", "storm", "blaze", "paper", "memo", "vending", "bat"]
+
+
+static func is_aggro(kind: String) -> bool:
+	return AGGRO_KINDS.has(kind)
+
+
 # ── 몬스터 ───────────────────────────────────────────────────────────
 #
 # 꿈결의 몬스터. 야근 대마왕의 그림자가 번져 사나워진 꿈속 생물이다.
@@ -951,6 +961,28 @@ static func set_job(j: String) -> bool:
 	Gear.starter_weapon(j)
 	hp = hp_max()
 	mp = mp_max()
+	return true
+
+
+## 전직을 물린다 (상점 "꿈 되돌리기 물약"). 직업이 정해지면 그 직업으로 처음부터 다시 해야만
+## 다른 직업을 맛볼 수 있었다. 직업 스킬은 거두고 (올린 스킬 점수는 돌려받는다), 능력치 점수도
+## 돌려받아 꿈나그네 비율로 다시 나눈다. LV 10 이상이니 곧장 다시 고를 수 있다.
+static func reset_job() -> bool:
+	if job == "novice":
+		return false
+	job = "novice"
+	for id in skill_lv.keys():
+		if String(SKILLS[String(id)]["job"]) != "*":
+			sp += maxi(0, int(skill_lv[id]) - 1)
+			skill_lv.erase(id)
+	if auto_ap:
+		reset_stats()
+		auto_spend_ap()
+	_learn_new()
+	if auto_sp:
+		auto_spend_sp()
+	hp = clampi(hp, 1, hp_max())
+	mp = mini(mp, mp_max())
 	return true
 
 

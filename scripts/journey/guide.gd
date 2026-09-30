@@ -84,9 +84,22 @@ func _ready() -> void:
 		await get_tree().create_timer(3.6).timeout
 		if not is_inside_tree():
 			return
-		var card := HowToPlay.open(get_tree())
+		# 첫 켬에는 걷기 한 장만 - 나머지는 필요해지는 때 (`HowToPlay.topic`).
+		var card := HowToPlay.open(get_tree(), [HowToPlay.WALK_PAGE])
 		if card != null:
 			await card.closed
+		if not is_inside_tree():
+			return
+	# 메인 퀘스트 칸은 첫 마을에 닿았을 때 한 장으로 (프롤로그에는 아직 우두머리가 없다).
+	# (단계 안내를 이미 끝낸 사람 - 옛 저장 - 에게는 뒤늦게 띄우지 않는다.)
+	if int(MainQuest.now().get("chapter", 1)) >= 1 and not SaveManager.get_flag("howto:mq", false) \
+			and not SaveManager.get_flag(FLAG, false):
+		await get_tree().create_timer(3.6).timeout
+		if not is_inside_tree():
+			return
+		var mq := HowToPlay.topic(get_tree(), HowToPlay.MQ_PAGE)
+		if mq != null:
+			await mq.closed
 		if not is_inside_tree():
 			return
 	if SaveManager.get_flag(FLAG, false):

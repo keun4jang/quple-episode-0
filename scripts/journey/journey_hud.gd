@@ -72,6 +72,11 @@ var _cele_big: Label
 var _cele_sub: Label
 var _cele_queue: Array = []
 var _cele_busy := false
+var _cele_tw: Tween
+## 카드가 뜬 때 - 공격을 꾹 누르다 나온 "LV UP" 이 바로 걷히지 않게, 잠깐은 읽게 둔다.
+var _cele_t0 := 0
+var _arrive_t0 := 0
+const CARD_MIN_MS := 700
 var _got_queue: Array = []
 var _got_busy := false
 var _got_tw: Tween
@@ -597,6 +602,7 @@ var _mq_goal: Label
 var _mq_lv: Label
 var _mq_t := 0.0
 ## 눌러서 확인을 기다리는 전직·팔기.
+var _fight_howto_tried := false
 var _job_pending := ""
 var _sell_pending := -1
 
@@ -826,6 +832,7 @@ func announce_place(text: String) -> void:
 	if _arrive_task_tag != null:
 		_arrive_task_tag.modulate.a = 0.0
 	_arrival_card_up = true
+	_arrive_t0 = Time.get_ticks_msec()
 	_title_tw = create_tween().set_parallel(true)
 	_title_tw.tween_property(_place_title, "modulate:a", 1.0, 0.5)
 	_title_tw.tween_property(_arrive_task, "modulate:a", 1.0, 0.5)
@@ -1877,7 +1884,7 @@ func _fill_quests() -> void:
 	# 마을을 다 돌면 받는 도장. 목록 끝에 한 줄 - 끝까지 가 볼 이유가 된다.
 	if Rewards.VILLAGE.has(village) and not list.is_empty():
 		var stamp := {"item": Rewards.item_for(village, Rewards.VILLAGE_KEY),
-			"xp": Rewards.XP_VILLAGE}
+			"xp": Rewards.scaled(Rewards.XP_VILLAGE)}
 		var cleared := Rewards.claimed(village, Rewards.VILLAGE_KEY)
 		_bag_grid.add_child(_bag_line(
 			("받았어요 · %s" if cleared else "다 돌면 · %s · 경험 %d")
@@ -2470,6 +2477,7 @@ func _show_cele_now(next: Array) -> void:
 	if _cele == null or not is_instance_valid(_cele):
 		return
 	_cele_busy = true
+	_cele_t0 = Time.get_ticks_msec()
 	_cele_big.text = String(next[0])
 	Wrap.put(_cele_sub, String(next[1]))
 	AudioManager.ui_confirm()
@@ -2488,6 +2496,41 @@ func _show_cele_now(next: Array) -> void:
 	tw.chain().tween_callback(func() -> void:
 		_cele_busy = false
 		_drain_center())
+	_cele_tw = tw
+
+
+## 화면을 톡 누르면 떠 있는 축하·도착 카드가 바로 걷힌다 (0.1.198 점검 - 도착 카드, 얻은 것 카드, 축하
+## 카드가 줄줄이 뜨는데 건너뛸 수 없었다). 누름은 막지 않는다 - 걷는 손가락은 그대로 통한다.
+func _input(e: InputEvent) -> void:
+	var pressed := (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed) \
+		or (e is InputEventMouseButton and (e as InputEventMouseButton).pressed)
+	if pressed:
+		skip_cards()
+
+
+## 떠 있는 카드를 서둘러 걷는다. 걷은 것이 있으면 참.
+func skip_cards() -> bool:
+	var did := false
+	var now := Time.get_ticks_msec()
+	if _cele_busy and _cele != null and _cele.modulate.a > 0.3 and _cele_tw != null and _cele_tw.is_valid() \
+			and now - _cele_t0 >= CARD_MIN_MS:
+		_cele_tw.kill()
+		var fade := create_tween()
+		fade.tween_property(_cele, "modulate:a", 0.0, 0.15)
+		fade.tween_callback(func() -> void:
+			_cele_busy = false
+			_drain_center())
+		did = true
+	if _arrival_card_up and _title_tw != null and _title_tw.is_valid() and now - _arrive_t0 >= CARD_MIN_MS + 300:
+		_title_tw.kill()
+		var f2 := create_tween().set_parallel(true)
+		f2.tween_property(_place_title, "modulate:a", 0.0, 0.15)
+		f2.tween_property(_arrive_task, "modulate:a", 0.0, 0.15)
+		if _arrive_task_tag != null:
+			f2.tween_property(_arrive_task_tag, "modulate:a", 0.0, 0.15)
+		f2.chain().tween_callback(func() -> void: _arrival_card_up = false)
+		did = true
+	return did
 
 
 func _process(delta: float) -> void:
@@ -2550,6 +2593,10 @@ func _process(delta: float) -> void:
 		if not want and fight.modulate.a <= 0.0:
 			fight.visible = false
 		fight.set_engaged(want and p.in_fight(), delta)
+		# 처음 몬스터와 붙을 때 싸우는 법 한 장 (`HowToPlay.topic` - 처음 한 번만).
+		if want and p.in_fight() and not _fight_howto_tried:
+			_fight_howto_tried = true
+			HowToPlay.topic(get_tree(), HowToPlay.FIGHT_PAGE)
 
 
 # ── 안전영역 ──────────────────────────────────────────────────────────

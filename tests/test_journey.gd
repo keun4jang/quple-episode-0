@@ -7,7 +7,7 @@ var _fail := 0
 
 func _ready() -> void:
 	# "화면 보는 법" 판은 화면을 덮는다 — 검사 중에는 이미 본 것으로 둔다.
-	SaveManager.set_flag(HowToPlay.FLAG, true)
+	_hush_howto()
 	# 출석·잠든 사이 보상은 장소를 띄울 때마다 끼어든다 - 검사 중에는 끈다.
 	Loop.welcome_on = false
 	await get_tree().process_frame
@@ -348,7 +348,7 @@ func _pickup_tests() -> void:
 	ok(JourneyState.is_taken(pname, first), "복원하면 주운 자리도 돌아온다")
 	SaveManager.clear_save()
 	# 저장을 지우면 표시도 같이 날아간다 — 안내판을 다시 꺼 둔다.
-	SaveManager.set_flag(HowToPlay.FLAG, true)
+	_hush_howto()
 	ok(JourneyState.total() == 0, "기록 초기화가 배낭도 비운다")
 
 
@@ -1465,7 +1465,7 @@ func _guide_generous_tests() -> void:
 	JourneyState.reset()
 	SaveManager.set_flag(Guide.FLAG, false)
 	SaveManager.set_flag(Guide.STEP_FLAG, 0)
-	SaveManager.set_flag(HowToPlay.FLAG, true)   # 화면 보는 법은 따로 안 본다
+	_hush_howto()   # 화면 보는 법은 따로 안 본다
 	var p: Place = load(GOAL_SCENES["윤슬"]).instantiate()
 	add_child(p)
 	await get_tree().process_frame
@@ -1507,6 +1507,8 @@ func _guide_generous_tests() -> void:
 	SaveManager.set_flag(Guide.FLAG, false)
 	SaveManager.set_flag(Guide.STEP_FLAG, 0)
 	SaveManager.set_flag(HowToPlay.FLAG, false)
+	SaveManager.set_flag("howto:mq", true)
+	SaveManager.set_flag("howto:fight", true)
 
 
 func _prologue_clock_freeze_tests() -> void:
@@ -3920,6 +3922,8 @@ func _old_save_tests() -> void:
 func _how_to_play_tests() -> void:
 	print("\n[화면 보는 법]")
 	SaveManager.set_flag(HowToPlay.FLAG, false)
+	SaveManager.set_flag("howto:mq", true)
+	SaveManager.set_flag("howto:fight", true)
 	var card := HowToPlay.open(get_tree())
 	ok(card != null, "판이 열린다")
 	await get_tree().process_frame
@@ -3957,7 +3961,7 @@ func _how_to_play_tests() -> void:
 	ok(again != null, "본 뒤에도 다시 열 수 있다")
 	again.queue_free()
 	await get_tree().process_frame
-	SaveManager.set_flag(HowToPlay.FLAG, true)
+	_hush_howto()
 
 
 ## 위 귀퉁이 고리(below=true)는 이름을 고리 아래에 붙이는데, 그 자리가
@@ -3966,6 +3970,8 @@ func _how_to_play_tests() -> void:
 func _how_to_play_marker_overlap_tests() -> void:
 	print("\n[화면 보는 법 - 고리와 이름이 안 겹치는가]")
 	SaveManager.set_flag(HowToPlay.FLAG, false)
+	SaveManager.set_flag("howto:mq", true)
+	SaveManager.set_flag("howto:fight", true)
 	var card := HowToPlay.open(get_tree())
 	card.show_page(HowToPlay.CORNER_PAGE)
 	await get_tree().process_frame
@@ -4029,7 +4035,7 @@ func _how_to_play_marker_overlap_tests() -> void:
 
 	card._close()
 	await get_tree().process_frame
-	SaveManager.set_flag(HowToPlay.FLAG, true)
+	_hush_howto()
 
 
 ## "작은 지도" 고리는 마을마다 다른 미니맵 폭(`MiniMap._fit`)에 맞춰
@@ -4043,6 +4049,8 @@ func _how_to_play_minimap_alignment_tests() -> void:
 	add_child(p)
 	await get_tree().process_frame
 	SaveManager.set_flag(HowToPlay.FLAG, false)
+	SaveManager.set_flag("howto:mq", true)
+	SaveManager.set_flag("howto:fight", true)
 	var card := HowToPlay.open(get_tree())
 	card.show_page(HowToPlay.CORNER_PAGE)
 	await get_tree().process_frame
@@ -4064,7 +4072,7 @@ func _how_to_play_minimap_alignment_tests() -> void:
 	p.queue_free()
 	await get_tree().process_frame
 	JourneyState.reset()
-	SaveManager.set_flag(HowToPlay.FLAG, true)
+	_hush_howto()
 
 
 # ── 표시가 너무 일찍 남지 않는가 ──────────────────────────────────────
@@ -8099,7 +8107,7 @@ func _boss_map_tests() -> void:
 	ok(Quests.quest_list("윤슬").filter(func(q): return String(q.get("id", "")).begins_with("보스:")).is_empty(),
 		"우두머리 줄은 마을 할 일 목록 밖에 따로 선다")
 	var re: Array = Rewards.entries("윤슬").filter(func(e): return String(e["key"]) == "보스:윤슬")
-	ok(re.size() == 1 and String(re[0]["item"]) == "b-lunchbox" and int(re[0]["xp"]) == Rewards.XP_BOSS,
+	ok(re.size() == 1 and String(re[0]["item"]) == "b-lunchbox" and int(re[0]["xp"]) == Rewards.scaled(Rewards.XP_BOSS),
 		"우두머리 퀘스트에 보상이 붙는다")
 	# 화살표 차례 - 레벨이 모자라면 마을 할 일부터, 되면 붉은 틈부터 (0.1.186)
 	var lv0 := Battle.level
@@ -8231,6 +8239,7 @@ func _crit_tests() -> void:
 	await _phase2_tests()
 	await _accessory_shop_tests()
 	await _late_skill_tests()
+	await _remaining_five_tests()
 
 
 ## 0.1.191 코드 점검에서 나온 것들.
@@ -9333,4 +9342,117 @@ func _late_skill_tests() -> void:
 	Battle.mp = Battle.mp_max()
 	Field.use("unyield")
 	ok(Battle.hp > Battle.hp_max() * 0.4 and Field.has_status("firm"), "불굴은 크게 회복하고 굳건해진다")
+	_clean_state()
+
+
+
+
+## 화면 보는 법·주제 카드를 다 본 것으로 둔다 (검사 중에는 화면을 덮지 않게).
+func _hush_howto() -> void:
+	SaveManager.set_flag(HowToPlay.FLAG, true)
+	SaveManager.set_flag("howto:mq", true)
+	SaveManager.set_flag("howto:fight", true)
+## 0.1.202 - 남은 다섯: 마을 보상 비례 · 직업 되돌리기 · 튜토리얼 한 장씩 · 카드 탭 넘기기 · 먼저 덤비는 몬스터.
+func _remaining_five_tests() -> void:
+	print("\n[남은 다섯]")
+	# 1. 마을 이야기 보상이 레벨과 같이 큰다
+	_clean_state()
+	Battle.level = 5
+	var x5 := Rewards.scaled(Rewards.XP_VILLAGE)
+	Battle.level = 40
+	var x40 := Rewards.scaled(Rewards.XP_VILLAGE)
+	ok(x5 == Rewards.XP_VILLAGE and x40 > Rewards.XP_VILLAGE * 4, "마을 보상 경험이 레벨과 같이 큰다 (LV5 %d -> LV40 %d)" % [x5, x40])
+	ok(Rewards.scaled(Rewards.XP_BOSS) > x40, "우두머리 줄이 가장 무겁다")
+	# 2. 직업 되돌리기
+	_clean_state()
+	Battle.level = 20
+	Battle.set_job("warrior")
+	Battle.skill_lv["power"] = 4
+	ok(Battle.job == "warrior" and Battle.skills().has("power"), "전사가 됐다")
+	Gear.coins = 5000
+	Battle.auto_sp = false       # 돌려받은 점수가 바로 다시 나뉘지 않게
+	var sp0 := Battle.sp
+	var jr := Gear.buy("jobreset")
+	ok(bool(jr["ok"]) and Battle.job == "novice" and Gear.coins == 5000 - int(Gear.shop_item("jobreset")["price"]),
+		"꿈 되돌리기 물약을 사면 꿈나그네로 돌아간다")
+	ok(not Battle.skills().has("power") and Battle.skills().has("bump"), "직업 스킬은 거두고 공용 스킬은 남는다")
+	ok(Battle.sp >= sp0 + 3, "올린 스킬 점수는 돌려받는다 (%d -> %d)" % [sp0, Battle.sp])
+	ok(Battle.set_job("mage") and Battle.job == "mage", "다른 직업을 다시 고를 수 있다")
+	Battle.reset()
+	Gear.coins = 5000
+	ok(not bool(Gear.buy("jobreset")["ok"]) and Gear.coins == 5000, "꿈나그네는 살 수 없고 꿈조각도 안 나간다")
+	# 3. 튜토리얼은 필요할 때 한 장씩
+	_clean_state()
+	Battle.level = 1
+	SaveManager.set_flag("howto:mq", false)
+	SaveManager.set_flag("howto:fight", false)
+	var c1 := HowToPlay.open(get_tree(), [HowToPlay.WALK_PAGE])
+	await get_tree().process_frame
+	ok(c1 != null and c1.page_count() == 1, "첫 켬에는 걷기 한 장만 (%d장)" % (c1.page_count() if c1 != null else -1))
+	if c1 != null:
+		c1._close()
+	await get_tree().process_frame
+	var c2 := HowToPlay.topic(get_tree(), HowToPlay.FIGHT_PAGE)
+	await get_tree().process_frame
+	ok(c2 != null and c2.page_count() == 1 and SaveManager.get_flag("howto:fight", false), "처음 붙을 때 싸우기 한 장")
+	if c2 != null:
+		c2._close()
+	await get_tree().process_frame
+	ok(HowToPlay.topic(get_tree(), HowToPlay.FIGHT_PAGE) == null, "한 번 본 장은 다시 안 뜬다")
+	Battle.level = 20
+	ok(HowToPlay.topic(get_tree(), HowToPlay.MQ_PAGE) == null, "이미 큰 사람에게는 뒤늦게 안 띄운다")
+	Battle.level = 1
+	var all := HowToPlay.open(get_tree())
+	await get_tree().process_frame
+	ok(all != null and all.page_count() >= 5, "전부 다시 보기는 여전히 여러 장 (%d)" % (all.page_count() if all != null else -1))
+	if all != null:
+		all._close()
+	await get_tree().process_frame
+	# 4. 카드는 톡 누르면 걷힌다 (뜬 지 잠깐은 읽게 둔다)
+	_clean_state()
+	SaveManager.set_flag(HowToPlay.FLAG, true)
+	SaveManager.set_flag(Guide.FLAG, true)
+	JourneyState.here = "윤슬"
+	var cp: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(cp)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	cp.hud._show_cele_now(["시험", "카드"])
+	var t_end := Time.get_ticks_msec() + 3000
+	while not (cp.hud._cele_busy and cp.hud._cele.modulate.a > 0.5) and Time.get_ticks_msec() < t_end:
+		await get_tree().process_frame
+	ok(cp.hud._cele_busy, "축하 카드가 떴다")
+	ok(not cp.hud.skip_cards(), "뜬 지 얼마 안 되면 안 걷힌다 (공격을 꾹 누르다 나온 LV UP 이 바로 사라지지 않게)")
+	cp.hud._cele_t0 = 0
+	ok(cp.hud.skip_cards(), "잠깐 지나 톡 누르면 걷힌다")
+	await get_tree().create_timer(0.5).timeout
+	ok(not cp.hud._cele_busy, "걷힌 뒤 다음 카드로 넘어갈 수 있다")
+	# 5. 뒷구역 몬스터는 먼저 덤빈다 (눈치챌 틈을 주고)
+	Battle.level = 30
+	var near := cp.walker.global_position
+	var thorn: Shade = null
+	var drop: Shade = null
+	for sh in cp._shades:
+		if is_instance_valid(sh):
+			sh.queue_free()
+	cp._shades.clear()
+	thorn = cp.put_shade(cp._nearest_walkable(Vector2i(int(near.x / 16.0) + 2, int(near.y / 16.0) - 1)), "thorn", 30)
+	drop = cp.put_shade(cp._nearest_walkable(Vector2i(int(near.x / 16.0) - 2, int(near.y / 16.0) - 1)), "drop", 30)
+	await get_tree().process_frame
+	if thorn != null and drop != null:
+		thorn.global_position = near + Vector2(36, 0)
+		drop.global_position = near + Vector2(-36, 0)
+		thorn.home = thorn.global_position
+		drop.home = drop.global_position
+		var seen_bang := false
+		var until := Time.get_ticks_msec() + 4000
+		while thorn.state == "idle" and Time.get_ticks_msec() < until:
+			await get_tree().process_frame
+			if thorn.get_node("Intent").visible and String(thorn.get_node("Intent").text) == "!":
+				seen_bang = true
+		ok(thorn.state != "idle" and seen_bang, "뒷구역 몬스터는 가까이 서 있으면 알아채고(!) 쫓아온다 (%s)" % thorn.state)
+		ok(drop.state == "idle", "앞구역 몬스터는 먼저 덤비지 않는다")
+	ok(Battle.is_aggro("thorn") and not Battle.is_aggro("drop") and not Battle.is_aggro("gold_drop"), "먼저 덤비는 종 목록")
+	cp.queue_free()
+	await get_tree().process_frame
 	_clean_state()
