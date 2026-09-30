@@ -13,7 +13,7 @@ signal finished
 const SPEED := 0.028          # 한 글자에 걸리는 시간
 ## 창이 이보다 넓어지지 않는다. 큰 화면에서 한 줄이 가로로 끝없이
 ## 늘어나면 눈이 따라가느라 피곤하다.
-const MAX_WIDTH := 560.0
+const MAX_WIDTH := 720.0
 ## 이보다 좁으면 "이전" 버튼과 이름이 부딪혀 오히려 어색해진다.
 const MIN_WIDTH := 150.0
 ## **무거운 줄**(`_weight_at`)은 이만큼 천천히 앉는다. 평소 속도로
@@ -85,12 +85,12 @@ func _build() -> void:
 	_panel.add_child(box)
 
 	_who = Label.new()
-	_who.add_theme_font_size_override("font_size", 15)
+	_who.add_theme_font_size_override("font_size", 20)
 	_who.add_theme_color_override("font_color", Color("#8C7B68"))
 	box.add_child(_who)
 
 	_line = Label.new()
-	_line.add_theme_font_size_override("font_size", 21)
+	_line.add_theme_font_size_override("font_size", 26)
 	_line.add_theme_color_override("font_color", Color("#3A2C2C"))
 	_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_line.vertical_alignment = VERTICAL_ALIGNMENT_TOP

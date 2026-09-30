@@ -53,8 +53,11 @@ func _process(delta: float) -> void:
 		arc = (-1.4 + 2.6 * (1.0 - s)) * (1.0 if face >= 0.0 else -1.0)
 	rotation = face + arc
 	var it := Gear.worn("weapon")
-	var sig := "%s|%s|%s" % [it.get("kind", ""), it.get("tier", 0), it.get("elem", "")]
-	if sig != _sig or s > 0.0:
+	var sig := "%s|%s|%s|%s|%s" % [it.get("kind", ""), it.get("tier", 0), it.get("elem", ""),
+		it.get("rar", 0), it.get("plus", 0)]
+	# 광채가 나는 무기는 계속 반짝이므로 매 프레임 다시 그린다.
+	var shiny := int(it.get("rar", 0)) >= 2 or int(it.get("plus", 0)) >= 5
+	if sig != _sig or s > 0.0 or shiny:
 		_sig = sig
 		queue_redraw()
 
@@ -92,6 +95,7 @@ func _draw() -> void:
 			draw_line(Vector2(0, 2), Vector2(0, -7), edge, 3.0)
 			draw_line(Vector2(0, 0), Vector2(0, -7), metal, 1.6)
 			draw_line(Vector2(0, 2), Vector2(0, 0), wood, 1.6)
+	_draw_aura(it, kind)
 	# 속성이 있으면 끝이 그 빛깔로 반짝인다.
 	if el != "none" and kind != "staff":
 		var tip := Vector2(0, -12) if kind in ["sword", "stick"] else Vector2(0, -7)
@@ -105,3 +109,27 @@ func _draw() -> void:
 		var c := glow if el != "none" else Color(1, 1, 1)
 		c.a = _swing * 0.6
 		draw_arc(Vector2.ZERO, 11.0, -PI * 0.5 - 0.6, -PI * 0.5 + 0.6, 10, c, 2.0)
+
+
+## 희귀도와 강화가 무기에서 **눈에 보이게** 한다 - 전설을 뽑거나 +15 를 만들어도 검이 똑같이
+## 생겼다는 지적이 있었다. 고급부터 은은한 등급빛, +5 부터 더 밝게, +10 부터 반짝이가 돈다.
+func _draw_aura(it: Dictionary, kind: String) -> void:
+	var rar := int(it.get("rar", 0))
+	var plus := int(it.get("plus", 0))
+	if rar < 2 and plus < 5:
+		return
+	var t := Time.get_ticks_msec() / 1000.0
+	var pulse := 0.6 + 0.4 * sin(t * 3.2)
+	var mid := Vector2(0, -6) if kind != "bow" else Vector2(-1, -4)
+	var rc := Gear.rarity_col(it)
+	var a := (0.08 + 0.06 * float(maxi(0, rar - 1)) + 0.015 * float(mini(plus, 15))) * pulse
+	rc.a = a
+	draw_circle(mid, 8.0 + float(rar), rc)
+	rc.a = a * 1.5
+	draw_circle(mid, 5.0 + float(rar) * 0.5, rc)
+	if plus >= 10:
+		var n := 2 if plus < 15 else 4
+		for i in n:
+			var ang := t * 2.2 + float(i) * TAU / float(n)
+			var sp := Color(1, 1, 1, 0.55 + 0.4 * sin(t * 6.0 + float(i)))
+			draw_circle(mid + Vector2(cos(ang), sin(ang)) * 9.5, 1.1, sp)

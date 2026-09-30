@@ -410,7 +410,8 @@ func _start_new(skip_prologue: bool) -> void:
 	SceneTransition.go_to(SaveManager.HUB)
 
 func _on_continue() -> void:
-	SaveManager.load_game()
+	if not SaveManager.load_game():
+		return
 	SceneTransition.go_to(SaveManager.get_current_scene())
 
 func _on_quit() -> void:
@@ -468,7 +469,7 @@ func _add_subtitle() -> void:
 		return
 	var l := Label.new()
 	l.name = "Subtitle"
-	l.text = "혼자 떠나는 쿼카의 힐링 여행"
+	l.text = "꿈속에서 우두머리 9마리를 깨부수는 모험"
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_font_size_override("font_size", 28)
 	l.add_theme_color_override("font_color", Color(0.42, 0.36, 0.30))
@@ -542,7 +543,7 @@ func _show_credits() -> void:
 
 	var lines := [
 		["진짜 행복", 54, Color(1, 0.93, 0.78)],
-		["혼자 떠나는 쿼카의 힐링 여행", 30, Color(1, 0.86, 0.62)],
+		["꿈속에서 우두머리 9마리를 깨부수는 모험", 30, Color(1, 0.86, 0.62)],
 		["", 18, Color.WHITE],
 		["1인 개발  김근영", 28, Color(0.96, 0.92, 0.82)],
 		["기획 · 개발 · 아트", 26, Color(0.82, 0.86, 0.96)],

@@ -198,9 +198,18 @@ func _offer_blessing(n: int) -> void:
 	await get_tree().create_timer(1.2).timeout
 	if not is_inside_tree():
 		return
+	var offer := Loop.bless_offer(n)
+	if offer.is_empty():
+		# 일곱 축복이 다 차면(21개) 고를 게 없다 - 빈 선택창이 뜨지 않게 그냥 넘어간다.
+		if not Loop.climb_cleared.has(n):
+			Loop.climb_cleared.append(n)
+		SaveManager.save_now()
+		if hud != null:
+			hud._say_hint("축복이 모두 찼어요", false, 1.6)
+		return
 	var bp := BlessPick.new()
 	bp.name = "BlessPick"
-	bp.offer = Loop.bless_offer(n)
+	bp.offer = offer
 	bp.picked.connect(func(id: String) -> void:
 		if not Loop.climb_cleared.has(n):
 			Loop.climb_cleared.append(n)

@@ -24,7 +24,7 @@ static func level_note(m: Dictionary) -> String:
 	if not m.has("boss_lv"):
 		return ""
 	if bool(m.get("low", false)):
-		return "내 LV %d · 몬스터를 더 잡아 레벨을 올려요" % Battle.level
+		return "내 LV %d · LV %d 까지 몬스터를 더 잡아요" % [Battle.level, maxi(1, int(m["boss_lv"]) - LOW_GAP)]
 	return "내 LV %d · 도전할 만해요" % Battle.level
 
 

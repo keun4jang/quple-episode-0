@@ -596,6 +596,9 @@ var _mq_head: Label
 var _mq_goal: Label
 var _mq_lv: Label
 var _mq_t := 0.0
+## 눌러서 확인을 기다리는 전직·팔기.
+var _job_pending := ""
+var _sell_pending := -1
 
 
 func _build_main_quest(root: Control) -> void:
@@ -604,7 +607,7 @@ func _build_main_quest(root: Control) -> void:
 	main_quest.focus_mode = Control.FOCUS_NONE
 	var top := MENU_AT.y + ceilf(float(MENU.size()) / MENU_COLS) * (MENU_BTN + MENU_GAP) + 2.0
 	main_quest.position = Vector2(MENU_AT.x - 4, top)
-	main_quest.size = Vector2(330, 62)
+	main_quest.size = Vector2(330, 64)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.12, 0.09, 0.14, 0.62)
 	sb.border_color = Color("#E8C46A")
@@ -616,21 +619,21 @@ func _build_main_quest(root: Control) -> void:
 	root.add_child(main_quest)
 	_mq_head = Label.new()
 	_mq_head.position = Vector2(12, 4)
-	_mq_head.add_theme_font_size_override("font_size", 17)
+	_mq_head.add_theme_font_size_override("font_size", 18)
 	_mq_head.add_theme_color_override("font_color", Color("#FFD43B"))
 	_mq_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	main_quest.add_child(_mq_head)
 	_mq_goal = Label.new()
-	_mq_goal.position = Vector2(12, 30)
-	_mq_goal.add_theme_font_size_override("font_size", 17)
+	_mq_goal.position = Vector2(12, 29)
+	_mq_goal.add_theme_font_size_override("font_size", 21)
 	_mq_goal.add_theme_color_override("font_color", Color("#FFFDF6"))
 	_mq_goal.add_theme_color_override("font_outline_color", Color(0.12, 0.09, 0.14))
 	_mq_goal.add_theme_constant_override("outline_size", 4)
 	_mq_goal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	main_quest.add_child(_mq_goal)
 	_mq_lv = Label.new()
-	_mq_lv.position = Vector2(12, 56)
-	_mq_lv.add_theme_font_size_override("font_size", 15)
+	_mq_lv.position = Vector2(12, 60)
+	_mq_lv.add_theme_font_size_override("font_size", 18)
 	_mq_lv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	main_quest.add_child(_mq_lv)
 	_refresh_main_quest()
@@ -651,7 +654,7 @@ func _refresh_main_quest() -> void:
 	var w: float = maxf(_mq_head.get_minimum_size().x, _mq_goal.get_minimum_size().x)
 	if note != "":
 		w = maxf(w, _mq_lv.get_minimum_size().x)
-	main_quest.size = Vector2(maxf(240.0, w + 28.0), 86 if note != "" else 62)
+	main_quest.size = Vector2(maxf(240.0, w + 28.0), 92 if note != "" else 64)
 
 
 func _on_saved() -> void:
@@ -1316,8 +1319,10 @@ func _paper_btn(text: String, fn: Callable) -> Button:
 func _fill_mind() -> void:
 	_bag_grid.columns = 1
 	var need := Battle.xp_need()
-	var tail := "경험 %d / %d" % [Battle.xp, need] if Battle.level < Battle.LEVEL_MAX \
-		else "끝까지 왔다"
+	var tail := "경험 %d / %d" % [Battle.xp, need]
+	if Battle.level >= Battle.LEVEL_MAX:
+		tail = "별빛 %d / %d" % [Battle.stars, Battle.STAR_MAX] if Battle.stars < Battle.STAR_MAX \
+			else "끝까지 왔다"
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 10)
 	for i in 3:
@@ -1368,8 +1373,18 @@ func _fill_stats() -> void:
 			row.add_theme_constant_override("v_separation", 10)
 			for j in Battle.JOB_ORDER:
 				var jd: Dictionary = Battle.JOBS[j]
-				var jb := _paper_btn("%s  -  %s" % [String(jd["name"]),
-					String(Gear.WEAPONS[String(jd["weapon"])])], func() -> void:
+				var pending := _job_pending == String(j)
+				var jb := _paper_btn(("정말 %s?" % String(jd["name"])) if pending
+					else "%s  -  %s" % [String(jd["name"]), String(Gear.WEAPONS[String(jd["weapon"])])],
+					func() -> void:
+						# 전직은 되돌릴 수 없다 - 한 번 더 눌러야 정해진다.
+						if _job_pending != String(j):
+							_job_pending = String(j)
+							_say_hint("%s(으)로 전직할까요? 되돌릴 수 없어요. 한 번 더 누르면 정해져요"
+								% String(Battle.JOBS[j]["name"]), true, 2.6)
+							_refill_bag()
+							return
+						_job_pending = ""
 						if Battle.set_job(String(j)):
 							AudioManager.ui_confirm()
 							_celebrate("%s이(가) 되었어요!" % Battle.job_name(),
@@ -1645,7 +1660,9 @@ func _gear_card(it: Dictionary) -> Control:
 					Loop.note("enhance")
 				if bool(r["ok"]):
 					AudioManager.ui_confirm()
-					_celebrate("강화 성공!", Gear.name_of(Gear.get_item(uid)))
+					var mt := Gear.milestone_text(int(Gear.get_item(uid).get("plus", 0)))
+					_celebrate("강화 성공!" if mt == "" else "+%d 달성!" % int(Gear.get_item(uid)["plus"]),
+						Gear.name_of(Gear.get_item(uid)) if mt == "" else mt)
 				elif bool(r.get("tried", false)):
 					AudioManager.battle_hurt()
 					_say_hint("강화 실패... 수치는 그대로예요", false, 1.6)
@@ -1656,7 +1673,14 @@ func _gear_card(it: Dictionary) -> Control:
 		eb.custom_minimum_size = Vector2(360, 48)
 		row.add_child(eb)
 	if not Gear.is_worn(uid):
-		row.add_child(_small_btn("팔기 %d" % Gear.sell_price(it), func() -> void:
+		var ask := _sell_pending == uid
+		row.add_child(_small_btn(("정말 팔까요? %d" if ask else "팔기 %d") % Gear.sell_price(it), func() -> void:
+			# 강화 버튼 바로 옆이라 잘못 누르기 쉽다 - 한 번 더 눌러야 팔린다.
+			if _sell_pending != uid:
+				_sell_pending = uid
+				_refill_bag()
+				return
+			_sell_pending = -1
 			Gear.sell(uid)
 			_gear_sel = -1
 			AudioManager.ui_click()

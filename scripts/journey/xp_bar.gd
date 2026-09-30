@@ -38,7 +38,11 @@ func _process(delta: float) -> void:
 ## 막대에 적는 글.
 static func text_now() -> String:
 	if Battle.level >= Battle.LEVEL_MAX:
-		return "LV %d  ·  최고 레벨" % Battle.level
+		if Battle.stars >= Battle.STAR_MAX:
+			return "LV %d  ·  별빛 %d / %d  ·  끝까지 왔어요" % [Battle.level, Battle.stars, Battle.STAR_MAX]
+		var need_s := Battle.xp_need()
+		return "LV %d  ·  별빛 %d / %d  ·  다음 별까지 %d" % [Battle.level, Battle.stars,
+			Battle.STAR_MAX, maxi(0, need_s - Battle.xp)]
 	var need := Battle.xp_need()
 	return "LV %d  ·  경험 %d / %d  ·  레벨업까지 %d" % [Battle.level, Battle.xp, need,
 		maxi(0, need - Battle.xp)]
@@ -46,7 +50,7 @@ static func text_now() -> String:
 
 func _draw() -> void:
 	var w := size.x
-	var k := 1.0 if Battle.level >= Battle.LEVEL_MAX \
+	var k := 1.0 if (Battle.level >= Battle.LEVEL_MAX and Battle.stars >= Battle.STAR_MAX) \
 		else clampf(float(Battle.xp) / maxf(1.0, float(Battle.xp_need())), 0.0, 1.0)
 	draw_rect(Rect2(0, 0, w, H), Color(0.12, 0.09, 0.14, 0.82))
 	var fill := Color("#FFD43B").lerp(Color("#FFFBE6"), _flash * 0.8)

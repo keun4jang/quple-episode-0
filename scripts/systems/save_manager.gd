@@ -30,7 +30,9 @@ func autosave(current_scene: String) -> void:
 	game_saved.emit()
 
 func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+	# 파일이 있다고 저장이 있는 게 아니다 - "하는 법" 을 본 표시(`set_flag`) 만 든 파일이 첫 실행에서
+	# 생겨 "이어하기" 가 켜지고, 누르면 초기화 안 된 채 프롤로그로 들어갔다.
+	return _is_valid(SAVE_PATH) or _is_valid(BACKUP_PATH)
 
 
 ## 저장본을 **불러오지 않고** 요약만 들여다본다. `{day, places}`.

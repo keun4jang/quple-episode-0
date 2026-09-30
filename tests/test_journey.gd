@@ -6937,10 +6937,23 @@ func _gear_tests() -> void:
 	ok(int(hat["plus"]) <= Gear.PLUS_MAX, "+15 를 넘지 않는다")
 	# 팔기
 	var c0 := Gear.coins
+	# 입은 신발이 있어야 '더 나은 것' 으로 남지 않는다 - 빈 칸에 입을 수 있는 건 팔지 않는다.
+	var wear := Gear.make("shoes", "shoes", 2, 1, "none")
+	Gear.items.append(wear)
+	Gear.equip(int(wear["uid"]))
 	var junk := Gear.make("shoes", "shoes", 0, 0, "none")
 	Gear.items.append(junk)
+	var kept := Gear.make("gloves", "gloves", 0, 0, "none")
+	Gear.items.append(kept)
+	ok(Gear.better(kept), "빈 칸에 입을 수 있는 건 '더 좋음'")
 	ok(Gear.sell_junk(1) > 0 and Gear.coins > c0 and Gear.get_item(int(junk["uid"])).is_empty(),
 		"일반 장비를 한꺼번에 판다")
+	ok(not Gear.get_item(int(kept["uid"])).is_empty(), "입을 수 있는 장비는 일괄 판매에서 남는다")
+	var plused := Gear.make("shoes", "shoes", 0, 0, "none")
+	plused["plus"] = 3
+	Gear.items.append(plused)
+	Gear.sell_junk(1)
+	ok(not Gear.get_item(int(plused["uid"])).is_empty(), "강화한 장비는 일괄 판매에서 남는다")
 	ok(Gear.sell(int(Gear.worn("weapon")["uid"])) == 0, "입은 것은 안 팔린다")
 	# 상점 - 꿈조각으로 산다
 	Gear.coins = 100
@@ -7708,6 +7721,8 @@ func _hunt_tests() -> void:
 	# 걸으면서 다른 손가락으로 눌러도 된다
 	var sh2: Shade = p._shades[0]
 	p.walker.global_position = sh2.global_position + Vector2(10, 0)
+	# 한 대에 쓰러질 만큼 약한 몬스터가 걸릴 수 있다 - 두 번 때려 보려면 몸을 두둑이 준다.
+	sh2.foe["hp"] = maxi(int(sh2.foe["hp"]), 5000)
 	var hp2: int = int(sh2.foe["hp"])
 	var atk_btn: Button = pad.buttons()[0]
 	ok(p.hud.try_touch(atk_btn.get_global_rect().get_center()), "공격 버튼을 손가락으로 누른다")
@@ -7768,7 +7783,12 @@ func _char_ui_tests() -> void:
 	if jb != null:
 		jb.pressed.emit()
 	await get_tree().process_frame
-	ok(Battle.job == "mage" and Gear.weapon_kind() == "staff", "누르면 마법사가 되고 지팡이를 든다")
+	ok(Battle.job == "novice", "전직은 한 번 눌러서는 안 정해진다 (되돌릴 수 없어서)")
+	jb = hud._bag_grid.find_child("Job_mage", true, false)
+	if jb != null:
+		jb.pressed.emit()
+	await get_tree().process_frame
+	ok(Battle.job == "mage" and Gear.weapon_kind() == "staff", "한 번 더 누르면 마법사가 되고 지팡이를 든다")
 	var held := p.walker.get_node_or_null("HeldWeapon")
 	ok(held != null, "든 무기가 몸에 그려진다")
 	ok(hud._bag_grid.find_child("Job_warrior", true, false) == null, "전직하면 직업 버튼이 사라진다")
@@ -7862,9 +7882,9 @@ func _loop_tests() -> void:
 	Loop.last_seen = now - 3600
 	var c1 := Gear.coins
 	var idle := Loop.check_idle()
-	ok(idle == 6 * (5 + Battle.level) and Gear.coins == c1 + idle, "한 시간 자면 여섯 몫 (%d)" % idle)
+	ok(idle == 6 * Loop.idle_rate() and Gear.coins == c1 + idle, "한 시간 자면 여섯 몫 (%d)" % idle)
 	Loop.last_seen = now - 3600 * 24
-	ok(Loop.check_idle() == 48 * (5 + Battle.level), "여덟 시간까지만 모인다")
+	ok(Loop.check_idle() == 48 * Loop.idle_rate(), "여덟 시간까지만 모인다")
 	# 칭호 - 한 종을 10마리
 	var hp0 := Battle.hp_max()
 	var t := ""
@@ -8207,6 +8227,7 @@ func _crit_tests() -> void:
 	Battle.job = job0
 	Battle.stats = st0
 	await _audit_191_tests()
+	await _audit_198_tests()
 
 
 ## 0.1.191 코드 점검에서 나온 것들.
@@ -8947,3 +8968,105 @@ func _design_tests() -> void:
 	Gear.reset()
 	Battle.reset()
 	JourneyState.reset()
+
+
+## 0.1.198 - 냉정한 개발자·고등학생 시선 점검에서 나온 것들.
+func _audit_198_tests() -> void:
+	print("\n[0.1.198 점검]")
+	_clean_state()
+	Loop.reset()
+	Field.jitter = false
+	# 레벨업은 얼마나 세졌는지 숫자로 알려 준다
+	Battle.level = 5
+	Battle.xp = 0
+	var evs := Battle.gain_xp(Battle.xp_need())
+	ok(not evs.is_empty() and evs[-1].has("atk") and int(evs[-1]["hp"]) > 0,
+		"레벨업 소식에 늘어난 공격력·체력이 실린다")
+	# LV 50 넘는 경험은 별빛이 된다
+	Battle.level = Battle.LEVEL_MAX
+	Battle.stars = 0
+	Battle.xp = 0
+	var ap0 := Battle.ap + int(Battle.stats["str"]) + int(Battle.stats["dex"]) + int(Battle.stats["int"]) + int(Battle.stats["luk"])
+	var sev := Battle.gain_xp(Battle.xp_need() + 5)
+	var ap1 := Battle.ap + int(Battle.stats["str"]) + int(Battle.stats["dex"]) + int(Battle.stats["int"]) + int(Battle.stats["luk"])
+	ok(Battle.stars == 1 and Battle.xp == 5 and not sev.is_empty() and String(sev[0]["kind"]) == "star",
+		"최고 레벨에서 경험이 한 바퀴 차면 별빛이 하나 는다")
+	ok(ap1 - ap0 == Battle.STAR_AP, "별빛 하나는 능력치 점수 %d 를 준다" % Battle.STAR_AP)
+	Battle.stars = Battle.STAR_MAX - 1
+	Battle.gain_xp(Battle.xp_need() * 3)
+	ok(Battle.stars == Battle.STAR_MAX and Battle.xp == 0, "별빛은 %d 개까지, 넘치는 경험은 버린다" % Battle.STAR_MAX)
+	var bd := Battle.to_dict()
+	Battle.stars = 0
+	Battle.from_dict(bd)
+	ok(Battle.stars == Battle.STAR_MAX, "별빛이 저장된다")
+	ok(XpBar.text_now().contains("별빛"), "경험 막대에 별빛이 적힌다")
+	Battle.stars = 0
+	# 장비를 입고 벗어도 체력이 공짜로 차지 않는다
+	_clean_state()
+	var hpg := Gear.make("hat", "hat", 2, 1, "none")
+	hpg["opts"] = [["hp", 200]]
+	Gear.items.append(hpg)
+	Battle.hp = Battle.hp_max() / 2
+	var hp_before := Battle.hp
+	for i in 4:
+		Gear.equip(int(hpg["uid"]))
+		Gear.unequip("hat")
+	ok(Battle.hp <= hp_before, "체력 옵션 장비를 입었다 벗어도 체력이 안 찬다 (%d -> %d)" % [hp_before, Battle.hp])
+	# 꿈 상자 값은 단계에 따라 오른다
+	Battle.level = 5
+	var p0 := Gear.box_price()
+	Battle.level = 45
+	ok(Gear.box_price() > p0 and int(Gear.shop_item("box")["price"]) == Gear.box_price(),
+		"꿈 상자 값이 단계에 따라 오른다 (%d -> %d)" % [p0, Gear.box_price()])
+	# 직업에 안 쓰는 옵션은 '더 좋음' 점수가 낮다
+	Battle.job = "mage"
+	var strp := Gear.make("hat", "hat", 1, 1, "none")
+	strp["opts"] = [["str", 8]]
+	var intp := Gear.make("hat", "hat", 1, 1, "none")
+	intp["opts"] = [["int", 8]]
+	ok(Gear.score(intp) > Gear.score(strp), "마법사에게는 지능 옵션이 힘 옵션보다 낫다")
+	Battle.job = "novice"
+	# 강화 마일스톤
+	var wp := Gear.make("weapon", "sword", 1, 1, "none")
+	wp["plus"] = 4
+	var c4 := int(Gear.stats_of(wp).get("crit", 0))
+	wp["plus"] = 5
+	ok(int(Gear.stats_of(wp).get("crit", 0)) == c4 + 2 and Gear.milestone_text(5).contains("치명타"),
+		"무기 +5 에 닿으면 치명타가 오른다")
+	wp["plus"] = 10
+	ok(int(Gear.stats_of(wp).get("elem", 0)) >= 8, "무기 +10 에 닿으면 속성 피해가 오른다")
+	# 칭호
+	Loop.reset()
+	for i in 100:
+		Loop.add_kill("drop")
+	ok(Loop.title_hp() == Loop.TITLE_HPS[0] + Loop.TITLE_HPS[1], "칭호 체력은 단계마다 크다 (%d)" % Loop.title_hp())
+	ok(int(Loop.next_title("drop")["left"]) == 400 and int(Loop.next_title("ember")["left"]) == 10,
+		"다음 칭호까지 남은 수가 나온다")
+	# 출석 · 방치
+	Battle.level = 40
+	ok(Loop.attend_coins(200) > 200 * 4 and Loop.idle_rate() == 5 + 3 * 40, "출석·방치 보상이 레벨에 맞춰 커진다")
+	Loop.attend = {"last": "", "count": 0}
+	var at := Loop.check_attend()
+	ok(String(at.get("next", "")).contains("내일"), "출석이 내일 보상을 미리 알려 준다")
+	# 톡 치기가 맞으면 마음력이 찬다
+	Battle.level = 10
+	Battle.mp = 0
+	var fobj := Field.new_foe("drop", 10)
+	Field.strike("tap", fobj)
+	ok(Battle.mp >= Field.TAP_MP, "톡 치기가 맞으면 마음력이 %d 찬다" % Field.TAP_MP)
+	# 쓰러져도 잃는 꿈조각에 상한이 있다
+	Gear.coins = 1000000
+	var lost := Field.fall()
+	ok(lost <= Battle.level * Field.FALL_COIN_CAP_PER_LV, "쓰러져 잃는 꿈조각에는 상한이 있다 (%d)" % lost)
+	# 도착 표시가 저장된다
+	JourneyState.arriving = true
+	var sd := JourneyState.to_dict()
+	JourneyState.arriving = false
+	JourneyState.from_dict(sd)
+	ok(JourneyState.arriving, "도착 표시가 저장된다 (도착 전에 꺼져도 아침으로)")
+	JourneyState.arriving = false
+	# 심호흡은 공짜 회복이 아니다
+	ok(float(Battle.SKILLS["breathe"]["cd"]) >= 12.0, "심호흡 재사용 시간이 길다")
+	# 두 번째 스킬은 LV 2 에 온다
+	ok(int(Battle.SKILLS["bump"]["lv"]) == 2, "몸통 박치기는 첫 레벨업(LV 2)에 배운다")
+	_clean_state()

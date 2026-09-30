@@ -97,6 +97,9 @@ func _run_job(j: String) -> Dictionary:
 		var zz := _zone_start("탑 %d층" % floor_n)
 		for k in Loop.floor_spawns(floor_n):
 			_fight(String(k[0]), int(k[1]), zz, false, Loop.floor_power(floor_n), floor_n)
+		if deaths - d0 > 0:
+			print("   [탑 쓰러짐] %d층 (몬스터 LV %d 안팎, 나 LV %d) · %d번 · 최저체력 %d%%" % [
+				floor_n, int(Loop.floor_spawns(floor_n)[0][1]), Battle.level, deaths - d0, int(float(zz["hp_low"]) * 100.0)])
 		if deaths - d0 >= 3:
 			break
 		Loop.clear_floor(floor_n)

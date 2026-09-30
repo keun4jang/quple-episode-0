@@ -171,7 +171,38 @@ static func stats_of(it: Dictionary) -> Dictionary:
 	if int(it["rar"]) >= 4:
 		for k in LEGEND:
 			out[k] = int(out.get(k, 0)) + int(LEGEND[k])
+	if slot == "weapon":
+		for k in milestone_of(int(it.get("plus", 0))):
+			out[k] = int(out.get(k, 0)) + int(milestone_of(int(it.get("plus", 0)))[k])
 	return out
+
+
+## 강화 마일스톤 (무기만) - 숫자가 6퍼센트씩 조금씩 오르기만 해서는 +10 을 만들어도 티가 안
+## 났다. +5, +10, +15 에 닿으면 눈에 띄는 덤이 붙는다 (누적).
+const MILESTONES := {
+	5: {"crit": 2},
+	10: {"elem": 8},
+	15: {"crit": 4, "elem": 10},
+}
+
+
+static func milestone_of(plus: int) -> Dictionary:
+	var out := {}
+	for at in MILESTONES:
+		if plus >= int(at):
+			for k in MILESTONES[at]:
+				out[k] = int(out.get(k, 0)) + int(MILESTONES[at][k])
+	return out
+
+
+## 마일스톤에 닿는 순간 보여 줄 글 (없으면 "").
+static func milestone_text(plus: int) -> String:
+	if not MILESTONES.has(plus):
+		return ""
+	var bits: Array = []
+	for k in MILESTONES[plus]:
+		bits.append("%s +%d퍼센트" % [String(OPTS[k]["name"]), int(MILESTONES[plus][k])])
+	return " · ".join(bits)
 
 
 ## 입은 것 전부가 주는 그 능력치.
@@ -290,13 +321,14 @@ static func _reroll(it: Dictionary, rar: int) -> void:
 
 ## 한 벌. 무기가 반, 방어구가 반. 무기 속성은 **절반쯤 그 몬스터의 속성**을
 ## 닮는다 - 물 몬스터를 잡으면 물결 무기가 잘 나온다.
-static func roll_gear(kind: String, lv: int, boss: bool) -> Dictionary:
+static func roll_gear(kind: String, lv: int, boss: bool, mine_only := false) -> Dictionary:
 	var tier := tier_of_lv(lv)
 	var rar := _roll_rarity(BOSS_ODDS if boss else DROP_ODDS)
 	if randf() < 0.5:
 		var kinds := ["sword", "staff", "bow", "dagger"]
 		var mine := String(Battle.JOBS[Battle.job]["weapon"])
-		var wk := mine if mine != "" and randf() < 0.6 else String(kinds.pick_random())
+		# `mine_only` - 확정 보상(첫 처치·출석·탑 우두머리 층)은 내가 못 드는 무기가 나오면 안 된다.
+		var wk := mine if mine != "" and (mine_only or randf() < 0.6) else String(kinds.pick_random())
 		var fe := String(Battle.ENEMIES.get(kind, {}).get("elem", "none"))
 		var el := fe if randf() < 0.5 and Battle.BEATS.has(fe) \
 			else String(Battle.ELEM_ORDER.pick_random())
@@ -341,16 +373,26 @@ static func equip(uid: int) -> bool:
 		return false
 	var hp_was := Battle.hp_max()
 	equipped[String(it["slot"])] = uid
-	# 체력 최대가 늘면 늘어난 만큼 같이 찬다 (벗으면 넘친 만큼만 깎는다).
-	Battle.hp = clampi(Battle.hp + maxi(0, Battle.hp_max() - hp_was), 1, Battle.hp_max())
+	_keep_hp_ratio(hp_was)
 	Battle.mp = mini(Battle.mp, Battle.mp_max())
 	return true
 
 
 static func unequip(slot: String) -> void:
+	var hp_was := Battle.hp_max()
 	equipped.erase(slot)
-	Battle.hp = clampi(Battle.hp, 1, Battle.hp_max())
+	_keep_hp_ratio(hp_was)
 	Battle.mp = mini(Battle.mp, Battle.mp_max())
+
+
+## 체력 최대가 바뀌어도 **체력 비율은 그대로.** 늘어난 만큼 채우고 벗을 땐 넘친 만큼만 깎으면
+## 체력 옵션 장비를 입었다 벗었다 하는 것만으로 체력이 끝없이 찼다 (배낭이 열려 있으면 싸움이 멎어
+## 우두머리전 도중에도 됐다).
+static func _keep_hp_ratio(hp_was: int) -> void:
+	var now := Battle.hp_max()
+	if hp_was > 0 and now != hp_was:
+		Battle.hp = int(float(Battle.hp) * float(now) / float(hp_was))
+	Battle.hp = clampi(Battle.hp, 1, now)
 
 
 ## 강화에 드는 꿈조각.
@@ -387,7 +429,7 @@ static func enhance(uid: int) -> Dictionary:
 	if randf() < plus_rate(it):
 		it["plus"] = int(it["plus"]) + 1
 		if is_worn(uid):
-			Battle.hp = mini(Battle.hp + maxi(0, Battle.hp_max() - hp_was), Battle.hp_max())
+			_keep_hp_ratio(hp_was)
 		return {"ok": true, "why": ""}
 	return {"ok": false, "why": "실패", "tried": true}
 
@@ -410,7 +452,9 @@ static func sell(uid: int) -> int:
 static func sell_junk(max_rar := 1) -> int:
 	var got := 0
 	for it in items.duplicate():
-		if int(it["rar"]) <= max_rar and not is_worn(int(it["uid"])):
+		# 지금 입은 것보다 나은 것, 돈 들여 강화한 것은 건드리지 않는다.
+		if int(it["rar"]) <= max_rar and not is_worn(int(it["uid"])) \
+				and int(it.get("plus", 0)) == 0 and not better(it):
 			got += sell(int(it["uid"]))
 	return got
 
@@ -421,8 +465,14 @@ static func score(it: Dictionary) -> float:
 		return float(atk_of(it)) + float(stats_of(it).get("atk", 0)) * 2.0
 	var s := 0.0
 	var st := stats_of(it)
+	var main := String(Battle.JOBS[Battle.job]["main"])
 	for k in st:
-		s += float(st[k]) * (0.3 if k in ["hp", "mp"] else 1.0)
+		# 내 직업이 쓰는 것(주 능력치·방어·공격)은 온전히, 나머지는 덜 - 마법사에게 힘 옵션이
+		# '더 좋음' 으로 뜨던 것을 막는다.
+		var w := 0.3 if k in ["hp", "mp"] else 0.25
+		if k == main or k in ["def", "atk", "crit", "elem"]:
+			w = 1.0
+		s += float(st[k]) * w
 	return s
 
 
@@ -452,11 +502,29 @@ const SHOP := [
 ]
 
 
+## 꿈 상자 값 - 단계에 따라 오른다. 고정 300 이면 후반엔 상자 하나를 열어 팔아도 값의
+## 4분의 3 이 돌아와, 몬스터 한 마리 값으로 상자를 굴리는 게 최선이 됐다 (상점 장비·드랍이 무의미).
+static func box_price() -> int:
+	return 300 * (tier_of_lv(Battle.level) + 1)
+
+
 static func shop_item(id: String) -> Dictionary:
 	for e in SHOP:
 		if String(e["id"]) == id:
+			if id == "box":
+				var d: Dictionary = (e as Dictionary).duplicate()
+				d["price"] = box_price()
+				return d
 			return e
 	return {}
+
+
+## 상점 목록 (값이 바뀌는 것은 지금 값으로).
+static func shop_list() -> Array:
+	var out: Array = []
+	for e in SHOP:
+		out.append(shop_item(String(e["id"])))
+	return out
 
 
 ## 산다. `{ok, why, got}` - 꿈 상자면 `got` 에 나온 한 벌.

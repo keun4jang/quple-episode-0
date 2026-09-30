@@ -64,7 +64,7 @@ func _rows() -> Array:
 			return d.get("keep", [])
 		KIND_SHOP:
 			# 맨 위에 이 구역 단계의 **내 직업 장비** 여섯 칸, 그 아래 강화석·상자·먹을 것.
-			return Gear.shop_gear(_village) + Gear.SHOP
+			return Gear.shop_gear(_village) + Gear.shop_list()
 	# 기억 선반에는 **지금 가진 것만** 올린다. 없는 것을 흐리게 늘어놓으면
 	# 그것도 모으라는 숙제가 된다.
 	var out: Array = []

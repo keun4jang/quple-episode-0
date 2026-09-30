@@ -133,7 +133,7 @@ func _rebuild() -> void:
 		var nm := _btn_label(box, name_s, 16 if name_s.length() > 3 else 18,
 			Color("#3A2C2C"))
 		nm.name = "Name"
-		var cost := _btn_label(box, "마음 %d" % int(sk["mp"]), 12, Color("#6B5A48"))
+		var cost := _btn_label(box, "마음 %d" % int(sk["mp"]), 15, Color("#6B5A48"))
 		cost.name = "Cost"
 		_skills[id] = b
 		move_child(b, 0)

@@ -120,7 +120,9 @@ static var titles: Array = []              # 얻은 칭호
 static var title := ""                     # 머리 위에 다는 것
 const TITLE_STEPS := [10, 100, 500]
 const TITLE_NAMES := ["사냥꾼", "전문가", "대가"]
-## 칭호 하나마다 체력 최대 +5 - 모으는 보람이 몸에 남게.
+## 칭호 하나마다 체력 최대가 는다 - 모으는 보람이 몸에 남게. 10마리 +5, 100마리 +15, 500마리 +30
+## (앞의 값 하나만 있으면 500마리를 채워도 LV 40 체력의 1% 라 티가 안 났다).
+const TITLE_HPS := [5, 15, 30]
 const TITLE_HP := 5
 
 
@@ -139,7 +141,26 @@ static func add_kill(kind: String) -> String:
 
 
 static func title_hp() -> int:
-	return titles.size() * TITLE_HP
+	var sum := 0
+	for t in titles:
+		sum += title_hp_of(String(t))
+	return sum
+
+
+## 칭호 하나가 주는 체력 (뒤 단어가 사냥꾼/전문가/대가).
+static func title_hp_of(nm: String) -> int:
+	var i := TITLE_NAMES.find(nm.get_slice(" ", nm.get_slice_count(" ") - 1))
+	return int(TITLE_HPS[i]) if i >= 0 else TITLE_HP
+
+
+## 이 종에서 다음 칭호까지 (얼마 남았는지, 다음 칭호 이름). 다 얻었으면 남은 수가 -1.
+static func next_title(kind: String) -> Dictionary:
+	var n := int(kills.get(kind, 0))
+	for i in TITLE_STEPS.size():
+		if n < int(TITLE_STEPS[i]):
+			return {"left": int(TITLE_STEPS[i]) - n, "name": String(TITLE_NAMES[i]),
+				"hp": int(TITLE_HPS[i]), "n": n}
+	return {"left": -1, "name": "", "hp": 0, "n": n}
 
 
 # ── 오늘의 임무 ──────────────────────────────────────────────────────
@@ -238,6 +259,17 @@ const ATTEND := [
 static var attend: Dictionary = {"last": "", "count": 0}
 
 
+## 출석 꿈조각은 레벨에 맞춰 커진다 - 고정이면 LV 40 몬스터 두 마리 값이라 반갑지 않았다.
+static func attend_coins(base: int) -> int:
+	return int(round(float(base) * (1.0 + float(Battle.level) / 10.0)))
+
+
+static func _attend_text(r: Dictionary) -> String:
+	if r.has("coins"):
+		return "꿈조각 %d" % attend_coins(int(r["coins"]))
+	return String(r["text"])
+
+
 ## 오늘 처음 켰으면 출석 보상을 준다. `{day, text}` 또는 빈 것.
 static func check_attend() -> Dictionary:
 	var d := today()
@@ -246,21 +278,29 @@ static func check_attend() -> Dictionary:
 	attend["last"] = d
 	attend["count"] = int(attend.get("count", 0)) % ATTEND.size() + 1
 	var r: Dictionary = ATTEND[int(attend["count"]) - 1]
-	Gear.coins += int(r.get("coins", 0))
+	Gear.coins += attend_coins(int(r.get("coins", 0))) if r.has("coins") else 0
 	Gear.stones += int(r.get("stones", 0))
 	if r.has("box") or r.has("hero"):
-		var it := Gear.roll_gear("", Battle.level, false)
+		var it := Gear.roll_gear("", Battle.level, false, true)
 		Gear._reroll(it, 3 if r.has("hero") else maxi(1, int(it["rar"])))
 		Gear.items.append(it)
-	return {"day": int(attend["count"]), "text": String(r["text"])}
+	var nxt: Dictionary = ATTEND[int(attend["count"]) % ATTEND.size()]
+	return {"day": int(attend["count"]), "text": _attend_text(r),
+		"next": "내일은 %s" % _attend_text(nxt)}
 
 
 # ── 잠든 사이 ────────────────────────────────────────────────────────
 
 ## 이 게임의 주제와 맞는다 - **앱을 끄고 자는 동안에도 꿈이 모인다.**
-## 10분마다 (5 + 레벨) 꿈조각, 최대 8시간치.
+## 10분마다 (5 + 레벨 x3) 꿈조각, 최대 8시간치.
 const IDLE_MAX_MIN := 480
+const IDLE_PER_LV := 3
 static var last_seen := 0
+
+
+## 10분에 모이는 꿈조각.
+static func idle_rate() -> int:
+	return 5 + IDLE_PER_LV * Battle.level
 
 
 ## 켜자마자 부른다. 모인 꿈조각을 주고 그 수를 돌려준다 (10분이 안 됐으면 0).
@@ -270,7 +310,7 @@ static func check_idle() -> int:
 	if last_seen > 0 and now > last_seen:
 		var mins := mini(IDLE_MAX_MIN, (now - last_seen) / 60)
 		if mins >= 10:
-			got = (mins / 10) * (5 + Battle.level)
+			got = (mins / 10) * idle_rate()
 			Gear.coins += got
 	last_seen = now
 	return got
@@ -500,7 +540,7 @@ static func clear_floor(n: int) -> Dictionary:
 	Gear.coins += int(r["coins"])
 	Gear.stones += int(r["stones"])
 	if bool(r["gear"]):
-		var it := Gear.roll_gear("", floor_lv(n), true)
+		var it := Gear.roll_gear("", floor_lv(n), true, true)
 		Gear._reroll(it, maxi(2, int(it["rar"])))
 		Gear.items.append(it)
 		r["item"] = it

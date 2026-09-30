@@ -70,9 +70,16 @@ const JOB_LV := 10
 ## 레벨이 오를 때마다 받는 능력치 점수·스킬 점수.
 const AP_PER := 5
 const SP_PER := 1
+## 최고 레벨(LV 50)을 넘어 쌓이는 경험은 **별빛**이 된다. 경험이 한 바퀴 찰 때마다 별빛이 하나 늘고
+## 능력치 점수 `STAR_AP` 가 자동으로 나뉜다 - 레벨이 끝난 뒤에도 '더 세졌다' 는 느낌이 이어지게.
+## 상한이 있어서 (`STAR_MAX`) 후반 밸런스를 밀어 올리지는 않는다.
+const STAR_MAX := 30
+const STAR_AP := 3
 
 static var level := 1
 static var xp := 0
+## 모은 별빛 (`STAR_MAX` 까지). 레벨 50 이 된 뒤에만 오른다.
+static var stars := 0
 ## 레벨 1 의 가득 찬 값으로 시작한다. 오토로드가 아니라 `_ready()` 가
 ## 없어서 여기서 바로 채워 둬야 한다 — 0 으로 두면 시작하자마자 쓰러진 상태다.
 static var hp := 58
@@ -193,8 +200,8 @@ const SKILLS := {
 	"tap": {"name": "톡 치기", "job": "*", "lv": 1, "mp": 0, "type": "attack",
 		"elem": "weapon", "mult": 1.0, "cd": 0.45},
 	"breathe": {"name": "심호흡", "job": "*", "lv": 1, "mp": 4, "type": "heal",
-		"amount": 0.3, "grants": "warm", "cd": 7.0},
-	"bump": {"name": "몸통 박치기", "job": "*", "lv": 4, "mp": 3, "type": "attack",
+		"amount": 0.3, "grants": "warm", "cd": 14.0},
+	"bump": {"name": "몸통 박치기", "job": "*", "lv": 2, "mp": 3, "type": "attack",
 		"elem": "weapon", "mult": 1.7, "cd": 2.5},
 	# 전사 - 앞에서 벤다
 	"power": {"name": "강하게 베기", "job": "warrior", "lv": 10, "mp": 3,
@@ -770,7 +777,9 @@ static func plan_for(kind: String, t: int, dealt: int) -> Dictionary:
 static func gain_xp(got: int) -> Array:
 	var evs: Array = []
 	if level >= LEVEL_MAX:
-		return evs
+		return _gain_starlight(got)
+	var atk0 := attack_power()
+	var hp0 := hp_max()
 	xp += maxi(0, got)
 	while level < LEVEL_MAX and xp >= xp_need():
 		xp -= xp_need()
@@ -790,7 +799,35 @@ static func gain_xp(got: int) -> Array:
 			names.append(String(SKILLS[id]["name"]))
 		evs.append({"kind": "level_up", "level": level, "skill": ", ".join(names),
 			"job_ready": level == JOB_LV and job == "novice"})
-	if level >= LEVEL_MAX:
+	# 얼마나 세졌는지 - 마지막 레벨업 소식에 실어 팝업이 숫자로 보여 준다.
+	if not evs.is_empty():
+		evs[evs.size() - 1]["atk"] = attack_power() - atk0
+		evs[evs.size() - 1]["hp"] = hp_max() - hp0
+	if level >= LEVEL_MAX and stars >= STAR_MAX:
+		xp = 0
+	return evs
+
+
+## 레벨 50 이후 - 경험이 별빛으로 쌓인다.
+static func _gain_starlight(got: int) -> Array:
+	var evs: Array = []
+	if stars >= STAR_MAX:
+		xp = 0
+		return evs
+	xp += maxi(0, got)
+	while stars < STAR_MAX and xp >= xp_need():
+		xp -= xp_need()
+		stars += 1
+		var atk0 := attack_power()
+		var hp0 := hp_max()
+		ap += STAR_AP
+		if auto_ap:
+			auto_spend_ap()
+		hp = hp_max()
+		mp = mp_max()
+		evs.append({"kind": "star", "stars": stars, "atk": attack_power() - atk0,
+			"hp": hp_max() - hp0})
+	if stars >= STAR_MAX:
 		xp = 0
 	return evs
 
@@ -906,7 +943,7 @@ static func job_name() -> String:
 
 static func to_dict() -> Dictionary:
 	return {
-		"level": level, "xp": xp, "hp": hp, "mp": mp,
+		"level": level, "xp": xp, "stars": stars, "hp": hp, "mp": mp,
 		"job": job, "stats": stats.duplicate(), "ap": ap, "sp": sp,
 		"skill_lv": skill_lv.duplicate(), "auto_ap": auto_ap, "auto_sp": auto_sp,
 		"cleared": cleared.duplicate(), "cleared_day": cleared_day, "v": 3,
@@ -916,6 +953,7 @@ static func to_dict() -> Dictionary:
 static func from_dict(d: Dictionary) -> void:
 	level = clampi(int(d.get("level", 1)), 1, LEVEL_MAX)
 	xp = maxi(0, int(d.get("xp", 0)))
+	stars = clampi(int(d.get("stars", 0)), 0, STAR_MAX)
 	job = String(d.get("job", "novice"))
 	if not JOBS.has(job):
 		job = "novice"
@@ -953,6 +991,7 @@ static func from_dict(d: Dictionary) -> void:
 static func reset() -> void:
 	level = 1
 	xp = 0
+	stars = 0
 	job = "novice"
 	stats = {"str": 4, "dex": 4, "int": 4, "luk": 4}
 	ap = 0

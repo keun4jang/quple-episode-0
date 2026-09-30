@@ -1769,17 +1769,22 @@ func on_shade_down(sh: Shade) -> void:
 	_boss_story(kind)
 	var new_title := Loop.add_kill(kind)
 	if new_title != "" and hud != null:
-		hud._celebrate("칭호를 얻었어요!", "%s  ·  체력 최대 +%d" % [new_title, Loop.TITLE_HP])
+		hud._celebrate("칭호를 얻었어요!", "%s  ·  체력 최대 +%d" % [new_title, Loop.title_hp_of(new_title)])
 		_refresh_title()
 	for ev in evs:
 		match String(ev.get("kind", "")):
 			"xp":
-				FieldFx.number(self, at + Vector2(0, -30),
-					"경험 +%d" % int(ev["amount"]), Color("#B4E6C0"), 12)
+				var maxed := Battle.level >= Battle.LEVEL_MAX
+				if not (maxed and Battle.stars >= Battle.STAR_MAX):
+					FieldFx.number(self, at + Vector2(0, -30),
+						("별빛 +%d" if maxed else "경험 +%d") % int(ev["amount"]),
+						Color("#FFE58A") if maxed else Color("#B4E6C0"), 12)
 			"loot":
 				_show_loot(at, ev["drops"])
 			"level_up":
 				_on_level_up(ev)
+			"star":
+				_on_star(ev)
 	SaveManager.save_now()
 
 
@@ -1819,6 +1824,22 @@ func _show_loot(at: Vector2, drops: Dictionary) -> void:
 				hud._say_hint("%s을(를) 얻었어요" % nm, false, 1.6)
 
 
+## "공격력 +4 · 체력 +14" - 레벨업이 얼마나 세졌는지 숫자로.
+func _gain_text(ev: Dictionary) -> String:
+	if not ev.has("atk"):
+		return "능력치가 올랐어요"
+	return "공격력 +%d  ·  체력 +%d" % [int(ev["atk"]), int(ev["hp"])]
+
+
+## 레벨 50 이후 별빛이 하나 찰 때.
+func _on_star(ev: Dictionary) -> void:
+	if walker != null:
+		FieldFx.burst(self, walker.global_position + Vector2(0, -10), "levelup", true)
+	if hud == null:
+		return
+	hud._celebrate("별빛 %d / %d" % [int(ev["stars"]), Battle.STAR_MAX], _gain_text(ev))
+
+
 func _on_level_up(ev: Dictionary) -> void:
 	if walker != null:
 		FieldFx.burst(self, walker.global_position + Vector2(0, -10), "levelup", true)
@@ -1826,7 +1847,7 @@ func _on_level_up(ev: Dictionary) -> void:
 		return
 	var skn := String(ev.get("skill", ""))
 	hud._celebrate("LV %d!" % int(ev["level"]),
-		("새 스킬 · %s" % skn) if skn != "" else "능력치가 올랐어요")
+		("새 스킬 · %s" % skn) if skn != "" else _gain_text(ev))
 	if bool(ev.get("job_ready", false)):
 		hud._celebrate("전직할 수 있어요!", "왼쪽 위 캐릭터 창에서 직업을 골라요")
 
@@ -1862,7 +1883,7 @@ func _boss_story(kind: String) -> void:
 		JourneyState.mark_quest("보스:" + v)
 		# **첫 처치 보상** - 강화석 셋과 영웅 이상 장비 하나. 구역마다 한 번뿐이다.
 		Gear.stones += BOSS_FIRST_STONES
-		var it := Gear.roll_gear("", Battle.boss_lv(v), true)
+		var it := Gear.roll_gear("", Battle.boss_lv(v), true, true)
 		Gear._reroll(it, maxi(3, int(it["rar"])))
 		Gear.items.append(it)
 		# 하늘이 바뀌는 구역이면 그 자리에서 금이 간다.
@@ -2076,7 +2097,7 @@ func _welcome() -> void:
 		hud._celebrate("잠든 사이 꿈이 모였어요", "꿈조각 +%d" % idle)
 	var a := Loop.check_attend()
 	if not a.is_empty():
-		hud._celebrate("출석 %d일째!" % int(a["day"]), String(a["text"]))
+		hud._celebrate("출석 %d일째!" % int(a["day"]), "%s  ·  %s" % [String(a["text"]), String(a["next"])])
 	if idle > 0 or not a.is_empty():
 		SaveManager.save_now()
 

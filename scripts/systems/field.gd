@@ -20,6 +20,9 @@ const GUARD_SECS := 2.0
 const STAGGER := 1.4
 ## 쓰러지면 잃는 꿈조각의 몫 (`docs/redesign-dream.md` 6절).
 const FALL_COIN := 0.1
+const FALL_COIN_CAP_PER_LV := 30
+## 톡 치기가 맞을 때 차는 마음력.
+const TAP_MP := 1
 
 ## 피해에 흔들림을 줄까. 테스트는 끄고 수를 정확히 잰다.
 static var jitter := true
@@ -207,6 +210,9 @@ static func strike(id: String, foe: Dictionary) -> Dictionary:
 		_give_foe(foe, String(s["foe"]), evs)
 	if s.has("grants"):
 		_give_me(String(s["grants"]), evs)
+	# 톡 치기가 맞으면 마음력이 조금 찬다 - 스킬을 쓰는 것이 톡 치기의 보상이 되게.
+	if id == "tap" and total > 0:
+		Battle.mp = mini(Battle.mp_max(), Battle.mp + TAP_MP)
 	out["dmg"] = total
 	out["killed"] = int(foe["hp"]) <= 0
 	return out
@@ -438,6 +444,7 @@ static func fall() -> int:
 		if not bool(Battle.STATUSES[id].get("good", false)):
 			my_status.erase(id)
 	invuln = GUARD_SECS
-	var lost := int(Gear.coins * FALL_COIN)
+	# 상한 - 모아 둔 게 많을수록 벌이 커지면 "되돌릴 수 없는 벌은 없다" 와 어긋난다.
+	var lost := mini(int(Gear.coins * FALL_COIN), Battle.level * FALL_COIN_CAP_PER_LV)
 	Gear.coins -= lost
 	return lost

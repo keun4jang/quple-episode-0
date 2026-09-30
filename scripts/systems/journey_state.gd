@@ -770,6 +770,7 @@ func to_dict() -> Dictionary:
 		"hearts": hearts.duplicate(),
 		"day": day,
 		"minutes": minutes,
+		"arriving": arriving,
 		"visited": visited.duplicate(),
 		"wanderer_place": wanderer_place,
 		"wanderer_seen": wanderer_seen.duplicate(),
@@ -889,6 +890,8 @@ func from_dict(d: Dictionary) -> void:
 	hearts = d.get("hearts", {}).duplicate() if d.get("hearts") is Dictionary else {}
 	day = maxi(1, int(d.get("day", 1)))
 	minutes = clampf(float(d.get("minutes", DAY_START)), DAY_START, DAY_END)
+	# 떠나는 판에서 저장한 뒤 도착 전에 꺼졌으면, 이어하기도 아침으로 시작해야 한다.
+	arriving = bool(d.get("arriving", false))
 	visited = d.get("visited", {}).duplicate() if d.get("visited") is Dictionary else {}
 	wanderer_place = String(d.get("wanderer_place", "윤슬"))
 	party_with = String(d.get("party_with", ""))
