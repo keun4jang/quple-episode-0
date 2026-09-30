@@ -13,19 +13,23 @@ extends Control
 ## 체력·마음력은 **대결이 성사될 때만** 스르르 뜬다 (`set_engaged`, `Place.in_fight`) -
 ## 늘 떠 있으면 버튼 일곱과 막대 둘이 마을을 가린다.
 ##
-## 키보드: Z 공격, 1~7 스킬 차례대로.
+## 키보드: Z 공격, 1~9·0 스킬 차례대로.
 
 const ATTACK := 128.0
 const SKILL := 80.0
 const GAP := 10.0
 const SKILL_SMALL := 72.0
 const GAP_SMALL := 8.0
+## 아홉 칸 넘게 (LV 30·40 스킬이 생긴 뒤) - 더 작게.
+const SKILL_TINY := 60.0
+const GAP_TINY := 6.0
 const EDGE := 32.0
-## 스킬 칸 수. **8 이어야 한다** - 마법사는 심호흡·몸통 박치기·원소 다섯·무지개 한 방으로
-## 여덟이라, 7 칸일 때 LV 22 의 무지개 한 방은 버튼도 키도 없었다 (0.1.196 점검). 한 줄에
-## 여덟 칸이어도 오른쪽에서 890px 남짓이라 왼쪽 아래는 비어 있다.
-const SLOT_MAX := 8
-const KEYS := {KEY_1: 0, KEY_2: 1, KEY_3: 2, KEY_4: 3, KEY_5: 4, KEY_6: 5, KEY_7: 6, KEY_8: 7}
+## 스킬 칸 수. **마법사가 가장 많다** - 심호흡·몸통 박치기·원소 다섯·무지개 한 방·별똥별·꿈의 폭풍으로
+## 열이다 (0.1.196 에는 여덟이었다 - 7 칸일 때 LV 22 의 무지개 한 방은 버튼도 키도 없었다).
+## 한 줄에 열 칸이어도 칸을 60 으로 줄이면 오른쪽에서 830px 남짓이라 왼쪽 아래 막대와 안 겹친다.
+const SLOT_MAX := 10
+const KEYS := {KEY_1: 0, KEY_2: 1, KEY_3: 2, KEY_4: 3, KEY_5: 4, KEY_6: 5, KEY_7: 6, KEY_8: 7,
+	KEY_9: 8, KEY_0: 9}
 
 var _attack: Button
 var _skills: Dictionary = {}     # id → Button
@@ -100,8 +104,10 @@ func _rebuild() -> void:
 	_skills.clear()
 	_slot_ids = Battle.slot_skills().slice(0, SLOT_MAX)
 	# 여덟 칸(마법사)이면 조금 작게 - 80 으로 두면 맨 왼쪽 칸이 체력·마음력 막대를 덮었다.
-	var sz := SKILL if _slot_ids.size() <= 7 else SKILL_SMALL
-	var gap := GAP if _slot_ids.size() <= 7 else GAP_SMALL
+	var n := _slot_ids.size()
+	var sz := SKILL if n <= 7 else (SKILL_SMALL if n == 8 else SKILL_TINY)
+	var gap := GAP if n <= 7 else (GAP_SMALL if n == 8 else GAP_TINY)
+	var tiny := n > 8
 	for i in _slot_ids.size():
 		var id: String = _slot_ids[i]
 		var sk: Dictionary = Battle.SKILLS[id]
@@ -130,10 +136,10 @@ func _rebuild() -> void:
 		if name_s.length() > 4 and name_s.contains(" "):
 			var cut := name_s.find(" ")
 			name_s = name_s.substr(0, cut) + "\n" + name_s.substr(cut + 1)
-		var nm := _btn_label(box, name_s, 16 if name_s.length() > 3 else 18,
+		var nm := _btn_label(box, name_s, (14 if tiny else 16) if name_s.length() > 3 else (16 if tiny else 18),
 			Color("#3A2C2C"))
 		nm.name = "Name"
-		var cost := _btn_label(box, "마음 %d" % int(sk["mp"]), 15, Color("#6B5A48"))
+		var cost := _btn_label(box, "마음 %d" % int(sk["mp"]), 13 if tiny else 15, Color("#6B5A48"))
 		cost.name = "Cost"
 		_skills[id] = b
 		move_child(b, 0)

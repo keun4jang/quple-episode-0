@@ -254,14 +254,33 @@ const SKILLS := {
 		"elem": "weapon", "mult": 2.0, "crit": true, "cd": 5.0},
 	"fan": {"name": "표창 부채", "job": "thief", "lv": 25, "mp": 12, "type": "attack",
 		"elem": "weapon", "mult": 1.2, "hits": 3, "aoe": 52.0, "cd": 7.0},
+	# ── LV 30·40 (0.1.200) - LV 25 에서 스킬이 끝나 레벨 25 개가 새 버튼 없이 지나갔다.
+	# 마지막 기술들은 **한 판에 한두 번** 쓰는 큰 것이라 틈이 길고 마음력이 많이 든다 -
+	# 우두머리 시간을 줄이기보다 "이걸 언제 쓸까" 를 만든다.
+	"thunder": {"name": "천둥 내리치기", "job": "warrior", "lv": 30, "mp": 14, "type": "attack",
+		"elem": "weapon", "mult": 2.4, "aoe": 70.0, "foe": "sway", "cd": 9.0},
+	"unyield": {"name": "불굴", "job": "warrior", "lv": 40, "mp": 16, "type": "heal",
+		"amount": 0.45, "grants": "firm", "cd": 30.0},
+	"meteor": {"name": "별똥별", "job": "mage", "lv": 30, "mp": 16, "type": "attack",
+		"elem": "none", "mult": 3.0, "aoe": 72.0, "range": 96.0, "cd": 10.0},
+	"storm": {"name": "꿈의 폭풍", "job": "mage", "lv": 40, "mp": 22, "type": "attack",
+		"elem": "none", "mult": 4.2, "aoe": 90.0, "range": 96.0, "foe": "sway", "cd": 16.0},
+	"volley": {"name": "일제 사격", "job": "archer", "lv": 30, "mp": 12, "type": "attack",
+		"elem": "weapon", "mult": 0.9, "hits": 4, "aoe": 56.0, "range": 100.0, "cd": 8.0},
+	"starshot": {"name": "별빛 저격", "job": "archer", "lv": 40, "mp": 18, "type": "attack",
+		"elem": "weapon", "mult": 4.0, "range": 140.0, "line": true, "cd": 12.0},
+	"clone": {"name": "그림자 분신", "job": "thief", "lv": 30, "mp": 10, "type": "buff",
+		"grants": "keen", "guard": 2.0, "cd": 12.0},
+	"assassinate": {"name": "암살", "job": "thief", "lv": 40, "mp": 16, "type": "attack",
+		"elem": "weapon", "mult": 3.2, "crit": true, "range": 64.0, "dash": true, "cd": 12.0},
 }
 
 ## 화면에 보여 줄 차례. 딕셔너리는 순서를 믿을 수 없어서 따로 적는다.
 const SKILL_ORDER := ["tap", "breathe", "bump",
-	"power", "spin", "charge", "iron", "quake",
-	"splash", "flame", "leaf", "rock", "breeze", "rainbow",
-	"double", "pierce", "leap", "rain", "snipe",
-	"flurry", "star", "shadow", "vital", "fan"]
+	"power", "spin", "charge", "iron", "quake", "thunder", "unyield",
+	"splash", "flame", "leaf", "rock", "breeze", "rainbow", "meteor", "storm",
+	"double", "pierce", "leap", "rain", "snipe", "volley", "starshot",
+	"flurry", "star", "shadow", "vital", "fan", "clone", "assassinate"]
 const SKILL_MAX := 10
 
 

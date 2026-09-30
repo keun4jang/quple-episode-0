@@ -8230,6 +8230,7 @@ func _crit_tests() -> void:
 	await _audit_198_tests()
 	await _phase2_tests()
 	await _accessory_shop_tests()
+	await _late_skill_tests()
 
 
 ## 0.1.191 코드 점검에서 나온 것들.
@@ -8963,8 +8964,8 @@ func _design_tests() -> void:
 	for pg in HowToPlay.PAGES:
 		if bool(pg.get("pc", false)):
 			pc_lines = " ".join(pg["lines"])
-	ok(pc_lines.contains("F11") and pc_lines.contains("Z 공격") and pc_lines.contains("1~8"),
-		"하는 법에 PC 키가 적혀 있다 (스킬 1~8)")
+	ok(pc_lines.contains("F11") and pc_lines.contains("Z 공격") and pc_lines.contains("1~9"),
+		"하는 법에 PC 키가 적혀 있다 (스킬 1~9, 0)")
 	p.queue_free()
 	await get_tree().process_frame
 	Gear.reset()
@@ -9234,4 +9235,102 @@ func _accessory_shop_tests() -> void:
 		panel._close()
 	sp2.queue_free()
 	await get_tree().process_frame
+	_clean_state()
+
+
+## 0.1.201 - LV 26 이후에도 새 스킬이 풀린다 (LV 30·40).
+func _late_skill_tests() -> void:
+	print("\n[LV 30·40 스킬]")
+	var bad: Array = []
+	for j in ["warrior", "mage", "archer", "thief"]:
+		var lv30 := 0
+		var lv40 := 0
+		for id in Battle.job_skills(String(j)):
+			var l := int(Battle.SKILLS[id]["lv"])
+			if l == 30:
+				lv30 += 1
+			if l == 40:
+				lv40 += 1
+			if l > 25 and (not Battle.SKILLS[id].has("cd") or float(Battle.SKILLS[id]["cd"]) < 8.0):
+				bad.append("%s:%s 틈" % [j, id])
+		if lv30 != 1 or lv40 != 1:
+			bad.append("%s: LV30 %d / LV40 %d" % [j, lv30, lv40])
+		if Battle.job_skills(String(j)).size() - 1 > FightPad.SLOT_MAX:
+			bad.append("%s: 칸 모자람" % j)
+	ok(bad.is_empty(), "직업마다 LV 30·40 스킬이 하나씩, 긴 틈, 칸에 든다 %s" % str(bad))
+	for id in Battle.SKILLS:
+		if not Battle.SKILL_ORDER.has(id):
+			bad.append(id)
+	ok(bad.is_empty(), "모든 스킬이 화면 차례에 있다 %s" % str(bad))
+	# 실제로 배운다
+	for j in ["warrior", "mage", "archer", "thief"]:
+		_clean_state()
+		Battle.level = 50
+		Battle.job = String(j)
+		Battle.skill_lv = {"tap": 1, "breathe": 1}
+		Battle._learn_new()
+		var have := Battle.skills()
+		var late := 0
+		for id in have:
+			if int(Battle.SKILLS[id]["lv"]) >= 30:
+				late += 1
+		ok(late == 2, "%s 는 LV 50 에 LV 30·40 스킬 둘을 갖는다" % j)
+		ok(Battle.slot_skills().size() <= FightPad.SLOT_MAX, "%s 스킬 %d 개가 다 칸에 든다" % [j, Battle.slot_skills().size()])
+	# 마법사가 가장 많다 - 열 칸이 화면 안에 서고 막대와 안 겹친다
+	_clean_state()
+	Battle.level = 50
+	Battle.job = "mage"
+	Battle.skill_lv = {"tap": 1, "breathe": 1}
+	Battle._learn_new()
+	JourneyState.here = "윤슬"
+	var lp: Place = load(GOAL_SCENES["윤슬"]).instantiate()
+	add_child(lp)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var pad: FightPad = lp.hud.fight
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var vr := lp.get_viewport().get_visible_rect()
+	var inside := true
+	var n_btn := 0
+	for b in pad.buttons():
+		n_btn += 1
+		if not vr.encloses(b.get_global_rect()):
+			inside = false
+	ok(n_btn == Battle.slot_skills().size() + 1 and inside, "마법사 스킬 %d 칸이 화면 안에 선다" % Battle.slot_skills().size())
+	var vit: Control = pad.get_node("Vitals")
+	var overlap := false
+	for b in pad.buttons():
+		if b.get_global_rect().intersects(vit.get_global_rect()):
+			overlap = true
+	ok(not overlap, "열 칸이어도 체력·마음력 막대를 안 덮는다")
+	# 키 9·0
+	ok(FightPad.KEYS.has(KEY_9) and FightPad.KEYS.has(KEY_0), "키 9·0 도 스킬 칸이다")
+	lp.queue_free()
+	await get_tree().process_frame
+	# 쓰면 실제로 통한다 - 큰 스킬은 여럿을 한꺼번에 친다
+	_clean_state()
+	Battle.level = 50
+	Battle.job = "mage"
+	Battle.skill_lv = {"tap": 1, "breathe": 1}
+	Battle._learn_new()
+	Field.jitter = false
+	Field.cooldown.clear()
+	Battle.mp = Battle.mp_max()
+	var f1 := Field.new_foe("drop", 50)
+	var hp1 := int(f1["hp"])
+	Field.use("meteor")
+	var r1 := Field.strike("meteor", f1)
+	ok(int(f1["hp"]) < hp1 and int(r1["dmg"]) > 0, "별똥별이 들어간다 (%d)" % int(r1["dmg"]))
+	Field.cooldown.clear()
+	var f2 := Field.new_foe("drop", 50)
+	Field.strike("storm", f2)
+	ok(Battle.SKILLS["storm"].has("foe") and String(Battle.SKILLS["storm"]["foe"]) == "sway", "꿈의 폭풍은 몬스터를 휘청이게 한다")
+	Battle.job = "warrior"
+	Battle.skill_lv = {"tap": 1, "breathe": 1, "unyield": 1}
+	Battle.hp = 10
+	Field.cooldown.clear()
+	Battle.mp = Battle.mp_max()
+	Field.use("unyield")
+	ok(Battle.hp > Battle.hp_max() * 0.4 and Field.has_status("firm"), "불굴은 크게 회복하고 굳건해진다")
 	_clean_state()
