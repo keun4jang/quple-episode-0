@@ -643,8 +643,9 @@ static func boss_lv(village: String) -> int:
 const ROAD_COUNT := 10
 
 
-## 우두머리의 길(`BossRoad`)의 졸개들 `[종, 레벨]`. 그 구역 몬스터가
-## 마을보다 한두 레벨 높게 선다 - 우두머리 앞이라 기가 올라 있다.
+## 우두머리의 길(`BossRoad`)의 졸개들 `[종, 레벨]`. 그 구역 몬스터가 선다.
+## 0.1.204 에 한 단계 낮췄다 (구역 최고 레벨 -1~+1 → -2~0) - 마을 몬스터를 건너뛰고 곧장
+## 우두머리에게 온 사람이 첫 구역 길목에서 다섯 번 안팎 쓰러졌다 (`SIM_RUSH` 시뮬레이션).
 static func road_spawns(village: String) -> Array:
 	var kinds: Array = []
 	var top := 1
@@ -657,7 +658,7 @@ static func road_spawns(village: String) -> Array:
 		return []
 	var out: Array = []
 	for i in ROAD_COUNT:
-		out.append([String(kinds[i % kinds.size()]), clampi(top - 1 + i % 3, 1, LEVEL_MAX)])
+		out.append([String(kinds[i % kinds.size()]), clampi(top - 2 + i % 3, 1, LEVEL_MAX)])
 	return out
 
 

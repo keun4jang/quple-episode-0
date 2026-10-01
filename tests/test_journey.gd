@@ -8141,9 +8141,9 @@ func _boss_map_tests() -> void:
 	ok(r._shades.size() == Battle.ROAD_COUNT, "길에 졸개 %d마리 (%d)" % [Battle.ROAD_COUNT, r._shades.size()])
 	var lv_ok := true
 	for sh in r._shades:
-		if bool(sh.foe["boss"]) or int(sh.foe["lv"]) < 6:
+		if bool(sh.foe["boss"]) or int(sh.foe["lv"]) < 5:
 			lv_ok = false
-	ok(lv_ok, "졸개는 보스가 아니고 마을보다 조금 세다")
+	ok(lv_ok, "졸개는 보스가 아니고 구역 몬스터 레벨로 선다 (0.1.204 에 한 단계 낮췄다)")
 	var path: Array = r._find_path(r.spawn_tile(), r.lair_door_tile())
 	ok(not path.is_empty(), "들어온 자리에서 방 문까지 걸어갈 수 있다")
 	var lair_door: Dictionary = r.doors()[1]
