@@ -187,6 +187,8 @@ static func strike(id: String, foe: Dictionary) -> Dictionary:
 	if has_status("shrink"):
 		raw *= 0.75
 	raw *= _shaken(foe)
+	if id == "tap":
+		raw *= Battle.tap_mult()
 	# 피버 타임 · 탑의 축복
 	raw *= Loop.fever_dmg(bool(foe.get("boss", false))) * (1.0 + Loop.bless("atk"))
 	var rate := Battle.crit_rate() + (0.5 if has_status("keen") else 0.0) + Loop.bless("crit")

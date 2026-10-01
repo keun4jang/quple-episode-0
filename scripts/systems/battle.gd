@@ -327,6 +327,16 @@ static func next_skill() -> String:
 const SKILL_GROW := 0.06
 
 
+## **톡 치기는 직업마다 조금 다르게 센다** (0.1.205). 스킬 없이 공격 버튼만 누르는 플레이를 재 보니
+## (`SIM_TAPONLY`) 마법사·도적은 우두머리전이 최대 79초에 체력 10~14퍼센트까지 몰렸다 - 둘은 스킬로 싸우게
+## 짜여 있어 기본 공격이 약하다. 이미 빠른 도적은 조금만, 전사는 그대로.
+const TAP_JOB_MULT := {"mage": 1.25, "thief": 1.12, "archer": 1.06}
+
+
+static func tap_mult() -> float:
+	return float(TAP_JOB_MULT.get(job, 1.0))
+
+
 static func skill_power(id: String) -> float:
 	return 1.0 + SKILL_GROW * float(maxi(1, int(skill_lv.get(id, 1))) - 1)
 
