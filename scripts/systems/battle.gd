@@ -414,9 +414,11 @@ const ENEMIES := {
 	# ── 구역 보스 - 구역마다 하나. 쓰러뜨리면 꿈의 문이 열린다 (`docs/redesign-dream.md` 2절).
 	# 첫 우두머리 - 싸우는 법을 익히는 자리라 가장 순하다 (0.1.179 에 한 번 더 낮췄다:
 	# 예고를 안 피하는 봇이 두세 번 쓰러졌다 - `tools/sim/SimBalance`).
-	"drop_king": {"name": "물방울 대왕", "elem": "water", "hp": 0.5, "atk": 0.55, "def": 0.8,
+	# 0.1.203 한 번 더 낮췄다 (체력 0.5 → 0.42, 공격 0.55 → 0.45, 연타 0.5 → 0.42) - 시드 23 시뮬레이션에서
+	# 네 직업 모두 38초, 서두르는 도적은 체력 19퍼센트까지 몰렸다. 첫 싸움은 이기는 맛부터여야 한다.
+	"drop_king": {"name": "물방울 대왕", "elem": "water", "hp": 0.42, "atk": 0.45, "def": 0.8,
 		"xp": 1.0, "sheet": "drop_king", "boss": true, "drop": "b-lunchbox",
-		"pattern": {"kind": "multi", "times": 3, "mult": 0.5}, "desc": "세 번 연달아 튄다"},
+		"pattern": {"kind": "multi", "times": 3, "mult": 0.42}, "desc": "세 번 연달아 튄다"},
 	# 두 번째 우두머리 - 전직 직후라 아직 순하게 (0.1.180: 갈수록 세지는 폭을 줄였다 -
 	# 예고를 안 피하는 봇이 체력 1~9퍼센트까지 몰렸다 - `tools/sim/SimBalance`).
 	"dokkaebi": {"name": "불꽃 도깨비", "elem": "fire", "hp": 0.7, "atk": 0.8, "def": 1.0,
