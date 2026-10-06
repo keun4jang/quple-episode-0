@@ -8240,6 +8240,7 @@ func _crit_tests() -> void:
 	await _accessory_shop_tests()
 	await _late_skill_tests()
 	await _remaining_five_tests()
+	_start_guard_tests()
 
 
 ## 0.1.191 코드 점검에서 나온 것들.
@@ -9455,4 +9456,30 @@ func _remaining_five_tests() -> void:
 	ok(Battle.is_aggro("thorn") and not Battle.is_aggro("drop") and not Battle.is_aggro("gold_drop"), "먼저 덤비는 종 목록")
 	cp.queue_free()
 	await get_tree().process_frame
+	_clean_state()
+
+
+## 0.1.206 - 시작이 안 된다는 말 (지울 게 없는 저장에 확인창이 막아섰다).
+func _start_guard_tests() -> void:
+	print("\n[시작 확인창]")
+	_clean_state()
+	Battle.level = 1
+	SaveManager.autosave("res://scenes/journey/Jaenmaru.tscn")
+	var pk := SaveManager.peek_save()
+	ok(SaveManager.has_save() and not pk.is_empty() and int(pk["day"]) == 1 and int(pk["places"]) == 0,
+		"프롤로그만 걷다 만 저장: 1일째, 다녀온 곳 0 (%s)" % str(pk))
+	ok(SaveManager.is_trivial_save(), "지울 게 없는 저장이다 - 확인창 없이 시작한다")
+	Battle.level = 6
+	SaveManager.autosave("res://scenes/journey/Yunseul.tscn")
+	ok(not SaveManager.is_trivial_save(), "레벨이 오른 저장은 지울 게 있다")
+	Battle.level = 1
+	JourneyState.mark_quest("보스:윤슬")
+	SaveManager.autosave("res://scenes/journey/Yunseul.tscn")
+	ok(not SaveManager.is_trivial_save(), "우두머리를 잡은 저장은 지울 게 있다")
+	_clean_state()
+	JourneyState.day = 3
+	SaveManager.autosave("res://scenes/journey/Yunseul.tscn")
+	ok(not SaveManager.is_trivial_save(), "사흘째 저장은 지울 게 있다")
+	SaveManager.clear_save()
+	ok(not SaveManager.is_trivial_save(), "저장이 없으면 해당 없다")
 	_clean_state()

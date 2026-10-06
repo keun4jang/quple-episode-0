@@ -17,6 +17,9 @@ const STYLE_DURATION := {
 const FADE_COLOR := Color(0.08, 0.09, 0.16)
 
 var is_transitioning: bool = false
+## 전환이 시작된 때 - 4초가 넘게 안 끝났으면 멈춘 것이니 새 전환을 받는다.
+var _started_ms := 0
+const STUCK_MS := 4000
 
 @onready var overlay: ColorRect = $Overlay
 
@@ -28,8 +31,12 @@ func _ready() -> void:
 func go_to(raw_path: String, style: String = "normal") -> void:
 	var path := raw_path
 	if is_transitioning:
-		return
+		# 이전 전환이 끝나지 않고 멈춰 있으면(앱이 잠깐 멎었다 돌아온 뒤 등) 영영 모든 전환을
+		# 막는다 - 메뉴에서 시작을 눌러도 아무 일이 없다. 오래 묵었으면 풀고 받는다.
+		if Time.get_ticks_msec() - _started_ms < STUCK_MS:
+			return
 	is_transitioning = true
+	_started_ms = Time.get_ticks_msec()
 	var fade_color := fade_color_for(path, style)
 	var duration: float = float(STYLE_DURATION.get(style, STYLE_DURATION["normal"]))
 	# 장면이 바뀐다는 건 이 게임에서 대개 문을 지난다는 뜻이다.
@@ -41,7 +48,9 @@ func go_to(raw_path: String, style: String = "normal") -> void:
 	var tween = create_tween()
 	tween.tween_property(overlay, "color", fade_color, duration)
 	tween.tween_callback(func():
-		get_tree().change_scene_to_file(path)
+		var err := get_tree().change_scene_to_file(path)
+		if err != OK:
+			push_warning("장면을 열지 못했다: %s (오류 %d)" % [path, err])
 	)
 	tween.tween_property(overlay, "color", Color(fade_color.r, fade_color.g, fade_color.b, 0.0), duration)
 	tween.tween_callback(func(): is_transitioning = false)

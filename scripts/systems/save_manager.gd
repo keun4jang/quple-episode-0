@@ -50,10 +50,29 @@ func peek_save() -> Dictionary:
 	if typeof(d) != TYPE_DICTIONARY:
 		return {}
 	var visited = (d as Dictionary).get("visited", {})
+	var bt = (d as Dictionary).get("battle", {})
+	var flags = (d as Dictionary).get("quest_flags", {})
+	var bosses := 0
+	if typeof(flags) == TYPE_DICTIONARY:
+		for k in flags:
+			if str(k).begins_with("보스:"):
+				bosses += 1
 	return {
 		"day": maxi(1, int((d as Dictionary).get("day", 1))),
 		"places": (visited as Dictionary).size() if typeof(visited) == TYPE_DICTIONARY else 0,
+		"level": maxi(1, int((bt as Dictionary).get("level", 1))) if typeof(bt) == TYPE_DICTIONARY else 1,
+		"bosses": bosses,
 	}
+
+
+## 지워도 아쉬울 게 없는 저장인가 - 1일째, 다녀온 곳 없고, 레벨 2 이하, 우두머리 없음. 프롤로그만 걷다 만 저장이
+## 그렇다. 이런 저장에 "기록이 지워져요" 확인창을 띄우면 처음 해 보려는 사람이 "시작이 안 돼" 로 읽는다
+## (0.1.205 에 폰 화면으로 받은 말) - 그냥 시작한다.
+func is_trivial_save() -> bool:
+	var s := peek_save()
+	if s.is_empty():
+		return false
+	return int(s["day"]) <= 1 and int(s["places"]) == 0 and int(s["level"]) <= 2 and int(s["bosses"]) == 0
 
 ## 저장. 도중에 앱이 꺼져도 기록이 깨지지 않게 3단계로 쓴다.
 ##   ① 임시 파일에 쓴다  ② 제대로 써졌는지 읽어서 확인  ③ 기존 것을 백업하고 교체

@@ -234,6 +234,10 @@ func _on_start() -> void:
 	# **여태 다닌 기록이 있으면 반드시 물어본다.** 두 갈래 다
 	# `_start_new()` 로 가서 `JourneyState.reset()` 뒤에 곧바로 덮어쓰므로,
 	# 안 물어보고 지나가면 며칠치가 말없이 없어진다.
+	# 지울 게 없는 저장(프롤로그만 걷다 만)은 묻지 않고 시작한다 - 확인창이 "시작이 안 돼" 로 읽혔다.
+	if SaveManager.has_save() and SaveManager.is_trivial_save():
+		_start_new(false)
+		return
 	if SaveManager.has_save() or SaveManager.has_seen_prologue():
 		_ask_skip_prologue()
 		return
@@ -397,22 +401,61 @@ func _start_new(skip_prologue: bool) -> void:
 		# 건너뛰었어도 프롤로그는 지난 것으로 친다 (`MainQuest.now`).
 		JourneyState.mark_quest("잿마루:정류장")
 		SaveManager.autosave("res://scenes/journey/Yunseul.tscn")
-		SceneTransition.go_to("res://scenes/journey/Yunseul.tscn", "hopeful")
+		_go("res://scenes/journey/Yunseul.tscn", "hopeful")
 		return
 	# **왜 떠나는지부터.** 프롤로그(사무실을 걸어 나오는 장면)로 바로
 	# 던져 놓으면 "여기가 어디고 나는 왜 여기 있나" 를 모른 채 걷는다.
 	# 짧은 인트로 넉 장이 먼저 나온다 — 건너뛸 수 있다.
 	var intro := "res://scenes/menu/IntroSlides.tscn"
 	if ResourceLoader.exists(intro):
-		SceneTransition.go_to(intro)
+		_go(intro)
 		return
 	SaveManager.autosave(SaveManager.HUB)
-	SceneTransition.go_to(SaveManager.HUB)
+	_go(SaveManager.HUB)
 
 func _on_continue() -> void:
 	if not SaveManager.load_game():
+		_toast("저장을 읽지 못했어요. '새 여행 시작' 을 눌러 주세요.")
 		return
-	SceneTransition.go_to(SaveManager.get_current_scene())
+	_go(SaveManager.get_current_scene())
+
+
+## 장면을 옮긴다. 옮겨지지 않으면(전환이 멈췄거나 장면을 못 열었을 때) 화면에 이유를 띄운다 -
+## 예전엔 조용히 메뉴에 남아 "눌러도 아무 일도 안 일어난다" 가 됐다.
+func _go(path: String, style := "normal") -> void:
+	SceneTransition.go_to(path, style)
+	await get_tree().create_timer(3.0).timeout
+	if not is_inside_tree():
+		return
+	# 아직 메뉴다 - 전환이 멈췄다. 한 번 풀고 곧장 옮겨 본다.
+	SceneTransition.is_transitioning = false
+	var err := get_tree().change_scene_to_file(path)
+	if err != OK:
+		_toast("다음 장면을 열지 못했어요 (%s, 오류 %d). 앱을 껐다 켜 주세요." % [path.get_file(), err])
+
+
+## 메뉴 위에 잠깐 뜨는 안내 한 줄.
+func _toast(text: String) -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 60
+	add_child(layer)
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 28)
+	l.add_theme_color_override("font_color", Color("#FFF2C8"))
+	l.add_theme_color_override("font_outline_color", Color(0.12, 0.09, 0.14))
+	l.add_theme_constant_override("outline_size", 8)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	l.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	l.offset_top = -120
+	l.offset_bottom = -60
+	l.offset_left = -500
+	l.offset_right = 500
+	layer.add_child(l)
+	get_tree().create_timer(4.0).timeout.connect(func() -> void:
+		if is_instance_valid(layer):
+			layer.queue_free())
 
 func _on_quit() -> void:
 	get_tree().quit()
