@@ -1428,7 +1428,7 @@ func _how_to_play_visibility_tests() -> void:
 
 	var card := HowToPlay.open(get_tree())
 	ok(card != null, "카드가 뜬다")
-	card.show_page(HowToPlay.CORNER_PAGE)
+	card.show_topic(HowToPlay.CORNER_PAGE)
 	var names: Array = []
 	# card(CanvasLayer) -> root(Control) -> 마커들. 마커마다 이름·설명
 	# Label 이 자식으로 붙어 있다.
@@ -3973,7 +3973,7 @@ func _how_to_play_marker_overlap_tests() -> void:
 	SaveManager.set_flag("howto:mq", true)
 	SaveManager.set_flag("howto:fight", true)
 	var card := HowToPlay.open(get_tree())
-	card.show_page(HowToPlay.CORNER_PAGE)
+	card.show_topic(HowToPlay.CORNER_PAGE)
 	await get_tree().process_frame
 	var root: Control = card.get_child(0)
 
@@ -4052,7 +4052,7 @@ func _how_to_play_minimap_alignment_tests() -> void:
 	SaveManager.set_flag("howto:mq", true)
 	SaveManager.set_flag("howto:fight", true)
 	var card := HowToPlay.open(get_tree())
-	card.show_page(HowToPlay.CORNER_PAGE)
+	card.show_topic(HowToPlay.CORNER_PAGE)
 	await get_tree().process_frame
 	var root: Control = card.get_child(0)
 	var map_mk: Control = null
@@ -8241,6 +8241,7 @@ func _crit_tests() -> void:
 	await _late_skill_tests()
 	await _remaining_five_tests()
 	_start_guard_tests()
+	_one_sentence_tests()
 
 
 ## 0.1.191 코드 점검에서 나온 것들.
@@ -9389,13 +9390,13 @@ func _remaining_five_tests() -> void:
 	SaveManager.set_flag("howto:fight", false)
 	var c1 := HowToPlay.open(get_tree(), [HowToPlay.WALK_PAGE])
 	await get_tree().process_frame
-	ok(c1 != null and c1.page_count() == 1, "첫 켬에는 걷기 한 장만 (%d장)" % (c1.page_count() if c1 != null else -1))
+	ok(c1 != null and c1.page_count() == HowToPlay.PAGES[HowToPlay.WALK_PAGE]["lines"].size(), "첫 켬에는 걷기 주제만, 한 문장씩 (%d장)" % (c1.page_count() if c1 != null else -1))
 	if c1 != null:
 		c1._close()
 	await get_tree().process_frame
 	var c2 := HowToPlay.topic(get_tree(), HowToPlay.FIGHT_PAGE)
 	await get_tree().process_frame
-	ok(c2 != null and c2.page_count() == 1 and SaveManager.get_flag("howto:fight", false), "처음 붙을 때 싸우기 한 장")
+	ok(c2 != null and c2.page_count() == HowToPlay.PAGES[HowToPlay.FIGHT_PAGE]["lines"].size() and SaveManager.get_flag("howto:fight", false), "처음 붙을 때 싸우기 한 장")
 	if c2 != null:
 		c2._close()
 	await get_tree().process_frame
@@ -9483,3 +9484,35 @@ func _start_guard_tests() -> void:
 	SaveManager.clear_save()
 	ok(not SaveManager.is_trivial_save(), "저장이 없으면 해당 없다")
 	_clean_state()
+
+
+## 0.1.207 - 한 화면에 한 문장.
+func _one_sentence_tests() -> void:
+	print("\n[한 문장씩]")
+	var a := JourneySay.split_sentences("안녕하세요. 오늘은 날씨가 좋네요! 같이 갈래요?")
+	ok(a.size() == 3 and String(a[0]) == "안녕하세요.", "마침표·느낌표·물음표 뒤에서 문장을 자른다 (%s)" % str(a))
+	var b := JourneySay.split_sentences("부장님 메신저가 울렸다.\n\"내일 아침까지 부탁해요.\"")
+	ok(b.size() == 2 and String(b[1]).begins_with("\""), "줄바꿈에서도 자르고 따옴표 안은 한 덩어리 (%s)" % str(b))
+	var c := JourneySay.split_sentences("…잠깐만, 눈 좀 붙이자.")
+	ok(c.size() == 1, "문장 하나는 그대로 (%s)" % str(c))
+	var d := JourneySay.split_sentences("\"안 돼. 가지 마.\" 그가 말했다.")
+	ok(d.size() == 2, "따옴표 안의 마침표에서는 자르지 않는다 (%s)" % str(d))
+	# 대사창이 한 문장씩 낸다
+	var say := JourneySay.new()
+	add_child(say)
+	say.say("몽이", ["하나. 둘. 셋.", "넷."])
+	ok(say._said.size() == 4 and String(say._said[1]["text"]) == "둘.", "대사 한 줄에 문장이 셋이면 셋으로 나뉜다 (%d)" % say._said.size())
+	say.queue_free()
+	var intro = load("res://scripts/menu/intro_slides.gd")
+	var n := 0
+	for sl in intro.SLIDES:
+		n += JourneySay.split_sentences(String(sl[0])).size()
+	ok(n > intro.SLIDES.size(), "인트로도 문장마다 한 장 (%d장)" % n)
+	var card := HowToPlay.open(get_tree())
+	if card != null:
+		var multi := false
+		for pg in card._pages:
+			if (pg["lines"] as Array).size() != 1:
+				multi = true
+		ok(not multi, "하는 법 카드는 한 장에 한 줄")
+		card._close()

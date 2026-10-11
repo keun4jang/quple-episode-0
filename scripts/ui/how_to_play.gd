@@ -175,6 +175,13 @@ var _page_nodes: Array = []
 
 ## 보여 줄 장 번호들 (비면 전부).
 var _only: Array = []
+## 주제(`PAGES` 번호) → 그 주제의 첫 장 번호 (`_pages` 안).
+var _first_of: Dictionary = {}
+
+
+## 이 주제의 첫 장으로 간다 (테스트와 "이 마을" 에서 쓴다).
+func show_topic(topic: int) -> void:
+	show_page(int(_first_of.get(topic, 0)))
 
 
 func _build() -> void:
@@ -184,7 +191,11 @@ func _build() -> void:
 			continue
 		if bool(pg.get("pc", false)) and not (OS.has_feature("pc") and not OS.has_feature("mobile")):
 			continue
-		_pages.append(pg)
+		# **한 장에 한 문장.** 줄마다 따로 한 장 - 읽고 톡 누르면 다음 문장. 짚는 곳(spots)은 그 주제의
+		# 모든 장에 같이 뜬다.
+		_first_of[i] = _pages.size()
+		for line in pg["lines"]:
+			_pages.append({"title": pg["title"], "lines": [line], "spots": pg.get("spots", []), "topic": i})
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)

@@ -40,6 +40,8 @@ const SLIDES := [
 ]
 
 var _at := 0
+## 한 슬라이드에 한 문장 - `SLIDES` 의 글을 문장마다 쪼개 같은 그림 위에 차례로 얹는다.
+var _slides: Array = []
 var _text: Label
 var _art: Control
 var _tw: Tween
@@ -50,6 +52,9 @@ func _ready() -> void:
 	# 뒤로가기로 건너뛴다. 화면을 덮는 것은 다 이 그룹에 넣는다
 	# (`CLAUDE.md` — 안 넣으면 뒤로가기가 앱을 끈다).
 	add_to_group("overlay")
+	for sl in SLIDES:
+		for sentence in JourneySay.split_sentences(String(sl[0])):
+			_slides.append([sentence, sl[1]])
 	_build()
 	_show_slide()
 
@@ -134,7 +139,7 @@ func _build() -> void:
 func _show_slide() -> void:
 	for c in _art.get_children():
 		c.queue_free()
-	var slide: Array = SLIDES[_at]
+	var slide: Array = _slides[_at]
 	for piece in slide[1]:
 		var t := _piece_texture(String(piece[0]))
 		if t == null:
@@ -181,7 +186,7 @@ func _next() -> void:
 		return
 	AudioManager.page_turn()
 	_at += 1
-	if _at >= SLIDES.size():
+	if _at >= _slides.size():
 		_go_on()
 		return
 	_show_slide()

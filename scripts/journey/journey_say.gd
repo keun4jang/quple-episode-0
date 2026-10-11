@@ -211,18 +211,78 @@ func _fit() -> void:
 ## 두 번째가 필요한 이유: 재회도 인사도 **주고받는 말**인데, 이름 하나만
 ## 찍혀 있으면 혼잣말로 읽힌다. 경비 아저씨의 "오늘도 늦었네" 와
 ## 쿼카의 "…네. 근데 오늘이 마지막이에요." 는 서로 다른 사람이 해야 한다.
+## **한 화면에 한 문장.** 한 줄에 문장이 여럿 들어 있으면 문장마다 쪼개서 따로 보여 준다 - 읽고,
+## 화면을 톡 누르면 다음 문장이 나온다. 줄바꿈과 마침표·물음표·느낌표·말줄임표 뒤에서 자른다.
+## 따옴표 안 문장("...다.")은 따옴표가 닫힐 때까지 한 덩어리다.
+static func split_sentences(text: String) -> Array:
+	var out: Array = []
+	for seg in text.split("\n", false):
+		var cur := ""
+		var in_quote := false
+		var n := seg.length()
+		for i in n:
+			var c := seg[i]
+			cur += c
+			if c == "\"" or c == "“" or c == "”":
+				in_quote = not in_quote
+			if in_quote:
+				continue
+			var ender := c in [".", "!", "?", "…", "。"] or (c in ["\"", "”", "'"] and cur.length() > 1 \
+				and cur[cur.length() - 2] in [".", "!", "?", "…"])
+			if ender and (i + 1 >= n or seg[i + 1] == " "):
+				var s := cur.strip_edges()
+				if s != "":
+					out.append(s)
+				cur = ""
+		var rest := cur.strip_edges()
+		if rest != "":
+			out.append(rest)
+	# 한두 글자짜리 조각("…")은 다음 문장에 붙인다.
+	var merged: Array = []
+	var carry := ""
+	for s in out:
+		var t := (carry + " " + String(s)).strip_edges() if carry != "" else String(s)
+		# 글자가 없는 조각("…" 만)만 다음에 붙인다 - "넷." 같은 짧은 문장은 그대로 한 문장이다.
+		var has_letter := false
+		for ch in t:
+			if ch.unicode_at(0) > 127 and not (ch in ["…", "。", "“", "”"]) or ch.is_valid_int() or (ch >= "A" and ch <= "z"):
+				has_letter = true
+		if t.length() <= 2 and not has_letter:
+			carry = t
+		else:
+			merged.append(t)
+			carry = ""
+	if carry != "":
+		if merged.is_empty():
+			merged.append(carry)
+		else:
+			merged[-1] = String(merged[-1]) + " " + carry
+	return merged if not merged.is_empty() else [text]
+
+
 func say(who: String, lines: Array, weight_at: int = -1) -> void:
 	_said.clear()
-	for l in lines:
+	var weight_idx := -1
+	for li in lines.size():
+		var l = lines[li]
+		var w := who
+		var txt := ""
 		if l is Array and l.size() >= 2:
-			_said.append({"who": String(l[0]), "text": String(l[1])})
+			w = String(l[0])
+			txt = String(l[1])
 		else:
-			_said.append({"who": who, "text": String(l)})
+			txt = String(l)
+		var parts := split_sentences(txt)
+		for p in parts:
+			_said.append({"who": w, "text": String(p)})
+		# 무거운 줄은 그 줄의 **마지막 문장**에 싣는다 (앉는 맛이 마지막에 오게).
+		if li == weight_at:
+			weight_idx = _said.size() - 1
 	if _said.is_empty():
 		return
 	_at = -1
 	_busy = true
-	_weight_at = weight_at
+	_weight_at = weight_idx
 	_weight_active = false
 	visible = true
 	var hud := get_tree().get_first_node_in_group("journey_hud")
