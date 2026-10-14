@@ -1,6 +1,6 @@
 class_name IdleData
 extends RefCounted
-## 꿈결 키우기의 표와 공식 (`docs/redesign-idle.md`). **숫자는 여기 한 곳에만 둔다** - 시뮬레이션
+## 진짜 행복 (키우기)의 표와 공식 (`docs/redesign-idle.md`). **숫자는 여기 한 곳에만 둔다** - 시뮬레이션
 ## (`tools/sim/sim_idle.gd`)이 이 표를 그대로 읽어서 곡선을 맞춘다.
 ##
 ## 정적 클래스다. 자동 로드를 늘리지 않는다 - `project.godot` 의 부팅 설정은 OTA 로 못 바꾼다.

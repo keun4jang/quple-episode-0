@@ -1,6 +1,6 @@
 class_name IdleState
 extends RefCounted
-## 꿈결 키우기의 지금 상태와 성장 (`docs/redesign-idle.md`). 정적 클래스 - 자동 로드를 늘리지 않는다.
+## 진짜 행복 (키우기)의 지금 상태와 성장 (`docs/redesign-idle.md`). 정적 클래스 - 자동 로드를 늘리지 않는다.
 ##
 ## 저장은 새 파일 `user://idle.cfg` 하나. 옛 게임의 저장과 섞이지 않는다.
 

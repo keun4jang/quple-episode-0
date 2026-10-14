@@ -24,6 +24,7 @@ func _ready() -> void:
 	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(
 		func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
 	_add_credits_button()
+	_add_idle_button()
 	AudioManager.play_bgm("arirang")
 
 	if OS.get_environment("QUPLE_SHOT") != "":
@@ -541,6 +542,27 @@ func _add_subtitle() -> void:
 
 ## 만든사람. 게임을 만든 도구와 저작권 표시를 남기는 자리이기도 하다 —
 ## 폰트와 곡이 전부 자유 라이선스라 출처를 밝혀야 한다.
+## 새 버전(진짜 행복) 입구. 폰에서 확인해 보고 마음에 들면 기존 게임과 바꾼다 (`docs/redesign-idle.md`).
+func _add_idle_button() -> void:
+	var box := get_node_or_null("UILayer/Control/VBox")
+	var src: Button = get_node_or_null("UILayer/Control/VBox/ContinueBtn")
+	if box == null or src == null:
+		return
+	var b := Button.new()
+	b.name = "IdleBtn"
+	b.text = "새 버전 (진짜 행복)"
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = src.custom_minimum_size
+	for st in ["normal", "hover", "pressed"]:
+		var sb := src.get_theme_stylebox(st)
+		if sb != null:
+			b.add_theme_stylebox_override(st, sb)
+	b.add_theme_font_size_override("font_size", src.get_theme_font_size("font_size"))
+	b.add_theme_color_override("font_color", src.get_theme_color("font_color"))
+	b.pressed.connect(func(): SceneTransition.go_to("res://scenes/idle/IdleGame.tscn", "hopeful"))
+	box.add_child(b)
+
+
 func _add_credits_button() -> void:
 	var row := get_node_or_null("UILayer/Control/SmallBtnRow")
 	if row == null:
