@@ -82,40 +82,19 @@ func _close_topmost() -> bool:
 		settings.close()
 		return true
 
-	# 펼친 미니맵. 화면의 62% 를 덮고 걷기까지 막는데, 여기 없어서
-	# 뒤로가기가 아무것도 못 닫고 그 누름이 종료 카운터에 쌓였다 —
-	# 이 파일이 위에서 경고한 바로 그 사고다.
-	var mm := tree.get_first_node_in_group("mini_map")
-	if mm != null and mm.has_method("is_big") and mm.is_big():
-		mm.toggle()
-		return true
-
-	# 여행판이 떠 있으면 먼저 닫는다. 화면을 통째로 덮는다.
-	var board := tree.get_first_node_in_group("travel_board")
-	if board != null and board.visible and board.has_method("close"):
-		board.close()
-		return true
-
-	# 대화 중이면 대화를 끝낸다.
-	var say := tree.get_first_node_in_group("journey_say")
-	if say != null and say.has_method("is_busy") and say.is_busy():
-		if say.has_method("close"):
-			say.close()
-		return true
-
-	# 배낭·사진첩·편지·행복첩은 한 창이다.
-	var hud := tree.get_first_node_in_group("journey_hud")
-	if hud != null and hud.has_method("close_bag") and hud.close_bag():
+	# 게임 화면의 창(캐릭터·장비·스테이지)이나 이야기 장.
+	var game := tree.get_first_node_in_group("idle_game")
+	if game != null and game.has_method("close_panel") and game.close_panel():
 		return true
 
 	return false
 
 
 func _quit() -> void:
-	# 나가기 전에 저장한다. 여행은 실제 시각으로 흐르니 기록만 남으면 된다.
+	# 나가기 전에 저장한다.
 	var sm := get_node_or_null("/root/SaveManager")
-	if sm != null and sm.has_method("save_game"):
-		sm.save_game()
+	if sm != null and sm.has_method("save_now"):
+		sm.save_now()
 	get_tree().quit()
 
 

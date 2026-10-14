@@ -17,14 +17,14 @@ func _ready() -> void:
 		_inject_mascot_hero()
 
 	var cont = $UILayer/Control/VBox/ContinueBtn
-	cont.disabled = not SaveManager.has_save()
-	$UILayer/Control/VBox/StartBtn.pressed.connect(_on_start)
-	cont.pressed.connect(_on_continue)
+	cont.visible = false
+	var start: Button = $UILayer/Control/VBox/StartBtn
+	start.text = "이어서 하기" if IdleState.has_save() else "시작하기"
+	start.pressed.connect(_on_start)
 	$UILayer/Control/SmallBtnRow/QuitBtn.pressed.connect(_on_quit)
 	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(
 		func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
 	_add_credits_button()
-	_add_idle_button()
 	AudioManager.play_bgm("arirang")
 
 	if OS.get_environment("QUPLE_SHOT") != "":
@@ -230,195 +230,12 @@ func _capture_shot() -> void:
 	print("SHOT_SAVED: ", path)
 	get_tree().quit()
 
-# ─── 스토리 전환 ───
+# ─── 시작 ───
+const GAME_PATH := "res://scenes/idle/IdleGame.tscn"
+
 func _on_start() -> void:
-	# **여태 다닌 기록이 있으면 반드시 물어본다.** 두 갈래 다
-	# `_start_new()` 로 가서 `JourneyState.reset()` 뒤에 곧바로 덮어쓰므로,
-	# 안 물어보고 지나가면 며칠치가 말없이 없어진다.
-	# 지울 게 없는 저장(프롤로그만 걷다 만)은 묻지 않고 시작한다 - 확인창이 "시작이 안 돼" 로 읽혔다.
-	if SaveManager.has_save() and SaveManager.is_trivial_save():
-		_start_new(false)
-		return
-	if SaveManager.has_save() or SaveManager.has_seen_prologue():
-		_ask_skip_prologue()
-		return
-	_start_new(false)
-
-## "새 여행 시작" 확인창 버튼 하나를 알약 모양으로 칠한다.
-func _ask_btn_style(b: Button, bg: Color, border: Color, font_col: Color) -> void:
-	b.focus_mode = Control.FOCUS_NONE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.set_corner_radius_all(24)
-	sb.set_border_width_all(3)
-	sb.border_color = border
-	for st in ["normal", "hover"]:
-		b.add_theme_stylebox_override(st, sb)
-	var pr := sb.duplicate() as StyleBoxFlat
-	pr.bg_color = bg.lightened(0.12)
-	b.add_theme_stylebox_override("pressed", pr)
-	b.add_theme_color_override("font_color", font_col)
-
-
-## 프롤로그를 건너뛸지 선택
-func _ask_skip_prologue() -> void:
-	var ctrl = get_node_or_null("UILayer/Control")
-	if ctrl == null:
-		_start_new(false); return
-	if get_tree().get_first_node_in_group("skip_ask") != null:
-		return
-	# **화면 전체를 덮어야 한다.** 여태는 이 확인창을 `ctrl` 밑에 판 하나로만
-	# 얹어서, 화면 중앙 800px 폭 밖에 있던 "새 여행 시작·이어하기"·
-	# "설정·만든 사람·종료" 줄이 그대로 노출된 채 눌렸다 - 기록을 지우는
-	# 결정을 다루는 창인데 정작 그 뒤에서 실수로 "종료" 를 누를 수 있었다.
-	# `_show_credits()` 와 같은 결로 CanvasLayer + 전체화면 dim 을 둔다 -
-	# 뒤로가기도 이걸로 닫힌다("overlay" 그룹, `back_handler.gd`).
-	var layer := CanvasLayer.new()
-	layer.layer = 50
-	layer.add_to_group("overlay")
-	layer.add_to_group("skip_ask")
-	ctrl.add_child(layer)
-
-	var dim := ColorRect.new()
-	dim.color = Color(0.05, 0.04, 0.09, 0.72)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	layer.add_child(dim)
-
-	var wrap := PanelContainer.new()
-	wrap.name = "SkipAsk"
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.07, 0.20, 0.96)
-	sb.set_corner_radius_all(28)
-	sb.set_border_width_all(3)
-	sb.border_color = Color(1, 0.85, 0.43, 0.5)
-	sb.set_content_margin_all(34)
-	wrap.add_theme_stylebox_override("panel", sb)
-	wrap.set_anchors_preset(Control.PRESET_CENTER)
-	wrap.set_offset(SIDE_LEFT, -400); wrap.set_offset(SIDE_RIGHT, 400)
-	# **높이는 고정하지 않는다.** 여기 있는 기록 경고문(다섯 줄) + 버튼
-	# 셋을 440px 에 우겨 넣었더니 마지막 버튼("지우고 처음부터 다시
-	# 보기")이 화면 아래로 잘려 나갔다. 화면 높이에 맞춰 넉넉히 잡는다 -
-	# `TravelBoard._fit_panel()` 과 같은 결이다.
-	var vp_h := get_viewport().get_visible_rect().size.y
-	var half_h: float = clampf(vp_h * 0.46, 220.0, 400.0)
-	wrap.set_offset(SIDE_TOP, -half_h);  wrap.set_offset(SIDE_BOTTOM, half_h)
-
-	# **더 잘라 내도 스크롤로 받는다.** 가로가 넓고 세로가 짧은 폰
-	# (실제로 겪은 화면)에서는 위 클램프로도 다섯 줄 경고문 + 버튼 셋이
-	# 다 안 들어갈 수 있다 - 잘려서 사라지는 것보다 스크롤로라도 끝까지
-	# 보이는 편이 낫다 (`TravelBoard._scroll` 과 같은 결).
-	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 0)
-	outer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	wrap.add_child(outer)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	outer.add_child(scroll)
-
-	var v := VBoxContainer.new()
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_theme_constant_override("separation", 18)
-	scroll.add_child(v)
-
-	# **여태 다닌 기록이 지워진다고 먼저 말한다.** 여기 있는 두 갈래는
-	# 다 `JourneyState.reset()` 뒤에 곧바로 저장을 덮어쓴다. 그런데
-	# 여태 이 창은 프롤로그를 건너뛸지만 물었다 — "건너뛰고 여행 시작"
-	# 은 그저 앞 장면을 넘긴다는 뜻으로 읽힌다. 게다가 메인 화면에서
-	# "새 여행 시작" 이 "이어하기" 바로 위라, 이어하려던 손이
-	# 며칠치를 날릴 수 있었다.
-	var save := SaveManager.peek_save()
-	var t := Label.new()
-	t.text = "여태 다닌 기록이 지워져요" if not save.is_empty() \
-		else "처음 이야기를 이미 보셨어요"
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t.add_theme_font_size_override("font_size", 46)
-	t.add_theme_color_override("font_color", Color(1, 0.95, 0.80))
-	v.add_child(t)
-
-	var d := Label.new()
-	if save.is_empty():
-		d.text = "처음 이야기를 건너뛰고\n바로 떠날까요?"
-	else:
-		# 무엇이 없어지는지 **숫자로** 적는다. "기록이 지워져요" 보다
-		# "닷새째, 세 군데" 가 손을 멈추게 한다. 이어하려던 것이면
-		# 여기서 알아챈다.
-		var days := int(save.get("day", 1))
-		var places := int(save.get("places", 0))
-		var what := "%d일째" % days
-		if places > 0:
-			what += ", 다녀온 곳 %d군데" % places
-		d.text = "%s까지 온 여행이 있어요.\n새로 시작하면 그건 없어져요.\n이어서 하시려면 아래 '아직 아니에요' 를 누르고\n'이어하기' 를 골라 주세요." % what
-	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	d.add_theme_font_size_override("font_size", 32 if not save.is_empty() else 36)
-	d.add_theme_color_override("font_color", Color(0.88, 0.85, 1.0))
-	v.add_child(d)
-
-	# **무를 수 있어야 한다.** 실수로 "새 여행 시작" 을 눌렀을 때
-	# 빠져나갈 길이 없으면 그건 사고다. 기록이 있으면 이 안전한 쪽을
-	# **맨 위, 제일 크게** 둔다 — 지우는 두 버튼보다 먼저 손에 닿게.
-	#
-	# **셋 다 진짜 버튼처럼 보이게 칠한다.** 여태는 글자만 있고 배경이
-	# 없어서, 어두운 판 위에서 눌리는 자리인지 그냥 문단인지 구별이
-	# 안 됐다. 안전한 쪽은 크림, 지우는 두 쪽은 옅은 산호 테두리로
-	# "되돌릴 수 없다" 는 인상을 살짝 준다.
-	var back := Button.new()
-	back.text = "아직 아니에요"
-	back.custom_minimum_size = Vector2(0, 100 if not save.is_empty() else 84)
-	back.add_theme_font_size_override("font_size", 40 if not save.is_empty() else 38)
-	_ask_btn_style(back, Color("#FFE39A"), Color("#8C6E3F"), Color("#4A3A22"))
-	back.pressed.connect(func():
-		AudioManager.ui_click()
-		layer.queue_free())
-	if not save.is_empty():
-		v.add_child(back)
-
-	var skip := Button.new()
-	skip.text = "지우고 여행 시작" if not save.is_empty() else "건너뛰고 여행 시작"
-	skip.custom_minimum_size = Vector2(0, 92)
-	skip.add_theme_font_size_override("font_size", 36)
-	_ask_btn_style(skip, Color("#3A2C34"), Color("#C97F63"), Color("#FFD9CC"))
-	skip.pressed.connect(func(): AudioManager.ui_confirm(); _start_new(true))
-	v.add_child(skip)
-
-	var play := Button.new()
-	play.text = "지우고 처음부터 다시 보기" if not save.is_empty() \
-		else "처음부터 다시 보기"
-	play.custom_minimum_size = Vector2(0, 84)
-	play.add_theme_font_size_override("font_size", 32)
-	_ask_btn_style(play, Color("#3A2C34"), Color("#C97F63"), Color("#FFD9CC"))
-	play.pressed.connect(func(): AudioManager.ui_click(); _start_new(false))
-	v.add_child(play)
-
-	if save.is_empty():
-		v.add_child(back)
-
-	dim.add_child(wrap)
-
-func _start_new(skip_prologue: bool) -> void:
-	# 새로 시작하면 쿼카컴퍼니(프롤로그)부터. 건너뛰면 첫 여행지로 간다.
-	JourneyState.reset()
-	if skip_prologue:
-		# 건너뛰었어도 프롤로그는 지난 것으로 친다 (`MainQuest.now`).
-		JourneyState.mark_quest("잿마루:정류장")
-		SaveManager.autosave("res://scenes/journey/Yunseul.tscn")
-		_go("res://scenes/journey/Yunseul.tscn", "hopeful")
-		return
-	# **왜 떠나는지부터.** 프롤로그(사무실을 걸어 나오는 장면)로 바로
-	# 던져 놓으면 "여기가 어디고 나는 왜 여기 있나" 를 모른 채 걷는다.
-	# 짧은 인트로 넉 장이 먼저 나온다 — 건너뛸 수 있다.
-	var intro := "res://scenes/menu/IntroSlides.tscn"
-	if ResourceLoader.exists(intro):
-		_go(intro)
-		return
-	SaveManager.autosave(SaveManager.HUB)
-	_go(SaveManager.HUB)
-
-func _on_continue() -> void:
-	if not SaveManager.load_game():
-		_toast("저장을 읽지 못했어요. '새 여행 시작' 을 눌러 주세요.")
-		return
-	_go(SaveManager.get_current_scene())
+	# 저장은 게임 쪽이 알아서 읽는다 (없으면 처음부터).
+	_go(GAME_PATH, "hopeful")
 
 
 ## 장면을 옮긴다. 옮겨지지 않으면(전환이 멈췄거나 장면을 못 열었을 때) 화면에 이유를 띄운다 -
@@ -513,7 +330,7 @@ func _add_subtitle() -> void:
 		return
 	var l := Label.new()
 	l.name = "Subtitle"
-	l.text = "꿈속에서 우두머리 9마리를 깨부수는 모험"
+	l.text = "알아서 싸우는 쿼카를 키워요"
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_font_size_override("font_size", 28)
 	l.add_theme_color_override("font_color", Color(0.42, 0.36, 0.30))
@@ -542,27 +359,6 @@ func _add_subtitle() -> void:
 
 ## 만든사람. 게임을 만든 도구와 저작권 표시를 남기는 자리이기도 하다 —
 ## 폰트와 곡이 전부 자유 라이선스라 출처를 밝혀야 한다.
-## 새 버전(진짜 행복) 입구. 폰에서 확인해 보고 마음에 들면 기존 게임과 바꾼다 (`docs/redesign-idle.md`).
-func _add_idle_button() -> void:
-	var box := get_node_or_null("UILayer/Control/VBox")
-	var src: Button = get_node_or_null("UILayer/Control/VBox/ContinueBtn")
-	if box == null or src == null:
-		return
-	var b := Button.new()
-	b.name = "IdleBtn"
-	b.text = "새 버전 (진짜 행복)"
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = src.custom_minimum_size
-	for st in ["normal", "hover", "pressed"]:
-		var sb := src.get_theme_stylebox(st)
-		if sb != null:
-			b.add_theme_stylebox_override(st, sb)
-	b.add_theme_font_size_override("font_size", src.get_theme_font_size("font_size"))
-	b.add_theme_color_override("font_color", src.get_theme_color("font_color"))
-	b.pressed.connect(func(): SceneTransition.go_to("res://scenes/idle/IdleGame.tscn", "hopeful"))
-	box.add_child(b)
-
-
 func _add_credits_button() -> void:
 	var row := get_node_or_null("UILayer/Control/SmallBtnRow")
 	if row == null:
@@ -608,7 +404,7 @@ func _show_credits() -> void:
 
 	var lines := [
 		["진짜 행복", 54, Color(1, 0.93, 0.78)],
-		["꿈속에서 우두머리 9마리를 깨부수는 모험", 30, Color(1, 0.86, 0.62)],
+		["알아서 싸우는 쿼카를 키워요", 30, Color(1, 0.86, 0.62)],
 		["", 18, Color.WHITE],
 		["1인 개발  김근영", 28, Color(0.96, 0.92, 0.82)],
 		["기획 · 개발 · 아트", 26, Color(0.82, 0.86, 0.96)],

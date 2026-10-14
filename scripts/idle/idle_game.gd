@@ -49,6 +49,7 @@ var _blocked := false         ## 이야기 장이 떠 있는 동안 전투를 �
 
 
 func _ready() -> void:
+	add_to_group("idle_game")
 	if not IdleState.load_save():
 		IdleState.reset()
 	_build()
@@ -679,6 +680,17 @@ func _say_input(e: InputEvent) -> void:
 func _unhandled_key_input(e: InputEvent) -> void:
 	if _say_layer.visible and e is InputEventKey and e.pressed and not e.echo:
 		_say_next()
+
+
+## 안드로이드 뒤로가기: 열린 창을 닫는다. 닫을 게 있었으면 참.
+func close_panel() -> bool:
+	if _say_layer.visible:
+		_say_next()
+		return true
+	if _panel.visible:
+		_close_tab()
+		return true
+	return false
 
 
 func _leave() -> void:
