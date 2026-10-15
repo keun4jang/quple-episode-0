@@ -108,6 +108,8 @@ static func monster(n: int, boss: bool) -> Dictionary:
 
 const LEVEL_MAX := 60
 const JOB_LV := 5
+## 이 레벨부터 자동사냥(쿼카가 알아서 때린다). 그 전에는 화면을 톡톡 쳐서 싸운다.
+const AUTO_LV := 5
 
 const HERO_HP := 100.0
 const HERO_HP_PER := 20.0
@@ -127,16 +129,16 @@ static func exp_need(level: int) -> int:
 const JOBS := {
 	"novice": {"name": "꿈나그네", "hp": 1.0, "atk": 1.0, "def": 1.0, "every": 1.0, "crit": 0.05,
 		"desc": "아직 직업이 없어요", "skill": {}},
-	"warrior": {"name": "전사", "hp": 1.3, "atk": 1.22, "def": 1.3, "every": 1.0, "crit": 0.05,
+	"warrior": {"name": "전사", "hp": 1.3, "atk": 1.30, "def": 1.3, "every": 1.0, "crit": 0.05,
 		"desc": "튼튼해서 잘 안 쓰러져요",
 		"skill": {"name": "방패치기", "every": 5.0, "power": 2.0, "hits": 1, "guard": 0.5, "guard_secs": 3.0}},
-	"mage": {"name": "마법사", "hp": 0.92, "atk": 1.3, "def": 0.95, "every": 1.1, "crit": 0.05,
+	"mage": {"name": "마법사", "hp": 0.95, "atk": 1.40, "def": 0.95, "every": 1.1, "crit": 0.05,
 		"desc": "한 방이 아주 커요",
 		"skill": {"name": "별똥별", "every": 6.0, "power": 4.6, "hits": 1}},
-	"archer": {"name": "궁수", "hp": 0.95, "atk": 0.70, "def": 0.95, "every": 0.75, "crit": 0.08,
+	"archer": {"name": "궁수", "hp": 0.95, "atk": 0.64, "def": 0.95, "every": 0.75, "crit": 0.08,
 		"desc": "빠르게 여러 번 쏴요",
 		"skill": {"name": "연사", "every": 5.0, "power": 0.85, "hits": 4}},
-	"thief": {"name": "도적", "hp": 0.9, "atk": 0.62, "def": 0.9, "every": 0.9, "crit": 0.18,
+	"thief": {"name": "도적", "hp": 0.9, "atk": 0.55, "def": 0.9, "every": 0.9, "crit": 0.15,
 		"desc": "치명타가 자주 터져요",
 		"skill": {"name": "급소 찌르기", "every": 5.0, "power": 2.2, "hits": 1, "crit": true}},
 }

@@ -8,6 +8,7 @@ var secs := 0.0
 var deaths := 0
 var farm_clears := 0
 var zone_first: Dictionary = {}
+var auto_at := -1.0
 
 
 func _ready() -> void:
@@ -21,13 +22,21 @@ func _ready() -> void:
 	print("\n==== 꿈결 키우기 시뮬레이션: %s ====" % job)
 	while IdleState.best <= goal and guard < 200000:
 		guard += 1
+		if auto_at < 0.0 and IdleState.can_auto():
+			auto_at = secs
 		if IdleState.can_pick_job() and IdleState.job == "novice" and job != "novice":
 			IdleState.set_job(job)
 		_spend()
 		f.start(IdleState.stage, seed_v + guard)
 		while not f.done:
-			f.tick(0.5)
-			secs += 0.5
+			if IdleState.auto_active():
+				f.tick(0.5)
+				secs += 0.5
+			else:
+				# 레벨 5 전: 사람이 초에 세 번쯤 톡톡 친다
+				f.tick(0.33)
+				secs += 0.33
+				f.tap()
 			if secs > 60.0 * 60.0 * 40.0:
 				break
 		if secs > 60.0 * 60.0 * 40.0:
@@ -52,6 +61,7 @@ func _ready() -> void:
 		elif IdleState.stage < IdleState.best and not IdleState.boss_failed:
 			# 졌지만 우두머리 앞이 아니면 곧장 앞으로
 			IdleState.stage = IdleState.best
+	print("자동사냥 열린 때: %.1f분" % (auto_at / 60.0))
 	print("끝: %.1f시간 · 스테이지 %d · LV %d · 쓰러짐 %d · 전투력 %d · 꿈조각 %d" % [
 		secs / 3600.0, IdleState.best, IdleState.level, deaths, IdleState.power(), IdleState.coins])
 	print("장비: %s" % str(IdleState.gear))

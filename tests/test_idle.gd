@@ -183,7 +183,35 @@ func _stage_tests() -> void:
 
 func _fight_tests() -> void:
 	print("\n[5] 자동 전투")
+	# 레벨 5 전에는 손으로 싸운다
 	IdleState.reset()
+	ck("LV1은 자동사냥이 아니다", not IdleState.auto_active() and not IdleState.can_auto())
+	var mf := IdleFight.new()
+	mf.start(1, 3)
+	var mev: Array = []
+	for i in 40:
+		mev.append_array(mf.tick(0.25))
+	ck("LV1은 가만히 있으면 때리지 않는다",
+		mev.filter(func(e): return e["k"] == "hero_hit").is_empty() and not mf.done)
+	var te0 := mf.tap()
+	ck("LV1은 톡 치면 제대로 한 대", te0.size() >= 1 and te0[0]["k"] == "hero_hit" and not bool(te0[0]["tap"]))
+	ck("손으로 칠 때도 간격이 있다", mf.tap().is_empty())
+	var tguard := 0
+	while not mf.done and tguard < 2000:
+		mf.tick(IdleFight.MANUAL_COOLDOWN)
+		mf.tap()
+		tguard += 1
+	ck("톡톡 쳐서 첫 스테이지를 깬다", mf.result == "clear", mf.result)
+	IdleState.level = 4
+	ck("LV4도 아직", not IdleState.can_auto())
+	IdleState.level = 5
+	ck("LV5부터 자동사냥", IdleState.auto_active())
+	IdleState.auto_on = false
+	ck("꺼 두면 자동이 아니다", not IdleState.auto_active())
+	IdleState.auto_on = true
+
+	IdleState.reset()
+	IdleState.level = 5
 	var f := IdleFight.new()
 	f.start(1, 3)
 	var evs: Array = []
@@ -191,7 +219,7 @@ func _fight_tests() -> void:
 	while not f.done and guard < 4000:
 		evs.append_array(f.tick(0.5))
 		guard += 1
-	ck("LV1도 첫 스테이지는 깬다", f.result == "clear", f.result)
+	ck("LV5는 첫 스테이지를 알아서 깬다", f.result == "clear", f.result)
 	var kills := 0
 	var spawns := 0
 	for e in evs:
@@ -202,19 +230,22 @@ func _fight_tests() -> void:
 	ck("5마리를 잡고 5마리가 나온다", kills == 5 and spawns == 5, "%d/%d" % [kills, spawns])
 	ck("clear 사건이 한 번", evs.filter(func(e): return e["k"] == "clear").size() == 1)
 	ck("경험과 꿈조각이 쌓인다", IdleState.coins > 0 and IdleState.kills == 5)
+	IdleState.level = 5
 	ck("끝난 뒤 tick은 아무 일도 없다", f.tick(1.0).is_empty())
 
 	# 못 이기는 스테이지는 진다
 	IdleState.reset()
+	IdleState.level = 5
 	f.start(80, 3)
 	guard = 0
 	while not f.done and guard < 4000:
 		f.tick(0.5)
 		guard += 1
-	ck("LV1이 80번에서는 진다", f.result == "defeat")
+	ck("LV5가 80번에서는 진다", f.result == "defeat")
 
 	# 같은 씨앗이면 같은 결과
 	IdleState.reset()
+	IdleState.level = 5
 	var f1 := IdleFight.new()
 	f1.start(4, 11)
 	var t1 := 0.0
@@ -223,6 +254,7 @@ func _fight_tests() -> void:
 		t1 += 0.25
 	var xp1 := IdleState.xp + IdleState.level * 1000
 	IdleState.reset()
+	IdleState.level = 5
 	var f2 := IdleFight.new()
 	f2.start(4, 11)
 	var t2 := 0.0
@@ -246,8 +278,9 @@ func _fight_tests() -> void:
 					skills += 1
 			t += 0.25
 		ck("%s 필살기가 나간다 (%d)" % [j, skills], skills > 0)
-	# 톡 치기
+	# 톡 치기 (자동사냥 중)
 	IdleState.reset()
+	IdleState.level = 5
 	var tf := IdleFight.new()
 	tf.start(1, 4)
 	ck("나타나기 전에는 톡 쳐도 아무 일 없다", tf.tap().is_empty())
@@ -300,13 +333,15 @@ func _offline_save_tests() -> void:
 	IdleState.best = 31
 	IdleState.gear["hat"] = [3, 9]
 	IdleState.boss_failed = true
+	IdleState.auto_on = false
 	IdleState.save(777)
 	IdleState.reset()
 	ck("초기화하면 빈다", IdleState.level == 1)
 	ck("불러온다", IdleState.has_save() and IdleState.load_save())
 	ck("전부 돌아온다", IdleState.level == 17 and IdleState.xp == 33 and IdleState.job == "archer"
 		and IdleState.coins == 4242 and IdleState.stage == 23 and IdleState.best == 31
-		and IdleState.gear["hat"] == [3, 9] and IdleState.boss_failed and IdleState.last_seen == 777)
+		and IdleState.gear["hat"] == [3, 9] and IdleState.boss_failed and IdleState.last_seen == 777
+		and not IdleState.auto_on)
 	# 망가진 저장
 	var d := {"level": 9999, "job": "???", "best": -4, "stage": 500, "gear": {"hat": [99, 99], "weapon": "x"}}
 	IdleState.from_dict(d)

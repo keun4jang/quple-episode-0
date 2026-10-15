@@ -14,9 +14,11 @@ const HEAL_ON_KILL := 0.12
 ## 몬스터가 나타나기까지.
 const SPAWN_DELAY := 0.5
 const STEP := 0.05
-## 화면을 톡 치면 한 번 더 때린다 (기본 공격의 이만큼, 이 간격보다 자주는 안 된다).
+## 자동사냥 중에 화면을 톡 치면 한 번 더 때린다 (기본 공격의 이만큼, 이 간격보다 자주는 안 된다).
 const TAP_POWER := 0.3
 const TAP_COOLDOWN := 0.25
+## 자동사냥이 아닐 때(레벨 5 전)는 톡 칠 때마다 제대로 한 대 (필살기가 차 있으면 필살기).
+const MANUAL_COOLDOWN := 0.45
 
 var rng := RandomNumberGenerator.new()
 var info: Dictionary = {}
@@ -90,8 +92,17 @@ func tap() -> Array:
 	events = []
 	if done or state != "fight" or _tap_t > 0.0:
 		return events
-	_tap_t = TAP_COOLDOWN
-	_hit_monster(TAP_POWER, false, false, true)
+	if IdleState.auto_active():
+		_tap_t = TAP_COOLDOWN
+		_hit_monster(TAP_POWER, false, false, true)
+		return events
+	_tap_t = MANUAL_COOLDOWN
+	var sk: Dictionary = h["skill"]
+	if not sk.is_empty() and _skill_cd <= 0.0:
+		_skill_cd = float(sk["every"])
+		_use_skill(sk)
+	else:
+		_hit_monster(1.0, false, false)
 	return events
 
 
@@ -111,7 +122,10 @@ func _step(d: float) -> void:
 	var sk: Dictionary = h["skill"]
 	if not sk.is_empty():
 		_skill_cd -= d
-	_hero_t -= d
+	if IdleState.auto_active():
+		_hero_t -= d
+	else:
+		_hero_t = float(h["every"])       # 손으로 싸우는 동안은 기다린다
 	if _hero_t <= 0.0:
 		_hero_t += float(h["every"])
 		if not sk.is_empty() and _skill_cd <= 0.0:

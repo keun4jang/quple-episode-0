@@ -21,6 +21,8 @@ static var last_seen := 0
 ## 보스에 졌다 - [보스 도전] 버튼을 띄운다.
 static var boss_failed := false
 static var seen_intro := false
+## 자동사냥을 켜 두었나 (레벨 5 전에는 켜 둬도 돌지 않는다).
+static var auto_on := true
 
 
 static func reset() -> void:
@@ -35,6 +37,7 @@ static func reset() -> void:
 	last_seen = 0
 	boss_failed = false
 	seen_intro = false
+	auto_on = true
 	gear = {}
 	for s in IdleData.SLOTS:
 		gear[s] = [1, 0]
@@ -84,6 +87,15 @@ static func add_exp(amount: int) -> int:
 	if level >= IdleData.LEVEL_MAX:
 		xp = 0
 	return ups
+
+
+static func can_auto() -> bool:
+	return level >= IdleData.AUTO_LV
+
+
+## 지금 쿼카가 알아서 싸우나.
+static func auto_active() -> bool:
+	return can_auto() and auto_on
 
 
 static func can_pick_job() -> bool:
@@ -237,7 +249,8 @@ static func claim_offline(now_unix: int) -> Dictionary:
 static func to_dict() -> Dictionary:
 	return {"v": 1, "level": level, "xp": xp, "job": job, "coins": coins, "stage": stage,
 		"best": best, "gear": gear.duplicate(true), "kills": kills, "ending_seen": ending_seen,
-		"last_seen": last_seen, "boss_failed": boss_failed, "seen_intro": seen_intro}
+		"last_seen": last_seen, "boss_failed": boss_failed, "seen_intro": seen_intro,
+		"auto_on": auto_on}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -255,6 +268,7 @@ static func from_dict(d: Dictionary) -> void:
 	last_seen = maxi(0, int(d.get("last_seen", 0)))
 	boss_failed = bool(d.get("boss_failed", false))
 	seen_intro = bool(d.get("seen_intro", false))
+	auto_on = bool(d.get("auto_on", true))
 	var g = d.get("gear", {})
 	if g is Dictionary:
 		for s in IdleData.SLOTS:

@@ -45,6 +45,7 @@ var _boss_name: Label
 var _btns: Dictionary = {}
 var _gear_dot: Control
 var _boss_btn: Button
+var _auto_btn: Button
 var _menu_btn: Button
 var _tap_hint: Label
 
@@ -91,8 +92,8 @@ func _ready() -> void:
 	var r := IdleState.claim_offline(int(Time.get_unix_time_from_system()))
 	if not IdleState.seen_intro:
 		IdleState.seen_intro = true
-		_say(["여기는 꿈결이에요.", "작은 쿼카가 혼자서도 씩씩하게 싸워요.",
-			"화면을 톡 치면 쿼카가 한 번 더 때려요.", "장비를 키워서 더 먼 곳으로 보내 주세요."],
+		_say(["여기는 꿈결이에요.", "처음엔 화면을 톡톡 쳐서 함께 싸워요.",
+			"레벨 5가 되면 쿼카가 알아서 싸우는 자동사냥이 열려요.", "장비를 키워서 더 먼 곳으로 보내 주세요."],
 			func(): _after_intro(r))
 	else:
 		_after_intro(r)
@@ -223,6 +224,9 @@ func _build() -> void:
 		_gear_dot.draw_circle(Vector2(13, 13), 12.0, Color.WHITE)
 		_gear_dot.draw_circle(Vector2(13, 13), 9.0, Color("#FF5A5A")))
 	(_btns["gear"] as Button).add_child(_gear_dot)
+	_auto_btn = _button("", 26)
+	_auto_btn.pressed.connect(_on_auto)
+	add_child(_auto_btn)
 	_boss_btn = _button("보스 도전!", 30, Color("#FF8A7A"), Color("#B8473C"), Color.WHITE)
 	_boss_btn.pressed.connect(_on_boss)
 	_boss_btn.visible = false
@@ -311,6 +315,8 @@ func _layout() -> void:
 	_gear_dot.position = Vector2(bw - 30, 4)
 	_boss_btn.size = Vector2(250, bh)
 	_boss_btn.position = Vector2(w - 268, h - bh - 14)
+	_auto_btn.size = Vector2(170, bh)
+	_auto_btn.position = Vector2(w - 268 - 12 - 170, h - bh - 14)
 
 	_dim.size = size
 	var pw := minf(w - 60.0, 1120.0)
@@ -461,7 +467,10 @@ func _process(dt: float) -> void:
 	if _walk > 0.0:
 		_walk -= dt
 		_bg.scroll += WALK_SPEED * dt
-	_tap_hint.visible = not _tapped_once and not fight.done and fight.state == "fight" and not _panel.visible
+	var manual := not IdleState.auto_active()
+	_tap_hint.text = "화면을 톡톡 쳐서 공격해요!" if manual else "화면을 톡 치면 한 번 더 때려요!"
+	_tap_hint.visible = (manual or not _tapped_once) and not fight.done and fight.state == "fight" \
+		and not _panel.visible and not _blocked
 	_tap_hint.modulate.a = 0.6 + 0.4 * sin(_t * 4.0)
 	if IdleState.boss_failed:
 		var s := 1.0 + 0.04 * sin(_t * 6.0)
@@ -526,6 +535,10 @@ func _on_event(e: Dictionary) -> void:
 			_fx.burst(_hero_home + Vector2(0, -40), GOLD, 22, 420.0, 10.0, 0.9, 200.0, "star", 0.0, true)
 			_fx.text(_hero_head() + Vector2(0, -50), "LEVEL UP!", GOLD, 56, 1.4, 0.0, 90.0)
 			AudioManager.souvenir_get()
+			if int(e["level"]) >= IdleData.AUTO_LV and int(e["level"]) - 1 < IdleData.AUTO_LV:
+				IdleState.auto_on = true
+				_banner_show("자동사냥이 열렸어요!", GOLD)
+				_toast("이제 쿼카가 알아서 싸워요")
 			_refresh()
 		"defeat":
 			AudioManager.battle_defeat()
@@ -746,6 +759,42 @@ func _finish() -> void:
 		_fill_stage()
 
 
+func _refresh_auto() -> void:
+	var sb_on := _box(Color("#B8E6A0"), Color("#5E9A4A"), 24, 4, 8)
+	if not IdleState.can_auto():
+		_auto_btn.text = "자동\nLV%d부터" % IdleData.AUTO_LV
+		_auto_btn.add_theme_stylebox_override("normal", _box(Color("#E9E2D6"), Color("#BFB2A2"), 24, 4, 8))
+		_auto_btn.add_theme_stylebox_override("hover", _box(Color("#E9E2D6"), Color("#BFB2A2"), 24, 4, 8))
+	elif IdleState.auto_on:
+		_auto_btn.text = "자동 켜짐"
+		_auto_btn.add_theme_stylebox_override("normal", sb_on)
+		_auto_btn.add_theme_stylebox_override("hover", sb_on)
+	else:
+		_auto_btn.text = "자동 꺼짐"
+		_auto_btn.add_theme_stylebox_override("normal", _box(CREAM, EDGE, 24, 4, 8))
+		_auto_btn.add_theme_stylebox_override("hover", _box(CREAM, EDGE, 24, 4, 8))
+
+
+func _on_auto() -> void:
+	AudioManager.ui_click()
+	if not IdleState.can_auto():
+		_toast("레벨 %d부터 자동사냥을 할 수 있어요" % IdleData.AUTO_LV)
+		_shake_btn(_auto_btn)
+		return
+	IdleState.auto_on = not IdleState.auto_on
+	_toast("자동사냥을 켰어요" if IdleState.auto_on else "자동사냥을 껐어요 - 화면을 톡톡 쳐서 싸워요")
+	IdleState.save()
+	_refresh_auto()
+
+
+func _shake_btn(b: Control) -> void:
+	var x := b.position.x
+	var tw := create_tween()
+	for i in 4:
+		tw.tween_property(b, "position:x", x + (10.0 if i % 2 == 0 else -10.0), 0.04)
+	tw.tween_property(b, "position:x", x, 0.04)
+
+
 func _on_boss() -> void:
 	if IdleState.challenge_boss():
 		AudioManager.ui_confirm()
@@ -852,6 +901,7 @@ func _refresh() -> void:
 	_xp_bar.max_value = IdleData.exp_need(IdleState.level)
 	_xp_bar.value = IdleState.xp if IdleState.level < IdleData.LEVEL_MAX else _xp_bar.max_value
 	_boss_btn.visible = IdleState.boss_failed
+	_refresh_auto()
 	if not IdleState.boss_failed:
 		_boss_btn.scale = Vector2.ONE
 	var can := false

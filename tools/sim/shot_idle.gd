@@ -38,6 +38,9 @@ func _ready() -> void:
 	var wait := float(OS.get_environment("SHOT_WAIT")) if OS.get_environment("SHOT_WAIT") != "" else 4.0
 	var tab := OS.get_environment("SHOT_TAB")
 	await get_tree().create_timer(wait).timeout
+	if OS.get_environment("SHOT_AUTO") != "":
+		g._on_auto()
+		await get_tree().create_timer(0.3).timeout
 	if tab != "":
 		g._open_tab(tab)
 		await get_tree().create_timer(0.6).timeout
