@@ -14,6 +14,9 @@ const HEAL_ON_KILL := 0.12
 ## 몬스터가 나타나기까지.
 const SPAWN_DELAY := 0.5
 const STEP := 0.05
+## 화면을 톡 치면 한 번 더 때린다 (기본 공격의 이만큼, 이 간격보다 자주는 안 된다).
+const TAP_POWER := 0.3
+const TAP_COOLDOWN := 0.25
 
 var rng := RandomNumberGenerator.new()
 var info: Dictionary = {}
@@ -36,6 +39,7 @@ var _skill_cd := 0.0
 var _spawn_t := 0.0
 var _guard_t := 0.0
 var _guard := 1.0
+var _tap_t := 0.0
 var events: Array = []
 
 
@@ -60,6 +64,7 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 	_skill_cd = float(sk.get("every", 0.0))
 	_guard_t = 0.0
 	_guard = 1.0
+	_tap_t = 0.0
 	events = []
 
 
@@ -80,8 +85,19 @@ func tick(dt: float) -> Array:
 	return events
 
 
+## 화면을 톡 쳤다 - 싸우는 중이면 한 번 더 때린다. 생긴 사건들을 돌려준다.
+func tap() -> Array:
+	events = []
+	if done or state != "fight" or _tap_t > 0.0:
+		return events
+	_tap_t = TAP_COOLDOWN
+	_hit_monster(TAP_POWER, false, false, true)
+	return events
+
+
 func _step(d: float) -> void:
 	time += d
+	_tap_t = maxf(0.0, _tap_t - d)
 	if _guard_t > 0.0:
 		_guard_t -= d
 		if _guard_t <= 0.0:
@@ -145,7 +161,7 @@ func _use_skill(sk: Dictionary) -> void:
 		_hit_monster(float(sk.get("power", 1.0)), bool(sk.get("crit", false)), true)
 
 
-func _hit_monster(power: float, force_crit: bool, skill: bool) -> void:
+func _hit_monster(power: float, force_crit: bool, skill: bool, tapped := false) -> void:
 	var raw := float(h["atk"]) * power
 	var crit := force_crit or rng.randf() < float(h["crit"])
 	if crit:
@@ -153,7 +169,8 @@ func _hit_monster(power: float, force_crit: bool, skill: bool) -> void:
 	var dmg := maxf(raw * 0.25, raw - float(mon["def"]) * 0.5)
 	dmg = maxf(1.0, dmg)
 	mon_hp -= dmg
-	events.append({"k": "hero_hit", "dmg": int(round(dmg)), "crit": crit, "skill": skill})
+	events.append({"k": "hero_hit", "dmg": int(round(dmg)), "crit": crit, "skill": skill,
+		"tap": tapped})
 	if mon_hp <= 0.0:
 		mon_hp = 0.0
 		_kill()

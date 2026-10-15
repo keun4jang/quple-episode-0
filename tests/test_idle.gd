@@ -150,6 +150,12 @@ func _stage_tests() -> void:
 	ck("1번 밑으로는 안 간다", IdleState.stage == 1)
 
 	IdleState.reset()
+	IdleState.best = 15
+	IdleState.stage = 11
+	IdleState.on_defeat()
+	ck("물러난 자리가 우두머리면 한 칸 더 물러난다", IdleState.stage == 9 and not IdleState.boss_failed)
+
+	IdleState.reset()
 	IdleState.best = 10
 	IdleState.stage = 10
 	IdleState.on_defeat()
@@ -240,6 +246,17 @@ func _fight_tests() -> void:
 					skills += 1
 			t += 0.25
 		ck("%s 필살기가 나간다 (%d)" % [j, skills], skills > 0)
+	# 톡 치기
+	IdleState.reset()
+	var tf := IdleFight.new()
+	tf.start(1, 4)
+	ck("나타나기 전에는 톡 쳐도 아무 일 없다", tf.tap().is_empty())
+	tf.tick(IdleFight.SPAWN_DELAY + 0.01)
+	var te := tf.tap()
+	ck("싸우는 중엔 톡 치면 한 대", te.size() >= 1 and te[0]["k"] == "hero_hit" and bool(te[0]["tap"]))
+	ck("곧바로 또 치면 안 된다 (간격)", tf.tap().is_empty())
+	tf.tick(IdleFight.TAP_COOLDOWN + 0.01)
+	ck("간격이 지나면 또 된다", not tf.tap().is_empty() or tf.done)
 	# 우두머리 스테이지는 한 마리
 	IdleState.reset()
 	IdleState.level = 30

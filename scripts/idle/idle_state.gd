@@ -184,6 +184,9 @@ static func on_defeat() -> void:
 	if bool(info["boss"]):
 		boss_failed = true
 	stage = maxi(1, stage - 1)
+	# 물러난 자리가 우두머리면 한 칸 더 - 모으는 곳이 우두머리 앞이 되면 안 된다.
+	if stage > 1 and bool(IdleData.stage_info(stage)["boss"]):
+		stage -= 1
 
 
 ## 우두머리에 다시 도전한다 (물러나 있던 스테이지에서 다음 스테이지로).
