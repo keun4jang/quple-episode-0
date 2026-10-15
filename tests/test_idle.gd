@@ -113,6 +113,27 @@ func _gear_tests() -> void:
 		stats[IdleData.SLOT_STAT[s]] = true
 	ck("공격·체력·방어를 다 올려 준다", stats.size() == 3)
 
+	# 수련
+	IdleState.reset()
+	IdleState.coins = 99999999
+	ck("수련은 처음엔 닫혀 있다", not IdleState.train_open() and not IdleState.do_train("atk"))
+	IdleState.best = IdleData.TRAIN_OPEN
+	var a0 := float(IdleState.hero()["atk"])
+	var tc := IdleState.train_cost_of("atk")
+	ck("50번 우두머리를 깨면 열린다", IdleState.train_open() and IdleState.do_train("atk"))
+	ck("수련하면 값만큼 빠지고 공격이 1% 오른다", IdleState.coins == 99999999 - tc
+		and is_equal_approx(float(IdleState.hero()["atk"]), a0 * (1.0 + IdleData.TRAIN_STEP)))
+	ck("수련은 할수록 비싸다", IdleState.train_cost_of("atk") > tc)
+	for i in 30:
+		IdleState.do_train("hp")
+	ck("수련에는 끝이 없다 (30단계)", int(IdleState.train["hp"]) == 30)
+	IdleState.coins = 0
+	ck("꿈조각이 없으면 못 한다", not IdleState.do_train("def"))
+	var td := IdleState.to_dict()
+	IdleState.reset()
+	IdleState.from_dict(td)
+	ck("수련도 저장된다", int(IdleState.train["atk"]) == 1 and int(IdleState.train["hp"]) == 30)
+
 	# 떨굼
 	IdleState.reset()
 	var rng := RandomNumberGenerator.new()

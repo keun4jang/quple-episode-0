@@ -44,6 +44,7 @@ var _boss_bar: ProgressBar
 var _boss_name: Label
 var _btns: Dictionary = {}
 var _gear_dot: Control
+var _char_dot: Control
 var _boss_btn: Button
 var _auto_btn: Button
 var _menu_btn: Button
@@ -224,6 +225,13 @@ func _build() -> void:
 		_gear_dot.draw_circle(Vector2(13, 13), 12.0, Color.WHITE)
 		_gear_dot.draw_circle(Vector2(13, 13), 9.0, Color("#FF5A5A")))
 	(_btns["gear"] as Button).add_child(_gear_dot)
+	_char_dot = Control.new()
+	_char_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_char_dot.size = Vector2(26, 26)
+	_char_dot.draw.connect(func() -> void:
+		_char_dot.draw_circle(Vector2(13, 13), 12.0, Color.WHITE)
+		_char_dot.draw_circle(Vector2(13, 13), 9.0, Color("#FF5A5A")))
+	(_btns["char"] as Button).add_child(_char_dot)
 	_auto_btn = _button("", 26)
 	_auto_btn.pressed.connect(_on_auto)
 	add_child(_auto_btn)
@@ -313,6 +321,7 @@ func _layout() -> void:
 		b.size = Vector2(bw, bh)
 		x += bw + 12.0
 	_gear_dot.position = Vector2(bw - 30, 4)
+	_char_dot.position = Vector2(bw - 30, 4)
 	_boss_btn.size = Vector2(250, bh)
 	_boss_btn.position = Vector2(w - 268, h - bh - 14)
 	_auto_btn.size = Vector2(170, bh)
@@ -910,6 +919,12 @@ func _refresh() -> void:
 			can = true
 			break
 	_gear_dot.visible = can
+	var can_t := false
+	for t in IdleData.TRAIN_STATS:
+		if IdleState.can_train(String(t)):
+			can_t = true
+			break
+	_char_dot.visible = can_t
 	if _tab == "gear" and _panel.visible:
 		_refresh_gear_buttons()
 
@@ -994,7 +1009,7 @@ func _fill_char() -> void:
 	top.add_theme_constant_override("separation", 18)
 	_panel_body.add_child(top)
 	var portrait := TextureRect.new()
-	portrait.custom_minimum_size = Vector2(120, 150)
+	portrait.custom_minimum_size = Vector2(96, 120)
 	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -1016,6 +1031,7 @@ func _fill_char() -> void:
 			SKILL_COL.get(IdleState.job, INK).darkened(0.3)))
 	if not IdleState.can_pick_job():
 		_panel_body.add_child(_label("LV %d 이 되면 직업을 고를 수 있어요." % IdleData.JOB_LV, 24, Color("#9A7A60")))
+		_fill_train()
 		return
 	_panel_body.add_child(_label("직업 - 언제든 공짜로 바꿔요", 24, Color("#9A7A60")))
 	var row := HBoxContainer.new()
@@ -1033,6 +1049,35 @@ func _fill_char() -> void:
 		b.pressed.connect(_pick_job.bind(String(jid)))
 		row.add_child(b)
 	_panel_body.add_child(row)
+	_fill_train()
+
+
+## 수련 - 장비를 다 키운 뒤에도 꿈조각을 쓸 곳. 공격·체력·방어를 1% 씩 끝없이.
+func _fill_train() -> void:
+	if not IdleState.train_open():
+		_panel_body.add_child(_label("수련 - 5구역 굽이나루 우두머리를 물리치면 열려요", 22, Color("#B0A090")))
+		return
+	_panel_body.add_child(_label("수련 - 꿈조각으로 끝없이 세져요 (단계마다 1%)", 22, Color("#9A7A60")))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	for t in IdleData.TRAIN_STATS:
+		var lv := int(IdleState.train[t])
+		var b := _button("%s %d단계 (+%d%%)\n✦%s" % [String(IdleData.TRAIN_NAME[t]), lv,
+			int(round(IdleData.TRAIN_STEP * 100.0 * lv)), _num(IdleState.train_cost_of(String(t)))], 20,
+			Color("#FFE3A3"), EDGE)
+		b.custom_minimum_size = Vector2(0, 76)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.disabled = not IdleState.can_train(String(t))
+		b.pressed.connect(_on_train.bind(String(t)))
+		row.add_child(b)
+	_panel_body.add_child(row)
+
+
+func _on_train(stat: String) -> void:
+	if IdleState.do_train(stat):
+		AudioManager.ui_confirm()
+		_after_enhance()
+		_fill_char()
 
 
 func _pick_job(j: String) -> void:
@@ -1147,7 +1192,7 @@ func _after_enhance() -> void:
 	_hero.flash = 0.6
 	_hero.flash_col = Color("#FFF3B0")
 	IdleState.save()
-	_fill_gear()
+	_fill()
 	_refresh()
 
 

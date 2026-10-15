@@ -134,8 +134,8 @@ const JOBS := {
 		"skill": {"name": "방패치기", "every": 5.0, "power": 2.0, "hits": 1, "guard": 0.5, "guard_secs": 3.0}},
 	"mage": {"name": "마법사", "hp": 0.95, "atk": 1.40, "def": 0.95, "every": 1.1, "crit": 0.05,
 		"desc": "한 방이 아주 커요",
-		"skill": {"name": "별똥별", "every": 6.0, "power": 4.6, "hits": 1}},
-	"archer": {"name": "궁수", "hp": 0.95, "atk": 0.64, "def": 0.95, "every": 0.75, "crit": 0.08,
+		"skill": {"name": "별똥별", "every": 6.0, "power": 5.2, "hits": 1}},
+	"archer": {"name": "궁수", "hp": 0.95, "atk": 0.60, "def": 0.95, "every": 0.75, "crit": 0.08,
 		"desc": "빠르게 여러 번 쏴요",
 		"skill": {"name": "연사", "every": 5.0, "power": 0.85, "hits": 4}},
 	"thief": {"name": "도적", "hp": 0.9, "atk": 0.55, "def": 0.9, "every": 0.9, "crit": 0.15,
@@ -183,6 +183,22 @@ static func item_name(slot: String, tier: int, job: String) -> String:
 	var t := String(ZONES[clampi(tier - 1, 0, ZONE_COUNT - 1)]["tier"])
 	var base := String(WEAPON_NAME.get(job, "막대기")) if slot == "weapon" else String(SLOT_ITEM[slot])
 	return "%s %s" % [t, base]
+
+
+# ── 수련 (끝판 꿈조각 쓰는 곳) ──────────────────────────────────────
+
+## 장비가 다 차도 꿈조각을 쓸 곳. 공격·체력·방어를 한 단계마다 1% 씩 끝없이 올린다.
+## 굽이나루(5구역) 우두머리를 물리치면 열린다 - 그 전엔 장비 강화가 훨씬 이득이라 헷갈리지 않게.
+const TRAIN_STATS := ["atk", "hp", "def"]
+const TRAIN_NAME := {"atk": "공격 수련", "hp": "체력 수련", "def": "방어 수련"}
+const TRAIN_STEP := 0.01
+const TRAIN_BASE := 5000.0
+const TRAIN_GROW := 1.15
+const TRAIN_OPEN := 51           ## 이 스테이지가 열리면 (= 50번 우두머리를 깨면)
+
+
+static func train_cost(lv: int) -> int:
+	return int(round(TRAIN_BASE * pow(TRAIN_GROW, float(maxi(0, lv)))))
 
 
 # ── 보상 ─────────────────────────────────────────────────────────────

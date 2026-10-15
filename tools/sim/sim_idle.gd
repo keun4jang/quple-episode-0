@@ -9,6 +9,7 @@ var deaths := 0
 var farm_clears := 0
 var zone_first: Dictionary = {}
 var auto_at := -1.0
+var trains := 0
 
 
 func _ready() -> void:
@@ -65,6 +66,7 @@ func _ready() -> void:
 	print("끝: %.1f시간 · 스테이지 %d · LV %d · 쓰러짐 %d · 전투력 %d · 꿈조각 %d" % [
 		secs / 3600.0, IdleState.best, IdleState.level, deaths, IdleState.power(), IdleState.coins])
 	print("장비: %s" % str(IdleState.gear))
+	print("수련: %s (%d번)" % [str(IdleState.train), trains])
 	get_tree().quit()
 
 
@@ -83,24 +85,38 @@ func _plus_sum() -> int:
 	return s
 
 
-## 가장 싸게 가장 크게 오르는 칸에 계속 쓴다.
+## 꿈조각 하나당 전투력이 가장 많이 오르는 곳(장비 강화 또는 수련)에 계속 쓴다.
 func _spend() -> void:
 	var guard := 0
-	while guard < 500:
+	while guard < 2000:
 		guard += 1
-		var best_slot := ""
-		var best_v := 0.0
 		var p0 := float(IdleState.power())
+		var pick := ""
+		var best_v := 0.0
 		for s in IdleData.SLOTS:
 			if not IdleState.can_enhance(String(s)):
 				continue
 			var g: Array = IdleState.gear[s]
-			var gain := IdleData.slot_value(String(s), int(g[0]), int(g[1]) + 1) - IdleData.slot_value(String(s), int(g[0]), int(g[1]))
-			var w := 4.0 if String(IdleData.SLOT_STAT[s]) == "atk" else (1.0 if String(IdleData.SLOT_STAT[s]) == "hp" else 6.0)
-			var v := gain * w / float(IdleState.enhance_cost_of(String(s)))
+			g[1] = int(g[1]) + 1
+			var v := (float(IdleState.power()) - p0) / float(IdleData.enhance_cost(int(g[0]), int(g[1]) - 1))
+			g[1] = int(g[1]) - 1
 			if v > best_v:
 				best_v = v
-				best_slot = String(s)
-		if best_slot == "":
+				pick = "g:" + String(s)
+		for t in IdleData.TRAIN_STATS:
+			if not IdleState.can_train(String(t)):
+				continue
+			var cost := IdleState.train_cost_of(String(t))
+			IdleState.train[t] = int(IdleState.train[t]) + 1
+			var v2 := (float(IdleState.power()) - p0) / float(cost)
+			IdleState.train[t] = int(IdleState.train[t]) - 1
+			if v2 > best_v:
+				best_v = v2
+				pick = "t:" + String(t)
+		if pick == "":
 			return
-		IdleState.enhance(best_slot)
+		if pick.begins_with("g:"):
+			IdleState.enhance(pick.substr(2))
+		else:
+			IdleState.do_train(pick.substr(2))
+			trains += 1

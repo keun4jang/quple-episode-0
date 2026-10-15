@@ -15,6 +15,8 @@ static var stage := 1
 static var best := 1
 ## 칸 → [단계, 강화].
 static var gear: Dictionary = {}
+## 수련 단계 (능력치 → 단계).
+static var train: Dictionary = {}
 static var kills := 0
 static var ending_seen := false
 static var last_seen := 0
@@ -38,6 +40,9 @@ static func reset() -> void:
 	boss_failed = false
 	seen_intro = false
 	auto_on = true
+	train = {}
+	for t in IdleData.TRAIN_STATS:
+		train[t] = 0
 	gear = {}
 	for s in IdleData.SLOTS:
 		gear[s] = [1, 0]
@@ -58,9 +63,9 @@ static func gear_total(stat: String) -> float:
 static func hero() -> Dictionary:
 	var j: Dictionary = IdleData.JOBS.get(job, IdleData.JOBS["novice"])
 	var l := float(level - 1)
-	var hp := (IdleData.HERO_HP + IdleData.HERO_HP_PER * l) * float(j["hp"]) + gear_total("hp")
-	var atk := (IdleData.HERO_ATK + IdleData.HERO_ATK_PER * l) * float(j["atk"]) + gear_total("atk")
-	var df := (IdleData.HERO_DEF + IdleData.HERO_DEF_PER * l) * float(j["def"]) + gear_total("def")
+	var hp := ((IdleData.HERO_HP + IdleData.HERO_HP_PER * l) * float(j["hp"]) + gear_total("hp")) * train_mult("hp")
+	var atk := ((IdleData.HERO_ATK + IdleData.HERO_ATK_PER * l) * float(j["atk"]) + gear_total("atk")) * train_mult("atk")
+	var df := ((IdleData.HERO_DEF + IdleData.HERO_DEF_PER * l) * float(j["def"]) + gear_total("def")) * train_mult("def")
 	return {"hp": hp, "atk": atk, "def": df, "every": float(j["every"]), "crit": float(j["crit"]),
 		"skill": j["skill"]}
 
@@ -70,6 +75,33 @@ static func power() -> int:
 	var h := hero()
 	var dps := float(h["atk"]) / float(h["every"])
 	return int(round(dps * 4.0 + float(h["hp"]) * 0.25 + float(h["def"]) * 1.5))
+
+
+# ── 수련 ─────────────────────────────────────────────────────────────
+
+static func train_mult(stat: String) -> float:
+	return 1.0 + IdleData.TRAIN_STEP * float(train.get(stat, 0))
+
+
+static func train_open() -> bool:
+	return best >= IdleData.TRAIN_OPEN
+
+
+static func train_cost_of(stat: String) -> int:
+	return IdleData.train_cost(int(train.get(stat, 0)))
+
+
+static func can_train(stat: String) -> bool:
+	return train_open() and train.has(stat) and coins >= train_cost_of(stat)
+
+
+## 수련한다 (실패 없음, 끝 없음). 성공하면 참.
+static func do_train(stat: String) -> bool:
+	if not can_train(stat):
+		return false
+	coins -= train_cost_of(stat)
+	train[stat] = int(train[stat]) + 1
+	return true
 
 
 # ── 레벨 ─────────────────────────────────────────────────────────────
@@ -250,7 +282,7 @@ static func to_dict() -> Dictionary:
 	return {"v": 1, "level": level, "xp": xp, "job": job, "coins": coins, "stage": stage,
 		"best": best, "gear": gear.duplicate(true), "kills": kills, "ending_seen": ending_seen,
 		"last_seen": last_seen, "boss_failed": boss_failed, "seen_intro": seen_intro,
-		"auto_on": auto_on}
+		"auto_on": auto_on, "train": train.duplicate()}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -269,6 +301,10 @@ static func from_dict(d: Dictionary) -> void:
 	boss_failed = bool(d.get("boss_failed", false))
 	seen_intro = bool(d.get("seen_intro", false))
 	auto_on = bool(d.get("auto_on", true))
+	var tr = d.get("train", {})
+	if tr is Dictionary:
+		for t in IdleData.TRAIN_STATS:
+			train[t] = clampi(int((tr as Dictionary).get(t, 0)), 0, 9999)
 	var g = d.get("gear", {})
 	if g is Dictionary:
 		for s in IdleData.SLOTS:
