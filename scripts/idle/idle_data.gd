@@ -94,10 +94,17 @@ const MON_EVERY := 1.5
 const BOSS_EVERY := 1.8
 
 
+## 100번 뒤(끝없는 길)에는 몬스터가 스테이지마다 이만큼만 세진다. 그대로 7% 씩 커지면
+## 레벨·장비가 다 찬 뒤엔 수련만으로 못 따라가 110번 언저리에서 영영 막힌다 (시뮬레이션).
+const ENDLESS_GROW := 1.012
+
+
 static func monster(n: int, boss: bool) -> Dictionary:
 	var k := float(maxi(1, n) - 1)
-	var hp := MON_HP * pow(MON_HP_GROW, k) * (BOSS_HP if boss else 1.0)
-	var atk := MON_ATK * pow(MON_ATK_GROW, k) * (BOSS_ATK if boss else 1.0)
+	var kk := minf(k, float(STAGE_MAX - 1))
+	var extra := pow(ENDLESS_GROW, maxf(0.0, k - kk))
+	var hp := MON_HP * pow(MON_HP_GROW, kk) * extra * (BOSS_HP if boss else 1.0)
+	var atk := MON_ATK * pow(MON_ATK_GROW, kk) * extra * (BOSS_ATK if boss else 1.0)
 	return {"hp": int(round(hp)), "atk": atk, "def": 1.0 + 0.8 * float(n),
 		"exp": int(round(MON_EXP * pow(MON_EXP_GROW, k) * (3.0 if boss else 1.0))),
 		"coin": int(round(MON_COIN * pow(MON_COIN_GROW, k) * (4.0 if boss else 1.0))),
@@ -187,13 +194,13 @@ static func item_name(slot: String, tier: int, job: String) -> String:
 
 # ── 수련 (끝판 꿈조각 쓰는 곳) ──────────────────────────────────────
 
-## 장비가 다 차도 꿈조각을 쓸 곳. 공격·체력·방어를 한 단계마다 1% 씩 끝없이 올린다.
+## 장비가 다 차도 꿈조각을 쓸 곳. 공격·체력·방어를 한 단계마다 1% 씩(복리) 끝없이 올린다.
 ## 굽이나루(5구역) 우두머리를 물리치면 열린다 - 그 전엔 장비 강화가 훨씬 이득이라 헷갈리지 않게.
 const TRAIN_STATS := ["atk", "hp", "def"]
 const TRAIN_NAME := {"atk": "공격 수련", "hp": "체력 수련", "def": "방어 수련"}
 const TRAIN_STEP := 0.01
 const TRAIN_BASE := 5000.0
-const TRAIN_GROW := 1.15
+const TRAIN_GROW := 1.10
 const TRAIN_OPEN := 51           ## 이 스테이지가 열리면 (= 50번 우두머리를 깨면)
 
 

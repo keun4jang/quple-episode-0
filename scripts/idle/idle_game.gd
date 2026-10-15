@@ -1063,7 +1063,7 @@ func _fill_train() -> void:
 	for t in IdleData.TRAIN_STATS:
 		var lv := int(IdleState.train[t])
 		var b := _button("%s %d단계 (+%d%%)\n✦%s" % [String(IdleData.TRAIN_NAME[t]), lv,
-			int(round(IdleData.TRAIN_STEP * 100.0 * lv)), _num(IdleState.train_cost_of(String(t)))], 20,
+			int(round((IdleState.train_mult(String(t)) - 1.0) * 100.0)), _num(IdleState.train_cost_of(String(t)))], 20,
 			Color("#FFE3A3"), EDGE)
 		b.custom_minimum_size = Vector2(0, 76)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL

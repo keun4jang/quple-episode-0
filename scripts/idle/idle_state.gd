@@ -80,7 +80,7 @@ static func power() -> int:
 # ── 수련 ─────────────────────────────────────────────────────────────
 
 static func train_mult(stat: String) -> float:
-	return 1.0 + IdleData.TRAIN_STEP * float(train.get(stat, 0))
+	return pow(1.0 + IdleData.TRAIN_STEP, float(train.get(stat, 0)))
 
 
 static func train_open() -> bool:
