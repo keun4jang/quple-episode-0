@@ -78,6 +78,7 @@ var _post_mat: ShaderMaterial
 var _die_tw: Tween            ## 녹아내리는 중 - 다음 몬스터가 나오면 끊는다 (안 끊으면 끝나면서 새 몬스터를 숨겼다)
 var _walk := 0.0
 var _end_t := 0.0
+var _end_armed := false       ## 이 스테이지의 끝맺음을 이미 걸었나
 var _blocked := false
 var _tapped_once := false
 var _skill_job := ""
@@ -462,6 +463,8 @@ func _button(t: String, fs: int, bg := CREAM, border := EDGE, font_col := INK) -
 
 func _start_stage() -> void:
 	fight.start(IdleState.stage)
+	_end_armed = false
+	_end_t = 0.0
 	var info := fight.info
 	_bg.zone = int(info["zone"])
 	IdleVfx.tint_bokeh(_bokeh, Color(IdleBackdrop.THEMES[_bg.zone]["sun"]).lerp(
@@ -549,12 +552,19 @@ func _process(dt: float) -> void:
 		if _end_t <= 0.0:
 			_finish()
 		return
-	if fight.done:
+	if not fight.done:
+		for e in fight.tick(minf(dt, 0.25)):
+			_on_event(e)
+	_arm_end()
+
+
+## 스테이지가 끝났으면 (자동 공격이든 톡 친 한 방이든) 잠깐 뒤에 다음으로 넘긴다. 한 번만.
+## 예전엔 자동 공격 직후에만 봐서, 마지막 몬스터를 톡으로 잡으면 화면이 그대로 멈췄다.
+func _arm_end() -> void:
+	if not fight.done or _end_armed or fight.info.is_empty():
 		return
-	for e in fight.tick(minf(dt, 0.25)):
-		_on_event(e)
-	if fight.done:
-		_end_t = 1.3 if fight.result == "defeat" else (1.1 if bool(fight.info["boss"]) else 0.35)
+	_end_armed = true
+	_end_t = 1.3 if fight.result == "defeat" else (1.1 if bool(fight.info["boss"]) else 0.35)
 
 
 func _gui_input(e: InputEvent) -> void:
@@ -571,6 +581,7 @@ func _gui_input(e: InputEvent) -> void:
 	_fx.ring(at, 6.0, 40.0, Color(1, 1, 1, 0.9), 5.0, 0.25)
 	for ev in evs:
 		_on_event(ev)
+	_arm_end()
 
 
 func _on_event(e: Dictionary) -> void:
