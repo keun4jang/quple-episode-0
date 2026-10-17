@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "game-feel": {
+      "source": "gamedev-skills/awesome-gamedev-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/disciplines/game-feel/SKILL.md",
+      "computedHash": "fd8a092926b904a974494ef9e9d123c6a5f872dfaf2ab8f1affd9d015ec95dc3"
+    },
+    "godot-shaders-basics": {
+      "source": "thedivergentai/gd-agentic-skills",
+      "sourceType": "github",
+      "skillPath": "skills/godot-shaders-basics/SKILL.md",
+      "computedHash": "e2ab1a6fb5214b58393d7e9231e58a64afd0243d4be77b1650cf497ce87d3b73"
+    },
+    "particles-vfx": {
+      "source": "jame581/godotprompter",
+      "sourceType": "github",
+      "skillPath": "skills/particles-vfx/SKILL.md",
+      "computedHash": "b870efced290aa4c6daf6ac144521838035680387192feb9387fdd10485922c7"
+    }
+  }
+}

@@ -67,11 +67,13 @@ func _draw() -> void:
 	_grad(Rect2(0, 0, w, gy + 2), top, bot)
 	if night:
 		_stars(w, gy)
+	_rays(th, w, h, gy, night)
 	_sun(th, w, h, night)
 	_clouds(w, h, night)
 	var far := Color(th["far"])
 	_hills(gy - h * 0.20, h * 0.11, far.lerp(bot, 0.55), 0.06, 0.8, 3.0, gy)
 	_hills(gy - h * 0.12, h * 0.09, far.lerp(bot, 0.25), 0.14, 1.4, 11.0, gy)
+	_haze(bot, w, h, gy, night)
 	_mid(th, w, h, gy)
 	_ground(th, w, h, gy)
 	_ambient(th, w, h, gy)
@@ -88,6 +90,29 @@ func _stars(w: float, gy: float) -> void:
 		var y := _h(i * 7.7) * gy * 0.7
 		var tw := 0.5 + 0.5 * sin(_t * (1.5 + _h(i) * 2.0) + i)
 		draw_circle(Vector2(x, y), 1.2 + _h(i * 1.3) * 1.6, Color(1, 1, 0.9, 0.35 + tw * 0.6))
+
+
+## 해(밤엔 달)에서 비스듬히 내려오는 빛줄기. 아주 옅게, 천천히 흔들린다 - 분위기의 절반이 여기서 나온다.
+func _rays(th: Dictionary, w: float, h: float, gy: float, night: bool) -> void:
+	var c := Vector2(w * 0.80, h * 0.20)
+	var col := Color(th["sun"])
+	var a0 := 0.10 if not night else 0.05
+	for i in 7:
+		var ang := PI * 0.62 + (i - 3) * 0.17 + sin(_t * 0.25 + i * 1.3) * 0.035
+		var half := 0.035 + _h(i * 3.7) * 0.04
+		var lenr := h * (0.9 + _h(i * 1.9) * 0.5)
+		var p1 := c + Vector2(cos(ang - half), sin(ang - half)) * lenr
+		var p2 := c + Vector2(cos(ang + half), sin(ang + half)) * lenr
+		var a := a0 * (0.6 + 0.4 * sin(_t * 0.5 + i * 2.1))
+		draw_polygon(PackedVector2Array([c, p1, p2]),
+			PackedColorArray([Color(col, a), Color(col, 0.0), Color(col, 0.0)]))
+
+
+## 지평선 위 옅은 안개 - 먼 산이 하늘에 녹아들어 깊이가 생긴다.
+func _haze(bot: Color, w: float, h: float, gy: float, night: bool) -> void:
+	var top := gy - h * 0.22
+	var c := bot.lightened(0.15) if not night else Color("#8C7FB0")
+	_grad(Rect2(0, top, w, gy - top + 2), Color(c, 0.0), Color(c, 0.45 if not night else 0.3))
 
 
 func _sun(th: Dictionary, w: float, h: float, night: bool) -> void:

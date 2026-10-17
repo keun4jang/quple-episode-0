@@ -66,8 +66,16 @@ var _say_at := 0.0
 
 var _t := 0.0
 var _save_t := 0.0
-var _shake := 0.0
-var _freeze := 0.0
+## 화면 흔들림 = 쌓이고 저절로 줄어드는 '충격'(0~1), 흔들림 크기는 그 제곱 (`game-feel` 스킬).
+## 매 프레임 무작위로 튀면 지지직 떨리므로 사인 여러 겹으로 부드럽게 흔든다.
+var _trauma := 0.0
+var _stop_id := 0
+var _calm := false            ## 설정 "화면 흔들림·번쩍임 줄이기"
+var _vfx: IdleVfx
+var _bokeh: CPUParticles2D
+var _post: ColorRect
+var _post_mat: ShaderMaterial
+var _die_tw: Tween            ## 녹아내리는 중 - 다음 몬스터가 나오면 끊는다 (안 끊으면 끝나면서 새 몬스터를 숨겼다)
 var _walk := 0.0
 var _end_t := 0.0
 var _blocked := false
@@ -86,6 +94,9 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	if not IdleState.load_save():
 		IdleState.reset()
+	var cfg := ConfigFile.new()
+	if cfg.load("user://settings.cfg") == OK:
+		_calm = bool(cfg.get_value("fx", "calm", false))
 	_build()
 	resized.connect(_layout)
 	_layout()
@@ -132,6 +143,8 @@ func _build() -> void:
 	add_child(_world)
 	_bg = IdleBackdrop.new()
 	_world.add_child(_bg)
+	_bokeh = IdleVfx.make_bokeh(Vector2(1600, 720))
+	_world.add_child(_bokeh)
 	_hero = IdleActor.new()
 	_hero.px = HERO_PX
 	_hero.flip = true
@@ -149,6 +162,28 @@ func _build() -> void:
 	_world.add_child(_mon_name)
 	_fx = IdleFx.new()
 	_world.add_child(_fx)
+	_vfx = IdleVfx.new()
+	_world.add_child(_vfx)
+
+	# 가장자리를 살짝 어둡게 (비녜트) - 눈이 가운데 싸움으로 모인다. 체력이 낮으면 붉게 숨쉰다.
+	_post = ColorRect.new()
+	_post.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var psh := Shader.new()
+	psh.code = """shader_type canvas_item;
+uniform vec4 tint : source_color = vec4(0.22, 0.12, 0.26, 1.0);
+uniform float strength = 0.42;
+uniform float hurt = 0.0;
+void fragment() {
+	vec2 d = (UV - vec2(0.5)) * vec2(1.3, 1.0);
+	float v = smoothstep(0.32, 0.9, length(d));
+	vec3 c = mix(tint.rgb, vec3(0.85, 0.08, 0.14), clamp(hurt, 0.0, 1.0));
+	COLOR = vec4(c, v * (strength + hurt * 0.45));
+}
+"""
+	_post_mat = ShaderMaterial.new()
+	_post_mat.shader = psh
+	_post.material = _post_mat
+	add_child(_post)
 
 	_flash_rect = ColorRect.new()
 	_flash_rect.color = Color(1, 1, 1, 0)
@@ -293,6 +328,9 @@ func _layout() -> void:
 	_world.size = size
 	_bg.size = size
 	_flash_rect.size = size
+	_post.size = size
+	_bokeh.emission_rect_extents = size * 0.5
+	_bokeh.position = size * 0.5
 	var gy := h * IdleBackdrop.GROUND
 	_hero_home = Vector2(w * 0.37, gy + 30)
 	_mon_home = Vector2(w * 0.64, gy + 30)
@@ -426,10 +464,15 @@ func _start_stage() -> void:
 	fight.start(IdleState.stage)
 	var info := fight.info
 	_bg.zone = int(info["zone"])
+	IdleVfx.tint_bokeh(_bokeh, Color(IdleBackdrop.THEMES[_bg.zone]["sun"]).lerp(
+		Color(IdleBackdrop.THEMES[_bg.zone]["accent"]), 0.35))
 	var boss := bool(info["boss"])
 	_mon.set_sheet("res://assets/sprites/s-%s-walk.png" % String(info["kind"]))
 	_mon.px = BOSS_PX if boss else MON_PX
 	_mon_tint = _tint_of(_mon.tex)
+	if _die_tw != null and _die_tw.is_valid():
+		_die_tw.kill()
+	_mon.dissolve = 0.0
 	_mon.visible = false
 	_mon_bar.visible = false
 	_mon_name.visible = false
@@ -469,8 +512,18 @@ func _tint_of(tex: Texture2D) -> Color:
 
 func _process(dt: float) -> void:
 	_t += dt
-	_shake = maxf(0.0, _shake - dt * 60.0)
-	_world.position = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake
+	var rdt := dt / maxf(Engine.time_scale, 0.001)          # 멈칫하는 동안에도 흔들림은 실제 시간으로 줄어든다
+	_trauma = maxf(0.0, _trauma - rdt * 1.3)
+	var sh := _trauma * _trauma
+	var st := Time.get_ticks_msec() / 1000.0 * 30.0
+	_world.position = Vector2(16.0 * sh * (0.6 * sin(st * 1.1) + 0.4 * sin(st * 2.3 + 1.0)),
+		11.0 * sh * (0.6 * sin(st * 1.7 + 2.0) + 0.4 * sin(st * 2.9)))
+	_world.pivot_offset = size * 0.5
+	_world.rotation = 0.02 * sh * sin(st * 0.9)
+	if _post_mat != null:
+		var ratio := fight.hero_hp / maxf(1.0, fight.hero_max)
+		var hurt := clampf((0.35 - ratio) / 0.35, 0.0, 1.0) if not fight.done and not fight.info.is_empty() else 0.0
+		_post_mat.set_shader_parameter("hurt", hurt * (0.65 + 0.35 * sin(_t * 6.0)))
 	_flash_rect.color.a = maxf(0.0, _flash_rect.color.a - dt * 2.5)
 	_hero.walking = _walk > 0.0
 	if _walk > 0.0:
@@ -490,9 +543,6 @@ func _process(dt: float) -> void:
 		_save_t = 0.0
 		IdleState.save(int(Time.get_unix_time_from_system()))
 	if _blocked:
-		return
-	if _freeze > 0.0:
-		_freeze -= dt
 		return
 	if _end_t > 0.0:
 		_end_t -= dt
@@ -531,7 +581,9 @@ func _on_event(e: Dictionary) -> void:
 			_skill_job = IdleState.job
 			_skill_i = 0
 			_fx.text(_hero_head() + Vector2(0, -30), String(e["name"]) + "!", SKILL_COL.get(_skill_job, GOLD), 46, 1.1)
-			_flash(0.25)
+			_vfx.burst(_hero_home + Vector2(0, -_hero.height() * 0.5), SKILL_COL.get(_skill_job, GOLD), 16, 220.0,
+				0.7, 0.5, true)
+			_flash(0.2)
 		"hero_hit":
 			_on_hero_hit(e)
 		"mon_hit":
@@ -543,6 +595,9 @@ func _on_event(e: Dictionary) -> void:
 			_fx.ring(_hero_home + Vector2(0, -40), 20.0, 180.0, GOLD, 12.0, 0.6)
 			_fx.burst(_hero_home + Vector2(0, -40), GOLD, 22, 420.0, 10.0, 0.9, 200.0, "star", 0.0, true)
 			_fx.text(_hero_head() + Vector2(0, -50), "LEVEL UP!", GOLD, 56, 1.4, 0.0, 90.0)
+			_vfx.burst(_hero_home + Vector2(0, -30), GOLD, 30, 300.0, 1.3, 0.6, true)
+			_pop(get_node("LvPill") as Control, 1.2)
+			_add_trauma(0.25)
 			AudioManager.souvenir_get()
 			if int(e["level"]) >= IdleData.AUTO_LV and int(e["level"]) - 1 < IdleData.AUTO_LV:
 				IdleState.auto_on = true
@@ -559,20 +614,29 @@ func _on_event(e: Dictionary) -> void:
 
 func _on_spawn(e: Dictionary) -> void:
 	var boss := bool(e["boss"])
+	if _die_tw != null and _die_tw.is_valid():
+		_die_tw.kill()
 	_mon.visible = true
 	_mon.modulate = Color.WHITE
+	_mon.dissolve = 0.0
 	_mon.scale = Vector2.ONE
 	_mon.flip = false
 	_mon.position = _mon_home + Vector2(300, 0)
 	_mon.walking = true
 	var tw := _tween(_mon, "position", _mon_home, 0.3)
-	tw.finished.connect(func() -> void: _mon.walking = false)
+	tw.finished.connect(func() -> void:
+		_mon.walking = false
+		# 도착하면 땅에 '뽁' 내려앉는다
+		_mon.squash = Vector2(1.25, 0.78)
+		_vfx.burst(_mon_home + Vector2(0, -6), Color("#E8DCC8"), 6, 140.0, 0.45, 0.35, true))
 	var nm := String(IdleData.MOB_NAMES.get(String(e["kind"]), ""))
 	if boss:
 		_boss_name.text = "우두머리 · " + nm
 		_boss_box.visible = true
+		_pop(_boss_box, 1.25)
 		_banner_show("우두머리 등장!", Color("#FF8A8A"))
-		_shake = 14.0
+		_impact(2, 0.0)
+		_vfx.burst(_mon_home + Vector2(0, -40), Color("#FF6A6A"), 24, 420.0, 0.9, 0.7, true, 0.3)
 		AudioManager.sky_crack()
 	else:
 		_mon_bar.visible = true
@@ -586,7 +650,7 @@ func _mon_mid() -> Vector2:
 
 
 func _mon_head() -> Vector2:
-	return _mon_home + Vector2(randf_range(-30, 30), -_mon.height() - 6)
+	return _mon_home + Vector2(randf_range(-36, 36), -_mon.height() - 6)
 
 
 func _hero_head() -> Vector2:
@@ -600,9 +664,10 @@ func _on_hero_hit(e: Dictionary) -> void:
 		_lunge(_hero, _hero_home, 34.0, 0.05, 0.12)
 		_fx.slash(_mon_mid() + Vector2(randf_range(-20, 20), randf_range(-20, 20)), randf_range(-PI, PI), 44.0,
 			Color("#BFEFFF"), 10.0, 0.18)
-		_fx.burst(_mon_mid(), Color("#E6FBFF"), 6, 260.0, 6.0, 0.4)
+		_vfx.burst(_mon_mid(), Color("#9FE6FF"), 6, 260.0, 0.35, 0.3)
 		_hit_mon(0.6, 10.0)
 		_fx.text(_mon_head(), dmg, Color("#BFEFFF"), 30, 0.7)
+		_add_trauma(0.08)
 		AudioManager.battle_weak_hit()
 		return
 	if bool(e["skill"]):
@@ -614,16 +679,18 @@ func _on_hero_hit(e: Dictionary) -> void:
 	if crit:
 		_fx.slash(_mon_mid(), ang, 78.0, GOLD, 24.0, 0.26)
 		_fx.slash(_mon_mid(), ang + 1.4, 64.0, Color.WHITE, 16.0, 0.22, 0.05)
-		_fx.burst(_mon_mid(), GOLD, 18, 480.0, 10.0, 0.6, 700.0, "star")
+		_vfx.burst(_mon_mid(), Color("#FFC94A"), 22, 560.0, 0.6, 0.55)
+		_fx.burst(_mon_mid(), GOLD, 8, 480.0, 9.0, 0.6, 700.0, "star")
 		_fx.text(_mon_head() + Vector2(0, -36), "치명타!", Color("#FFE9A0"), 28, 0.8)
-		_fx.text(_mon_head(), dmg, GOLD, 62, 1.0)
-		_shake = 10.0
-		_freeze = 0.06
+		_fx.text(_mon_head(), dmg, GOLD, 64, 1.0)
+		_impact(1, 0.06)
+		_add_trauma(0.15)
 		_hit_mon(1.0, 26.0)
 	else:
 		_fx.slash(_mon_mid(), ang, 60.0, Color("#FFF6D8"), 16.0, 0.22)
-		_fx.burst(_mon_mid(), Color("#FFF2C4"), 10, 360.0, 7.0, 0.45)
+		_vfx.burst(_mon_mid(), Color("#FFE7B0"), 10, 380.0, 0.45, 0.4)
 		_fx.text(_mon_head(), dmg, Color.WHITE, 42, 0.85)
+		_impact(1)
 		_hit_mon(0.9, 16.0)
 	AudioManager.battle_hit()
 
@@ -634,23 +701,29 @@ func _skill_hit(dmg: String, crit: bool) -> void:
 	_skill_i += 1
 	match _skill_job:
 		"warrior":
-			_lunge(_hero, _hero_home, 120.0, 0.08, 0.25, 26.0)
-			_fx.ring(_mon_mid(), 30.0, 220.0, col, 16.0, 0.45)
-			_fx.ring(_mon_mid(), 10.0, 120.0, Color.WHITE, 8.0, 0.3)
-			_fx.burst(_mon_mid(), col, 24, 560.0, 12.0, 0.7, 800.0, "star")
-			_fx.text(_mon_head(), dmg, col, 66, 1.1)
-			_shake = 18.0
-			_freeze = 0.08
-			_hit_mon(1.0, 40.0)
-			AudioManager.battle_hit()
+			# 웅크렸다가(예비 동작) 크게 뛰어든다
+			_hero.squash = Vector2(1.25, 0.75)
+			_later(0.07, func() -> void: _lunge(_hero, _hero_home, 120.0, 0.08, 0.25, 26.0))
+			_fx.ring(_mon_mid(), 30.0, 220.0, col, 16.0, 0.45, 0.12)
+			_fx.ring(_mon_mid(), 10.0, 120.0, Color.WHITE, 8.0, 0.3, 0.12)
+			_vfx.burst(_mon_mid(), col, 30, 620.0, 0.7, 0.7, false, 0.12)
+			_fx.burst(_mon_mid(), col, 10, 560.0, 12.0, 0.7, 800.0, "star", 0.12)
+			_fx.text(_mon_head(), dmg, col, 68, 1.1, 0.12)
+			_later(0.12, func() -> void:
+				_impact(2)
+				_hit_mon(1.0, 40.0)
+				AudioManager.battle_hit())
 		"mage":
-			var d := 0.32
+			var d := 0.34
 			_tween(_hero, "position", _hero_home + Vector2(0, -36), 0.12).chain().tween_property(
 				_hero, "position", _hero_home, 0.2)
+			_vfx.burst(_hero_home + Vector2(20, -_hero.height()), col, 12, 160.0, 0.6, 0.45, true)
 			_fx.meteor(_mon_mid() + Vector2(-420, -520), _mon_mid(), col, d)
-			_fx.text(_mon_head(), dmg, col.lightened(0.3), 70, 1.1, d)
+			_vfx.burst(_mon_mid(), col, 34, 680.0, 0.8, 0.8, false, d)
+			_vfx.burst(_mon_mid(), Color.WHITE, 10, 300.0, 0.5, 0.5, true, d)
+			_fx.text(_mon_head(), dmg, col.lightened(0.3), 72, 1.1, d)
 			_later(d, func() -> void:
-				_shake = 22.0
+				_impact(2)
 				_flash(0.35)
 				_hit_mon(1.0, 34.0)
 				AudioManager.battle_hit())
@@ -659,10 +732,10 @@ func _skill_hit(dmg: String, crit: bool) -> void:
 			_later(d, func() -> void: _lunge(_hero, _hero_home, -14.0, 0.04, 0.08))
 			_fx.arrow(_hero_home + Vector2(30, -_hero.height() * 0.55), _mon_mid() + Vector2(0, randf_range(-24, 24)),
 				col, 0.12, d)
-			_fx.burst(_mon_mid(), col, 8, 320.0, 7.0, 0.4, 700.0, "sq", d + 0.12)
+			_vfx.burst(_mon_mid(), col, 8, 340.0, 0.4, 0.4, false, d + 0.12)
 			_fx.text(_mon_head() + Vector2(0, -i * 30), dmg, col.lightened(0.2), 40 if not crit else 54, 0.9, d + 0.12)
 			_later(d + 0.12, func() -> void:
-				_shake = maxf(_shake, 6.0)
+				_impact(0)
 				_hit_mon(0.8, 10.0)
 				AudioManager.battle_weak_hit())
 		"thief":
@@ -671,14 +744,15 @@ func _skill_hit(dmg: String, crit: bool) -> void:
 			tw.tween_interval(0.12)
 			tw.tween_callback(func() -> void: _hero.flip = true)
 			tw.tween_property(_hero, "position", _hero_home, 0.16)
+			_vfx.burst(_hero_home + Vector2(0, -_hero.height() * 0.5), col, 10, 200.0, 0.4, 0.4)
 			_fx.slash(_mon_mid(), -0.8, 70.0, col, 20.0, 0.25, 0.06)
 			_fx.slash(_mon_mid(), 0.8 + PI, 70.0, Color.WHITE, 16.0, 0.25, 0.12)
-			_fx.burst(_mon_mid(), col, 20, 480.0, 9.0, 0.6, 700.0, "star", 0.08)
+			_vfx.burst(_mon_mid(), col, 22, 520.0, 0.6, 0.55, false, 0.08)
 			_fx.text(_mon_head() + Vector2(0, -36), "급소!", Color("#E9D8FF"), 28, 0.8, 0.08)
 			_fx.text(_mon_head(), dmg, col.lightened(0.2), 66, 1.1, 0.08)
 			_later(0.08, func() -> void:
-				_shake = 14.0
-				_freeze = 0.06
+				_impact(1, 0.07)
+				_add_trauma(0.15)
 				_hit_mon(1.0, 24.0)
 				AudioManager.battle_hit())
 		_:
@@ -687,24 +761,26 @@ func _skill_hit(dmg: String, crit: bool) -> void:
 
 
 func _hit_mon(flash: float, knock: float) -> void:
-	if not _mon.visible:
+	if not _mon.visible or _mon.dissolve > 0.0:
 		return
 	_mon.flash = flash
 	_mon.flash_col = Color.WHITE
-	_mon.squash = Vector2(0.82, 1.12)
+	_mon.squash = Vector2(0.8, 1.15)
 	_lunge(_mon, _mon_home, knock, 0.05, 0.16)
 
 
 func _on_mon_hit(e: Dictionary) -> void:
+	# 살짝 뒤로 젖혔다가(예비 동작) 덮친다
+	_mon.squash = Vector2(0.88, 1.1)
 	_lunge(_mon, _mon_home, -80.0, 0.08, 0.2, 10.0)
 	_later(0.07, func() -> void:
 		_hero.flash = 0.7
 		_hero.flash_col = Color("#FF7070")
 		_hero.squash = Vector2(1.15, 0.86)
 		_lunge(_hero, _hero_home, -18.0, 0.05, 0.15)
-		_fx.burst(_hero_home + Vector2(0, -_hero.height() * 0.5), Color("#FF8A8A"), 8, 300.0, 7.0, 0.4)
+		_vfx.burst(_hero_home + Vector2(0, -_hero.height() * 0.5), Color("#FF7A7A"), 8, 300.0, 0.4, 0.4)
 		_fx.text(_hero_head() + Vector2(randf_range(-20, 20), 0), _num(int(e["dmg"])), Color("#FF9A9A"), 34, 0.8)
-		_shake = maxf(_shake, 5.0)
+		_impact(0)
 		AudioManager.battle_hurt())
 
 
@@ -712,35 +788,48 @@ func _on_kill(e: Dictionary) -> void:
 	var boss := bool(e["boss"])
 	var mid := _mon_mid()
 	_kill_tween(_mon)
-	var tw := create_tween().set_parallel(true)
-	tw.tween_property(_mon, "modulate:a", 0.0, 0.25)
-	tw.tween_property(_mon, "scale", Vector2(1.3, 0.4), 0.25)
-	tw.chain().tween_callback(func() -> void:
+	# 빛나는 가장자리로 녹아내리며 사라진다 (dissolve) - 그 자리에서 빛 조각이 피어오른다
+	_mon.flash = 0.8
+	_mon.edge_col = _mon_tint.lightened(0.5)
+	if _die_tw != null and _die_tw.is_valid():
+		_die_tw.kill()
+	_die_tw = create_tween()
+	_die_tw.tween_property(_mon, "dissolve", 1.0, 0.42 if not boss else 0.9).set_trans(Tween.TRANS_SINE)
+	_die_tw.tween_callback(func() -> void:
 		_mon.visible = false
-		_mon.scale = Vector2.ONE)
-	_mon.flash = 1.0
+		_mon.dissolve = 0.0)
 	_mon_bar.visible = false
 	_mon_name.visible = false
-	_fx.burst(mid, _mon_tint, 30 if not boss else 60, 520.0, 12.0 if not boss else 16.0, 0.8, 800.0)
-	_fx.burst(mid, Color.WHITE, 10, 300.0, 6.0, 0.5, 300.0, "star")
+	_vfx.burst(mid, _mon_tint.lightened(0.3), 18 if not boss else 46, 260.0, 1.1, 0.5, true)
+	_vfx.burst(mid, Color.WHITE, 10, 420.0, 0.5, 0.35)
+	_fx.burst(mid, _mon_tint, 12 if not boss else 30, 480.0, 10.0 if not boss else 14.0, 0.7, 800.0)
 	var coin_to := _coin_pill.global_position + _coin_pill.size * 0.5 - _world.global_position
 	_fx.burst(mid, GOLD, 6 if not boss else 16, 300.0, 11.0, 1.0, 600.0, "coin", 0.05, true, coin_to)
+	_later(0.6, func() -> void:
+		_pop(_coin_pill, 1.12)
+		_coin_lbl.text = "✦ %s" % _num(IdleState.coins))
 	_fx.text(mid + Vector2(0, -40), "+%s ✦" % _num(int(e["coin"])), GOLD, 30, 1.0, 0.1, 50.0)
 	if boss:
-		_shake = 24.0
+		_impact(2, 0.16)
+		_add_trauma(0.2)
 		_flash(0.5)
-		_freeze = 0.15
 		_fx.ring(mid, 20.0, 320.0, GOLD, 18.0, 0.7)
+		_vfx.burst(mid, GOLD, 40, 700.0, 1.2, 0.8)
 		_banner_show("우두머리를 물리쳤어요!", GOLD)
+	else:
+		_impact(1, 0.05)
 	var d: Array = e["drop"]
 	if not d.is_empty():
 		_toast("새 장비! %s" % IdleData.item_name(String(d[0]), int(d[1]), IdleState.job))
 		_fx.pillar(mid + Vector2(0, _mon.height() * 0.5), Color("#9AE0FF"), 1.2)
+		_vfx.burst(mid, Color("#9AE0FF"), 24, 300.0, 1.2, 0.6, true)
 		AudioManager.souvenir_get()
 	else:
 		AudioManager.pickup()
 	_walk = IdleFight.SPAWN_DELAY
 	_refresh()
+	# 꿈조각 숫자는 동전이 날아가 닿을 때 바뀐다
+	_coin_lbl.text = "✦ %s" % _num(IdleState.coins - int(e["coin"]))
 
 
 func _finish() -> void:
@@ -813,6 +902,44 @@ func _on_boss() -> void:
 
 # ── 연출 도우미 ──────────────────────────────────────────────────────
 
+## 충격 크기 단계 - 같은 무게의 일엔 같은 반응 (작음 0 · 보통 1 · 큼 2).
+const IMPACT_TRAUMA := [0.16, 0.38, 0.8]
+const IMPACT_STOP := [0.0, 0.04, 0.1]
+
+
+func _impact(tier: int, extra_stop := -1.0) -> void:
+	_add_trauma(IMPACT_TRAUMA[tier])
+	_hitstop(IMPACT_STOP[tier] if extra_stop < 0.0 else extra_stop)
+
+
+func _add_trauma(a: float) -> void:
+	_trauma = clampf(_trauma + a * (0.3 if _calm else 1.0), 0.0, 1.0)
+
+
+## 아주 잠깐 시간을 거의 멈춘다 (때린 느낌). 실제 시간으로 재는 타이머라 멈춘 동안에도 풀린다.
+func _hitstop(d: float) -> void:
+	if _calm or d <= 0.0:
+		return
+	_stop_id += 1
+	var id := _stop_id
+	Engine.time_scale = 0.06
+	get_tree().create_timer(d, true, false, true).timeout.connect(func() -> void:
+		if id == _stop_id:
+			Engine.time_scale = 1.0)
+
+
+func _exit_tree() -> void:
+	Engine.time_scale = 1.0
+
+
+## 눌린 듯 찌그러졌다가 살짝 넘치며 돌아온다 (TRANS_BACK - 살아 있는 '뽁').
+func _pop(c: Control, amt := 1.18) -> void:
+	c.pivot_offset = c.size * 0.5
+	c.scale = Vector2(amt, amt)
+	create_tween().tween_property(c, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK) \
+		.set_ease(Tween.EASE_OUT)
+
+
 func _kill_tween(n: Node) -> void:
 	var old = _tweens.get(n)
 	if old != null and (old as Tween).is_valid():
@@ -846,7 +973,7 @@ func _later(d: float, f: Callable) -> void:
 
 
 func _flash(a: float) -> void:
-	_flash_rect.color = Color(1, 1, 1, maxf(_flash_rect.color.a, a))
+	_flash_rect.color = Color(1, 1, 1, maxf(_flash_rect.color.a, a * (0.3 if _calm else 1.0)))
 
 
 func _banner_show(t: String, col: Color) -> void:

@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3 uid="uid://bshotsettings1"]
+[ext_resource type="Script" path="res://tools/sim/shot_settings.gd" id="1"]
+[node name="ShotSettings" type="Node"]
+script = ExtResource("1")

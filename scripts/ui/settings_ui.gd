@@ -22,6 +22,7 @@ func _ready() -> void:
 	_close_on_outside_tap()
 	_add_home_button()
 	_add_update_row()
+	_add_calm_row()
 	_make_scrollable()
 
 
@@ -124,6 +125,38 @@ func _add_home_button() -> void:
 var _ver_label: Label
 var _update_btn: Button
 var _update_hint: Label
+
+
+## "화면 흔들림·번쩍임 줄이기" - 흔들림·번쩍임에 어지러운 사람을 위한 끄개 (`game-feel` 스킬의 접근성 항목).
+func _add_calm_row() -> void:
+	var body := close_btn.get_parent()
+	if body == null or body.has_node("CalmRow"):
+		return
+	var b := Button.new()
+	b.name = "CalmRow"
+	b.custom_minimum_size = close_btn.custom_minimum_size
+	b.add_theme_font_size_override("font_size", close_btn.get_theme_font_size("font_size"))
+	for st in ["normal", "hover", "pressed"]:
+		var sb := close_btn.get_theme_stylebox(st)
+		if sb != null:
+			b.add_theme_stylebox_override(st, sb)
+	b.add_theme_color_override("font_color", close_btn.get_theme_color("font_color"))
+	var c := ConfigFile.new()
+	var on := c.load(CFG) == OK and bool(c.get_value("fx", "calm", false))
+	b.text = _calm_text(on)
+	b.pressed.connect(func() -> void:
+		var c2 := ConfigFile.new()
+		c2.load(CFG)
+		var now := not bool(c2.get_value("fx", "calm", false))
+		c2.set_value("fx", "calm", now)
+		c2.save(CFG)
+		b.text = _calm_text(now))
+	body.add_child(b)
+	body.move_child(b, reset_btn.get_index())
+
+
+func _calm_text(on: bool) -> String:
+	return "화면 흔들림·번쩍임 줄이기: %s" % ("켜짐" if on else "꺼짐")
 
 
 func _add_update_row() -> void:
@@ -291,6 +324,7 @@ func _load() -> void:
 
 func _save() -> void:
 	var c := ConfigFile.new()
+	c.load(CFG)                     # 다른 항목(화면 흔들림 등)을 지우지 않게 읽고 고친다
 	c.set_value("audio", "bgm", bgm.value)
 	c.set_value("audio", "sfx", sfx.value)
 	c.save(CFG)
