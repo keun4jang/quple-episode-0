@@ -15,6 +15,8 @@ Thumbs.db
 !.claude/
 !.claude/agents/
 !.claude/agents/*.md
+# 설치한 남의 스킬은 저장소에 넣지 않는다 (skills-lock.json 과 docs/design-skills.md 로 다시 깐다).
+.claude/skills/
 build/
 *.keystore
 
