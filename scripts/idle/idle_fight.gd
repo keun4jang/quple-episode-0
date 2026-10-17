@@ -19,6 +19,9 @@ const TAP_POWER := 0.3
 const TAP_COOLDOWN := 0.25
 ## 자동사냥이 아닐 때(레벨 5 전)는 톡 칠 때마다 제대로 한 대 (필살기가 차 있으면 필살기).
 const MANUAL_COOLDOWN := 0.45
+## 자동사냥이 아닐 때도 쿼카는 혼자 이만큼 느린 박자로 때린다 (필살기는 안 쓴다). 가만히 두면
+## 아예 안 때려서, 톡톡 치는 걸 모르는 사람은 1번 스테이지에서 영영 쓰러지기만 했다 (시뮬레이션).
+const MANUAL_SLOW := 3.0
 
 var rng := RandomNumberGenerator.new()
 var info: Dictionary = {}
@@ -122,13 +125,11 @@ func _step(d: float) -> void:
 	var sk: Dictionary = h["skill"]
 	if not sk.is_empty():
 		_skill_cd -= d
-	if IdleState.auto_active():
-		_hero_t -= d
-	else:
-		_hero_t = float(h["every"])       # 손으로 싸우는 동안은 기다린다
+	var auto := IdleState.auto_active()
+	_hero_t -= d if auto else d / MANUAL_SLOW
 	if _hero_t <= 0.0:
 		_hero_t += float(h["every"])
-		if not sk.is_empty() and _skill_cd <= 0.0:
+		if auto and not sk.is_empty() and _skill_cd <= 0.0:
 			_skill_cd = float(sk["every"])
 			_use_skill(sk)
 		else:

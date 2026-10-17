@@ -212,8 +212,8 @@ func _fight_tests() -> void:
 	var mev: Array = []
 	for i in 40:
 		mev.append_array(mf.tick(0.25))
-	ck("LV1은 가만히 있으면 때리지 않는다",
-		mev.filter(func(e): return e["k"] == "hero_hit").is_empty() and not mf.done)
+	var slow_hits := mev.filter(func(e): return e["k"] == "hero_hit").size()
+	ck("LV1은 가만히 있으면 느리게만 때린다 (10초에 %d번)" % slow_hits, slow_hits >= 1 and slow_hits <= 4)
 	var te0 := mf.tap()
 	ck("LV1은 톡 치면 제대로 한 대", te0.size() >= 1 and te0[0]["k"] == "hero_hit" and not bool(te0[0]["tap"]))
 	ck("손으로 칠 때도 간격이 있다", mf.tap().is_empty())

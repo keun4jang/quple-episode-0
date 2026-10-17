@@ -10,6 +10,11 @@ var farm_clears := 0
 var zone_first: Dictionary = {}
 var auto_at := -1.0
 var trains := 0
+## 몇 초마다 한 번만 꿈조각을 쓰나 (가끔 들여다보는 사람). 0 이면 매번.
+var spend_every := 0.0
+var _last_spend := -99999.0
+## 레벨 5 전에 톡톡 치지 않는 사람.
+var no_tap := false
 
 
 func _ready() -> void:
@@ -17,6 +22,8 @@ func _ready() -> void:
 		job = OS.get_environment("SIM_JOB")
 	var seed_v := int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 7
 	var goal := int(OS.get_environment("SIM_STAGES")) if OS.get_environment("SIM_STAGES") != "" else 100
+	spend_every = float(OS.get_environment("SIM_SPEND_EVERY")) if OS.get_environment("SIM_SPEND_EVERY") != "" else 0.0
+	no_tap = OS.get_environment("SIM_NO_TAP") != ""
 	IdleState.reset()
 	var f := IdleFight.new()
 	var guard := 0
@@ -27,7 +34,9 @@ func _ready() -> void:
 			auto_at = secs
 		if IdleState.can_pick_job() and IdleState.job == "novice" and job != "novice":
 			IdleState.set_job(job)
-		_spend()
+		if secs - _last_spend >= spend_every:
+			_spend()
+			_last_spend = secs
 		f.start(IdleState.stage, seed_v + guard)
 		while not f.done:
 			if IdleState.auto_active():
@@ -37,7 +46,8 @@ func _ready() -> void:
 				# 레벨 5 전: 사람이 초에 세 번쯤 톡톡 친다
 				f.tick(0.33)
 				secs += 0.33
-				f.tap()
+				if not no_tap:
+					f.tap()
 			if secs > 60.0 * 60.0 * 40.0:
 				break
 		if secs > 60.0 * 60.0 * 40.0:
