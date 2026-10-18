@@ -30,9 +30,9 @@ func _ready() -> void:
 	if OS.get_environment("QUPLE_SHOT") != "":
 		_capture_shot()
 
-	_build_ui_decorations()
 	_add_title()
 	_add_subtitle()
+	_restyle_menu()
 
 func _process(delta: float) -> void:
 	_t += delta
@@ -454,3 +454,177 @@ func _build_ui_decorations() -> void:
 		lbl.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		lbl.position = sd.pos; lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ctrl.add_child(lbl)
+
+
+
+# ─── 2026-10 메인 화면 개편 ───
+#
+# 예전: 크림색 그림 상자 + 연두 알약 버튼 + 화면 테두리 세 겹 + "*" 반짝이.
+# 상자가 바다 그림을 크게 가리고, 버튼 셋이 같은 크기라 무엇을 눌러야 할지 흐렸다.
+# 지금: 그림을 가리지 않고 오른쪽만 살짝 어둡게 깔고, 게임 화면과 같은 한 벌(`IdleUi`) 버튼을 세운다.
+#   [이어서 하기] (금빛, 가장 크게) · [처음부터 하기] (저장이 있을 때만, 확인창) · 설정 / 만든 사람 / 종료
+# 장면 파일의 옛 버튼은 지우지 않고 숨긴다 (장면 파일을 손대지 않아 깨질 곳이 없다).
+
+var _new_btn: Button
+
+func _restyle_menu() -> void:
+	var ctrl := get_node_or_null("UILayer/Control") as Control
+	if ctrl == null:
+		return
+	for n in ["RightScrim", "VBox", "SmallBtnRow", "FrameGlow1", "FrameGlow2", "FrameSharp",
+			"SparkLabel1", "SparkLabel2", "SparkLabel3", "SparkLabel4"]:
+		var node := ctrl.get_node_or_null(n) as CanvasItem
+		if node != null:
+			node.visible = false
+	var sub := ctrl.get_node_or_null("Subtitle") as Label
+	if sub != null:
+		sub.add_theme_color_override("font_color", IdleUi.CREAM)
+		sub.add_theme_color_override("font_outline_color", Color("#2A2140"))
+		sub.add_theme_constant_override("outline_size", 8)
+
+	# 오른쪽을 어둡게 (버튼 글씨가 바다·하늘 위에서도 또렷하게)
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 1.0])
+	g.colors = PackedColorArray([Color(0.16, 0.12, 0.25, 0.0), Color(0.16, 0.12, 0.25, 0.72)])
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill_from = Vector2(0.0, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	gt.width = 128
+	gt.height = 8
+	var shade := TextureRect.new()
+	shade.name = "RightShade"
+	shade.texture = gt
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shade.anchor_left = 0.48
+	shade.anchor_right = 1.0
+	shade.anchor_top = 0.0
+	shade.anchor_bottom = 1.0
+	ctrl.add_child(shade)
+
+	var col := VBoxContainer.new()
+	col.name = "MenuColumn"
+	col.add_theme_constant_override("separation", 14)
+	col.anchor_left = 0.75
+	col.anchor_right = 0.75
+	col.anchor_top = 0.56
+	col.anchor_bottom = 0.56
+	col.offset_left = -220.0
+	col.offset_right = 220.0
+	col.offset_top = -120.0
+	col.offset_bottom = 200.0
+	col.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	ctrl.add_child(col)
+
+	var has := IdleState.has_save()
+	var start := _menu_button("이어서 하기" if has else "시작하기", "play", "gold", 40, 100.0)
+	start.pressed.connect(_on_start)
+	col.add_child(start)
+	if has:
+		_new_btn = _menu_button("처음부터 하기", "refresh", "plum", 30, 74.0)
+		_new_btn.pressed.connect(_confirm_new_game)
+		col.add_child(_new_btn)
+		# 어디까지 왔는지 한 줄 (저장을 읽기만 한다 - 게임 화면이 다시 읽는다)
+		if IdleState.load_save():
+			var j: Dictionary = IdleData.JOBS.get(IdleState.job, IdleData.JOBS["novice"])
+			var info := IdleUi.label("LV %d %s  ·  %s" % [IdleState.level, String(j["name"]),
+				IdleData.stage_label(IdleState.stage)], 22, IdleUi.SUB, true)
+			info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			col.add_child(info)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_child(row)
+	var settings := _menu_button("설정", "gear", "plum", 22, 70.0, true)
+	settings.pressed.connect(func():
+		var sv = get_tree().get_first_node_in_group("settings_ui")
+		if sv:
+			sv.open())
+	row.add_child(settings)
+	var credits := _menu_button("만든 사람", "star", "plum", 22, 70.0, true)
+	credits.pressed.connect(_show_credits)
+	row.add_child(credits)
+	var quit := _menu_button("종료", "close", "plum", 22, 70.0, true)
+	quit.pressed.connect(_on_quit)
+	row.add_child(quit)
+	# 첫 화면 버튼이 살짝 떠오르며 나타난다
+	col.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_interval(0.25)
+	tw.tween_property(col, "modulate:a", 1.0, 0.35)
+
+
+func _menu_button(t: String, icon_kind: String, style: String, fs: int, h: float, small := false) -> Button:
+	var b := IdleUi.button("", fs, style)
+	b.custom_minimum_size = Vector2(0 if not small else 138, h)
+	if small:
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var box := HBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 10 if not small else 6)
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var fc := Color("#3A2410") if style == "gold" else IdleUi.CREAM
+	var ic := IdleUi.icon(icon_kind, fs * 1.05, fc if style == "gold" else IdleUi.GOLD)
+	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	box.add_child(ic)
+	var l := IdleUi.label(t, fs, fc)
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	box.add_child(l)
+	b.add_child(box)
+	return b
+
+
+## [처음부터 하기] - 지우기 전에 꼭 한 번 묻는다. 되돌릴 수 없다.
+func _confirm_new_game() -> void:
+	AudioManager.ui_click()
+	var layer := CanvasLayer.new()
+	layer.layer = 80
+	layer.add_to_group("overlay")          # 뒤로가기로 닫힌다 (`back_handler.gd`)
+	add_child(layer)
+	var dim := ColorRect.new()
+	dim.color = Color(0.06, 0.03, 0.12, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed:
+			layer.queue_free())
+	layer.add_child(dim)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", IdleUi.panel_style())
+	card.custom_minimum_size = Vector2(560, 0)
+	card.set_anchors_preset(Control.PRESET_CENTER)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.grow_vertical = Control.GROW_DIRECTION_BOTH
+	layer.add_child(card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	card.add_child(v)
+	var t := IdleUi.label("처음부터 할까요?", 38, IdleUi.GOLD)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	var d := IdleUi.label("레벨 · 장비 · 꿈조각이 모두 사라져요.\n되돌릴 수 없어요.", 24, IdleUi.CREAM)
+	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(d)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	v.add_child(row)
+	var no := IdleUi.button("그만두기", 26, "plum")
+	no.custom_minimum_size = Vector2(0, 70)
+	no.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	no.pressed.connect(layer.queue_free)
+	row.add_child(no)
+	var yes := IdleUi.button("처음부터 하기", 26, "danger")
+	yes.custom_minimum_size = Vector2(0, 70)
+	yes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	yes.pressed.connect(func() -> void:
+		IdleState.clear_save()
+		layer.queue_free()
+		AudioManager.ui_confirm()
+		_go(GAME_PATH, "hopeful"))
+	row.add_child(yes)
+	card.pivot_offset = card.get_combined_minimum_size() * 0.5
+	card.scale = Vector2(0.9, 0.9)
+	create_tween().tween_property(card, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK) \
+		.set_ease(Tween.EASE_OUT)

@@ -10,6 +10,7 @@ var _rings: Array = []
 var _texts: Array = []
 var _bolts: Array = []
 var _pillars: Array = []
+var _rays: Array = []
 
 
 func _ready() -> void:
@@ -57,12 +58,31 @@ func meteor(a: Vector2, b: Vector2, col: Color, life := 0.32) -> void:
 	burst(b, Color.WHITE, 14, 380.0, 7.0, 0.5, 600.0, "sq", life)
 
 
+## 마법 구슬 - 꼬리를 끌며 날아간다 (터지는 건 부른 쪽이 따로).
+func orb(a: Vector2, b: Vector2, col: Color, life := 0.18, delay := 0.0) -> void:
+	_bolts.append({"a": a, "b": b, "col": col, "life": 0.0, "max": life, "delay": delay, "kind": "orb"})
+
+
+## 납작한 충격파 - 땅을 따라 퍼진다.
+func wave(p: Vector2, r1: float, col: Color, w := 12.0, life := 0.5, delay := 0.0) -> void:
+	_rings.append({"p": p, "r0": 10.0, "r1": r1, "col": col, "w": w, "life": 0.0, "max": life, "delay": delay,
+		"flat": 0.28})
+
+
+## 가운데에서 바깥으로 뻗는 집중선 - 치명타·필살기의 "쾅".
+func rays(p: Vector2, col: Color, n := 14, r0 := 60.0, r1 := 360.0, life := 0.3, delay := 0.0) -> void:
+	var lines: Array = []
+	for i in n:
+		lines.append({"a": randf() * TAU, "len": randf_range(0.5, 1.0), "w": randf_range(3.0, 9.0)})
+	_rays.append({"p": p, "col": col, "r0": r0, "r1": r1, "lines": lines, "life": 0.0, "max": life, "delay": delay})
+
+
 func pillar(p: Vector2, col: Color, life := 1.0) -> void:
 	_pillars.append({"p": p, "col": col, "life": 0.0, "max": life, "delay": 0.0})
 
 
 func _process(dt: float) -> void:
-	for arr in [_parts, _slashes, _rings, _texts, _bolts, _pillars]:
+	for arr in [_parts, _slashes, _rings, _texts, _bolts, _pillars, _rays]:
 		var keep: Array = []
 		for e in arr:
 			if float(e["delay"]) > 0.0:
@@ -108,11 +128,27 @@ func _draw() -> void:
 		var wid := 90.0 * (1.0 - k * 0.5)
 		draw_rect(Rect2(p.x - wid * 0.5, p.y - 900, wid, 900), Color(col, 0.30 * a))
 		draw_rect(Rect2(p.x - wid * 0.18, p.y - 900, wid * 0.36, 900), Color(1, 1, 1, 0.45 * a))
+	for e in _rays:
+		if float(e["delay"]) > 0.0:
+			continue
+		var k := _k(e)
+		var p: Vector2 = e["p"]
+		var col: Color = e["col"]
+		for ln in e["lines"]:
+			var d := Vector2(cos(float(ln["a"])), sin(float(ln["a"])))
+			var r0 := lerpf(float(e["r0"]), float(e["r1"]) * 0.6, k)
+			var r1 := r0 + (float(e["r1"]) - float(e["r0"])) * float(ln["len"]) * (1.0 - k * 0.5)
+			draw_line(p + d * r0, p + d * r1, Color(col, 1.0 - k), float(ln["w"]) * (1.0 - k * 0.7), true)
 	for e in _rings:
 		if float(e["delay"]) > 0.0:
 			continue
 		var k := _k(e)
 		var r := lerpf(float(e["r0"]), float(e["r1"]), 1.0 - pow(1.0 - k, 3.0))
+		if e.has("flat"):
+			draw_set_transform(e["p"], 0.0, Vector2(1.0, float(e["flat"])))
+			draw_arc(Vector2.ZERO, r, 0.0, TAU, 48, Color(e["col"], 1.0 - k), maxf(1.0, float(e["w"]) * (1.0 - k) * 2.5), true)
+			draw_set_transform(Vector2.ZERO)
+			continue
 		draw_arc(e["p"], r, 0.0, TAU, 48, Color(e["col"], 1.0 - k), maxf(1.0, float(e["w"]) * (1.0 - k)), true)
 	for e in _slashes:
 		if float(e["delay"]) > 0.0:
@@ -133,6 +169,14 @@ func _draw() -> void:
 		var a: Vector2 = e["a"]
 		var b: Vector2 = e["b"]
 		var col: Color = e["col"]
+		if String(e["kind"]) == "orb":
+			var po := a.lerp(b, k)
+			for i in 6:
+				var tp := a.lerp(b, maxf(0.0, k - i * 0.06))
+				draw_circle(tp, 12.0 - i * 1.6, Color(col, 0.55 - i * 0.08))
+			draw_circle(po, 16.0, Color(col, 0.45))
+			draw_circle(po, 8.0, Color.WHITE)
+			continue
 		if String(e["kind"]) == "arrow":
 			var p := a.lerp(b, k)
 			var d := (b - a).normalized()
