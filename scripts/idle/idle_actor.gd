@@ -40,6 +40,8 @@ var row := 1
 var flip := false
 var px := 4.0
 var walking := false
+## 0 이상이면 그 칸에 고정한다 (예: 앞모습의 환호·아픔 칸).
+var frame_override := -1
 var flash := 0.0
 var flash_col := Color.WHITE
 ## 0 이면 멀쩡, 1 이면 다 녹아 사라짐.
@@ -144,6 +146,8 @@ func _draw() -> void:
 	if tex == null:
 		return
 	var f := int(_t * 9.0) % 4 if walking else 0
+	if frame_override >= 0:
+		f = frame_override
 	var breath := 1.0 + sin(_t * 3.2) * 0.03 if not walking else 1.0 + absf(sin(_t * 9.0)) * 0.04
 	var sz := cell * px * squash * Vector2(1.0, breath)
 	if flip:

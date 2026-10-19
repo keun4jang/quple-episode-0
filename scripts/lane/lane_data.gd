@@ -30,6 +30,19 @@ const UNITS := {
 	"giant":  {"name": "거대 쿼카", "role": "느리지만 안 밀린다", "cost": 1200, "cd": 25.0, "hp": 2600, "atk": 320,
 		"every": 4.0, "range": 200, "speed": 60, "kb": 1, "area": true, "unlock": 31, "no_kb": true},
 }
+## 이 레벨에 닿으면 모습이 바뀐다 (금빛 띠 + 빨간 망토).
+const EVOLVE_LV := 10
+const EVOLVED_NAME := {"tiny": "용감한 꼬마 쿼카", "shield": "철벽 쿼카", "spear": "번개창 쿼카",
+	"hammer": "대장장이 쿼카", "runner": "질풍 쿼카", "sling": "명사수 쿼카", "mage": "대마법 쿼카", "giant": "산만한 쿼카"}
+
+
+## 레벨에 맞는 이름.
+static func unit_name(id: String, lv: int) -> String:
+	if lv >= EVOLVE_LV and EVOLVED_NAME.has(id):
+		return String(EVOLVED_NAME[id])
+	return String(UNITS[id]["name"])
+
+
 const UNIT_ORDER := ["tiny", "shield", "spear", "hammer", "runner", "sling", "mage", "giant"]
 const LINEUP_MAX := 10
 

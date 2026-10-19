@@ -6,12 +6,13 @@ const MENU_PATH := "res://scenes/menu/MainMenu3D.tscn"
 const SAVE_EVERY := 10.0
 const UNIT_PX := 3.0
 const BUG_PX := 3.0
+
+
+## 쿼카 그림 — 레벨 10 부터 진화한 모습.
+static func unit_sheet(id: String) -> String:
+	var evolved := LaneState.level_of(id) >= LaneData.EVOLVE_LV
+	return "res://assets/sprites/quokka-%s%s.png" % [id, "-2" if evolved else ""]
 ## 쿼카 쪽 그림 (2단계에서 군단 전용 그림으로 바뀐다) - 뒷모습 줄을 쓴다.
-const UNIT_SHEET := {"tiny": "hero-walk", "shield": "hero-warrior-walk", "spear": "hero-thief-walk",
-	"hammer": "hero-warrior-walk", "runner": "hero-archer-walk", "sling": "hero-archer-walk",
-	"mage": "hero-mage-walk", "giant": "hero-walk"}
-const UNIT_TINT := {"hammer": Color("#FFD9B0"), "sling": Color("#CFF2C4"), "giant": Color("#FFE7C2")}
-const UNIT_SIZE := {"giant": 1.7, "tiny": 0.85, "shield": 1.05}
 
 var battle := LaneBattle.new()
 var mode := "home"
@@ -43,6 +44,7 @@ var _result: Control
 var _trauma := 0.0
 var _battle_t := 0.0
 var _ended := false
+var _won := false
 
 # 홈
 var _home: Control
@@ -306,8 +308,12 @@ func _fill_units() -> void:
 			continue
 		var lv := LaneState.level_of(String(id))
 		var s := LaneState.unit_stats(String(id))
-		v.add_child(IdleUi.label("%s  Lv %d" % [String(u["name"]), lv], 26, IdleUi.CREAM))
-		v.add_child(IdleUi.label(String(u["role"]), 19, IdleUi.SUB))
+		var title := "%s  Lv %d" % [LaneData.unit_name(String(id), lv), lv]
+		v.add_child(IdleUi.label(title, 26, IdleUi.GOLD if lv >= LaneData.EVOLVE_LV else IdleUi.CREAM))
+		var role := String(u["role"])
+		if lv < LaneData.EVOLVE_LV:
+			role += "  ·  Lv %d 에 진화!" % LaneData.EVOLVE_LV
+		v.add_child(IdleUi.label(role, 19, IdleUi.SUB))
 		v.add_child(IdleUi.label("체력 %s · 공격 %s · 사거리 %d · 꿈빛 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
 			int(u["range"]), int(u["cost"])], 18, IdleUi.SUB))
 		var b := IdleUi.button("", 20, "gold")
@@ -322,6 +328,9 @@ func _fill_units() -> void:
 			if LaneState.level_up(String(id)):
 				AudioManager.ui_confirm()
 				LaneState.save()
+				if LaneState.level_of(String(id)) == LaneData.EVOLVE_LV:
+					AudioManager.souvenir_get()
+					_toast("진화! %s → %s" % [String(LaneData.UNITS[id]["name"]), LaneData.unit_name(String(id), LaneData.EVOLVE_LV)])
 				_fill_home())
 		row.add_child(b)
 
@@ -340,7 +349,7 @@ func _fill_lineup() -> void:
 		var on := LaneState.lineup.has(id)
 		var b := IdleUi.button("", 20, "gold" if on else "ghost")
 		b.custom_minimum_size = Vector2(212, 180)
-		b.text = "\n\n\n%s\n%s" % [String(LaneData.UNITS[id]["name"]), "출전 ✓" if on else "쉬는 중"]
+		b.text = "\n\n\n%s\n%s" % [LaneData.unit_name(String(id), LaneState.level_of(String(id))), "출전 ✓" if on else "쉬는 중"]
 		var p := _portrait(String(id), 84.0)
 		p.position = Vector2(64, 8)
 		b.add_child(p)
@@ -361,7 +370,7 @@ func _portrait(id: String, sz: float) -> Control:
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tex := load("res://assets/sprites/%s.png" % String(UNIT_SHEET.get(id, "hero-walk"))) as Texture2D
+	var tex := load(unit_sheet(id)) as Texture2D
 	if tex != null:
 		var a := AtlasTexture.new()
 		a.atlas = tex
@@ -369,8 +378,6 @@ func _portrait(id: String, sz: float) -> Control:
 		t.texture = a
 	if not LaneState.has_unit(id):
 		t.modulate = Color(0.1, 0.08, 0.15, 0.9)
-	elif UNIT_TINT.has(id):
-		t.modulate = UNIT_TINT[id]
 	return t
 
 
@@ -382,6 +389,7 @@ func _start_battle(n: int) -> void:
 	_home.visible = false
 	mode = "battle"
 	_ended = false
+	_won = false
 	_battle_t = 0.0
 	_actor_of = {}
 	_lat = {}
@@ -615,11 +623,23 @@ func _sync_actors() -> void:
 			_lunge[uid] = maxf(0.0, lg - get_process_delta_time() * 6.0)
 			p.y += (-18.0 if e["side"] == "q" else 18.0) * depth * sin(lg * PI)
 		a.position = p
-		var base_px: float = (UNIT_PX * float(UNIT_SIZE.get(String(e["kind"]), 1.0))) if e["side"] == "q" else BUG_PX
-		a.px = base_px * depth
+		a.px = (UNIT_PX if e["side"] == "q" else BUG_PX) * depth
 		a.walking = e["state"] == "walk"
 		if e["side"] == "q":
-			a.row = 2 if e["state"] != "kb" else 0
+			# 뒷모습으로 걷고, 싸울 땐 휘두르고, 밀려나면 앞을 보며 아파한다. 이기면 환호.
+			a.frame_override = -1
+			if _ended and _won:
+				a.row = 0
+				a.walking = false
+				a.frame_override = 1 if int(Time.get_ticks_msec() / 220) % 2 == 0 else 0
+			elif e["state"] == "kb":
+				a.row = 0
+				a.frame_override = 3
+			elif e["state"] == "fight":
+				a.row = 1
+				a.walking = true
+			else:
+				a.row = 2
 		else:
 			a.row = 2 if e["state"] == "kb" else (1 if e["state"] == "fight" else 0)
 	for uid in _actor_of.keys():
@@ -638,9 +658,7 @@ func _make_actor(e: Dictionary) -> IdleActor:
 	var uid := int(e["uid"])
 	_lat[uid] = randf_range(-150.0, 150.0)
 	if e["side"] == "q":
-		a.set_sheet("res://assets/sprites/%s.png" % String(UNIT_SHEET.get(String(e["kind"]), "hero-walk")))
-		if UNIT_TINT.has(String(e["kind"])):
-			a.modulate = UNIT_TINT[String(e["kind"])]
+		a.set_sheet(unit_sheet(String(e["kind"])))
 	else:
 		a.set_sheet("res://assets/sprites/bug-%s.png" % String(e["kind"]))
 	_actors.add_child(a)
@@ -767,6 +785,7 @@ func _end_battle(res: String) -> void:
 	_ended = true
 	Engine.time_scale = 1.0
 	var win := res == "win"
+	_won = win
 	var r := {}
 	if win:
 		r = LaneState.on_win(stage_n)
