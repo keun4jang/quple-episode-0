@@ -55,9 +55,17 @@ func _ready() -> void:
 				if b2.result == "win":
 					LaneState.on_win(n - 1)
 			if stuck > 60:
+				var ls := ""
+				for id in LaneState.lineup:
+					ls += "%s%d%s " % [id, LaneState.level_of(id), ("+" + String(LaneState.acc_on[id]).substr(0, 4)) if LaneState.acc_on.has(id) else ""]
+				print("  편성: ", ls)
 				print("  [막힘] %s 에서 60번 짐 (%s)" % [LaneData.stage_label(n), "판 %.0f초 %s" % [t, b.result if b.result != "" else "시간 초과"]])
 				break
 	if gacha:
+		var tc := 0
+		for zi in LaneData.ZONES.size():
+			tc += LaneState.treasure_count(zi)
+		print("보물 %d / 90 · 장신구 %d · 보너스 %s" % [tc, LaneState.accs.size(), str(LaneState.treasure_bonus())])
 		print("뽑기 %d번 · 가진 친구 %d / %d" % [pulled, LaneState.owned_count(), LaneData.ALL_ORDER.size()])
 	print("끝: %.1f시간 · 깬 곳 %d · 진 판 %d · 꿈조각 %d · 레벨 %s" % [secs / 3600.0, LaneState.cleared, losses, LaneState.xp, _lv()])
 	get_tree().quit()
@@ -85,6 +93,12 @@ func _spend() -> void:
 				if bool(x["new"]) and OS.get_environment("SIM_LOG") != "":
 					print("      뽑기 (%4.1f시간): %s %s" % [secs / 3600.0, LaneData.RARITY_NAME[String(x["rarity"])], x["id"]])
 		_pick_lineup()
+		# 장신구는 편성 앞쪽(센 것)부터 하나씩
+		var k := 0
+		for acc in LaneData.ACC_ORDER:
+			if LaneState.accs.has(acc) and k < LaneState.lineup.size():
+				LaneState.equip(String(LaneState.lineup[k]), acc)
+				k += 1
 	var guard := 0
 	while guard < 500:
 		guard += 1
@@ -110,7 +124,12 @@ func _pick_lineup() -> void:
 		(walls if LaneData.is_wall(String(id)) else hitters).append(String(id))
 	walls.sort_custom(func(a, b) -> bool: return int(LaneData.UNITS[a]["cost"]) < int(LaneData.UNITS[b]["cost"]))
 	# 센(비싼) 것부터
-	hitters.sort_custom(func(a, b) -> bool: return int(LaneData.UNITS[a]["cost"]) > int(LaneData.UNITS[b]["cost"]))
+	# 레벨까지 따진 세기 (공격 × 체력의 제곱근 × 레벨 배율)
+	# SIM_PICK=power 면 레벨까지 따진 세기 순, 아니면 비싼 순
+	if OS.get_environment("SIM_PICK") == "power":
+		hitters.sort_custom(func(a, b) -> bool: return _power(a) > _power(b))
+	else:
+		hitters.sort_custom(func(a, b) -> bool: return int(LaneData.UNITS[a]["cost"]) > int(LaneData.UNITS[b]["cost"]))
 	var l: Array = []
 	if walls.size() > 0:
 		l.append(walls[0])
@@ -126,3 +145,9 @@ func _pick_lineup() -> void:
 			break
 		l.append(h)
 	LaneState.lineup = l
+
+
+func _power(id: String) -> float:
+	var u: Dictionary = LaneData.UNITS[id]
+	var dps := float(u["atk"]) / float(u["every"]) * (2.0 if bool(u["area"]) else 1.0)
+	return sqrt(dps * float(u["hp"])) * LaneData.unit_mult(LaneState.level_of(id))

@@ -82,10 +82,15 @@ func _ready() -> void:
 	var r := LaneState.claim_offline(int(Time.get_unix_time_from_system()))
 	if not r.is_empty():
 		_toast("자는 동안 쿼카들이 꿈조각 %s개를 모았어요" % _num(int(r["xp"])))
+	var old := LaneState.migrate_from_idle()
 	var gift := LaneState.claim_daily(int(Time.get_unix_time_from_system()))
 	if not LaneState.seen_intro:
 		LaneState.seen_intro = true
 		_toast("벌레들이 꿈결을 갉아먹고 있어요! 쿼카 군단을 보내요\n뽑기에 선물 티켓이 있어요")
+	if not old.is_empty():
+		_later(2.8, func() -> void:
+			_toast("옛 꿈결에서 온 선물!  ★ %s · 티켓 %d장 · ✦ %s" % [_num(int(old["stars"])), int(old["tickets"]),
+				_num(int(old["xp"]))]))
 	elif not gift.is_empty():
 		_toast("매일 선물 %d일째!  티켓 %d장 · 꿈별 %d" % [int(gift["streak"]), int(gift["tickets"]), int(gift["stars"])])
 	_rng.randomize()
@@ -274,8 +279,18 @@ func _card() -> PanelContainer:
 
 
 func _fill_map() -> void:
+	# 보물 효과 모아 보기
+	var tb := LaneState.treasure_bonus()
+	var parts: Array = []
+	for k in ["atk", "hp", "rate", "cannon", "xp", "wallet"]:
+		if tb.has(k):
+			parts.append(LaneData.bonus_text(k, float(tb[k])))
+	var sum := IdleUi.label("보물 효과:  " + (" · ".join(parts) if not parts.is_empty() else "아직 없어요 - 판을 깨면 가끔 나와요"),
+		20, IdleUi.GOLD)
+	sum.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_home_body.add_child(sum)
 	var last_zone := clampi(LaneState.cleared / LaneData.STAGES_PER_ZONE, 0, LaneData.ZONES.size() - 1)
-	for zi in range(last_zone + 1):
+	for zi in range(last_zone, -1, -1):
 		var z: Dictionary = LaneData.ZONES[zi]
 		var card := _card()
 		_home_body.add_child(card)
@@ -283,7 +298,40 @@ func _fill_map() -> void:
 		v.add_theme_constant_override("separation", 6)
 		card.add_child(v)
 		var boss_name := String(LaneData.BUGS[String(z["boss"])]["name"])
-		v.add_child(IdleUi.label("%d. %s  ·  우두머리 %s" % [zi + 1, String(z["name"]), boss_name], 24, IdleUi.CREAM))
+		var head := HBoxContainer.new()
+		head.add_theme_constant_override("separation", 10)
+		v.add_child(head)
+		head.add_child(_bug_face(String(z["boss"]), 72.0))
+		var hv := VBoxContainer.new()
+		hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(hv)
+		hv.add_child(IdleUi.label("%d. %s" % [zi + 1, String(z["name"])], 28, IdleUi.CREAM))
+		hv.add_child(IdleUi.label("우두머리 %s · 보물 %d / 9" % [boss_name, LaneState.treasure_count(zi)], 19, IdleUi.SUB))
+		# 보물 셋 - 등급 색 테두리, 없으면 흐리게
+		var trow := HBoxContainer.new()
+		trow.add_theme_constant_override("separation", 6)
+		v.add_child(trow)
+		for ti in 3:
+			var t: Dictionary = LaneData.TREASURES[zi][ti]
+			var g := int(LaneState.treasures[zi][ti])
+			var cell := PanelContainer.new()
+			cell.add_theme_stylebox_override("panel", IdleUi.card_style(Color(LaneData.GRADE_COL[g])))
+			cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			trow.add_child(cell)
+			var cv := VBoxContainer.new()
+			cv.alignment = BoxContainer.ALIGNMENT_CENTER
+			cell.add_child(cv)
+			var ic := _icon(String(t["icon"]), Color(t["col"]) if g > 0 else Color(0.25, 0.22, 0.3), 44.0)
+			ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			cv.add_child(ic)
+			var tn := IdleUi.label(String(t["name"]) if g > 0 else "???", 16, IdleUi.CREAM if g > 0 else IdleUi.MUTED)
+			tn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			cv.add_child(tn)
+			var te := IdleUi.label("%s %s" % [String(LaneData.GRADE_NAME[g]), LaneData.bonus_text(String(t["kind"]),
+				float(t["per"]) * float(maxi(1, g)))] if g > 0 else LaneData.bonus_text(String(t["kind"]), float(t["per"]) * 3.0) + " 까지",
+				14, Color(LaneData.GRADE_COL[g]) if g > 0 else IdleUi.MUTED)
+			te.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			cv.add_child(te)
 		var gr := GridContainer.new()
 		gr.columns = 5
 		gr.add_theme_constant_override("h_separation", 8)
@@ -342,6 +390,20 @@ func _fill_units() -> void:
 		v.add_child(IdleUi.label(role, 19, IdleUi.SUB))
 		v.add_child(IdleUi.label("체력 %s · 공격 %s · 사거리 %d · 꿈빛 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
 			int(u["range"]), int(u["cost"])], 18, IdleUi.SUB))
+		var accrow := HBoxContainer.new()
+		accrow.add_theme_constant_override("separation", 6)
+		v.add_child(accrow)
+		var cur := String(LaneState.acc_on.get(String(id), ""))
+		var ab := IdleUi.button("장신구 +" if cur == "" else "", 18, "ghost")
+		ab.custom_minimum_size = Vector2(0, 48)
+		if cur != "":
+			var ad: Dictionary = LaneData.ACCESSORIES[cur]
+			ab.text = "     %s Lv%d" % [String(ad["name"]), int(LaneState.accs[cur])]
+			var ic := _icon(String(ad["icon"]), Color(ad["col"]), 36.0)
+			ic.position = Vector2(8, 6)
+			ab.add_child(ic)
+		ab.pressed.connect(_open_acc_picker.bind(String(id)))
+		accrow.add_child(ab)
 		var b := IdleUi.button("", 20, "gold")
 		b.custom_minimum_size = Vector2(150, 76)
 		if lv >= LaneData.UNIT_LV_MAX:
@@ -362,6 +424,33 @@ func _fill_units() -> void:
 
 
 func _fill_lineup() -> void:
+	_lineup_grid()
+	var active := LaneState.active_combos()
+	_home_body.add_child(IdleUi.label("콤보 %d / %d  -  같이 편성하면 힘이 나요" % [active.size(), LaneData.COMBOS.size()], 24,
+		IdleUi.GOLD))
+	for c in LaneData.COMBOS:
+		var on := active.has(c)
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", IdleUi.card_style(IdleUi.GOLD if on else IdleUi.LINE))
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_home_body.add_child(card)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		card.add_child(row)
+		for u in c["units"]:
+			var face := _portrait(String(u), 52.0)
+			if LaneState.has_unit(String(u)) and not LaneState.lineup.has(u):
+				face.modulate = Color(1, 1, 1, 0.4)
+			row.add_child(face)
+		var v := VBoxContainer.new()
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(v)
+		v.add_child(IdleUi.label(("✓ " if on else "") + String(c["name"]), 22, IdleUi.GOLD if on else IdleUi.CREAM))
+		v.add_child(IdleUi.label(LaneData.bonus_text(String(c["kind"]), float(c["v"])), 18,
+			IdleUi.GREEN if on else IdleUi.SUB))
+
+
+func _lineup_grid() -> void:
 	_home_body.add_child(IdleUi.label("편성 %d / %d  -  눌러서 넣고 빼요" % [LaneState.lineup.size(), LaneData.LINEUP_MAX], 24,
 		IdleUi.CREAM))
 	var gr := GridContainer.new()
@@ -442,6 +531,153 @@ func _do_pull(count: int) -> void:
 	add_child(g)
 	g.finished.connect(_fill_home)
 	g.play(res)
+
+
+## 보물·장신구 아이콘 (회색 그림에 색을 곱한다).
+func _icon(name: String, col: Color, sz: float) -> TextureRect:
+	var t := TextureRect.new()
+	t.custom_minimum_size = Vector2(sz, sz)
+	t.size = Vector2(sz, sz)
+	t.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tex := load("res://assets/sprites/lane-icons.png") as Texture2D
+	var i := LaneData.ICONS.find(name)
+	if tex != null and i >= 0:
+		var a := AtlasTexture.new()
+		a.atlas = tex
+		a.region = Rect2(i * 16, 0, 16, 16)
+		t.texture = a
+	t.modulate = col
+	return t
+
+
+## 벌레 얼굴 (지도의 우두머리).
+func _bug_face(kind: String, sz: float) -> TextureRect:
+	var t := TextureRect.new()
+	t.custom_minimum_size = Vector2(sz, sz)
+	t.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tex := load("res://assets/sprites/bug-%s.png" % kind) as Texture2D
+	if tex != null:
+		var a := AtlasTexture.new()
+		a.atlas = tex
+		a.region = Rect2(0, 0, tex.get_width() / 4.0, tex.get_height() / 3.0)
+		t.texture = a
+	return t
+
+
+## 화면 위에 뜨는 창 (장신구 고르기 등). 바깥을 누르면 닫힌다.
+func _popup(title: String) -> VBoxContainer:
+	var layer := Control.new()
+	layer.name = "Popup"
+	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.size = size
+	add_child(layer)
+	var dim := ColorRect.new()
+	dim.color = Color(0.05, 0.02, 0.09, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.size = size
+	dim.gui_input.connect(func(ev: InputEvent) -> void:
+		if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
+			layer.queue_free())
+	layer.add_child(dim)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", IdleUi.panel_style())
+	card.position = Vector2(24, 140)
+	card.size = Vector2(size.x - 48, size.y - 280)
+	layer.add_child(card)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	card.add_child(outer)
+	var head := HBoxContainer.new()
+	outer.add_child(head)
+	var tl := IdleUi.label(title, 34, IdleUi.GOLD, true)
+	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(tl)
+	var close := IdleUi.button("닫기", 22)
+	close.custom_minimum_size = Vector2(100, 60)
+	close.pressed.connect(layer.queue_free)
+	head.add_child(close)
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	IdleUi.style_scroll(sc)
+	outer.add_child(sc)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 10)
+	sc.add_child(body)
+	return body
+
+
+func _close_popup() -> void:
+	var p := get_node_or_null("Popup")
+	if p != null:
+		p.queue_free()
+
+
+## 이 유닛에 달 장신구 고르기.
+func _open_acc_picker(unit: String) -> void:
+	_close_popup()
+	var body := _popup("%s 의 장신구" % LaneData.unit_name(unit, LaneState.level_of(unit)))
+	if LaneState.accs.is_empty():
+		body.add_child(IdleUi.label("아직 장신구가 없어요.\n구역 우두머리를 처음 잡으면 하나씩 얻어요.", 24, IdleUi.SUB))
+		return
+	if LaneState.acc_on.has(unit):
+		var off := IdleUi.button("빼기", 24, "plum")
+		off.custom_minimum_size = Vector2(0, 70)
+		off.pressed.connect(func() -> void:
+			LaneState.unequip(unit)
+			LaneState.save()
+			AudioManager.ui_click()
+			_close_popup()
+			_fill_home())
+		body.add_child(off)
+	for acc in LaneData.ACC_ORDER:
+		if not LaneState.accs.has(acc):
+			continue
+		var a: Dictionary = LaneData.ACCESSORIES[acc]
+		var lv := int(LaneState.accs[acc])
+		var card := _card()
+		body.add_child(card)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		card.add_child(row)
+		row.add_child(_icon(String(a["icon"]), Color(a["col"]), 72.0))
+		var v := VBoxContainer.new()
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(v)
+		v.add_child(IdleUi.label("%s  Lv %d" % [String(a["name"]), lv], 24, IdleUi.CREAM))
+		v.add_child(IdleUi.label(LaneData.acc_text(acc, lv), 19, IdleUi.GREEN))
+		var who := LaneState.wearer(acc)
+		if who != "":
+			v.add_child(IdleUi.label("%s 이(가) 달고 있어요" % String(LaneData.UNITS[who]["name"]), 18, IdleUi.SUB))
+		var bv := VBoxContainer.new()
+		row.add_child(bv)
+		var on := IdleUi.button("달고 있음" if who == unit else "달기", 20, "ghost" if who == unit else "gold")
+		on.custom_minimum_size = Vector2(130, 56)
+		on.disabled = who == unit
+		on.pressed.connect(func() -> void:
+			LaneState.equip(unit, acc)
+			LaneState.save()
+			AudioManager.ui_confirm()
+			_close_popup()
+			_fill_home())
+		bv.add_child(on)
+		var up := IdleUi.button("최고" if lv >= LaneData.ACC_LV_MAX else "강화 ✦%s" % _num(LaneData.acc_level_cost(lv)), 18)
+		up.custom_minimum_size = Vector2(130, 56)
+		up.disabled = not LaneState.can_level_acc(acc)
+		up.pressed.connect(func() -> void:
+			if LaneState.level_acc(acc):
+				LaneState.save()
+				AudioManager.ui_confirm()
+				_open_acc_picker(unit)
+				_refresh_home_top())
+		bv.add_child(up)
 
 
 ## 쿼카 얼굴 (앞모습 첫 칸).
@@ -953,6 +1189,27 @@ func _show_result(win: bool, r: Dictionary) -> void:
 			v.add_child(_center(IdleUi.label("★ 꿈별 +%d" % int(r["stars"]), 28, Color("#9FD8FF"))))
 		if int(r.get("tickets", 0)) > 0:
 			v.add_child(_center(IdleUi.label("뽑기 티켓 +%d장" % int(r["tickets"]), 28, IdleUi.GOLD)))
+		var tr: Dictionary = r.get("treasure", {})
+		if not tr.is_empty():
+			var tre: Dictionary = LaneData.TREASURES[int(tr["zone"])][int(tr["idx"])]
+			var g := int(tr["grade"])
+			var trow := HBoxContainer.new()
+			trow.alignment = BoxContainer.ALIGNMENT_CENTER
+			trow.add_theme_constant_override("separation", 8)
+			v.add_child(trow)
+			trow.add_child(_icon(String(tre["icon"]), Color(tre["col"]), 56.0))
+			var msg := "보물! %s %s" % [String(LaneData.GRADE_NAME[g]), String(tre["name"])]
+			if not bool(tr["up"]):
+				msg += " (이미 더 좋은 걸 가졌어요)"
+			trow.add_child(IdleUi.label(msg, 26, Color(LaneData.GRADE_COL[g]) if bool(tr["up"]) else IdleUi.SUB))
+		if String(r.get("acc", "")) != "":
+			var ad: Dictionary = LaneData.ACCESSORIES[String(r["acc"])]
+			var arow := HBoxContainer.new()
+			arow.alignment = BoxContainer.ALIGNMENT_CENTER
+			arow.add_theme_constant_override("separation", 8)
+			v.add_child(arow)
+			arow.add_child(_icon(String(ad["icon"]), Color(ad["col"]), 56.0))
+			arow.add_child(IdleUi.label("장신구! %s" % String(ad["name"]), 28, IdleUi.GOLD))
 		for id in r.get("new_units", []):
 			v.add_child(_center(IdleUi.label("새 친구! %s 합류" % String(LaneData.UNITS[id]["name"]), 28, IdleUi.GREEN)))
 	else:

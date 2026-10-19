@@ -19,7 +19,7 @@ func _ready() -> void:
 	var cont = $UILayer/Control/VBox/ContinueBtn
 	cont.visible = false
 	var start: Button = $UILayer/Control/VBox/StartBtn
-	start.text = "이어서 하기" if IdleState.has_save() else "시작하기"
+	start.text = "이어서 하기" if LaneState.has_save() else "시작하기"
 	start.pressed.connect(_on_start)
 	$UILayer/Control/SmallBtnRow/QuitBtn.pressed.connect(_on_quit)
 	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(
@@ -240,7 +240,8 @@ func _capture_shot() -> void:
 	get_tree().quit()
 
 # ─── 시작 ───
-const GAME_PATH := "res://scenes/idle/IdleGame.tscn"
+## 쿼카 군단이 이제 기본 게임이다 (옛 꿈결 키우기 저장은 첫 실행 때 선물로 바뀐다 - `LaneState.migrate_from_idle`).
+const GAME_PATH := "res://scenes/lane/LaneGame.tscn"
 
 func _on_start() -> void:
 	# 저장은 게임 쪽이 알아서 읽는다 (없으면 처음부터).
@@ -339,7 +340,7 @@ func _add_subtitle() -> void:
 		return
 	var l := Label.new()
 	l.name = "Subtitle"
-	l.text = "알아서 싸우는 쿼카를 키워요"
+	l.text = "쿼카와 동물 친구들이 벌레를 막아요"
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_font_size_override("font_size", 28)
 	l.add_theme_color_override("font_color", Color(0.42, 0.36, 0.30))
@@ -413,7 +414,7 @@ func _show_credits() -> void:
 
 	var lines := [
 		["진짜 행복", 54, Color(1, 0.93, 0.78)],
-		["알아서 싸우는 쿼카를 키워요", 30, Color(1, 0.86, 0.62)],
+		["쿼카와 동물 친구들이 벌레를 막아요", 30, Color(1, 0.86, 0.62)],
 		["", 18, Color.WHITE],
 		["1인 개발  김근영", 28, Color(0.96, 0.92, 0.82)],
 		["기획 · 개발 · 아트", 26, Color(0.82, 0.86, 0.96)],
@@ -527,23 +528,18 @@ func _restyle_menu() -> void:
 	col.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	ctrl.add_child(col)
 
-	var has := IdleState.has_save()
+	var has := LaneState.has_save()
 	var start := _menu_button("이어서 하기" if has else "시작하기", "play", "gold", 40, 100.0)
 	start.pressed.connect(_on_start)
 	col.add_child(start)
-	# 새 버전 - 쿼카 군단 (세로 한 줄 싸움). 폰에서 해 보고 마음에 들면 지금 게임과 바꾼다 (`docs/redesign-lane.md`).
-	var lane := _menu_button("새 버전: 쿼카 군단", "sword", "plum", 30, 84.0)
-	lane.pressed.connect(func() -> void: _go("res://scenes/lane/LaneGame.tscn", "hopeful"))
-	col.add_child(lane)
 	if has:
 		_new_btn = _menu_button("처음부터 하기", "refresh", "plum", 30, 74.0)
 		_new_btn.pressed.connect(_confirm_new_game)
 		col.add_child(_new_btn)
 		# 어디까지 왔는지 한 줄 (저장을 읽기만 한다 - 게임 화면이 다시 읽는다)
-		if IdleState.load_save():
-			var j: Dictionary = IdleData.JOBS.get(IdleState.job, IdleData.JOBS["novice"])
-			var info := IdleUi.label("LV %d %s  ·  %s" % [IdleState.level, String(j["name"]),
-				IdleData.stage_label(IdleState.stage)], 22, IdleUi.SUB, true)
+		if LaneState.load_save():
+			var info := IdleUi.label("%s  ·  친구 %d / %d" % [LaneData.stage_label(mini(LaneState.cleared + 1,
+				LaneData.STAGE_MAX)), LaneState.owned_count(), LaneData.ALL_ORDER.size()], 22, IdleUi.SUB, true)
 			info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			col.add_child(info)
 	var row := HBoxContainer.new()
@@ -671,7 +667,7 @@ func _confirm_new_game() -> void:
 	var t := IdleUi.label("처음부터 할까요?", 38, IdleUi.GOLD)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
-	var d := IdleUi.label("레벨 · 장비 · 꿈조각이 모두 사라져요.\n되돌릴 수 없어요.", 24, IdleUi.CREAM)
+	var d := IdleUi.label("모은 친구 · 보물 · 장신구 · 꿈조각이 모두 사라져요.\n되돌릴 수 없어요.", 24, IdleUi.CREAM)
 	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(d)
 	var row := HBoxContainer.new()
@@ -686,7 +682,9 @@ func _confirm_new_game() -> void:
 	yes.custom_minimum_size = Vector2(0, 70)
 	yes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	yes.pressed.connect(func() -> void:
-		IdleState.clear_save()
+		LaneState.clear_save()
+		LaneState.migrated = true    # 옛 게임 선물은 한 번만
+		LaneState.save()
 		layer.queue_free()
 		AudioManager.ui_confirm()
 		_go(GAME_PATH, "hopeful"))

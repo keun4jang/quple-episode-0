@@ -204,7 +204,7 @@ const BUGS := {
 	"fly_king":      {"name": "왕파리", "trait": "fly", "hp": 15000, "atk": 200, "every": 1.2, "range": 180, "speed": 120, "kb": 1, "area": true, "reward": 1100, "boss": true},
 	"moth_queen":    {"name": "나방 여왕", "trait": "fly", "hp": 17000, "atk": 240, "every": 2.2, "range": 300, "speed": 70, "kb": 1, "area": true, "reward": 1200, "boss": true},
 	"cricket_king":  {"name": "땅강아지왕", "trait": "shell", "hp": 15000, "atk": 200, "every": 2.6, "range": 190, "speed": 50, "kb": 1, "area": true, "reward": 1300, "boss": true},
-	"centipede_king":{"name": "지네 대왕", "trait": "poison", "hp": 26000, "atk": 300, "every": 1.4, "range": 200, "speed": 90, "kb": 1, "area": true, "reward": 1400, "boss": true},
+	"centipede_king":{"name": "지네 대왕", "trait": "poison", "hp": 26000, "atk": 230, "every": 1.6, "range": 200, "speed": 90, "kb": 1, "area": true, "reward": 1400, "boss": true},
 	"roach_king":    {"name": "바퀴벌레 대왕", "trait": "crawl", "hp": 40000, "atk": 290, "every": 1.6, "range": 220, "speed": 80, "kb": 1, "area": true, "reward": 2000, "boss": true},
 }
 const TRAIT_NAME := {"crawl": "기어다님", "fly": "날벌레", "shell": "껍질", "poison": "독"}
@@ -303,3 +303,118 @@ static func reward(n: int, first: bool) -> Dictionary:
 		var z := (n - 1) / STAGES_PER_ZONE
 		return {"xp": xp * 2, "stars": (20 + 5 * z) if boss else (6 + 2 * z), "tickets": 1 if boss else 0}
 	return {"xp": xp, "stars": 1, "tickets": 0}
+
+
+# ── 보물 (구역마다 3개, 하급·보통·상급) ─────────────────────────────────
+## 그 구역 판을 깨면 가끔 나온다 (처음 깨면 꼭). 더 좋은 등급이 나오면 바뀐다 - "한 번 더" 의 이유.
+## kind: atk 공격% · hp 체력% · rate 수입% · cannon 대포 충전% · xp 꿈조각% · wallet 시작 꿈빛 · stars 꿈별(첫 클리어)
+## per: 등급 하나당 효과 (상급 = ×3). icon: 그림 모양 · col: 색
+const TREASURES := [
+	[{"name": "이슬 방울", "kind": "atk", "per": 0.5, "icon": "drop", "col": "#8FD8FF"},
+		{"name": "네잎클로버", "kind": "hp", "per": 0.5, "icon": "clover", "col": "#6CC24A"},
+		{"name": "민들레 씨", "kind": "wallet", "per": 15.0, "icon": "fluff", "col": "#FFF4C8"}],
+	[{"name": "물빛 조약돌", "kind": "atk", "per": 0.5, "icon": "pebble", "col": "#9AB8D8"},
+		{"name": "연잎", "kind": "hp", "per": 0.5, "icon": "leaf", "col": "#4FAE6A"},
+		{"name": "물방울 구슬", "kind": "rate", "per": 1.0, "icon": "orb", "col": "#7FD0FF"}],
+	[{"name": "꿀 단지", "kind": "atk", "per": 0.5, "icon": "jar", "col": "#F2B33C"},
+		{"name": "꽃잎 브로치", "kind": "hp", "per": 0.5, "icon": "flower", "col": "#FF8FB8"},
+		{"name": "나비 리본", "kind": "xp", "per": 2.0, "icon": "ribbon", "col": "#C58CFF"}],
+	[{"name": "황금 도토리", "kind": "atk", "per": 0.5, "icon": "acorn", "col": "#D9A040"},
+		{"name": "이끼 반지", "kind": "hp", "per": 0.5, "icon": "ring", "col": "#7CC15A"},
+		{"name": "나무 피리", "kind": "cannon", "per": 3.0, "icon": "flute", "col": "#A9754A"}],
+	[{"name": "은실 타래", "kind": "atk", "per": 0.5, "icon": "spool", "col": "#D8DEE8"},
+		{"name": "반딧불 등", "kind": "hp", "per": 0.5, "icon": "lantern", "col": "#F2E05A"},
+		{"name": "수정 조각", "kind": "rate", "per": 1.0, "icon": "gem", "col": "#B8A6FF"}],
+	[{"name": "병뚜껑 메달", "kind": "atk", "per": 0.5, "icon": "coin", "col": "#E8C050"},
+		{"name": "반짝 단추", "kind": "hp", "per": 0.5, "icon": "button", "col": "#FF7A7A"},
+		{"name": "낡은 열쇠", "kind": "wallet", "per": 15.0, "icon": "key", "col": "#C9A060"}],
+	[{"name": "달 조각", "kind": "atk", "per": 0.5, "icon": "moon", "col": "#FFE59A"},
+		{"name": "별가루 병", "kind": "hp", "per": 0.5, "icon": "bottle", "col": "#9FD8FF"},
+		{"name": "밤 깃털", "kind": "xp", "per": 2.0, "icon": "feather", "col": "#8E7AC8"}],
+	[{"name": "무지개 버섯", "kind": "atk", "per": 0.5, "icon": "mushroom", "col": "#FF6B8A"},
+		{"name": "보석 원석", "kind": "hp", "per": 0.5, "icon": "gem", "col": "#5BD8B0"},
+		{"name": "광부 램프", "kind": "cannon", "per": 3.0, "icon": "lantern", "col": "#FFB03C"}],
+	[{"name": "은 숟가락", "kind": "atk", "per": 0.5, "icon": "spoon", "col": "#E0E6EE"},
+		{"name": "각설탕", "kind": "hp", "per": 0.5, "icon": "cube", "col": "#FFFFFF"},
+		{"name": "찻잔", "kind": "rate", "per": 1.0, "icon": "cup", "col": "#FFB6C8"}],
+	[{"name": "꿈 왕관 조각", "kind": "atk", "per": 0.8, "icon": "crown", "col": "#FFD15A"},
+		{"name": "새벽 종", "kind": "hp", "per": 0.8, "icon": "bell", "col": "#F2C14E"},
+		{"name": "첫 햇살", "kind": "xp", "per": 3.0, "icon": "sun", "col": "#FFB84A"}],
+]
+## `lane-icons.png` 의 순서 (`tools/pixel/make-lane-icons.py` 와 같다).
+const ICONS := ["drop", "clover", "fluff", "pebble", "leaf", "orb", "jar", "flower", "ribbon", "acorn", "ring", "flute",
+	"spool", "lantern", "gem", "coin", "button", "key", "moon", "bottle", "feather", "mushroom", "spoon", "cube",
+	"cup", "crown", "bell", "sun", "star", "vest", "glove", "shoe", "candy", "shield"]
+const GRADE_NAME := ["", "하급", "보통", "상급"]
+const GRADE_COL := ["#6A6080", "#C99466", "#D8DEE8", "#FFD15A"]
+## 보물이 나올 확률 (다시 깰 때) 과 등급 확률 (상급, 보통 - 나머지 하급). 우두머리 판은 상급이 잘 나온다.
+const TREASURE_DROP := 0.3
+const TREASURE_FIRST := 0.6         ## 처음 깰 때
+const GRADE_ROLL := [0.15, 0.35]
+const GRADE_ROLL_BOSS := [0.3, 0.4]
+const BONUS_NAME := {"atk": "공격", "hp": "체력", "rate": "수입", "cannon": "대포 충전", "xp": "꿈조각",
+	"wallet": "시작 꿈빛", "speed": "걸음", "guard": "받는 피해", "slow": "느리게 시간"}
+
+
+static func bonus_text(kind: String, v: float) -> String:
+	if kind == "wallet":
+		return "%s +%d" % [String(BONUS_NAME[kind]), int(round(v))]
+	if kind == "guard":
+		return "%s -%d%%" % [String(BONUS_NAME[kind]), int(round(v))]
+	var t := ("%.1f" % v) if absf(v - round(v)) > 0.05 else str(int(round(v)))
+	return "%s +%s%%" % [String(BONUS_NAME[kind]), t]
+
+
+# ── 장신구 (우두머리를 처음 잡으면 하나씩, 유닛 하나에 하나 단다) ───────────────
+## eff: 그 유닛에만. 레벨(1~5)마다 per 만큼 더. 레벨업은 꿈조각.
+## atk·hp·speed % · every 공격 간격 -% · cd 다시 내기 -% · cost 비용 -% · guard 받는 피해 -% · crit 치명타 +%p · slow 느리게 확률 %p
+const ACCESSORIES := {
+	"feather_hat":  {"name": "깃털 모자", "eff": {"speed": [15.0, 4.0]}, "icon": "feather", "col": "#FF8FB8", "zone": 0},
+	"star_necklace":{"name": "별 목걸이", "eff": {"atk": [6.0, 3.0]}, "icon": "star", "col": "#FFD15A", "zone": 1},
+	"fluffy_vest":  {"name": "솜털 조끼", "eff": {"hp": [10.0, 4.0]}, "icon": "vest", "col": "#FFF4E0", "zone": 2},
+	"clover_pin":   {"name": "네잎 브로치", "eff": {"crit": [5.0, 2.0]}, "icon": "clover", "col": "#6CC24A", "zone": 3},
+	"ice_bell":     {"name": "얼음 방울", "eff": {"slow": [10.0, 3.0]}, "icon": "bell", "col": "#9FE4FF", "zone": 4},
+	"bolt_gloves":  {"name": "번개 장갑", "eff": {"every": [5.0, 2.0]}, "icon": "glove", "col": "#FFE05A", "zone": 5},
+	"wind_shoes":   {"name": "바람 신발", "eff": {"cd": [8.0, 3.0]}, "icon": "shoe", "col": "#7FD0FF", "zone": 6},
+	"honey_candy":  {"name": "꿀 사탕", "eff": {"cost": [6.0, 2.0]}, "icon": "candy", "col": "#F2B33C", "zone": 7},
+	"mirror_shield":{"name": "거울 방패", "eff": {"guard": [8.0, 3.0]}, "icon": "shield", "col": "#D8DEE8", "zone": 8},
+	"dream_crown":  {"name": "꿈 왕관", "eff": {"atk": [8.0, 3.0], "hp": [8.0, 3.0]}, "icon": "crown", "col": "#FFD15A", "zone": 9},
+}
+const ACC_ORDER := ["feather_hat", "star_necklace", "fluffy_vest", "clover_pin", "ice_bell", "bolt_gloves",
+	"wind_shoes", "honey_candy", "mirror_shield", "dream_crown"]
+const ACC_LV_MAX := 5
+const ACC_EFF_NAME := {"atk": "공격", "hp": "체력", "speed": "걸음", "every": "공격 간격", "cd": "다시 내기",
+	"cost": "비용", "guard": "받는 피해", "crit": "치명타", "slow": "느리게 확률"}
+
+
+static func acc_value(id: String, key: String, lv: int) -> float:
+	var e: Array = ACCESSORIES[id]["eff"][key]
+	return float(e[0]) + float(e[1]) * float(maxi(1, lv) - 1)
+
+
+static func acc_text(id: String, lv: int) -> String:
+	var out: Array = []
+	for k in ACCESSORIES[id]["eff"].keys():
+		var v := acc_value(id, String(k), lv)
+		var minus: bool = k in ["every", "cd", "cost", "guard"]
+		out.append("%s %s%d%%" % [String(ACC_EFF_NAME[k]), "-" if minus else "+", int(round(v))])
+	return " · ".join(out)
+
+
+static func acc_level_cost(lv: int) -> int:
+	return int(round(3000.0 * pow(float(lv), 1.6)))
+
+
+# ── 콤보 (같이 편성하면) ──────────────────────────────────────────────
+const COMBOS := [
+	{"name": "쿼카 삼총사", "units": ["tiny", "shield", "spear"], "kind": "hp", "v": 8.0},
+	{"name": "대장간", "units": ["hammer", "giant"], "kind": "atk", "v": 8.0},
+	{"name": "멀리멀리", "units": ["sling", "mage"], "kind": "cannon", "v": 15.0},
+	{"name": "숲속 친구들", "units": ["squirrel", "hedgehog", "mole"], "kind": "wallet", "v": 150.0},
+	{"name": "물가 친구들", "units": ["frog", "duck", "otter"], "kind": "rate", "v": 10.0},
+	{"name": "하늘 친구들", "units": ["chick", "owl", "eagle"], "kind": "cannon", "v": 25.0},
+	{"name": "얼음 나라", "units": ["penguin", "polar"], "kind": "slow", "v": 50.0},
+	{"name": "푹신 친구들", "units": ["sheep", "rabbit", "panda"], "kind": "xp", "v": 15.0},
+	{"name": "줄무늬 달리기", "units": ["tiger", "runner"], "kind": "speed", "v": 15.0},
+	{"name": "단단한 등껍질", "units": ["turtle", "shield"], "kind": "guard", "v": 10.0},
+]

@@ -136,6 +136,7 @@ func _ready() -> void:
 	LaneState.clear_save()
 	ck("지우면 없다", not LaneState.has_save())
 	_test_gacha()
+	_test_extras()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(1 if fail_n > 0 else 0)
 
@@ -220,4 +221,72 @@ func _test_gacha() -> void:
 		if not ResourceLoader.exists(LaneData.sheet_path(String(id), 1)) or not ResourceLoader.exists(LaneData.sheet_path(String(id), 10)):
 			all_ok = false
 	ck("모든 친구 그림이 있다 (진화 포함)", all_ok)
+	LaneState.reset()
+
+
+func _test_extras() -> void:
+	print("\n[보물·장신구·콤보·옛 저장]")
+	LaneState.reset()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var firsts := 0
+	for i in 200:
+		LaneState.reset()
+		if not (LaneState.on_win(1, rng)["treasure"] as Dictionary).is_empty():
+			firsts += 1
+	ck("처음 깨면 보물이 자주 나온다 (60%)", absf(float(firsts) / 200.0 - LaneData.TREASURE_FIRST) < 0.1, str(firsts))
+	var got := 0
+	for i in 300:
+		var rr := LaneState.on_win(1, rng)
+		if not (rr["treasure"] as Dictionary).is_empty():
+			got += 1
+	ck("다시 깨면 가끔 나온다", got > 0 and got < 300, str(got))
+	ck("많이 돌면 구역 보물을 다 모은다", LaneState.treasure_count(0) == 9)
+	var tb := LaneState.treasure_bonus()
+	ck("보물 효과가 합쳐진다", is_equal_approx(float(tb["atk"]), 1.5) and is_equal_approx(float(tb["wallet"]), 45.0))
+	var b := LaneBattle.new()
+	b.start(1, 1)
+	ck("시작 꿈빛 보너스", is_equal_approx(b.wallet, 45.0))
+	ck("공격 보너스가 판에 들어간다", is_equal_approx(float(b.stats["tiny"]["atk"]), float(LaneState.unit_stats("tiny")["atk"]) * 1.015))
+	# 장신구: 우두머리를 처음 잡으면
+	LaneState.cleared = 9
+	var rb := LaneState.on_win(10, rng)
+	ck("우두머리 첫 클리어 = 장신구", String(rb["acc"]) == "feather_hat" and LaneState.accs.has("feather_hat"))
+	var sp0 := float(LaneState.unit_stats("tiny")["speed"])
+	ck("장신구 달기", LaneState.equip("tiny", "feather_hat") and LaneState.wearer("feather_hat") == "tiny")
+	ck("달면 그 유닛만 세진다", is_equal_approx(float(LaneState.unit_stats("tiny")["speed"]), sp0 * 1.15)
+		and is_equal_approx(float(LaneState.unit_stats("shield")["speed"]), float(LaneData.UNITS["shield"]["speed"])))
+	LaneState.equip("shield", "feather_hat")
+	ck("다른 유닛에 달면 옮겨 간다", LaneState.wearer("feather_hat") == "shield" and not LaneState.acc_on.has("tiny"))
+	LaneState.xp = 999999
+	ck("장신구 강화", LaneState.level_acc("feather_hat") and int(LaneState.accs["feather_hat"]) == 2)
+	LaneState.accs["mirror_shield"] = 1
+	LaneState.equip("tiny", "mirror_shield")
+	ck("받는 피해 줄이기", is_equal_approx(float(LaneState.unit_stats("tiny")["guard"]), 0.92))
+	# 콤보
+	LaneState.units["spear"] = 1
+	LaneState.lineup = ["tiny", "shield", "spear"]
+	var cs := LaneState.active_combos()
+	ck("쿼카 삼총사 콤보", cs.size() == 1 and String(cs[0]["name"]) == "쿼카 삼총사")
+	ck("콤보가 보너스에 들어간다", float(LaneState.bonuses()["hp"]) > float(LaneState.treasure_bonus()["hp"]))
+	# 저장
+	var d := LaneState.to_dict()
+	LaneState.reset()
+	LaneState.from_dict(d)
+	ck("보물·장신구 저장", LaneState.treasure_count(0) == 9 and int(LaneState.accs["feather_hat"]) == 2
+		and LaneState.wearer("mirror_shield") == "tiny")
+	# 옛 저장 → 선물 (한 번만)
+	var had := IdleState.has_save()
+	if not had:
+		IdleState.reset()
+		IdleState.best = 30
+		IdleState.level = 12
+		IdleState.save(1)
+		LaneState.reset()
+		var g := LaneState.migrate_from_idle()
+		ck("옛 저장이 선물이 된다", int(g.get("stars", 0)) == 180 and LaneState.tickets == 1 + int(g["tickets"]))
+		ck("선물은 한 번만", LaneState.migrate_from_idle().is_empty())
+		IdleState.clear_save()
+	LaneState.reset()
+	ck("옛 저장이 없으면 선물 없음", IdleState.has_save() == had and (had or LaneState.migrate_from_idle().is_empty()))
 	LaneState.reset()

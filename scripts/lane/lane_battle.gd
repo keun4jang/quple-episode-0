@@ -35,6 +35,11 @@ var _half_fired := false
 var _ai_t := 0.0
 var auto := false
 var boss_alive := false
+## 보물·콤보 보너스 (판 전체)
+var bonus: Dictionary = {}
+var rate_mult := 1.0
+var cannon_mult := 1.0
+var slow_mult := 1.0
 
 
 func start(stage_n: int, seed_value: int = -1) -> void:
@@ -58,8 +63,18 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 	lineup = LaneState.lineup.duplicate()
 	stats = {}
 	cds = {}
+	bonus = LaneState.bonuses()
+	rate_mult = 1.0 + float(bonus.get("rate", 0.0)) / 100.0
+	cannon_mult = 1.0 + float(bonus.get("cannon", 0.0)) / 100.0
+	slow_mult = 1.0 + float(bonus.get("slow", 0.0)) / 100.0
+	wallet = float(bonus.get("wallet", 0.0))
 	for id in lineup:
-		stats[id] = LaneState.unit_stats(String(id))
+		var st := LaneState.unit_stats(String(id))
+		st["atk"] = float(st["atk"]) * (1.0 + float(bonus.get("atk", 0.0)) / 100.0)
+		st["hp"] = float(st["hp"]) * (1.0 + float(bonus.get("hp", 0.0)) / 100.0)
+		st["speed"] = float(st["speed"]) * (1.0 + float(bonus.get("speed", 0.0)) / 100.0)
+		st["guard"] = float(st.get("guard", 1.0)) * (1.0 - float(bonus.get("guard", 0.0)) / 100.0)
+		stats[id] = st
 		cds[id] = 0.0
 	ents = []
 	_uid = 0
@@ -148,8 +163,8 @@ func tick(dt: float) -> Array:
 
 func _step(d: float) -> void:
 	time += d
-	wallet = minf(float(wallet_cap()), wallet + float(LaneData.WALLET_RATE[worker - 1]) * d)
-	cannon = minf(LaneData.CANNON_CHARGE, cannon + d)
+	wallet = minf(float(wallet_cap()), wallet + float(LaneData.WALLET_RATE[worker - 1]) * rate_mult * d)
+	cannon = minf(LaneData.CANNON_CHARGE, cannon + d * cannon_mult)
 	for id in cds.keys():
 		cds[id] = maxf(0.0, float(cds[id]) - d)
 	_spawn_bugs(d)
@@ -223,7 +238,8 @@ func _make(s: Dictionary, side: String, pos: float) -> Dictionary:
 		"no_kb": bool(s.get("no_kb", false)), "trait": String(s.get("trait", "")), "boss": bool(s.get("boss", false)),
 		"reward": float(s.get("reward", 0)), "slow_rule": s.get("slow", {}), "kb_from": 0.0, "kb_to": 0.0,
 		"strong": s.get("strong", []), "massive": s.get("massive", []), "crit": float(s.get("crit", 0.0)),
-		"kb_hit": float(s.get("kb_hit", 0.0)), "rarity": String(s.get("rarity", ""))}
+		"kb_hit": float(s.get("kb_hit", 0.0)), "rarity": String(s.get("rarity", "")),
+		"guard": float(s.get("guard", 1.0))}
 
 
 func _count(side: String) -> int:
@@ -315,9 +331,11 @@ func _strike(e: Dictionary, o: Dictionary, base: float) -> void:
 		elif (e["strong"] as Array).has(tr):
 			dmg *= LaneData.STRONG_MULT
 			eff = "strong"
-	elif (o["strong"] as Array).has(String(e["trait"])):
-		dmg *= LaneData.STRONG_TAKEN
-		eff = "guard"
+	else:
+		dmg *= float(o["guard"])
+		if (o["strong"] as Array).has(String(e["trait"])):
+			dmg *= LaneData.STRONG_TAKEN
+			eff = "guard"
 	var crit := float(e["crit"]) > 0.0 and rng.randf() < float(e["crit"])
 	if crit:
 		dmg *= LaneData.CRIT_MULT
@@ -344,7 +362,7 @@ func _damage(o: Dictionary, dmg: float, cannon_hit: bool, by: Dictionary = {}, e
 	var rule: Dictionary = by.get("slow_rule", {})
 	if not rule.is_empty() and (String(rule["trait"]) == "all" or String(o["trait"]) == String(rule["trait"])) \
 			and rng.randf() < float(rule["chance"]):
-		o["slow"] = float(rule["secs"])
+		o["slow"] = float(rule["secs"]) * slow_mult
 		events.append({"k": "slow", "uid": o["uid"]})
 	if float(o["hp"]) <= 0.0:
 		o["hp"] = 0.0

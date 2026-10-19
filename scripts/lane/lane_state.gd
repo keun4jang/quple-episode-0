@@ -25,6 +25,14 @@ static var pulls := 0
 ## 매일 선물: 마지막으로 받은 날(유닉스 일 수) · 이어 받은 날 수
 static var daily_day := 0
 static var daily_streak := 0
+## 보물: 구역마다 [등급, 등급, 등급] (0 없음 · 1 하급 · 2 보통 · 3 상급)
+static var treasures: Array = []
+## 장신구 → 레벨, 유닛 → 단 장신구
+static var accs: Dictionary = {}
+static var acc_on: Dictionary = {}
+## 옛 꿈결 키우기 저장에서 선물을 받았나
+static var migrated := false
+static var _rng := RandomNumberGenerator.new()
 
 
 static func reset() -> void:
@@ -43,6 +51,12 @@ static func reset() -> void:
 	pulls = 0
 	daily_day = 0
 	daily_streak = 0
+	treasures = []
+	for z in LaneData.ZONES.size():
+		treasures.append([0, 0, 0])
+	accs = {}
+	acc_on = {}
+	migrated = false
 
 
 static func has_unit(id: String) -> bool:
@@ -98,13 +112,39 @@ static func unit_stats(id: String) -> Dictionary:
 	u["hp"] = float(u["hp"]) * m
 	u["atk"] = float(u["atk"]) * m
 	u["id"] = id
+	var acc := String(acc_on.get(id, ""))
+	if acc != "" and accs.has(acc):
+		var lv := int(accs[acc])
+		for k in LaneData.ACCESSORIES[acc]["eff"].keys():
+			var v := LaneData.acc_value(acc, String(k), lv) / 100.0
+			match String(k):
+				"atk", "hp", "speed":
+					u[k] = float(u[k]) * (1.0 + v)
+				"every", "cd", "cost":
+					u[k] = float(u[k]) * (1.0 - v)
+				"guard":
+					u["guard"] = float(u.get("guard", 1.0)) * (1.0 - v)
+				"crit":
+					u["crit"] = float(u.get("crit", 0.0)) + v
+				"slow":
+					var sl: Dictionary = (u.get("slow", {}) as Dictionary).duplicate()
+					if sl.is_empty():
+						sl = {"trait": "all", "chance": v, "secs": 2.0}
+					else:
+						sl["chance"] = minf(1.0, float(sl["chance"]) + v)
+					u["slow"] = sl
+		u["cost"] = int(round(float(u["cost"])))
 	return u
 
 
-## 판을 이겼다. 받은 것 `{xp, stars, first, new_units}`.
-static func on_win(n: int) -> Dictionary:
+## 판을 이겼다. 받은 것 `{xp, stars, tickets, first, new_units, treasure, acc}`.
+static func on_win(n: int, rng: RandomNumberGenerator = null) -> Dictionary:
+	if rng == null:
+		rng = _rng
+		rng.randomize()
 	var first := n > cleared
 	var r := LaneData.reward(n, first)
+	r["xp"] = int(round(float(r["xp"]) * (1.0 + float(bonuses().get("xp", 0.0)) / 100.0)))
 	xp += int(r["xp"])
 	stars += int(r["stars"])
 	tickets += int(r.get("tickets", 0))
@@ -113,7 +153,137 @@ static func on_win(n: int) -> Dictionary:
 		cleared = n
 	r["first"] = first
 	r["new_units"] = unlock_by_stage()
+	r["treasure"] = _roll_treasure(n, first, rng)
+	r["acc"] = ""
+	if first and n % LaneData.STAGES_PER_ZONE == 0:
+		var zi := (n - 1) / LaneData.STAGES_PER_ZONE
+		for id in LaneData.ACC_ORDER:
+			if int(LaneData.ACCESSORIES[id]["zone"]) == zi and not accs.has(id):
+				accs[id] = 1
+				r["acc"] = id
 	return r
+
+
+# ── 보물 ─────────────────────────────────────────────────────────────
+
+## 보물을 굴린다. 나오면 {zone, idx, grade, up(더 좋아졌나)}, 안 나오면 {}.
+static func _roll_treasure(n: int, first: bool, rng: RandomNumberGenerator) -> Dictionary:
+	if rng.randf() >= (LaneData.TREASURE_FIRST if first else LaneData.TREASURE_DROP):
+		return {}
+	var zi := clampi((n - 1) / LaneData.STAGES_PER_ZONE, 0, LaneData.ZONES.size() - 1)
+	var row: Array = treasures[zi]
+	# 아직 상급이 아닌 것 중에서 고른다 (다 모았으면 아무거나)
+	var cands: Array = []
+	for i in 3:
+		if int(row[i]) < 3:
+			cands.append(i)
+	if cands.is_empty():
+		return {}
+	var idx := int(cands[rng.randi() % cands.size()])
+	var roll: Array = LaneData.GRADE_ROLL_BOSS if n % LaneData.STAGES_PER_ZONE == 0 else LaneData.GRADE_ROLL
+	var x := rng.randf()
+	var g := 3 if x < float(roll[0]) else (2 if x < float(roll[0]) + float(roll[1]) else 1)
+	var up := g > int(row[idx])
+	if up:
+		row[idx] = g
+	return {"zone": zi, "idx": idx, "grade": g, "up": up}
+
+
+static func treasure_count(zi: int) -> int:
+	var c := 0
+	for g in treasures[zi]:
+		c += int(g)
+	return c
+
+
+# ── 보너스 (보물 + 콤보) ──────────────────────────────────────────────
+
+static func treasure_bonus() -> Dictionary:
+	var out := {}
+	for zi in treasures.size():
+		for i in 3:
+			var g := int(treasures[zi][i])
+			if g > 0:
+				var t: Dictionary = LaneData.TREASURES[zi][i]
+				out[t["kind"]] = float(out.get(t["kind"], 0.0)) + float(t["per"]) * float(g)
+	return out
+
+
+## 지금 편성에서 켜진 콤보들.
+static func active_combos(l: Array = []) -> Array:
+	if l.is_empty():
+		l = lineup
+	var out: Array = []
+	for c in LaneData.COMBOS:
+		var ok := true
+		for u in c["units"]:
+			if not l.has(u):
+				ok = false
+				break
+		if ok:
+			out.append(c)
+	return out
+
+
+## 판 전체에 붙는 보너스 {kind: 값}. 장신구는 유닛마다 따로 (`unit_stats`).
+static func bonuses() -> Dictionary:
+	var out := treasure_bonus()
+	for c in active_combos():
+		out[c["kind"]] = float(out.get(c["kind"], 0.0)) + float(c["v"])
+	return out
+
+
+# ── 장신구 ───────────────────────────────────────────────────────────
+
+static func equip(unit: String, acc: String) -> bool:
+	if not units.has(unit) or not accs.has(acc):
+		return false
+	for u in acc_on.keys():
+		if String(acc_on[u]) == acc:
+			acc_on.erase(u)
+	acc_on[unit] = acc
+	return true
+
+
+static func unequip(unit: String) -> void:
+	acc_on.erase(unit)
+
+
+## 이 장신구를 달고 있는 유닛 ("" = 아무도).
+static func wearer(acc: String) -> String:
+	for u in acc_on.keys():
+		if String(acc_on[u]) == acc:
+			return String(u)
+	return ""
+
+
+static func can_level_acc(acc: String) -> bool:
+	return accs.has(acc) and int(accs[acc]) < LaneData.ACC_LV_MAX and xp >= LaneData.acc_level_cost(int(accs[acc]))
+
+
+static func level_acc(acc: String) -> bool:
+	if not can_level_acc(acc):
+		return false
+	xp -= LaneData.acc_level_cost(int(accs[acc]))
+	accs[acc] = int(accs[acc]) + 1
+	return true
+
+
+# ── 옛 꿈결 키우기에서 온 선물 ─────────────────────────────────────────
+
+## 옛 게임 저장이 있으면 한 번만 선물로 바꿔 준다 (옛 저장은 지우지 않는다). 받으면 {stars, tickets, xp}.
+static func migrate_from_idle() -> Dictionary:
+	if migrated:
+		return {}
+	migrated = true
+	if not IdleState.has_save() or not IdleState.load_save():
+		return {}
+	var best := maxi(1, IdleState.best)
+	var g := {"stars": mini(1500, best * 6), "tickets": mini(10, 2 + best / 15), "xp": mini(60000, IdleState.level * 400)}
+	stars += int(g["stars"])
+	tickets += int(g["tickets"])
+	xp += int(g["xp"])
+	return g
 
 
 ## 자는 동안: 가장 멀리 깬 곳 기준 꿈조각 (최대 8시간).
@@ -240,7 +410,8 @@ static func to_dict() -> Dictionary:
 	return {"v": 1, "xp": xp, "stars": stars, "units": units.duplicate(), "lineup": lineup.duplicate(),
 		"cleared": cleared, "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed2,
 		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
-		"daily_day": daily_day, "daily_streak": daily_streak}
+		"daily_day": daily_day, "daily_streak": daily_streak, "treasures": treasures.duplicate(true),
+		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -274,6 +445,23 @@ static func from_dict(d: Dictionary) -> void:
 	pulls = maxi(0, int(d.get("pulls", 0)))
 	daily_day = maxi(0, int(d.get("daily_day", 0)))
 	daily_streak = maxi(0, int(d.get("daily_streak", 0)))
+	var tr = d.get("treasures", [])
+	if tr is Array:
+		for zi in mini((tr as Array).size(), treasures.size()):
+			if tr[zi] is Array:
+				for i in mini((tr[zi] as Array).size(), 3):
+					treasures[zi][i] = clampi(int(tr[zi][i]), 0, 3)
+	var ac = d.get("accs", {})
+	if ac is Dictionary:
+		for k in (ac as Dictionary).keys():
+			if LaneData.ACCESSORIES.has(String(k)):
+				accs[String(k)] = clampi(int(ac[k]), 1, LaneData.ACC_LV_MAX)
+	var ao = d.get("acc_on", {})
+	if ao is Dictionary:
+		for k in (ao as Dictionary).keys():
+			if units.has(String(k)) and accs.has(String(ao[k])) and wearer(String(ao[k])) == "":
+				acc_on[String(k)] = String(ao[k])
+	migrated = bool(d.get("migrated", false))
 	unlock_by_stage()
 
 

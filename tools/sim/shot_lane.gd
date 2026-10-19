@@ -13,6 +13,13 @@ func _ready() -> void:
 	LaneState.stars = 30
 	LaneState.seen_intro = true
 	LaneState.daily_day = int(Time.get_unix_time_from_system()) / 86400
+	LaneState.migrated = true
+	if OS.get_environment("SHOT_LOOT") == "1":
+		# 보물 몇 개 + 장신구 둘 (지도·카드에 보이게)
+		LaneState.treasures[0] = [3, 2, 1]
+		LaneState.treasures[1] = [1, 0, 2]
+		LaneState.accs = {"feather_hat": 2, "star_necklace": 1}
+		LaneState.acc_on = {"tiny": "feather_hat"}
 	if OS.get_environment("SHOT_ANIMALS") != "":
 		LaneState.lineup = []
 		for id in OS.get_environment("SHOT_ANIMALS").split(","):
@@ -31,6 +38,14 @@ func _ready() -> void:
 		if OS.get_environment("SHOT_LEGEND") == "1":
 			LaneState.pity = LaneData.PITY_LEGEND - 1
 		g._do_pull(int(OS.get_environment("SHOT_PULL")) if OS.get_environment("SHOT_PULL") != "" else 1)
+	elif OS.get_environment("SHOT_MODE") == "result":
+		g._start_battle(st)
+		await get_tree().create_timer(0.5).timeout
+		g.stage_n = st
+		g.battle.done = true
+		g._end_battle("win")
+	elif OS.get_environment("SHOT_MODE") == "acc":
+		g._open_acc_picker("tiny")
 	elif OS.get_environment("SHOT_TAB") != "":
 		g._home_tab = OS.get_environment("SHOT_TAB")
 		g._fill_home()
