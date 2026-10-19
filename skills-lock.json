@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "ability-system": {
+      "source": "jame581/godotprompter",
+      "sourceType": "github",
+      "skillPath": "skills/ability-system/SKILL.md",
+      "computedHash": "a8c1b96f944f8b285e50ec58f70dfe8e95571f2fc2fb02bcf38c93ad7c38c3a0"
+    },
     "game-feel": {
       "source": "gamedev-skills/awesome-gamedev-agent-skills",
       "sourceType": "github",
@@ -12,6 +18,18 @@
       "sourceType": "github",
       "skillPath": "skills/godot-shaders-basics/SKILL.md",
       "computedHash": "e2ab1a6fb5214b58393d7e9231e58a64afd0243d4be77b1650cf497ce87d3b73"
+    },
+    "godot-ui": {
+      "source": "jame581/godotprompter",
+      "sourceType": "github",
+      "skillPath": "skills/godot-ui/SKILL.md",
+      "computedHash": "7975d9d0f4cef91299e3b02326c1b83dfde3b433a340f89f69046dc05053aa49"
+    },
+    "hud-system": {
+      "source": "jame581/godotprompter",
+      "sourceType": "github",
+      "skillPath": "skills/hud-system/SKILL.md",
+      "computedHash": "b2039b15d44ca55e391b8231cce77fe1d18a71e7771f58d2d1c077856143470e"
     },
     "particles-vfx": {
       "source": "jame581/godotprompter",

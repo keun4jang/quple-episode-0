@@ -5,7 +5,7 @@
 
 ```bash
 npx --yes skills@latest add gamedev-skills/awesome-gamedev-agent-skills --skill game-feel --agent claude-code --yes --copy
-npx --yes skills@latest add jame581/godotprompter --skill particles-vfx --agent claude-code --yes --copy
+npx --yes skills@latest add jame581/godotprompter --skill particles-vfx --skill godot-ui --skill hud-system --skill ability-system --agent claude-code --yes --copy
 npx --yes skills@latest add thedivergentai/gd-agentic-skills --skill godot-shaders-basics --agent claude-code --yes --copy
 ```
 
@@ -20,3 +20,13 @@ npx --yes skills@latest add thedivergentai/gd-agentic-skills --skill godot-shade
 **주의**: gd-agentic-skills 는 Godot 4.7 기준 예제가 섞여 있다. 우리는 4.3 이라 API 를 그대로 베끼지 말고 확인할 것.
 **겪은 것**: `Gradient.add_point()` 뒤에 `set_color(1, ..)` 을 하면 번호가 밀려 가운데 점이 바뀐다 - 빛 무늬가 네모로 나왔다.
 점은 `offsets`/`colors` 로 한 번에 넣는다 (`IdleVfx._grad`).
+
+## 2026-10 더 깐 것 (UI 전체 개편 · 직업 스킬)
+
+| 스킬 | 가져온 것 | 우리 코드 |
+|---|---|---|
+| godot-ui | Control·컨테이너·테마 한 곳에서 - 버튼마다 따로 칠하지 않기 | `idle_ui.gd` (`IdleUi` 한 벌), 설정 창 `_restyle` |
+| hud-system | HUD 는 위 정보 / 아래 행동으로 나누고, 체력바는 머리 위, 숫자는 튀어 올랐다 사라지게 | `idle_game.gd` `_build` · `_layout` |
+| ability-system | 쿨타임 · 시전 · HUD 묶기 (스킬은 데이터, 버튼은 그 상태를 그리기만) | `IdleData.JOBS[].skills`, `IdleFight.cast/skill_charge`, `idle_skill_button.gd` |
+
+검색(`npx skills find`)은 이 환경에서 아무 말에도 빈 결과를 돌려줘서, 저장소 목록(`add <repo> --list`)으로 직접 골랐다.

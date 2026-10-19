@@ -82,7 +82,15 @@ func _growth_tests() -> void:
 		IdleState.set_job(j)
 		var h := IdleState.hero()
 		ck("%s 능력치가 양수" % j, float(h["hp"]) > 0 and float(h["atk"]) > 0 and float(h["every"]) > 0)
-		ck("%s 필살기가 있다" % j, not (h["skill"] as Dictionary).is_empty())
+		var sks: Array = h["skills"]
+		ck("%s 스킬이 셋" % j, sks.size() == 3)
+		ck("%s 스킬은 LV 5·15·30 에 배운다" % j, int(sks[0]["lv"]) == 5 and int(sks[1]["lv"]) == 15 and int(sks[2]["lv"]) == 30)
+	IdleState.set_job("mage")
+	IdleState.level = 14
+	ck("LV14: 첫 스킬만 배움", IdleState.skill_unlocked(0) and not IdleState.skill_unlocked(1) and not IdleState.skill_unlocked(2))
+	IdleState.level = 30
+	ck("LV30: 셋 다 배움", IdleState.skill_unlocked(0) and IdleState.skill_unlocked(1) and IdleState.skill_unlocked(2))
+	ck("없는 번호는 아니다", not IdleState.skill_unlocked(3) and not IdleState.skill_unlocked(-1))
 
 
 func _gear_tests() -> void:
@@ -298,7 +306,47 @@ func _fight_tests() -> void:
 				if e["k"] == "skill":
 					skills += 1
 			t += 0.25
-		ck("%s 필살기가 나간다 (%d)" % [j, skills], skills > 0)
+		ck("%s 스킬이 저절로 나간다 (%d)" % [j, skills], skills > 0)
+	# 스킬 버튼 - 배운 것만, 쿨타임이 차야
+	IdleState.reset()
+	IdleState.level = 20
+	IdleState.set_job("warrior")
+	IdleState.auto_on = false
+	var sf := IdleFight.new()
+	sf.start(5, 3)
+	sf.tick(IdleFight.SPAWN_DELAY + 0.01)
+	ck("나타나자마자 첫 스킬은 아직 쿨타임", not sf.skill_ready(0))
+	sf.tick(3.2)
+	if sf.state == "fight":
+		ck("반쯤 채워 시작해 3초 뒤엔 찬다", sf.skill_ready(0))
+		var ce := sf.cast(0)
+		ck("쓰면 스킬 사건", ce.size() >= 1 and ce[0]["k"] == "skill" and int(ce[0]["i"]) == 0)
+		ck("쓰면 다시 쿨타임", not sf.skill_ready(0) and sf.skill_charge(0) < 0.05)
+	ck("안 배운 스킬(LV30)은 못 쓴다", sf.cast(2).is_empty())
+	ck("쿨타임은 스테이지를 넘어 이어진다", (func() -> bool:
+		var before: float = sf.cds[0]
+		sf.start(6, 3)
+		return is_equal_approx(float(sf.cds[0]), before)).call())
+	# 체력은 저절로 찬다
+	IdleState.reset()
+	var rf := IdleFight.new()
+	rf.start(1, 3)
+	rf.hero_hp = rf.hero_max * 0.5
+	rf.tick(0.2)
+	ck("싸우기 전에도 체력이 찬다", rf.hero_hp > rf.hero_max * 0.5)
+	# 우두머리는 화가 난다
+	IdleState.reset()
+	IdleState.level = 30
+	var bossf := IdleFight.new()
+	bossf.start(10, 3)
+	var raged := false
+	var bt := 0.0
+	while not bossf.done and bt < 400.0:
+		for e in bossf.tick(0.25):
+			if e["k"] == "rage":
+				raged = true
+		bt += 0.25
+	ck("우두머리는 반쯤 넘어 화가 난다", raged or bossf.result == "defeat")
 	# 톡 치기 (자동사냥 중)
 	IdleState.reset()
 	IdleState.level = 5

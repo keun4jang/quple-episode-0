@@ -15,6 +15,8 @@ var spend_every := 0.0
 var _last_spend := -99999.0
 ## 레벨 5 전에 톡톡 치지 않는 사람.
 var no_tap := false
+## 우두머리를 처음 깬 판이 몇 초 걸렸나 (한 판 길이 확인용).
+var boss_secs: Array = []
 
 
 func _ready() -> void:
@@ -61,7 +63,8 @@ func _ready() -> void:
 			if bool(r["new_best"]):
 				var info := IdleData.stage_info(IdleState.stage - 1)
 				if bool(info["boss"]):
-					_log("%s 우두머리" % String(info["zone_name"]), IdleState.stage - 1)
+					boss_secs.append(f.time)
+					_log("%s 우두머리 (%.0f초)" % [String(info["zone_name"]), f.time], IdleState.stage - 1)
 		else:
 			deaths += 1
 			IdleState.on_defeat()
@@ -75,6 +78,15 @@ func _ready() -> void:
 	print("자동사냥 열린 때: %.1f분" % (auto_at / 60.0))
 	print("끝: %.1f시간 · 스테이지 %d · LV %d · 쓰러짐 %d · 전투력 %d · 꿈조각 %d" % [
 		secs / 3600.0, IdleState.best, IdleState.level, deaths, IdleState.power(), IdleState.coins])
+	if not boss_secs.is_empty():
+		var lo := 9999.0
+		var hi := 0.0
+		var sum := 0.0
+		for b in boss_secs:
+			lo = minf(lo, float(b))
+			hi = maxf(hi, float(b))
+			sum += float(b)
+		print("우두머리 한 판: 평균 %.0f초 · 가장 짧게 %.0f초 · 가장 길게 %.0f초" % [sum / boss_secs.size(), lo, hi])
 	print("장비: %s" % str(IdleState.gear))
 	print("수련: %s (%d번)" % [str(IdleState.train), trains])
 	get_tree().quit()

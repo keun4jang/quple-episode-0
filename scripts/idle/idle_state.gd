@@ -59,7 +59,7 @@ static func gear_total(stat: String) -> float:
 	return sum
 
 
-## 지금 몸 `{hp, atk, def, every, crit, skill}`. 직업 배율과 장비가 합쳐진다.
+## 지금 몸 `{hp, atk, def, every, crit, skills}`. 직업 배율과 장비가 합쳐진다.
 static func hero() -> Dictionary:
 	var j: Dictionary = IdleData.JOBS.get(job, IdleData.JOBS["novice"])
 	var l := float(level - 1)
@@ -67,7 +67,7 @@ static func hero() -> Dictionary:
 	var atk := ((IdleData.HERO_ATK + IdleData.HERO_ATK_PER * l) * float(j["atk"]) + gear_total("atk")) * train_mult("atk")
 	var df := ((IdleData.HERO_DEF + IdleData.HERO_DEF_PER * l) * float(j["def"]) + gear_total("def")) * train_mult("def")
 	return {"hp": hp, "atk": atk, "def": df, "every": float(j["every"]), "crit": float(j["crit"]),
-		"skill": j["skill"]}
+		"skills": j["skills"]}
 
 
 ## 전투력 한 숫자 - 화면에 보여 주는 용도 (비교는 이 숫자 하나로).
@@ -128,6 +128,12 @@ static func can_auto() -> bool:
 ## 지금 쿼카가 알아서 싸우나.
 static func auto_active() -> bool:
 	return can_auto() and auto_on
+
+
+## 그 스킬(직업 스킬 목록의 몇 번째)을 배웠나 - 레벨이 되어야 쓴다.
+static func skill_unlocked(i: int) -> bool:
+	var sk := IdleData.skills_of(job)
+	return i >= 0 and i < sk.size() and level >= int((sk[i] as Dictionary)["lv"])
 
 
 static func can_pick_job() -> bool:
@@ -215,6 +221,10 @@ static func on_clear() -> Dictionary:
 		out["new_best"] = true
 		if bool(info["boss"]):
 			out["reward"] = boss_reward(stage)
+			# 처음 물리친 우두머리는 보물 상자 - 꿈조각을 한 번 더 크게 준다.
+			var bonus := int(round(float(IdleData.monster(stage, true)["coin"]) * IdleData.BOSS_FIRST_COIN_X))
+			coins += bonus
+			out["bonus"] = bonus
 		if stage >= IdleData.STAGE_MAX and not ending_seen:
 			out["ending"] = true
 	boss_failed = false

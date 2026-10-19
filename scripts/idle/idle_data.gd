@@ -79,12 +79,21 @@ static func stage_label(n: int) -> String:
 
 # ── 몬스터 ───────────────────────────────────────────────────────────
 
-const MON_HP := 26.0
+const MON_HP := 31.0
 const MON_HP_GROW := 1.072
 const MON_ATK := 4.2
 const MON_ATK_GROW := 1.060
-const BOSS_HP := 6.0
-const BOSS_ATK := 1.35
+## 우두머리는 오래 버틴다 - 한 판이 30초~1분쯤 (레벨이 높으면 더 빨리). 대신 보상이 크다.
+const BOSS_HP := 14.0
+const BOSS_ATK := 1.2
+## 우두머리는 체력이 이만큼 아래로 내려가면 화가 나서 더 빨리 때린다.
+const BOSS_RAGE_AT := 0.3
+const BOSS_RAGE_EVERY := 0.75
+## 우두머리 보상 배율 (보통 몬스터 한 마리 값의 몇 배).
+const BOSS_EXP_X := 8.0
+const BOSS_COIN_X := 12.0
+## 우두머리를 **처음** 물리치면 꿈조각을 이만큼 더 (보물 상자).
+const BOSS_FIRST_COIN_X := 5.0
 const MON_EXP := 5.0
 const MON_EXP_GROW := 1.050
 const MON_COIN := 2.5
@@ -106,8 +115,8 @@ static func monster(n: int, boss: bool) -> Dictionary:
 	var hp := MON_HP * pow(MON_HP_GROW, kk) * extra * (BOSS_HP if boss else 1.0)
 	var atk := MON_ATK * pow(MON_ATK_GROW, kk) * extra * (BOSS_ATK if boss else 1.0)
 	return {"hp": int(round(hp)), "atk": atk, "def": 1.0 + 0.8 * float(n),
-		"exp": int(round(MON_EXP * pow(MON_EXP_GROW, k) * (3.0 if boss else 1.0))),
-		"coin": int(round(MON_COIN * pow(MON_COIN_GROW, k) * (4.0 if boss else 1.0))),
+		"exp": int(round(MON_EXP * pow(MON_EXP_GROW, k) * (BOSS_EXP_X if boss else 1.0))),
+		"coin": int(round(MON_COIN * pow(MON_COIN_GROW, k) * (BOSS_COIN_X if boss else 1.0))),
 		"every": BOSS_EVERY if boss else MON_EVERY}
 
 
@@ -124,6 +133,8 @@ const HERO_ATK := 11.0
 const HERO_ATK_PER := 3.2
 const HERO_DEF := 3.0
 const HERO_DEF_PER := 1.0
+## 체력은 저절로 찬다 - 초마다 최대 체력의 이만큼 (싸우는 중에도).
+const HERO_REGEN := 0.015
 
 
 ## 다음 레벨까지 경험.
@@ -131,25 +142,58 @@ static func exp_need(level: int) -> int:
 	return 30 + 14 * level + int(1.1 * float(level * level))
 
 
-## 직업. hp/atk/def 는 몸 배율, every 는 기본 공격 박자(초), crit 은 치명타 확률, skill 은 필살기.
-##   skill: name · every 몇 초마다 · power 몇 배 · hits 몇 번 · crit 확정 · guard 받는 피해 배율(guard_secs 동안)
+## 직업. hp/atk/def 는 몸 배율, every 는 기본 공격 박자(초), crit 은 치명타 확률.
+## skills 는 직업마다 셋 - **레벨이 되면 배운다** (그 전엔 버튼만 보이고 꺼져 있다).
+##   name · short(버튼 글자) · lv 배우는 레벨 · cd 쿨타임(초) · power 몇 배 · hits 몇 번 · crit 확정
+##   · guard 받는 피해 배율(guard_secs 동안) · desc 한 줄
+## 기본 공격 박자와 따로 돈다 - 쿨타임이 차면 자동사냥은 저절로 쓰고, 버튼을 누르면 바로 쓴다.
+## 수치는 "스킬 하나가 기본 공격 초당 0.3~0.4 대쯤을 더한다" 에 맞췄다 (시뮬레이션으로 곡선 확인).
 const JOBS := {
 	"novice": {"name": "꿈나그네", "hp": 1.0, "atk": 1.0, "def": 1.0, "every": 1.0, "crit": 0.05,
-		"desc": "아직 직업이 없어요", "skill": {}},
+		"desc": "아직 직업이 없어요", "skills": []},
 	"warrior": {"name": "전사", "hp": 1.3, "atk": 1.30, "def": 1.3, "every": 1.0, "crit": 0.05,
-		"desc": "튼튼해서 잘 안 쓰러져요",
-		"skill": {"name": "방패치기", "every": 5.0, "power": 2.0, "hits": 1, "guard": 0.5, "guard_secs": 3.0}},
+		"desc": "튼튼해서 잘 안 쓰러져요", "skills": [
+			{"name": "방패치기", "short": "방패", "lv": 5, "cd": 6.0, "power": 2.2, "hits": 1, "guard": 0.5,
+				"guard_secs": 3.0, "desc": "막으면서 내리쳐요 (3초 동안 받는 피해 절반)"},
+			{"name": "회오리베기", "short": "회오리", "lv": 15, "cd": 10.0, "power": 0.8, "hits": 4,
+				"desc": "빙글 돌며 네 번 베요"},
+			{"name": "대지가르기", "short": "대지", "lv": 30, "cd": 20.0, "power": 6.0, "hits": 1,
+				"desc": "땅을 갈라 아주 크게 쳐요"},
+		]},
 	"mage": {"name": "마법사", "hp": 0.95, "atk": 1.40, "def": 0.95, "every": 1.1, "crit": 0.05,
-		"desc": "한 방이 아주 커요",
-		"skill": {"name": "별똥별", "every": 6.0, "power": 5.2, "hits": 1}},
+		"desc": "한 방이 아주 커요", "skills": [
+			{"name": "별똥별", "short": "별똥", "lv": 5, "cd": 6.0, "power": 5.2, "hits": 1,
+				"desc": "하늘에서 별을 떨어뜨려요"},
+			{"name": "얼음창", "short": "얼음", "lv": 15, "cd": 9.0, "power": 1.0, "hits": 3,
+				"desc": "얼음창 세 개를 날려요"},
+			{"name": "유성우", "short": "유성", "lv": 30, "cd": 20.0, "power": 1.0, "hits": 6,
+				"desc": "별이 비처럼 쏟아져요"},
+		]},
 	"archer": {"name": "궁수", "hp": 0.95, "atk": 0.60, "def": 0.95, "every": 0.75, "crit": 0.08,
-		"desc": "빠르게 여러 번 쏴요",
-		"skill": {"name": "연사", "every": 5.0, "power": 0.85, "hits": 4}},
+		"desc": "빠르게 여러 번 쏴요", "skills": [
+			{"name": "연사", "short": "연사", "lv": 5, "cd": 5.0, "power": 0.85, "hits": 4,
+				"desc": "화살 네 발을 빠르게 쏴요"},
+			{"name": "꿰뚫는 화살", "short": "관통", "lv": 15, "cd": 9.0, "power": 1.5, "hits": 1, "crit": true,
+				"desc": "반드시 치명타가 터지는 한 발"},
+			{"name": "화살비", "short": "화살비", "lv": 30, "cd": 18.0, "power": 0.5, "hits": 12,
+				"desc": "하늘에서 화살이 쏟아져요"},
+		]},
 	"thief": {"name": "도적", "hp": 0.9, "atk": 0.55, "def": 0.9, "every": 0.9, "crit": 0.15,
-		"desc": "치명타가 자주 터져요",
-		"skill": {"name": "급소 찌르기", "every": 5.0, "power": 2.2, "hits": 1, "crit": true}},
+		"desc": "치명타가 자주 터져요", "skills": [
+			{"name": "급소 찌르기", "short": "급소", "lv": 5, "cd": 5.0, "power": 2.2, "hits": 1, "crit": true,
+				"desc": "반드시 치명타로 찔러요"},
+			{"name": "그림자 연격", "short": "연격", "lv": 15, "cd": 10.0, "power": 0.6, "hits": 6,
+				"desc": "그림자처럼 여섯 번 베요"},
+			{"name": "암살", "short": "암살", "lv": 30, "cd": 20.0, "power": 3.0, "hits": 1, "crit": true,
+				"desc": "뒤로 돌아가 치명타 한 방"},
+		]},
 }
 const JOB_ORDER := ["warrior", "mage", "archer", "thief"]
+
+
+## 그 직업의 스킬 목록 (셋, 초보는 빈 것).
+static func skills_of(job: String) -> Array:
+	return (JOBS.get(job, JOBS["novice"]) as Dictionary)["skills"]
 const CRIT_MULT := 2.0
 
 # ── 장비 ─────────────────────────────────────────────────────────────

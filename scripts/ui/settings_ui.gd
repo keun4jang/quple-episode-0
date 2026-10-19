@@ -24,6 +24,72 @@ func _ready() -> void:
 	_add_update_row()
 	_add_calm_row()
 	_make_scrollable()
+	_restyle()
+
+
+## 2026-10 UI 개편: 게임 화면과 같은 한 벌(`IdleUi`) - 짙은 보랏빛 판 + 금빛 테두리 + 크림색 글씨.
+## 장면 파일의 옛 올리브색 상자를 코드로 덮는다 (장면 파일을 고치지 않아 다른 쓰임이 깨지지 않는다).
+func _restyle() -> void:
+	if panel == null:
+		return
+	panel.add_theme_stylebox_override("panel", IdleUi.panel_style())
+	var shade := get_node_or_null("Root/Shade") as ColorRect
+	if shade != null:
+		shade.color = Color(0.06, 0.03, 0.12, 0.6)
+	var body := close_btn.get_parent()
+	if body == null:
+		return
+	var sc := body.get_parent() as ScrollContainer
+	if sc != null:
+		IdleUi.style_scroll(sc)
+	_restyle_tree(body)
+
+
+func _restyle_tree(node: Node) -> void:
+	for n in node.get_children():
+		if n is Button:
+			var kind := "plum"
+			if n == reset_btn:
+				kind = "danger"
+			elif n == close_btn:
+				kind = "gold"
+			_copy_style(n as Button, IdleUi.button("", 10, kind), kind)
+		elif n is HSlider:
+			_style_slider(n as HSlider)
+		elif n is Label:
+			if n.name == "Title":
+				(n as Label).add_theme_color_override("font_color", IdleUi.GOLD)
+			elif n.get_parent() is HBoxContainer:
+				(n as Label).add_theme_color_override("font_color", IdleUi.CREAM)
+		if n.get_child_count() > 0 and not (n is Button):
+			_restyle_tree(n)
+
+
+func _copy_style(b: Button, tpl: Button, kind: String) -> void:
+	for st in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var sb := tpl.get_theme_stylebox(st)
+		if sb != null:
+			b.add_theme_stylebox_override(st, sb)
+	var fc := Color("#3A2410") if kind == "gold" else IdleUi.CREAM
+	for c in ["font_color", "font_pressed_color", "font_hover_color", "font_focus_color"]:
+		b.add_theme_color_override(c, fc)
+	tpl.free()
+
+
+func _style_slider(sl: HSlider) -> void:
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(1, 1, 1, 0.12)
+	track.set_corner_radius_all(6)
+	track.content_margin_top = 5
+	track.content_margin_bottom = 5
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = IdleUi.GOLD
+	fill.set_corner_radius_all(6)
+	fill.content_margin_top = 5
+	fill.content_margin_bottom = 5
+	sl.add_theme_stylebox_override("slider", track)
+	sl.add_theme_stylebox_override("grabber_area", fill)
+	sl.add_theme_stylebox_override("grabber_area_highlight", fill)
 
 
 ## 창 **밖**을 누르면 닫는다.

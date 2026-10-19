@@ -40,7 +40,12 @@ var time := 0.0
 
 var _hero_t := 0.0
 var _mon_t := 0.0
-var _skill_cd := 0.0
+## 스킬마다 남은 쿨타임(초). **스테이지가 바뀌어도 이어진다** - 20초 쿨타임 스킬이 스테이지마다
+## 처음부터 다시 돌면 거의 못 쓴다. 직업이 바뀌면 `reset_cooldowns()`.
+var cds: Array = []
+var _cd_job := ""
+## 우두머리가 화났나 (체력이 30% 아래).
+var raged := false
 var _spawn_t := 0.0
 var _guard_t := 0.0
 var _guard := 1.0
@@ -65,12 +70,50 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 	time = 0.0
 	_spawn_t = SPAWN_DELAY
 	_hero_t = float(h["every"])
-	var sk: Dictionary = h["skill"]
-	_skill_cd = float(sk.get("every", 0.0))
+	if _cd_job != IdleState.job or cds.size() != (h["skills"] as Array).size():
+		reset_cooldowns()
+	raged = false
 	_guard_t = 0.0
 	_guard = 1.0
 	_tap_t = 0.0
 	events = []
+
+
+## 스킬 쿨타임을 처음부터 (직업을 바꿨을 때). 처음 배운 스킬은 바로 쓸 수 있게 반만 채운다.
+func reset_cooldowns() -> void:
+	_cd_job = IdleState.job
+	cds = []
+	for sk in IdleData.skills_of(IdleState.job):
+		cds.append(float((sk as Dictionary)["cd"]) * 0.5)
+
+
+## 그 스킬을 지금 쓸 수 있나 (배웠고 쿨타임이 찼고 싸우는 중).
+func skill_ready(i: int) -> bool:
+	return i >= 0 and i < cds.size() and IdleState.skill_unlocked(i) and float(cds[i]) <= 0.0 \
+		and state == "fight" and not done
+
+
+## 쿨타임이 얼마나 찼나 (0 막 씀 ~ 1 다 참).
+func skill_charge(i: int) -> float:
+	var sk := IdleData.skills_of(IdleState.job)
+	if i < 0 or i >= cds.size() or i >= sk.size():
+		return 0.0
+	return clampf(1.0 - float(cds[i]) / float((sk[i] as Dictionary)["cd"]), 0.0, 1.0)
+
+
+## 버튼으로 스킬을 쓴다. 생긴 사건들을 돌려준다.
+func cast(i: int) -> Array:
+	events = []
+	if not skill_ready(i):
+		return events
+	_cast(i)
+	return events
+
+
+func _cast(i: int) -> void:
+	var sk: Dictionary = IdleData.skills_of(IdleState.job)[i]
+	cds[i] = float(sk["cd"])
+	_use_skill(sk, i)
 
 
 func _mit() -> float:
@@ -100,12 +143,7 @@ func tap() -> Array:
 		_hit_monster(TAP_POWER, false, false, true)
 		return events
 	_tap_t = MANUAL_COOLDOWN
-	var sk: Dictionary = h["skill"]
-	if not sk.is_empty() and _skill_cd <= 0.0:
-		_skill_cd = float(sk["every"])
-		_use_skill(sk)
-	else:
-		_hit_monster(1.0, false, false)
+	_hit_monster(1.0, false, false)
 	return events
 
 
@@ -116,30 +154,38 @@ func _step(d: float) -> void:
 		_guard_t -= d
 		if _guard_t <= 0.0:
 			_guard = 1.0
+	# 체력은 저절로 찬다 (싸우는 중에도, 다음 몬스터를 기다리는 동안에도)
+	hero_hp = minf(hero_max, hero_hp + hero_max * IdleData.HERO_REGEN * d)
 	if state == "spawn":
 		_spawn_t -= d
 		if _spawn_t <= 0.0:
 			_spawn()
 		return
-	# 영웅 차례
-	var sk: Dictionary = h["skill"]
-	if not sk.is_empty():
-		_skill_cd -= d
+	# 스킬 쿨타임 - 자동사냥이면 찬 것 중 가장 센(나중에 배운) 것부터 하나 쓴다
+	for i in cds.size():
+		cds[i] = maxf(0.0, float(cds[i]) - d)
 	var auto := IdleState.auto_active()
+	if auto:
+		for i in range(cds.size() - 1, -1, -1):
+			if skill_ready(i):
+				_cast(i)
+				break
+		if state != "fight":
+			return
+	# 영웅 차례
 	_hero_t -= d if auto else d / MANUAL_SLOW
 	if _hero_t <= 0.0:
 		_hero_t += float(h["every"])
-		if auto and not sk.is_empty() and _skill_cd <= 0.0:
-			_skill_cd = float(sk["every"])
-			_use_skill(sk)
-		else:
-			_hit_monster(1.0, false, false)
+		_hit_monster(1.0, false, false)
 		if state != "fight":
 			return
 	# 몬스터 차례
+	if bool(mon["boss"]) and not raged and mon_hp <= mon_max * IdleData.BOSS_RAGE_AT:
+		raged = true
+		events.append({"k": "rage"})
 	_mon_t -= d
 	if _mon_t <= 0.0:
-		_mon_t += float(mon["every"])
+		_mon_t += float(mon["every"]) * (IdleData.BOSS_RAGE_EVERY if raged else 1.0)
 		var dmg := float(mon["atk"]) * _mit() * _guard
 		dmg = maxf(1.0, dmg)
 		hero_hp -= dmg
@@ -159,24 +205,25 @@ func _spawn() -> void:
 	mon["boss"] = boss
 	mon_max = float(mon["hp"])
 	mon_hp = mon_max
+	raged = false
 	_mon_t = float(mon["every"])
 	state = "fight"
 	events.append({"k": "spawn", "kind": String(mon["kind"]), "boss": boss})
 
 
-func _use_skill(sk: Dictionary) -> void:
-	events.append({"k": "skill", "name": String(sk["name"])})
+func _use_skill(sk: Dictionary, i: int) -> void:
+	events.append({"k": "skill", "name": String(sk["name"]), "i": i, "hits": int(sk.get("hits", 1))})
 	if sk.has("guard"):
 		_guard = float(sk["guard"])
 		_guard_t = float(sk.get("guard_secs", 3.0))
 	var hits := int(sk.get("hits", 1))
-	for i in hits:
+	for _n in hits:
 		if state != "fight":
 			break
-		_hit_monster(float(sk.get("power", 1.0)), bool(sk.get("crit", false)), true)
+		_hit_monster(float(sk.get("power", 1.0)), bool(sk.get("crit", false)), true, false, i)
 
 
-func _hit_monster(power: float, force_crit: bool, skill: bool, tapped := false) -> void:
+func _hit_monster(power: float, force_crit: bool, skill: bool, tapped := false, skill_i := -1) -> void:
 	var raw := float(h["atk"]) * power
 	var crit := force_crit or rng.randf() < float(h["crit"])
 	if crit:
@@ -185,7 +232,7 @@ func _hit_monster(power: float, force_crit: bool, skill: bool, tapped := false) 
 	dmg = maxf(1.0, dmg)
 	mon_hp -= dmg
 	events.append({"k": "hero_hit", "dmg": int(round(dmg)), "crit": crit, "skill": skill,
-		"tap": tapped})
+		"tap": tapped, "si": skill_i})
 	if mon_hp <= 0.0:
 		mon_hp = 0.0
 		_kill()

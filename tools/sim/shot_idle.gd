@@ -44,6 +44,22 @@ func _ready() -> void:
 	if tab != "":
 		g._open_tab(tab)
 		await get_tree().create_timer(0.6).timeout
+	# SHOT_MENU=1 메뉴(멈춤) 창 · SHOT_SKILL=0|1|2 스킬을 쓰고 SHOT_SKILL_WAIT 초 뒤 · SHOT_REWARD=1 우두머리 보상 카드
+	if OS.get_environment("SHOT_MENU") != "":
+		g._open_menu()
+		await get_tree().create_timer(0.5).timeout
+	if OS.get_environment("SHOT_SKILL") != "":
+		var si := int(OS.get_environment("SHOT_SKILL"))
+		while g.fight.state != "fight":
+			await get_tree().process_frame
+		g.fight.cds[si] = 0.0
+		g._on_skill_btn(si)
+		var sw := float(OS.get_environment("SHOT_SKILL_WAIT")) if OS.get_environment("SHOT_SKILL_WAIT") != "" else 0.15
+		await get_tree().create_timer(sw, true, false, true).timeout
+	if OS.get_environment("SHOT_REWARD") != "":
+		g._last_boss_kill = {"coin": 1240, "xp": 380}
+		g._show_reward({"bonus": 6200, "new_best": true}, ["weapon", 3])
+		await get_tree().create_timer(0.6).timeout
 	var series := int(OS.get_environment("SHOT_SERIES")) if OS.get_environment("SHOT_SERIES") != "" else 0
 	if series > 0:
 		for i in series:
