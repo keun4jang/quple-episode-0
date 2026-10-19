@@ -1111,6 +1111,7 @@ func _fill() -> void:
 
 
 func _clear_body() -> void:
+	_gear_btns = {}               # 지워질 버튼을 들고 있지 않게 (창을 빨리 바꾸면 지운 버튼을 만졌다)
 	for c in _panel_body.get_children():
 		_panel_body.remove_child(c)
 		c.queue_free()
@@ -1277,8 +1278,8 @@ func _fill_gear() -> void:
 func _refresh_gear_buttons() -> void:
 	var any := false
 	for s in IdleData.SLOTS:
-		var b: Button = _gear_btns.get(s)
-		if b == null:
+		var b = _gear_btns.get(s)
+		if b == null or not is_instance_valid(b):
 			continue
 		var g: Array = IdleState.gear[s]
 		if int(g[1]) >= IdleData.PLUS_MAX:
@@ -1288,8 +1289,8 @@ func _refresh_gear_buttons() -> void:
 			b.text = "강화\n✦%s" % _num(IdleState.enhance_cost_of(String(s)))
 			b.disabled = not IdleState.can_enhance(String(s))
 			any = any or not b.disabled
-	var all: Button = _gear_btns.get("_all")
-	if all != null:
+	var all = _gear_btns.get("_all")
+	if all != null and is_instance_valid(all):
 		all.disabled = not any
 
 
