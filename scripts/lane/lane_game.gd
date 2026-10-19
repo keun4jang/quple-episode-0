@@ -1,0 +1,901 @@
+extends Control
+## 쿼카 군단 - 세로 한 줄 싸움 (냥코대전쟁의 규칙을 빌려 왔다. 이름·그림은 우리 것).
+## 홈(지도·쿼카·편성) 과 판(싸움) 두 모드. 규칙은 LaneBattle/LaneState, 여기는 그리기·버튼·연출만.
+
+const MENU_PATH := "res://scenes/menu/MainMenu3D.tscn"
+const SAVE_EVERY := 10.0
+const UNIT_PX := 3.0
+const BUG_PX := 3.0
+## 쿼카 쪽 그림 (2단계에서 군단 전용 그림으로 바뀐다) - 뒷모습 줄을 쓴다.
+const UNIT_SHEET := {"tiny": "hero-walk", "shield": "hero-warrior-walk", "spear": "hero-thief-walk",
+	"hammer": "hero-warrior-walk", "runner": "hero-archer-walk", "sling": "hero-archer-walk",
+	"mage": "hero-mage-walk", "giant": "hero-walk"}
+const UNIT_TINT := {"hammer": Color("#FFD9B0"), "sling": Color("#CFF2C4"), "giant": Color("#FFE7C2")}
+const UNIT_SIZE := {"giant": 1.7, "tiny": 0.85, "shield": 1.05}
+
+var battle := LaneBattle.new()
+var mode := "home"
+var stage_n := 1
+
+# 판
+var _world: Control
+var _bg: IdleBackdrop
+var _field: LaneField
+var _actors: Node2D
+var _fx: IdleFx
+var _vfx: IdleVfx
+var _flash_rect: ColorRect
+var _actor_of: Dictionary = {}     ## uid → IdleActor
+var _lat: Dictionary = {}          ## uid → 옆 위치
+var _lunge: Dictionary = {}        ## uid → 덤벼듦 (1 → 0)
+var _dead: Dictionary = {}         ## 녹아 사라지는 중인 uid - 규칙 쪽엔 넉백 동안 몸이 남아 있지만 그림은 다시 만들지 않는다
+var _hud: Control
+var _wallet_lbl: Label
+var _wallet_bar: ProgressBar
+var _worker_btn: Button
+var _cannon_btn: Button
+var _unit_btns: Dictionary = {}
+var _speed_btn: Button
+var _auto_btn: Button
+var _stage_lbl: Label
+var _our_bar: ProgressBar
+var _result: Control
+var _trauma := 0.0
+var _battle_t := 0.0
+var _ended := false
+
+# 홈
+var _home: Control
+var _home_body: VBoxContainer
+var _home_tab := "map"
+var _xp_lbl: Label
+var _star_lbl: Label
+var _toast_lbl: Label
+var _banner: Label
+
+var _t := 0.0
+var _save_t := 0.0
+
+
+func _ready() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	if not LaneState.load_save():
+		LaneState.reset()
+	AudioManager.play_bgm("adventure")
+	_build_home()
+	_toast_lbl = IdleUi.label("", 28, IdleUi.CREAM, true)
+	_toast_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_toast_lbl.modulate.a = 0.0
+	add_child(_toast_lbl)
+	_banner = IdleUi.label("", 56, Color.WHITE, true)
+	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner.modulate.a = 0.0
+	add_child(_banner)
+	resized.connect(_layout)
+	_layout()
+	var r := LaneState.claim_offline(int(Time.get_unix_time_from_system()))
+	if not r.is_empty():
+		_toast("자는 동안 쿼카들이 꿈조각 %s개를 모았어요" % _num(int(r["xp"])))
+	if not LaneState.seen_intro:
+		LaneState.seen_intro = true
+		_toast("벌레들이 꿈결을 갉아먹고 있어요! 쿼카 군단을 보내요")
+	LaneState.save(int(Time.get_unix_time_from_system()))
+	_show_home()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST \
+			or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		LaneState.save(int(Time.get_unix_time_from_system()))
+
+
+func _exit_tree() -> void:
+	Engine.time_scale = 1.0
+
+
+func _layout() -> void:
+	if _home != null:
+		_home.size = size
+	if _world != null:
+		_world.size = size
+		_bg.size = size
+		_field.size = size
+		_field.y_front = size.y - 470.0
+		_field.y_far = size.y * 0.15
+		_flash_rect.size = size
+		_hud.size = size
+		_layout_hud()
+	_toast_lbl.position = Vector2(20, size.y * 0.34)
+	_toast_lbl.size = Vector2(size.x - 40, 80)
+	_banner.position = Vector2(0, size.y * 0.3)
+	_banner.size = Vector2(size.x, 80)
+
+
+# ══ 홈 ════════════════════════════════════════════════════════════════
+
+func _build_home() -> void:
+	_home = Control.new()
+	add_child(_home)
+	var bg := ColorRect.new()
+	bg.color = IdleUi.INK
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_home.add_child(bg)
+	var deco := IdleBackdrop.new()
+	deco.zone = 1
+	deco.ground = 0.42
+	deco.set_anchors_preset(Control.PRESET_FULL_RECT)
+	deco.modulate = Color(1, 1, 1, 0.35)
+	_home.add_child(deco)
+	var top := HBoxContainer.new()
+	top.name = "Top"
+	top.add_theme_constant_override("separation", 10)
+	_home.add_child(top)
+	var xp_pill := PanelContainer.new()
+	xp_pill.add_theme_stylebox_override("panel", IdleUi.pill_style())
+	_xp_lbl = IdleUi.label("", 26, IdleUi.GOLD)
+	xp_pill.add_child(_xp_lbl)
+	top.add_child(xp_pill)
+	var st_pill := PanelContainer.new()
+	st_pill.add_theme_stylebox_override("panel", IdleUi.pill_style())
+	_star_lbl = IdleUi.label("", 26, Color("#9FD8FF"))
+	st_pill.add_child(_star_lbl)
+	top.add_child(st_pill)
+	var sp := Control.new()
+	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(sp)
+	var menu := IdleUi.button("메뉴", 22)
+	menu.custom_minimum_size = Vector2(96, 60)
+	menu.pressed.connect(func() -> void:
+		LaneState.save(int(Time.get_unix_time_from_system()))
+		SceneTransition.go_to(MENU_PATH, "normal"))
+	top.add_child(menu)
+
+	var title := IdleUi.label("쿼카 군단", 64, IdleUi.GOLD, true)
+	title.name = "Title"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_home.add_child(title)
+	var sub := IdleUi.label("벌레들에게서 꿈결을 지켜요", 24, IdleUi.SUB)
+	sub.name = "Sub"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_home.add_child(sub)
+
+	var go := IdleUi.button("", 40, "gold")
+	go.name = "Go"
+	go.pressed.connect(func() -> void: _start_battle(mini(LaneState.cleared + 1, LaneData.STAGE_MAX)))
+	_home.add_child(go)
+
+	var sc := ScrollContainer.new()
+	sc.name = "Scroll"
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	IdleUi.style_scroll(sc)
+	_home.add_child(sc)
+	_home_body = VBoxContainer.new()
+	_home_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_home_body.add_theme_constant_override("separation", 10)
+	sc.add_child(_home_body)
+
+	var tabs := HBoxContainer.new()
+	tabs.name = "Tabs"
+	tabs.add_theme_constant_override("separation", 10)
+	_home.add_child(tabs)
+	for k in [["map", "지도"], ["units", "쿼카"], ["lineup", "편성"]]:
+		var b := IdleUi.button(String(k[1]), 30)
+		b.name = "Tab_" + String(k[0])
+		b.custom_minimum_size = Vector2(0, 92)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(func() -> void:
+			AudioManager.ui_click()
+			_home_tab = String(k[0])
+			_fill_home())
+		tabs.add_child(b)
+
+
+func _layout_home() -> void:
+	var w := size.x
+	var h := size.y
+	var top := _home.get_node("Top") as Control
+	top.position = Vector2(14, 14)
+	top.size = Vector2(w - 28, 64)
+	(_home.get_node("Title") as Control).position = Vector2(0, 96)
+	(_home.get_node("Title") as Control).size = Vector2(w, 80)
+	(_home.get_node("Sub") as Control).position = Vector2(0, 176)
+	(_home.get_node("Sub") as Control).size = Vector2(w, 34)
+	var go := _home.get_node("Go") as Control
+	go.position = Vector2(40, 222)
+	go.size = Vector2(w - 80, 104)
+	var sc := _home.get_node("Scroll") as Control
+	sc.position = Vector2(14, 344)
+	sc.size = Vector2(w - 28, h - 344 - 120)
+	var tabs := _home.get_node("Tabs") as Control
+	tabs.position = Vector2(14, h - 106)
+	tabs.size = Vector2(w - 28, 92)
+
+
+func _show_home() -> void:
+	mode = "home"
+	Engine.time_scale = 1.0
+	if _world != null:
+		_world.queue_free()
+		_world = null
+	_home.visible = true
+	AudioManager.play_bgm("adventure")
+	_layout_home()
+	_fill_home()
+
+
+func _refresh_home_top() -> void:
+	_xp_lbl.text = "✦ %s" % _num(LaneState.xp)
+	_star_lbl.text = "★ %s" % _num(LaneState.stars)
+	var nxt := mini(LaneState.cleared + 1, LaneData.STAGE_MAX)
+	(_home.get_node("Go") as Button).text = "▶ 출전!  %s" % LaneData.stage_label(nxt)
+	for k in ["map", "units", "lineup"]:
+		var b := _home.get_node("Tabs/Tab_" + k) as Button
+		b.modulate = Color.WHITE if _home_tab == k else Color(1, 1, 1, 0.6)
+
+
+func _clear(box: Container) -> void:
+	for c in box.get_children():
+		box.remove_child(c)
+		c.queue_free()
+
+
+func _fill_home() -> void:
+	_refresh_home_top()
+	_clear(_home_body)
+	match _home_tab:
+		"map":
+			_fill_map()
+		"units":
+			_fill_units()
+		"lineup":
+			_fill_lineup()
+
+
+func _card() -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", IdleUi.card_style())
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return p
+
+
+func _fill_map() -> void:
+	var last_zone := clampi(LaneState.cleared / LaneData.STAGES_PER_ZONE, 0, LaneData.ZONES.size() - 1)
+	for zi in range(last_zone + 1):
+		var z: Dictionary = LaneData.ZONES[zi]
+		var card := _card()
+		_home_body.add_child(card)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 6)
+		card.add_child(v)
+		var boss_name := String(LaneData.BUGS[String(z["boss"])]["name"])
+		v.add_child(IdleUi.label("%d. %s  ·  우두머리 %s" % [zi + 1, String(z["name"]), boss_name], 24, IdleUi.CREAM))
+		var gr := GridContainer.new()
+		gr.columns = 5
+		gr.add_theme_constant_override("h_separation", 8)
+		gr.add_theme_constant_override("v_separation", 8)
+		v.add_child(gr)
+		for i in range(1, LaneData.STAGES_PER_ZONE + 1):
+			var n := zi * LaneData.STAGES_PER_ZONE + i
+			var open := n <= LaneState.cleared + 1
+			var done := n <= LaneState.cleared
+			var lbl := ("왕" if i == 10 else str(i)) + (" ✓" if done else "")
+			var b := IdleUi.button(lbl, 22, "gold" if n == LaneState.cleared + 1 else "plum")
+			b.custom_minimum_size = Vector2(118, 64)
+			b.disabled = not open
+			b.pressed.connect(_start_battle.bind(n))
+			gr.add_child(b)
+
+
+func _fill_units() -> void:
+	for id in LaneData.UNIT_ORDER:
+		var u: Dictionary = LaneData.UNITS[id]
+		var card := _card()
+		_home_body.add_child(card)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		card.add_child(row)
+		row.add_child(_portrait(String(id), 96.0))
+		var v := VBoxContainer.new()
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		v.add_theme_constant_override("separation", 2)
+		row.add_child(v)
+		if not LaneState.has_unit(String(id)):
+			v.add_child(IdleUi.label("??? 쿼카", 26, IdleUi.MUTED))
+			v.add_child(IdleUi.label("%s 를 깨면 합류해요" % LaneData.stage_label(int(u["unlock"])), 20, IdleUi.MUTED))
+			continue
+		var lv := LaneState.level_of(String(id))
+		var s := LaneState.unit_stats(String(id))
+		v.add_child(IdleUi.label("%s  Lv %d" % [String(u["name"]), lv], 26, IdleUi.CREAM))
+		v.add_child(IdleUi.label(String(u["role"]), 19, IdleUi.SUB))
+		v.add_child(IdleUi.label("체력 %s · 공격 %s · 사거리 %d · 꿈빛 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
+			int(u["range"]), int(u["cost"])], 18, IdleUi.SUB))
+		var b := IdleUi.button("", 20, "gold")
+		b.custom_minimum_size = Vector2(150, 76)
+		if lv >= LaneData.UNIT_LV_MAX:
+			b.text = "최고 레벨"
+			b.disabled = true
+		else:
+			b.text = "레벨 업\n✦ %s" % _num(LaneData.level_cost(String(id), lv))
+			b.disabled = not LaneState.can_level(String(id))
+		b.pressed.connect(func() -> void:
+			if LaneState.level_up(String(id)):
+				AudioManager.ui_confirm()
+				LaneState.save()
+				_fill_home())
+		row.add_child(b)
+
+
+func _fill_lineup() -> void:
+	_home_body.add_child(IdleUi.label("편성 %d / %d  -  눌러서 넣고 빼요" % [LaneState.lineup.size(), LaneData.LINEUP_MAX], 24,
+		IdleUi.CREAM))
+	var gr := GridContainer.new()
+	gr.columns = 3
+	gr.add_theme_constant_override("h_separation", 10)
+	gr.add_theme_constant_override("v_separation", 10)
+	_home_body.add_child(gr)
+	for id in LaneData.UNIT_ORDER:
+		if not LaneState.has_unit(String(id)):
+			continue
+		var on := LaneState.lineup.has(id)
+		var b := IdleUi.button("", 20, "gold" if on else "ghost")
+		b.custom_minimum_size = Vector2(212, 180)
+		b.text = "\n\n\n%s\n%s" % [String(LaneData.UNITS[id]["name"]), "출전 ✓" if on else "쉬는 중"]
+		var p := _portrait(String(id), 84.0)
+		p.position = Vector2(64, 8)
+		b.add_child(p)
+		b.pressed.connect(func() -> void:
+			if LaneState.toggle_lineup(String(id)):
+				AudioManager.ui_click()
+				LaneState.save()
+			_fill_home())
+		gr.add_child(b)
+
+
+## 쿼카 얼굴 (앞모습 첫 칸).
+func _portrait(id: String, sz: float) -> Control:
+	var t := TextureRect.new()
+	t.custom_minimum_size = Vector2(sz, sz)
+	t.size = Vector2(sz, sz)
+	t.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tex := load("res://assets/sprites/%s.png" % String(UNIT_SHEET.get(id, "hero-walk"))) as Texture2D
+	if tex != null:
+		var a := AtlasTexture.new()
+		a.atlas = tex
+		a.region = Rect2(0, 0, tex.get_width() / 4.0, tex.get_height() / 3.0)
+		t.texture = a
+	if not LaneState.has_unit(id):
+		t.modulate = Color(0.1, 0.08, 0.15, 0.9)
+	elif UNIT_TINT.has(id):
+		t.modulate = UNIT_TINT[id]
+	return t
+
+
+# ══ 판 ════════════════════════════════════════════════════════════════
+
+func _start_battle(n: int) -> void:
+	stage_n = n
+	AudioManager.ui_confirm()
+	_home.visible = false
+	mode = "battle"
+	_ended = false
+	_battle_t = 0.0
+	_actor_of = {}
+	_lat = {}
+	battle.start(n)
+	battle.auto = LaneState.auto_summon
+	_build_battle()
+	_layout()
+	var info := battle.info
+	AudioManager.play_bgm("boss" if bool(info["boss"]) else "adventure")
+	_banner_show(LaneData.stage_label(n), Color.WHITE)
+
+
+func _build_battle() -> void:
+	_world = Control.new()
+	_world.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_world)
+	move_child(_world, 0)
+	_bg = IdleBackdrop.new()
+	_bg.zone = int(battle.info["theme"])
+	_bg.ground = 0.13
+	_world.add_child(_bg)
+	_field = LaneField.new()
+	var th: Dictionary = IdleBackdrop.THEMES[_bg.zone]
+	_field.lane_col = Color(th["ground"]).lightened(0.18)
+	_world.add_child(_field)
+	_actors = Node2D.new()
+	_actors.y_sort_enabled = true
+	_world.add_child(_actors)
+	_fx = IdleFx.new()
+	_world.add_child(_fx)
+	_vfx = IdleVfx.new()
+	_world.add_child(_vfx)
+	_flash_rect = ColorRect.new()
+	_flash_rect.color = Color(1, 1, 1, 0)
+	_flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_world.add_child(_flash_rect)
+	_build_hud()
+
+
+func _build_hud() -> void:
+	_hud = Control.new()
+	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_world.add_child(_hud)
+	var top := HBoxContainer.new()
+	top.name = "Top"
+	top.add_theme_constant_override("separation", 8)
+	_hud.add_child(top)
+	var sp := PanelContainer.new()
+	sp.add_theme_stylebox_override("panel", IdleUi.pill_style())
+	_stage_lbl = IdleUi.label(LaneData.stage_label(stage_n), 24, IdleUi.CREAM)
+	sp.add_child(_stage_lbl)
+	top.add_child(sp)
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(gap)
+	_speed_btn = IdleUi.button("", 22)
+	_speed_btn.custom_minimum_size = Vector2(88, 60)
+	_speed_btn.pressed.connect(func() -> void:
+		LaneState.speed2 = not LaneState.speed2
+		AudioManager.ui_click()
+		_refresh_hud_toggles())
+	top.add_child(_speed_btn)
+	_auto_btn = IdleUi.button("", 22)
+	_auto_btn.custom_minimum_size = Vector2(120, 60)
+	_auto_btn.pressed.connect(func() -> void:
+		LaneState.auto_summon = not LaneState.auto_summon
+		battle.auto = LaneState.auto_summon
+		AudioManager.ui_click()
+		_refresh_hud_toggles())
+	top.add_child(_auto_btn)
+	var quit := IdleUi.button("후퇴", 22, "danger")
+	quit.custom_minimum_size = Vector2(88, 60)
+	quit.pressed.connect(func() -> void:
+		if not _ended:
+			_end_battle("lose"))
+	top.add_child(quit)
+
+	var panel := PanelContainer.new()
+	panel.name = "Panel"
+	panel.add_theme_stylebox_override("panel", IdleUi.panel_style())
+	_hud.add_child(panel)
+	var pv := VBoxContainer.new()
+	pv.add_theme_constant_override("separation", 8)
+	panel.add_child(pv)
+	var row1 := HBoxContainer.new()
+	row1.add_theme_constant_override("separation", 10)
+	pv.add_child(row1)
+	_worker_btn = IdleUi.button("", 20)
+	_worker_btn.custom_minimum_size = Vector2(150, 78)
+	_worker_btn.pressed.connect(func() -> void:
+		if battle.upgrade_worker():
+			AudioManager.ui_confirm())
+	row1.add_child(_worker_btn)
+	var wv := VBoxContainer.new()
+	wv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wv.alignment = BoxContainer.ALIGNMENT_CENTER
+	row1.add_child(wv)
+	_wallet_lbl = IdleUi.label("", 26, IdleUi.GOLD, true)
+	_wallet_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	wv.add_child(_wallet_lbl)
+	_wallet_bar = IdleUi.bar(IdleUi.GOLD, Vector2(200, 12))
+	_wallet_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wv.add_child(_wallet_bar)
+	_our_bar = IdleUi.bar(IdleUi.GREEN, Vector2(200, 10))
+	_our_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wv.add_child(_our_bar)
+	_cannon_btn = IdleUi.button("", 20, "gold")
+	_cannon_btn.custom_minimum_size = Vector2(150, 78)
+	_cannon_btn.pressed.connect(func() -> void:
+		if battle.fire_cannon():
+			_on_event({"k": "cannon_fx"}))
+	row1.add_child(_cannon_btn)
+	var gr := GridContainer.new()
+	gr.columns = 5
+	gr.add_theme_constant_override("h_separation", 8)
+	gr.add_theme_constant_override("v_separation", 8)
+	pv.add_child(gr)
+	_unit_btns = {}
+	for id in battle.lineup:
+		var b := IdleUi.button("", 18)
+		b.custom_minimum_size = Vector2(124, 120)
+		var p := _portrait(String(id), 64.0)
+		p.position = Vector2(30, 4)
+		b.add_child(p)
+		var cd := ColorRect.new()
+		cd.name = "Cd"
+		cd.color = Color(0.05, 0.03, 0.1, 0.6)
+		cd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(cd)
+		b.pressed.connect(func() -> void:
+			if battle.summon(String(id)):
+				AudioManager.pickup()
+			else:
+				_shake_ctrl(b))
+		gr.add_child(b)
+		_unit_btns[id] = b
+	_refresh_hud_toggles()
+
+
+func _layout_hud() -> void:
+	var w := size.x
+	var h := size.y
+	var top := _hud.get_node("Top") as Control
+	top.position = Vector2(12, 12)
+	top.size = Vector2(w - 24, 60)
+	var panel := _hud.get_node("Panel") as Control
+	panel.position = Vector2(8, h - 392)
+	panel.size = Vector2(w - 16, 384)
+
+
+func _refresh_hud_toggles() -> void:
+	_speed_btn.text = "2배 ▶▶" if LaneState.speed2 else "1배 ▶"
+	_auto_btn.text = "자동 켜짐" if LaneState.auto_summon else "자동 소환"
+	_auto_btn.modulate = Color("#B8F0A8") if LaneState.auto_summon else Color.WHITE
+
+
+func _process(dt: float) -> void:
+	_t += dt
+	_save_t += dt
+	if _save_t > SAVE_EVERY:
+		_save_t = 0.0
+		LaneState.save(int(Time.get_unix_time_from_system()))
+	if mode != "battle" or _world == null:
+		return
+	var rdt := dt / maxf(Engine.time_scale, 0.001)
+	_trauma = maxf(0.0, _trauma - rdt * 1.3)
+	var sh := _trauma * _trauma
+	var st := Time.get_ticks_msec() / 1000.0 * 30.0
+	_world.position = Vector2(14.0 * sh * sin(st * 1.1), 10.0 * sh * sin(st * 1.7 + 2.0))
+	_flash_rect.color.a = maxf(0.0, _flash_rect.color.a - dt * 2.5)
+	if not _ended:
+		var sdt := minf(dt, 0.25) * (2.0 if LaneState.speed2 else 1.0)
+		_battle_t += sdt
+		for e in battle.tick(sdt):
+			_on_event(e)
+		if battle.done and not _ended:
+			_end_battle(battle.result)
+	_sync_actors()
+	_refresh_hud()
+
+
+func _refresh_hud() -> void:
+	_wallet_lbl.text = "꿈빛 %d / %d" % [int(battle.wallet), battle.wallet_cap()]
+	_wallet_bar.max_value = battle.wallet_cap()
+	_wallet_bar.value = battle.wallet
+	_our_bar.max_value = battle.our_max
+	_our_bar.value = battle.our_hp
+	_field.our_ratio = battle.our_hp / maxf(1.0, battle.our_max)
+	_field.nest_ratio = battle.nest_hp / maxf(1.0, battle.nest_max)
+	var wc := battle.worker_cost()
+	_worker_btn.text = "수입 Lv%d\n%s" % [battle.worker, ("최고" if wc < 0 else "✦%d" % wc)]
+	_worker_btn.disabled = not battle.can_worker()
+	var ready := battle.cannon_ready()
+	_cannon_btn.text = "꿈 대포!\n발사" if ready else "꿈 대포\n%d%%" % int(battle.cannon / LaneData.CANNON_CHARGE * 100.0)
+	_cannon_btn.disabled = not ready
+	if ready:
+		var s := 1.0 + 0.05 * sin(_t * 8.0)
+		_cannon_btn.scale = Vector2(s, s)
+	else:
+		_cannon_btn.scale = Vector2.ONE
+	for id in _unit_btns.keys():
+		var b: Button = _unit_btns[id]
+		var s2: Dictionary = battle.stats[id]
+		var left := float(battle.cds.get(id, 0.0))
+		var cost := int(s2["cost"])
+		b.text = "\n\n\n%d" % cost
+		b.disabled = battle.wallet < float(cost) or left > 0.0
+		var cd := b.get_node("Cd") as ColorRect
+		var k := clampf(left / maxf(0.01, float(s2["cd"])), 0.0, 1.0)
+		cd.size = Vector2(b.size.x, b.size.y * k)
+		cd.position = Vector2(0, b.size.y * (1.0 - k))
+
+
+# ── 그림 맞추기 ───────────────────────────────────────────────────────
+
+func _sync_actors() -> void:
+	var alive := {}
+	for e in battle.ents:
+		var uid := int(e["uid"])
+		alive[uid] = true
+		if _dead.has(uid):
+			continue
+		var a = _actor_of.get(uid)
+		if a == null or not is_instance_valid(a):
+			a = _make_actor(e)
+		var pos := float(e["pos"])
+		var depth := _field.scale_at(pos)
+		var p := _field.to_screen(pos, float(_lat.get(uid, 0.0)))
+		var lg := float(_lunge.get(uid, 0.0))
+		if lg > 0.0:
+			_lunge[uid] = maxf(0.0, lg - get_process_delta_time() * 6.0)
+			p.y += (-18.0 if e["side"] == "q" else 18.0) * depth * sin(lg * PI)
+		a.position = p
+		var base_px: float = (UNIT_PX * float(UNIT_SIZE.get(String(e["kind"]), 1.0))) if e["side"] == "q" else BUG_PX
+		a.px = base_px * depth
+		a.walking = e["state"] == "walk"
+		if e["side"] == "q":
+			a.row = 2 if e["state"] != "kb" else 0
+		else:
+			a.row = 2 if e["state"] == "kb" else (1 if e["state"] == "fight" else 0)
+	for uid in _actor_of.keys():
+		if not alive.has(uid):
+			var a2 = _actor_of[uid]
+			_actor_of.erase(uid)
+			if is_instance_valid(a2) and a2.dissolve <= 0.0:
+				a2.queue_free()
+	for uid in _dead.keys():
+		if not alive.has(uid):
+			_dead.erase(uid)
+
+
+func _make_actor(e: Dictionary) -> IdleActor:
+	var a := IdleActor.new()
+	var uid := int(e["uid"])
+	_lat[uid] = randf_range(-150.0, 150.0)
+	if e["side"] == "q":
+		a.set_sheet("res://assets/sprites/%s.png" % String(UNIT_SHEET.get(String(e["kind"]), "hero-walk")))
+		if UNIT_TINT.has(String(e["kind"])):
+			a.modulate = UNIT_TINT[String(e["kind"])]
+	else:
+		a.set_sheet("res://assets/sprites/bug-%s.png" % String(e["kind"]))
+	_actors.add_child(a)
+	_actor_of[uid] = a
+	return a
+
+
+func _actor_pos(uid: int) -> Vector2:
+	var a = _actor_of.get(uid)
+	if a == null or not is_instance_valid(a):
+		return Vector2(size.x * 0.5, size.y * 0.5)
+	return a.position + Vector2(0, -a.height() * 0.5)
+
+
+# ── 사건 → 연출 ───────────────────────────────────────────────────────
+
+func _on_event(e: Dictionary) -> void:
+	match String(e["k"]):
+		"spawn":
+			var uid := int(e["uid"])
+			if e["side"] == "q":
+				_later(0.0, func() -> void:
+					var a = _actor_of.get(uid)
+					if a != null and is_instance_valid(a):
+						a.squash = Vector2(1.3, 0.7)
+						_vfx.burst(a.position, Color("#F2E2C2"), 6, 140.0, 0.4, 0.35, true))
+			elif bool(e.get("boss", false)):
+				_banner_show("%s 등장!" % String(LaneData.BUGS[String(e["kind"])]["name"]), Color("#FF8A8A"))
+				_add_trauma(0.8)
+				AudioManager.sky_crack()
+		"swing":
+			var a = _actor_of.get(int(e["uid"]))
+			if a != null and is_instance_valid(a):
+				# 앞으로 몸을 날린다 - 위치는 매 프레임 길에서 다시 잡으니 '덤벼듦' 만 따로 더한다
+				a.squash = Vector2(1.18, 0.86)
+				_lunge[int(e["uid"])] = 1.0
+		"hit":
+			var a = _actor_of.get(int(e["uid"]))
+			if a != null and is_instance_valid(a):
+				a.flash = 0.9
+				a.flash_col = Color.WHITE if e["side"] == "b" else Color("#FF8080")
+				var p: Vector2 = a.position + Vector2(0, -a.height() * 0.5)
+				if e["side"] == "b":
+					_vfx.burst(p, Color("#FFE7B0"), 5, 220.0, 0.35, 0.3)
+					if int(e["dmg"]) >= 30 or bool(e.get("cannon", false)):
+						_fx.text(p + Vector2(randf_range(-20, 20), -20), _num(int(e["dmg"])), Color.WHITE, 26, 0.6, 0.0, 40.0)
+				else:
+					_vfx.burst(p, Color("#FF9A9A"), 3, 160.0, 0.3, 0.25)
+			if randf() < 0.35:
+				AudioManager.battle_weak_hit()
+		"kb":
+			var a = _actor_of.get(int(e["uid"]))
+			if a != null and is_instance_valid(a):
+				_vfx.burst(a.position, Color("#E8DCC8"), 6, 160.0, 0.45, 0.35, true)
+				_add_trauma(0.06)
+		"die":
+			var uid := int(e["uid"])
+			var a = _actor_of.get(uid)
+			_actor_of.erase(uid)
+			_dead[uid] = true
+			if a != null and is_instance_valid(a):
+				var p: Vector2 = a.position + Vector2(0, -a.height() * 0.5)
+				a.dissolve = 0.01
+				a.edge_col = Color("#FFE7A0") if e["side"] == "b" else Color("#FFB0C0")
+				var tw := create_tween()
+				tw.tween_property(a, "dissolve", 1.0, 0.45)
+				tw.tween_callback(a.queue_free)
+				if e["side"] == "b":
+					_vfx.burst(p, Color("#FFD27A"), 14, 320.0, 0.7, 0.5, true)
+					_fx.text(p + Vector2(0, -30), "+%d" % int(e["reward"]), IdleUi.GOLD, 26, 0.9, 0.05, 40.0)
+					if bool(e.get("boss", false)):
+						_add_trauma(0.9)
+						_hitstop(0.12)
+						_flash(0.4)
+						_fx.ring(p, 20.0, 300.0, IdleUi.GOLD, 16.0, 0.6)
+						_banner_show("우두머리를 물리쳤어요!", IdleUi.GOLD)
+					else:
+						_add_trauma(0.08)
+					AudioManager.battle_hit()
+				else:
+					_vfx.burst(p, Color("#FFC0D0"), 8, 200.0, 0.6, 0.4, true)
+		"base_hit":
+			if e["side"] == "b":
+				_field.shake_nest = 6.0
+				_vfx.burst(Vector2(size.x * 0.5, _field.y_far - 30.0), Color("#C9A27A"), 4, 200.0, 0.4, 0.35)
+			else:
+				_field.shake_our = 6.0
+				_add_trauma(0.05)
+		"shock":
+			_add_trauma(0.9)
+			_flash(0.3)
+			_fx.ring(Vector2(size.x * 0.5, _field.y_far + 40.0), 30.0, 700.0, Color("#FF9A9A"), 18.0, 0.8)
+		"rush":
+			_toast("둥지가 흔들려요! 벌레가 몰려와요")
+		"worker":
+			_fx.text(_worker_btn.global_position + Vector2(75, -10) - _world.global_position, "수입 UP!", IdleUi.GOLD, 30, 0.9)
+		"cannon", "cannon_fx":
+			if String(e["k"]) == "cannon":
+				_cannon_fx()
+		"slow":
+			var a = _actor_of.get(int(e["uid"]))
+			if a != null and is_instance_valid(a):
+				_vfx.burst(a.position + Vector2(0, -a.height() * 0.5), Color("#9FD8FF"), 8, 120.0, 0.6, 0.35, true)
+
+
+func _cannon_fx() -> void:
+	var base := Vector2(size.x * 0.5, _field.y_front + 20.0)
+	var reach := _field.to_screen(LaneData.CANNON_REACH, 0.0)
+	_flash(0.45)
+	_add_trauma(0.7)
+	_hitstop(0.06)
+	_fx.pillar(base, Color("#9FD8FF"), 0.7)
+	for i in 8:
+		var t := float(i) / 7.0
+		var p := base.lerp(reach, t)
+		_fx.ring(p, 10.0, 120.0 * (1.0 - t * 0.5), Color("#BFEFFF"), 10.0, 0.4, t * 0.15)
+		_vfx.burst(p, Color("#BFEFFF"), 6, 300.0, 0.5, 0.45, false, t * 0.15)
+	AudioManager.battle_hit()
+
+
+# ── 끝 ───────────────────────────────────────────────────────────────
+
+func _end_battle(res: String) -> void:
+	_ended = true
+	Engine.time_scale = 1.0
+	var win := res == "win"
+	var r := {}
+	if win:
+		r = LaneState.on_win(stage_n)
+		_flash(0.5)
+		_add_trauma(1.0)
+		var np := Vector2(size.x * 0.5, _field.y_far - 30.0)
+		_vfx.burst(np, Color("#FFD27A"), 40, 600.0, 1.2, 0.8)
+		_fx.ring(np, 20.0, 400.0, IdleUi.GOLD, 20.0, 0.8)
+		AudioManager.souvenir_get()
+	else:
+		AudioManager.battle_defeat()
+	LaneState.save(int(Time.get_unix_time_from_system()))
+	_later(1.0 if win else 0.6, func() -> void: _show_result(win, r))
+
+
+func _show_result(win: bool, r: Dictionary) -> void:
+	_result = Control.new()
+	_result.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_result.size = size
+	_hud.add_child(_result)
+	var dim := ColorRect.new()
+	dim.color = Color(0.06, 0.03, 0.1, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.size = size
+	_result.add_child(dim)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", IdleUi.panel_style())
+	_result.add_child(card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	card.add_child(v)
+	var t := IdleUi.label("승리!" if win else "후퇴…", 64, IdleUi.GOLD if win else IdleUi.SUB, true)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	v.add_child(_center(IdleUi.label(LaneData.stage_label(stage_n), 26, IdleUi.CREAM)))
+	if win:
+		v.add_child(_center(IdleUi.label("✦ 꿈조각 +%s" % _num(int(r["xp"])), 30, IdleUi.GOLD)))
+		if int(r["stars"]) > 0:
+			v.add_child(_center(IdleUi.label("★ 꿈별 +%d" % int(r["stars"]), 28, Color("#9FD8FF"))))
+		for id in r.get("new_units", []):
+			v.add_child(_center(IdleUi.label("새 친구! %s 합류" % String(LaneData.UNITS[id]["name"]), 28, IdleUi.GREEN)))
+	else:
+		v.add_child(_center(IdleUi.label("쿼카를 레벨업하고 다시 도전해요", 22, IdleUi.SUB)))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	v.add_child(row)
+	var home := IdleUi.button("홈으로", 28)
+	home.custom_minimum_size = Vector2(240, 90)
+	home.pressed.connect(_show_home)
+	row.add_child(home)
+	var next := IdleUi.button("다음 판 ▶" if win else "다시 ▶", 28, "gold")
+	next.custom_minimum_size = Vector2(240, 90)
+	var nn := mini(stage_n + 1, LaneData.STAGE_MAX) if win else stage_n
+	next.pressed.connect(func() -> void:
+		_world.queue_free()
+		_world = null
+		_start_battle(nn))
+	row.add_child(next)
+	card.reset_size()
+	var cs := card.get_combined_minimum_size()
+	card.position = (size - cs) * 0.5
+	card.scale = Vector2(0.8, 0.8)
+	card.pivot_offset = cs * 0.5
+	create_tween().tween_property(card, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _center(l: Label) -> Label:
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return l
+
+
+# ── 도우미 ───────────────────────────────────────────────────────────
+
+func _add_trauma(a: float) -> void:
+	_trauma = clampf(_trauma + a, 0.0, 1.0)
+
+
+func _hitstop(d: float) -> void:
+	Engine.time_scale = 0.06
+	get_tree().create_timer(d, true, false, true).timeout.connect(func() -> void: Engine.time_scale = 1.0)
+
+
+func _flash(a: float) -> void:
+	if _flash_rect != null:
+		_flash_rect.color = Color(1, 1, 1, maxf(_flash_rect.color.a, a))
+
+
+func _later(d: float, f: Callable) -> void:
+	if d <= 0.0:
+		f.call_deferred()
+		return
+	create_tween().tween_callback(f).set_delay(d)
+
+
+func _shake_ctrl(c: Control) -> void:
+	var x := c.position.x
+	var tw := create_tween()
+	for i in 4:
+		tw.tween_property(c, "position:x", x + (8.0 if i % 2 == 0 else -8.0), 0.035)
+	tw.tween_property(c, "position:x", x, 0.035)
+
+
+func _toast(t: String) -> void:
+	_toast_lbl.text = t
+	_toast_lbl.modulate.a = 1.0
+	move_child(_toast_lbl, get_child_count() - 1)
+	var tw := create_tween()
+	tw.tween_interval(2.2)
+	tw.tween_property(_toast_lbl, "modulate:a", 0.0, 0.5)
+
+
+func _banner_show(t: String, col: Color) -> void:
+	_banner.text = t
+	_banner.add_theme_color_override("font_color", col)
+	_banner.modulate.a = 1.0
+	move_child(_banner, get_child_count() - 1)
+	_banner.pivot_offset = _banner.size * 0.5
+	_banner.scale = Vector2(1.4, 1.4)
+	var tw := create_tween()
+	tw.tween_property(_banner, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.9)
+	tw.tween_property(_banner, "modulate:a", 0.0, 0.4)
+
+
+static func _num(n: int) -> String:
+	var s := str(absi(n))
+	var out := ""
+	for i in s.length():
+		if i > 0 and (s.length() - i) % 3 == 0:
+			out += ","
+		out += s[i]
+	return out

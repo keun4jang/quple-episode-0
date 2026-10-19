@@ -531,6 +531,10 @@ func _restyle_menu() -> void:
 	var start := _menu_button("이어서 하기" if has else "시작하기", "play", "gold", 40, 100.0)
 	start.pressed.connect(_on_start)
 	col.add_child(start)
+	# 새 버전 - 쿼카 군단 (세로 한 줄 싸움). 폰에서 해 보고 마음에 들면 지금 게임과 바꾼다 (`docs/redesign-lane.md`).
+	var lane := _menu_button("새 버전: 쿼카 군단", "sword", "plum", 30, 84.0)
+	lane.pressed.connect(func() -> void: _go("res://scenes/lane/LaneGame.tscn", "hopeful"))
+	col.add_child(lane)
 	if has:
 		_new_btn = _menu_button("처음부터 하기", "refresh", "plum", 30, 74.0)
 		_new_btn.pressed.connect(_confirm_new_game)
