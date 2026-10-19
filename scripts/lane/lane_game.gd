@@ -10,9 +10,11 @@ const BUG_PX := 3.0
 
 ## 쿼카 그림 — 레벨 10 부터 진화한 모습.
 static func unit_sheet(id: String) -> String:
-	var evolved := LaneState.level_of(id) >= LaneData.EVOLVE_LV
-	return "res://assets/sprites/quokka-%s%s.png" % [id, "-2" if evolved else ""]
-## 쿼카 쪽 그림 (2단계에서 군단 전용 그림으로 바뀐다) - 뒷모습 줄을 쓴다.
+	return LaneData.sheet_path(id, LaneState.level_of(id))
+
+
+const RARITY_COL := {"base": Color("#F3E7C8"), "rare": Color("#7FD0FF"), "super": Color("#C58CFF"),
+	"legend": Color("#FFD15A")}
 
 var battle := LaneBattle.new()
 var mode := "home"
@@ -57,6 +59,7 @@ var _banner: Label
 
 var _t := 0.0
 var _save_t := 0.0
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -79,9 +82,13 @@ func _ready() -> void:
 	var r := LaneState.claim_offline(int(Time.get_unix_time_from_system()))
 	if not r.is_empty():
 		_toast("자는 동안 쿼카들이 꿈조각 %s개를 모았어요" % _num(int(r["xp"])))
+	var gift := LaneState.claim_daily(int(Time.get_unix_time_from_system()))
 	if not LaneState.seen_intro:
 		LaneState.seen_intro = true
-		_toast("벌레들이 꿈결을 갉아먹고 있어요! 쿼카 군단을 보내요")
+		_toast("벌레들이 꿈결을 갉아먹고 있어요! 쿼카 군단을 보내요\n뽑기에 선물 티켓이 있어요")
+	elif not gift.is_empty():
+		_toast("매일 선물 %d일째!  티켓 %d장 · 꿈별 %d" % [int(gift["streak"]), int(gift["tickets"]), int(gift["stars"])])
+	_rng.randomize()
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	_show_home()
 
@@ -181,8 +188,8 @@ func _build_home() -> void:
 	tabs.name = "Tabs"
 	tabs.add_theme_constant_override("separation", 10)
 	_home.add_child(tabs)
-	for k in [["map", "지도"], ["units", "쿼카"], ["lineup", "편성"]]:
-		var b := IdleUi.button(String(k[1]), 30)
+	for k in [["map", "지도"], ["units", "동물"], ["lineup", "편성"], ["gacha", "뽑기"]]:
+		var b := IdleUi.button(String(k[1]), 28)
 		b.name = "Tab_" + String(k[0])
 		b.custom_minimum_size = Vector2(0, 92)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -231,9 +238,12 @@ func _refresh_home_top() -> void:
 	_star_lbl.text = "★ %s" % _num(LaneState.stars)
 	var nxt := mini(LaneState.cleared + 1, LaneData.STAGE_MAX)
 	(_home.get_node("Go") as Button).text = "▶ 출전!  %s" % LaneData.stage_label(nxt)
-	for k in ["map", "units", "lineup"]:
+	for k in ["map", "units", "lineup", "gacha"]:
 		var b := _home.get_node("Tabs/Tab_" + k) as Button
 		b.modulate = Color.WHITE if _home_tab == k else Color(1, 1, 1, 0.6)
+	var gb := _home.get_node("Tabs/Tab_gacha") as Button
+	gb.text = "뽑기 ●" if LaneState.can_pull(1) else "뽑기"
+	gb.add_theme_color_override("font_color", IdleUi.GOLD if LaneState.can_pull(1) else IdleUi.CREAM)
 
 
 func _clear(box: Container) -> void:
@@ -252,6 +262,8 @@ func _fill_home() -> void:
 			_fill_units()
 		"lineup":
 			_fill_lineup()
+		"gacha":
+			_fill_gacha()
 
 
 func _card() -> PanelContainer:
@@ -290,8 +302,11 @@ func _fill_map() -> void:
 
 
 func _fill_units() -> void:
-	for id in LaneData.UNIT_ORDER:
+	_home_body.add_child(IdleUi.label("도감  %d / %d  -  뽑기에서 새 친구를 만나요" % [LaneState.owned_count(),
+		LaneData.ALL_ORDER.size()], 24, IdleUi.CREAM))
+	for id in LaneData.ALL_ORDER:
 		var u: Dictionary = LaneData.UNITS[id]
+		var rr := LaneData.rarity(String(id))
 		var card := _card()
 		_home_body.add_child(card)
 		var row := HBoxContainer.new()
@@ -303,13 +318,24 @@ func _fill_units() -> void:
 		v.add_theme_constant_override("separation", 2)
 		row.add_child(v)
 		if not LaneState.has_unit(String(id)):
-			v.add_child(IdleUi.label("??? 쿼카", 26, IdleUi.MUTED))
-			v.add_child(IdleUi.label("%s 를 깨면 합류해요" % LaneData.stage_label(int(u["unlock"])), 20, IdleUi.MUTED))
+			if rr == "base":
+				v.add_child(IdleUi.label("??? 쿼카", 26, IdleUi.MUTED))
+				v.add_child(IdleUi.label("%s 를 깨면 합류해요" % LaneData.stage_label(int(u["unlock"])), 20, IdleUi.MUTED))
+			else:
+				v.add_child(IdleUi.label("???  %s %s" % ["★".repeat(int(LaneData.RARITY_STARS[rr])),
+					String(LaneData.RARITY_NAME[rr])], 26, (RARITY_COL[rr] as Color).darkened(0.35)))
+				v.add_child(IdleUi.label("꿈 캡슐에서 만나요", 20, IdleUi.MUTED))
 			continue
 		var lv := LaneState.level_of(String(id))
 		var s := LaneState.unit_stats(String(id))
 		var title := "%s  Lv %d" % [LaneData.unit_name(String(id), lv), lv]
-		v.add_child(IdleUi.label(title, 26, IdleUi.GOLD if lv >= LaneData.EVOLVE_LV else IdleUi.CREAM))
+		if rr != "base":
+			title = "★".repeat(int(LaneData.RARITY_STARS[rr])) + " " + title
+		v.add_child(IdleUi.label(title, 26, RARITY_COL[rr] if rr != "base" else
+			(IdleUi.GOLD if lv >= LaneData.EVOLVE_LV else IdleUi.CREAM)))
+		var tt := LaneData.trait_text(String(id))
+		if tt != "":
+			v.add_child(IdleUi.label(tt, 19, IdleUi.GREEN))
 		var role := String(u["role"])
 		if lv < LaneData.EVOLVE_LV:
 			role += "  ·  Lv %d 에 진화!" % LaneData.EVOLVE_LV
@@ -343,7 +369,7 @@ func _fill_lineup() -> void:
 	gr.add_theme_constant_override("h_separation", 10)
 	gr.add_theme_constant_override("v_separation", 10)
 	_home_body.add_child(gr)
-	for id in LaneData.UNIT_ORDER:
+	for id in LaneData.ALL_ORDER:
 		if not LaneState.has_unit(String(id)):
 			continue
 		var on := LaneState.lineup.has(id)
@@ -359,6 +385,63 @@ func _fill_lineup() -> void:
 				LaneState.save()
 			_fill_home())
 		gr.add_child(b)
+
+
+func _fill_gacha() -> void:
+	var card := _card()
+	_home_body.add_child(card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	card.add_child(v)
+	v.add_child(_center(IdleUi.label("꿈 캡슐", 44, IdleUi.GOLD, true)))
+	v.add_child(_center(IdleUi.label("동물 친구들이 캡슐 속에서 기다려요", 22, IdleUi.SUB)))
+	# 전설 친구들 미리 보기 - 아직 없으면 그림자
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 18)
+	v.add_child(row)
+	for id in ["tiger", "polar", "eagle"]:
+		var col := VBoxContainer.new()
+		row.add_child(col)
+		col.add_child(_portrait(id, 120.0))
+		var nm := IdleUi.label(String(LaneData.UNITS[id]["name"]) if LaneState.has_unit(id) else "★★★ ???", 18,
+			RARITY_COL["legend"])
+		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(nm)
+	v.add_child(_center(IdleUi.label("희귀 72%  ·  특급 24%  ·  전설 4%", 22, IdleUi.CREAM)))
+	v.add_child(_center(IdleUi.label("%d번 안에 전설 확정 (남은 %d번)  ·  같은 친구는 레벨 +1" % [LaneData.PITY_LEGEND,
+		LaneData.PITY_LEGEND - LaneState.pity], 19, IdleUi.SUB)))
+	var one := IdleUi.button("", 30, "gold")
+	one.custom_minimum_size = Vector2(0, 110)
+	if LaneState.tickets > 0:
+		one.text = "티켓으로 1번 뽑기  (%d장)" % LaneState.tickets
+	else:
+		one.text = "1번 뽑기   ★ %d" % LaneData.GACHA_COST
+	one.disabled = not LaneState.can_pull(1)
+	one.pressed.connect(_do_pull.bind(1))
+	v.add_child(one)
+	var ten := IdleUi.button("10번 뽑기   ★ %d\n특급 이상 1마리 확정" % LaneData.GACHA10_COST, 26, "plum")
+	ten.custom_minimum_size = Vector2(0, 110)
+	ten.disabled = not LaneState.can_pull(10)
+	ten.pressed.connect(_do_pull.bind(10))
+	v.add_child(ten)
+	var how := IdleUi.label("꿈별은 판을 처음 깨면 받고(뒤 구역일수록 많이, 우두머리는 티켓도), 다시 깨면 1개, 매일 선물로도 받아요.\n진짜 돈은 쓰지 않아요.",
+		19, IdleUi.SUB)
+	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(how)
+
+
+func _do_pull(count: int) -> void:
+	var res := LaneState.pull(count, _rng)
+	if res.is_empty():
+		return
+	LaneState.save(int(Time.get_unix_time_from_system()))
+	AudioManager.ui_confirm()
+	var g := LaneGacha.new()
+	g.size = size
+	add_child(g)
+	g.finished.connect(_fill_home)
+	g.play(res)
 
 
 ## 쿼카 얼굴 (앞모습 첫 칸).
@@ -680,11 +763,25 @@ func _on_event(e: Dictionary) -> void:
 		"spawn":
 			var uid := int(e["uid"])
 			if e["side"] == "q":
+				var rr := LaneData.rarity(String(e["kind"]))
 				_later(0.0, func() -> void:
 					var a = _actor_of.get(uid)
 					if a != null and is_instance_valid(a):
 						a.squash = Vector2(1.3, 0.7)
-						_vfx.burst(a.position, Color("#F2E2C2"), 6, 140.0, 0.4, 0.35, true))
+						_vfx.burst(a.position, Color("#F2E2C2"), 6, 140.0, 0.4, 0.35, true)
+						if rr == "legend":
+							# 전설이 나오면 판 전체가 알아챈다
+							_fx.pillar(a.position, RARITY_COL["legend"], 0.8)
+							_fx.ring(a.position, 20.0, 260.0, RARITY_COL["legend"], 14.0, 0.6)
+							_vfx.burst(a.position, RARITY_COL["legend"], 24, 380.0, 0.9, 0.5, true)
+							_flash(0.25)
+							_add_trauma(0.35)
+							_banner_show("전설 출전! %s" % LaneData.unit_name(String(e["kind"]),
+								LaneState.level_of(String(e["kind"]))), RARITY_COL["legend"])
+							AudioManager.souvenir_get()
+						elif rr == "super":
+							_fx.ring(a.position, 16.0, 160.0, RARITY_COL["super"], 10.0, 0.45)
+							_vfx.burst(a.position, RARITY_COL["super"], 12, 260.0, 0.6, 0.4, true))
 			elif bool(e.get("boss", false)):
 				_banner_show("%s 등장!" % String(LaneData.BUGS[String(e["kind"])]["name"]), Color("#FF8A8A"))
 				_add_trauma(0.8)
@@ -702,9 +799,7 @@ func _on_event(e: Dictionary) -> void:
 				a.flash_col = Color.WHITE if e["side"] == "b" else Color("#FF8080")
 				var p: Vector2 = a.position + Vector2(0, -a.height() * 0.5)
 				if e["side"] == "b":
-					_vfx.burst(p, Color("#FFE7B0"), 5, 220.0, 0.35, 0.3)
-					if int(e["dmg"]) >= 30 or bool(e.get("cannon", false)):
-						_fx.text(p + Vector2(randf_range(-20, 20), -20), _num(int(e["dmg"])), Color.WHITE, 26, 0.6, 0.0, 40.0)
+					_hit_fx(e, p)
 				else:
 					_vfx.burst(p, Color("#FF9A9A"), 3, 160.0, 0.3, 0.25)
 			if randf() < 0.35:
@@ -762,6 +857,37 @@ func _on_event(e: Dictionary) -> void:
 			var a = _actor_of.get(int(e["uid"]))
 			if a != null and is_instance_valid(a):
 				_vfx.burst(a.position + Vector2(0, -a.height() * 0.5), Color("#9FD8FF"), 8, 120.0, 0.6, 0.35, true)
+
+
+## 벌레가 맞았을 때. 평소엔 작게, 특성·치명타일 때만 크게 - 그래야 '강한 한 방' 이 눈에 띈다.
+func _hit_fx(e: Dictionary, p: Vector2) -> void:
+	var dmg := int(e["dmg"])
+	var eff := String(e.get("eff", ""))
+	var crit := bool(e.get("crit", false))
+	var legend := String(e.get("by_rarity", "")) == "legend"
+	if crit:
+		_vfx.burst(p, IdleUi.GOLD, 22, 460.0, 0.6, 0.55)
+		_fx.slash(p, randf_range(-0.6, 0.6), 70.0, Color("#FFF3B0"), 18.0, 0.22)
+		_fx.ring(p, 10.0, 120.0, IdleUi.GOLD, 10.0, 0.35)
+		_fx.text(p + Vector2(0, -40), "치명타! %s" % _num(dmg), IdleUi.GOLD, 40, 0.9, 0.0, 70.0)
+		_add_trauma(0.25)
+		_hitstop(0.045)
+		AudioManager.battle_hit()
+		return
+	if eff == "massive":
+		var c := Color("#FF7AD9")
+		_vfx.burst(p, c, 16, 380.0, 0.5, 0.5)
+		_fx.ring(p, 8.0, 90.0, c, 8.0, 0.3)
+		_fx.text(p + Vector2(randf_range(-16, 16), -30), "굉장! %s" % _num(dmg), c, 32, 0.8, 0.0, 55.0)
+		_add_trauma(0.12)
+		return
+	if eff == "strong":
+		_vfx.burst(p, Color("#9CF0A0"), 9, 280.0, 0.4, 0.4)
+		_fx.text(p + Vector2(randf_range(-16, 16), -24), _num(dmg), Color("#9CF0A0"), 28, 0.7, 0.0, 45.0)
+		return
+	_vfx.burst(p, Color("#FFE7B0") if not legend else IdleUi.GOLD, 5 if not legend else 10, 220.0, 0.35, 0.3)
+	if dmg >= 30 or bool(e.get("cannon", false)):
+		_fx.text(p + Vector2(randf_range(-20, 20), -20), _num(dmg), Color.WHITE, 26, 0.6, 0.0, 40.0)
 
 
 func _cannon_fx() -> void:
@@ -825,6 +951,8 @@ func _show_result(win: bool, r: Dictionary) -> void:
 		v.add_child(_center(IdleUi.label("✦ 꿈조각 +%s" % _num(int(r["xp"])), 30, IdleUi.GOLD)))
 		if int(r["stars"]) > 0:
 			v.add_child(_center(IdleUi.label("★ 꿈별 +%d" % int(r["stars"]), 28, Color("#9FD8FF"))))
+		if int(r.get("tickets", 0)) > 0:
+			v.add_child(_center(IdleUi.label("뽑기 티켓 +%d장" % int(r["tickets"]), 28, IdleUi.GOLD)))
 		for id in r.get("new_units", []):
 			v.add_child(_center(IdleUi.label("새 친구! %s 합류" % String(LaneData.UNITS[id]["name"]), 28, IdleUi.GREEN)))
 	else:

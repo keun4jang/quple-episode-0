@@ -1,5 +1,5 @@
 extends Node
-## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle, SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES
+## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES
 func _ready() -> void:
 	LaneState.clear_save()
 	LaneState.reset()
@@ -12,6 +12,12 @@ func _ready() -> void:
 	LaneState.xp = 12345
 	LaneState.stars = 30
 	LaneState.seen_intro = true
+	LaneState.daily_day = int(Time.get_unix_time_from_system()) / 86400
+	if OS.get_environment("SHOT_ANIMALS") != "":
+		LaneState.lineup = []
+		for id in OS.get_environment("SHOT_ANIMALS").split(","):
+			LaneState.units[id] = lv
+			LaneState.lineup.append(id)
 	LaneState.auto_summon = true
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	var g = load("res://scenes/lane/LaneGame.tscn").instantiate()
@@ -20,6 +26,11 @@ func _ready() -> void:
 	await get_tree().create_timer(1.0).timeout
 	if OS.get_environment("SHOT_MODE") == "battle":
 		g._start_battle(st)
+	elif OS.get_environment("SHOT_MODE") == "gacha":
+		LaneState.stars = 2000
+		if OS.get_environment("SHOT_LEGEND") == "1":
+			LaneState.pity = LaneData.PITY_LEGEND - 1
+		g._do_pull(int(OS.get_environment("SHOT_PULL")) if OS.get_environment("SHOT_PULL") != "" else 1)
 	elif OS.get_environment("SHOT_TAB") != "":
 		g._home_tab = OS.get_environment("SHOT_TAB")
 		g._fill_home()

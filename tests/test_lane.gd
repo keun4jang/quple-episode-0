@@ -43,7 +43,7 @@ func _ready() -> void:
 	r = LaneState.on_win(2)
 	ck("2번을 깨면 창 쿼카 합류", (r["new_units"] as Array).has("spear") and LaneState.lineup.has("spear"))
 	var r2 := LaneState.on_win(1)
-	ck("깬 판을 또 깨면 처음 보상은 없다", not bool(r2["first"]) and int(r2["stars"]) == 0 and LaneState.cleared == 2)
+	ck("깬 판을 또 깨면 처음 보상은 없다", not bool(r2["first"]) and int(r2["stars"]) == 1 and LaneState.cleared == 2)
 	LaneState.xp = 0
 	ck("꿈조각이 없으면 레벨업 못 한다", not LaneState.level_up("tiny"))
 	LaneState.xp = 999999
@@ -135,5 +135,89 @@ func _ready() -> void:
 		and not LaneState.units.has("nope") and LaneState.lineup.count("tiny") == 1)
 	LaneState.clear_save()
 	ck("지우면 없다", not LaneState.has_save())
+	_test_gacha()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(1 if fail_n > 0 else 0)
+
+
+func _test_gacha() -> void:
+	print("\n[뽑기·매일 선물·특성]")
+	LaneState.reset()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	ck("처음엔 선물 티켓 1장", LaneState.tickets == 1 and LaneState.can_pull(1))
+	var r := LaneState.pull(1, rng)
+	ck("첫 뽑기는 특급 이상", r.size() == 1 and String(r[0]["rarity"]) != "rare" and bool(r[0]["new"]))
+	ck("티켓을 썼고 꿈별은 그대로", LaneState.tickets == 0 and LaneState.stars == 0)
+	ck("뽑은 친구가 편성에 들어간다", LaneState.lineup.has(String(r[0]["id"])))
+	ck("꿈별이 없으면 못 뽑는다", not LaneState.can_pull(1) and LaneState.pull(1, rng).is_empty())
+	LaneState.stars = LaneData.GACHA10_COST
+	var r10 := LaneState.pull(10, rng)
+	var best := 0
+	for x in r10:
+		best = maxi(best, int(LaneData.RARITY_STARS[String(x["rarity"])]))
+	ck("10번 뽑기 = 10마리, 특급 이상 하나", r10.size() == 10 and best >= 2 and LaneState.stars == 0)
+	# 중복은 레벨 +1, 최고 레벨이면 꿈조각
+	LaneState.units["chick"] = LaneData.UNIT_LV_MAX
+	var xp0 := LaneState.xp
+	var g := LaneState._grant("chick")
+	ck("최고 레벨 중복은 꿈조각", int(g["xp"]) > 0 and LaneState.xp == xp0 + int(g["xp"]))
+	LaneState.units["frog"] = 3
+	g = LaneState._grant("frog")
+	ck("중복은 레벨 +1", LaneState.level_of("frog") == 4 and not bool(g["new"]))
+	# 천장: 전설 없이 PITY-1 번 뽑았으면 다음은 전설
+	LaneState.pity = LaneData.PITY_LEGEND - 1
+	ck("천장이면 전설", LaneData.rarity(LaneState.roll(rng)) == "legend" and LaneState.pity == 0)
+	# 확률이 대충 맞나 (2000번)
+	var cnt := {"rare": 0, "super": 0, "legend": 0}
+	for i in 2000:
+		LaneState.pity = 0
+		cnt[LaneData.rarity(LaneState.roll(rng))] += 1
+	ck("확률이 대충 맞다", absf(float(cnt["rare"]) / 2000.0 - 0.72) < 0.04 and absf(float(cnt["legend"]) / 2000.0 - 0.04) < 0.02,
+		str(cnt))
+	# 매일 선물
+	var day := 86400 * 20000
+	var d1 := LaneState.claim_daily(day + 100)
+	ck("매일 선물 받는다", not d1.is_empty() and int(d1["streak"]) == 1)
+	ck("같은 날엔 또 못 받는다", LaneState.claim_daily(day + 5000).is_empty())
+	var d2 := LaneState.claim_daily(day + 86400 + 10)
+	ck("다음 날 이어진다", int(d2["streak"]) == 2)
+	var d3 := LaneState.claim_daily(day + 86400 * 4)
+	ck("하루 빠지면 처음부터", int(d3["streak"]) == 1)
+	# 저장
+	LaneState.tickets = 4
+	LaneState.pity = 9
+	var dd := LaneState.to_dict()
+	LaneState.reset()
+	LaneState.from_dict(dd)
+	ck("뽑기 상태 저장", LaneState.tickets == 4 and LaneState.pity == 9 and LaneState.has_unit("frog"))
+	# 특성: 개구리는 날벌레에 1.5배, 고슴도치는 기어다니는 벌레에게 반만 맞는다
+	LaneState.reset()
+	LaneState.units["frog"] = 1
+	LaneState.units["hedgehog"] = 1
+	LaneState.lineup = ["frog", "hedgehog"]
+	var b := LaneBattle.new()
+	b.start(1, 3)
+	var frog := b._make(LaneState.unit_stats("frog"), "q", 100.0)
+	var mos := b._make(LaneData.BUGS["mosquito"].merged({"id": "mosquito"}), "b", 200.0)
+	var ant := b._make(LaneData.BUGS["ant"].merged({"id": "ant"}), "b", 200.0)
+	var hog := b._make(LaneState.unit_stats("hedgehog"), "q", 100.0)
+	var h0 := float(mos["hp"])
+	b._strike(frog, mos, 10.0)
+	ck("강함: 1.5배로 때린다", is_equal_approx(h0 - float(mos["hp"]), 15.0))
+	var hh := float(hog["hp"])
+	b._strike(ant, hog, 10.0)
+	ck("강함: 반만 맞는다", is_equal_approx(hh - float(hog["hp"]), 5.0))
+	LaneState.units["owl"] = 1
+	var owl := b._make(LaneState.unit_stats("owl"), "q", 100.0)
+	var mos2 := b._make(LaneData.BUGS["mosquito"].merged({"id": "mosquito"}), "b", 200.0)
+	var m0 := float(mos2["hp"])
+	b._strike(owl, mos2, 10.0)
+	ck("굉장히 강함: 2.5배", is_equal_approx(m0 - float(mos2["hp"]), 25.0))
+	ck("벽 판정", LaneData.is_wall("turtle") and not LaneData.is_wall("owl"))
+	var all_ok := true
+	for id in LaneData.ALL_ORDER:
+		if not ResourceLoader.exists(LaneData.sheet_path(String(id), 1)) or not ResourceLoader.exists(LaneData.sheet_path(String(id), 10)):
+			all_ok = false
+	ck("모든 친구 그림이 있다 (진화 포함)", all_ok)
+	LaneState.reset()

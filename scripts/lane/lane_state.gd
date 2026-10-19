@@ -18,6 +18,13 @@ static var auto_summon := false
 static var speed2 := false
 static var seen_intro := false
 static var last_seen := 0
+## 뽑기: 무료 티켓 · 전설 없이 뽑은 수 · 전체 뽑은 수
+static var tickets := 0
+static var pity := 0
+static var pulls := 0
+## 매일 선물: 마지막으로 받은 날(유닉스 일 수) · 이어 받은 날 수
+static var daily_day := 0
+static var daily_streak := 0
 
 
 static func reset() -> void:
@@ -31,6 +38,11 @@ static func reset() -> void:
 	speed2 = false
 	seen_intro = false
 	last_seen = 0
+	tickets = 1          # 처음 하나는 선물 - 첫 뽑기는 특급 이상
+	pity = 0
+	pulls = 0
+	daily_day = 0
+	daily_streak = 0
 
 
 static func has_unit(id: String) -> bool:
@@ -95,6 +107,7 @@ static func on_win(n: int) -> Dictionary:
 	var r := LaneData.reward(n, first)
 	xp += int(r["xp"])
 	stars += int(r["stars"])
+	tickets += int(r.get("tickets", 0))
 	clears[n] = int(clears.get(n, 0)) + 1
 	if first:
 		cleared = n
@@ -122,10 +135,112 @@ static func claim_offline(now_unix: int) -> Dictionary:
 	return r
 
 
+# ── 뽑기 ─────────────────────────────────────────────────────────────
+
+static func can_pull(count: int) -> bool:
+	if count == 1:
+		return tickets > 0 or stars >= LaneData.GACHA_COST
+	return stars >= LaneData.GACHA10_COST
+
+
+## 1번 또는 10번 뽑는다. 티켓이 있으면 1번은 티켓부터 쓴다.
+## 돌려주는 것: [{id, rarity, new, lv, xp}] - new 처음 만남, lv 지금 레벨, xp 중복이라 받은 꿈조각.
+static func pull(count: int, rng: RandomNumberGenerator) -> Array:
+	if not can_pull(count):
+		return []
+	if count == 1:
+		if tickets > 0:
+			tickets -= 1
+		else:
+			stars -= LaneData.GACHA_COST
+	else:
+		stars -= LaneData.GACHA10_COST
+	var out: Array = []
+	for i in count:
+		var floor_r := "super" if (pulls == 0 or (count > 1 and i == count - 1)) else "rare"
+		out.append(_grant(roll(rng, floor_r)))
+	return out
+
+
+## 등급을 굴리고 그 등급 안에서 하나 고른다. floor_r 보다 낮은 등급은 안 나온다.
+static func roll(rng: RandomNumberGenerator, floor_r := "rare") -> String:
+	var r := "rare"
+	if pity + 1 >= LaneData.PITY_LEGEND:
+		r = "legend"
+	else:
+		var x := rng.randf()
+		if x < float(LaneData.GACHA_RATES["legend"]):
+			r = "legend"
+		elif x < float(LaneData.GACHA_RATES["legend"]) + float(LaneData.GACHA_RATES["super"]):
+			r = "super"
+	if floor_r == "super" and r == "rare":
+		r = "super"
+	pulls += 1
+	pity = 0 if r == "legend" else pity + 1
+	var pool: Array = []
+	for id in LaneData.ANIMAL_ORDER:
+		if LaneData.rarity(String(id)) == r:
+			pool.append(String(id))
+	# 아직 없는 친구가 조금 더 잘 나온다 (같은 것만 계속 나오면 김이 샌다)
+	var weights: Array = []
+	var total := 0.0
+	for id in pool:
+		var w := 1.5 if not units.has(id) else 1.0
+		weights.append(w)
+		total += w
+	var pick := rng.randf() * total
+	for k in pool.size():
+		pick -= float(weights[k])
+		if pick <= 0.0:
+			return String(pool[k])
+	return String(pool[pool.size() - 1])
+
+
+static func _grant(id: String) -> Dictionary:
+	var res := {"id": id, "rarity": LaneData.rarity(id), "new": false, "xp": 0}
+	if not units.has(id):
+		units[id] = 1
+		res["new"] = true
+		if lineup.size() < LaneData.LINEUP_MAX:
+			lineup.append(id)
+	elif level_of(id) < LaneData.UNIT_LV_MAX:
+		units[id] = level_of(id) + 1
+	else:
+		var g := LaneData.dupe_xp(id)
+		xp += g
+		res["xp"] = g
+	res["lv"] = level_of(id)
+	return res
+
+
+# ── 매일 선물 ─────────────────────────────────────────────────────────
+
+static func daily_ready(now_unix: int) -> bool:
+	return now_unix / 86400 > daily_day
+
+
+## 받으면 {tickets, stars, streak}, 오늘 이미 받았으면 {}.
+static func claim_daily(now_unix: int) -> Dictionary:
+	var today := now_unix / 86400
+	if today <= daily_day:
+		return {}
+	daily_streak = daily_streak + 1 if today == daily_day + 1 else 1
+	daily_day = today
+	var g := LaneData.daily_gift(daily_streak)
+	tickets += int(g["tickets"])
+	stars += int(g["stars"])
+	return {"tickets": int(g["tickets"]), "stars": int(g["stars"]), "streak": daily_streak}
+
+
+static func owned_count() -> int:
+	return units.size()
+
+
 static func to_dict() -> Dictionary:
 	return {"v": 1, "xp": xp, "stars": stars, "units": units.duplicate(), "lineup": lineup.duplicate(),
 		"cleared": cleared, "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed2,
-		"seen_intro": seen_intro, "last_seen": last_seen}
+		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
+		"daily_day": daily_day, "daily_streak": daily_streak}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -154,6 +269,11 @@ static func from_dict(d: Dictionary) -> void:
 	speed2 = bool(d.get("speed2", false))
 	seen_intro = bool(d.get("seen_intro", false))
 	last_seen = maxi(0, int(d.get("last_seen", 0)))
+	tickets = clampi(int(d.get("tickets", 1)), 0, 9999)
+	pity = clampi(int(d.get("pity", 0)), 0, LaneData.PITY_LEGEND)
+	pulls = maxi(0, int(d.get("pulls", 0)))
+	daily_day = maxi(0, int(d.get("daily_day", 0)))
+	daily_streak = maxi(0, int(d.get("daily_streak", 0)))
 	unlock_by_stage()
 
 

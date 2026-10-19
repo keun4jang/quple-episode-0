@@ -221,7 +221,9 @@ func _make(s: Dictionary, side: String, pos: float) -> Dictionary:
 		"speed": float(s["speed"]), "kb": kb, "kb_next": float(s["hp"]) * float(kb - 1) / float(kb),
 		"area": bool(s["area"]), "state": "walk", "st": 0.0, "t_atk": FORESWING, "slow": 0.0,
 		"no_kb": bool(s.get("no_kb", false)), "trait": String(s.get("trait", "")), "boss": bool(s.get("boss", false)),
-		"reward": float(s.get("reward", 0)), "slow_rule": s.get("slow", {}), "kb_from": 0.0, "kb_to": 0.0}
+		"reward": float(s.get("reward", 0)), "slow_rule": s.get("slow", {}), "kb_from": 0.0, "kb_to": 0.0,
+		"strong": s.get("strong", []), "massive": s.get("massive", []), "crit": float(s.get("crit", 0.0)),
+		"kb_hit": float(s.get("kb_hit", 0.0)), "rarity": String(s.get("rarity", ""))}
 
 
 func _count(side: String) -> int:
@@ -295,10 +297,34 @@ func _act(e: Dictionary, d: float) -> void:
 		_hit_base(e, dmg)
 		return
 	for o in tg:
-		_damage(o, dmg, false, e)
+		_strike(e, o, dmg)
 	# 범위 공격은 성도 같이 친다
 	if bool(e["area"]) and base_in:
 		_hit_base(e, dmg)
+
+
+## 한 대 친다 - 특성(강함·굉장히 강함)·치명타를 여기서 한 번에 계산한다.
+func _strike(e: Dictionary, o: Dictionary, base: float) -> void:
+	var dmg := base
+	var eff := ""
+	var tr := String(o["trait"])
+	if e["side"] == "q":
+		if (e["massive"] as Array).has(tr):
+			dmg *= LaneData.MASSIVE_MULT
+			eff = "massive"
+		elif (e["strong"] as Array).has(tr):
+			dmg *= LaneData.STRONG_MULT
+			eff = "strong"
+	elif (o["strong"] as Array).has(String(e["trait"])):
+		dmg *= LaneData.STRONG_TAKEN
+		eff = "guard"
+	var crit := float(e["crit"]) > 0.0 and rng.randf() < float(e["crit"])
+	if crit:
+		dmg *= LaneData.CRIT_MULT
+	_damage(o, dmg, false, e, eff, crit)
+	if float(o["hp"]) > 0.0 and o["state"] != "kb" and float(e["kb_hit"]) > 0.0 and not bool(o["boss"]) \
+			and rng.randf() < float(e["kb_hit"]):
+		_knockback(o, LaneData.KB_DIST)
 
 
 func _hit_base(e: Dictionary, dmg: float) -> void:
@@ -310,12 +336,14 @@ func _hit_base(e: Dictionary, dmg: float) -> void:
 		events.append({"k": "base_hit", "side": "q", "dmg": int(round(dmg))})
 
 
-func _damage(o: Dictionary, dmg: float, cannon_hit: bool, by: Dictionary = {}) -> void:
+func _damage(o: Dictionary, dmg: float, cannon_hit: bool, by: Dictionary = {}, eff := "", crit := false) -> void:
 	o["hp"] = float(o["hp"]) - dmg
 	events.append({"k": "hit", "uid": o["uid"], "side": o["side"], "dmg": int(round(dmg)),
-		"by": by.get("uid", -1), "cannon": cannon_hit})
+		"by": by.get("uid", -1), "cannon": cannon_hit, "eff": eff, "crit": crit,
+		"by_rarity": String(by.get("rarity", ""))})
 	var rule: Dictionary = by.get("slow_rule", {})
-	if not rule.is_empty() and String(o["trait"]) == String(rule["trait"]) and rng.randf() < float(rule["chance"]):
+	if not rule.is_empty() and (String(rule["trait"]) == "all" or String(o["trait"]) == String(rule["trait"])) \
+			and rng.randf() < float(rule["chance"]):
 		o["slow"] = float(rule["secs"])
 		events.append({"k": "slow", "uid": o["uid"]})
 	if float(o["hp"]) <= 0.0:
@@ -355,21 +383,22 @@ func _auto_play() -> void:
 		fire_cannon()
 	var walls := 0
 	for e in ents:
-		if e["side"] == "q" and float(e["hp"]) > 0.0 and (e["kind"] == "tiny" or e["kind"] == "shield"):
+		if e["side"] == "q" and float(e["hp"]) > 0.0 and LaneData.is_wall(String(e["kind"])):
 			walls += 1
 	# 일꾼(수입)에 먼저 투자: 벽이 있거나 앞이 조용하면 6단계까지
 	if can_worker() and (worker < 3 or (worker < 6 and (near == 0 or walls >= 2))):
 		upgrade_worker()
 		return
+	var wall_ids := _walls_by_cost(true)
 	if walls < 4:
-		for id in ["shield", "tiny"]:
+		for id in wall_ids:
 			if can_summon(id):
 				summon(id)
 				return
 	var best := ""
 	var best_cost := -1.0
 	for id in lineup:
-		if id == "tiny" or id == "shield":
+		if LaneData.is_wall(String(id)):
 			continue
 		if can_summon(String(id)) and float(stats[id]["cost"]) > best_cost:
 			best_cost = float(stats[id]["cost"])
@@ -382,7 +411,20 @@ func _auto_play() -> void:
 		return
 	# 꿈빛이 넘치면 벽을 더
 	if wallet >= float(wallet_cap()) * 0.8:
-		for id in ["tiny", "shield"]:
+		for id in _walls_by_cost(false):
 			if can_summon(id):
 				summon(id)
 				return
+
+
+## 편성의 벽들 - 비싼(튼튼한) 것부터 또는 싼 것부터.
+func _walls_by_cost(dear_first: bool) -> Array:
+	var out: Array = []
+	for id in lineup:
+		if LaneData.is_wall(String(id)):
+			out.append(String(id))
+	out.sort_custom(func(a, b) -> bool:
+		var ca := float(stats[a]["cost"])
+		var cb := float(stats[b]["cost"])
+		return ca > cb if dear_first else ca < cb)
+	return out
