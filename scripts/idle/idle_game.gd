@@ -127,7 +127,7 @@ func _ready() -> void:
 	_build()
 	resized.connect(_layout)
 	_layout()
-	AudioManager.play_bgm("room")
+	AudioManager.play_bgm("adventure")
 	var r := IdleState.claim_offline(int(Time.get_unix_time_from_system()))
 	if not IdleState.seen_intro:
 		IdleState.seen_intro = true
@@ -615,6 +615,8 @@ func _apply_look() -> void:
 
 func _start_stage() -> void:
 	fight.start(IdleState.stage)
+	# 평소엔 신나는 곡, 우두머리 스테이지는 더 빠르고 긴장되는 곡 (같은 곡이면 이어서 튼다)
+	AudioManager.play_bgm("boss" if bool(fight.info.get("boss", false)) else "adventure")
 	_apply_look()
 	_end_armed = false
 	_end_t = 0.0

@@ -68,7 +68,7 @@ func _bgm_db() -> float:
 # ── 배경음악 ────────────────────────────────────────────────────────────
 
 ## 배경음악을 튼다. 같은 곡이면 아무것도 하지 않는다.
-##   "arirang" / "doraji" / "gohyang" / "gaeguri" / "room"
+##   "arirang" / "doraji" / "gohyang" / "gaeguri" / "room" / "adventure"(전투) / "boss"(우두머리)
 func play_bgm(track: String) -> void:
 	if track == _bgm_current and _bgm_player and _bgm_player.playing:
 		return
@@ -644,6 +644,18 @@ const BGM_TRACKS := {
 		"bars": 6, "chords": [[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7],[0,4,7]],
 		"lh": "ballad", "rubato": 0.012,
 	},
+	# 신나는 전투곡 - 피아노가 아니라 북·베이스·펄스 선율로 따로 짠다 (`_build_upbeat`).
+	# 근음과 화음 진행만 바꾸면 분위기가 달라진다. 선율은 씨앗으로 정해져 늘 같다.
+	"adventure": {
+		"upbeat": true, "root": 261.63, "bpm": 128.0, "bars": 16, "minor": false,
+		"prog": [[0, 4, 7], [7, 11, 14], [9, 12, 16], [5, 9, 12]],       # I - V - vi - IV
+		"seed": 31,
+	},
+	"boss": {
+		"upbeat": true, "root": 220.0, "bpm": 150.0, "bars": 8, "minor": true,
+		"prog": [[0, 3, 7], [8, 12, 15], [3, 7, 10], [10, 14, 17]],      # i - VI - III - VII
+		"seed": 77,
+	},
 	# 선율이 없는 곡 — 즉흥으로 조용히 친다
 	"room": {
 		"melody": "", "root": 220.00, "dur": 20.0, "octave": 1,
@@ -801,6 +813,8 @@ func _build_bgm(track: String) -> AudioStreamWAV:
 	var cfg: Dictionary = BGM_TRACKS.get(track, {})
 	if cfg.is_empty():
 		return null
+	if bool(cfg.get("upbeat", false)):
+		return _build_upbeat(cfg)
 	var root: float = cfg.root
 	var chords: Array = cfg.chords
 	var rng := RandomNumberGenerator.new()
@@ -1280,6 +1294,186 @@ func _amb_finalize(buf: PackedFloat32Array, n: int, gain: float) -> AudioStreamW
 	var st := AudioStreamWAV.new()
 	st.format = AudioStreamWAV.FORMAT_16_BITS
 	st.mix_rate = AMB_RATE
+	st.stereo = false
+	st.data = data
+	st.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	st.loop_begin = 0
+	st.loop_end = n
+	return st
+
+
+# ── 신나는 전투곡 ──────────────────────────────────────────────────────
+# 북(킥·스네어·하이햇) + 8분음표 베이스 + 16분음표 아르페지오 + 펄스 선율.
+# 음 하나하나를 그 길이만큼만 버퍼에 더한다 (모든 샘플마다 모든 악기를 돌지 않는다 - 폰에서도 빨리 만든다).
+
+const UPBEAT_MAJOR := [0, 2, 4, 5, 7, 9, 11]
+const UPBEAT_MINOR := [0, 2, 3, 5, 7, 8, 10]
+## 마디 안 8분음표 여덟 칸 중 어디서 선율이 소리 나나 (1 = 친다).
+const UPBEAT_RHYTHMS := [
+	[1, 0, 1, 1, 0, 1, 1, 0],
+	[1, 1, 0, 1, 1, 0, 1, 0],
+	[1, 0, 1, 0, 1, 1, 1, 1],
+	[1, 0, 0, 1, 0, 0, 1, 0],
+]
+
+
+func _build_upbeat(cfg: Dictionary) -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(cfg.get("seed", 1))
+	var bpm: float = float(cfg.bpm)
+	var beat := 60.0 / bpm
+	var e8 := beat * 0.5
+	var bars: int = int(cfg.bars)
+	var bar := beat * 4.0
+	var n := int(BGM_RATE * bar * bars)
+	var buf := PackedFloat32Array()
+	buf.resize(n)
+	var root: float = float(cfg.root)
+	var prog: Array = cfg.prog
+	var scale: Array = UPBEAT_MINOR if bool(cfg.minor) else UPBEAT_MAJOR
+	var fast: bool = bpm >= 140.0
+
+	for b in bars:
+		var t0 := b * bar
+		var chord: Array = prog[b % prog.size()]
+		var last_bar := b == bars - 1
+		# ── 북
+		for q in 4:
+			var tb := t0 + q * beat
+			if q == 0 or q == 2 or fast:
+				_up_kick(buf, tb, 0.95)
+			if q == 1 or q == 3:
+				_up_snare(buf, tb, rng, 0.5)
+			for h in (4 if fast else 2):
+				var th := tb + h * beat / (4.0 if fast else 2.0)
+				_up_hat(buf, th, rng, 0.16 if h % 2 == 1 else 0.09)
+		if b % 4 == 3:                               # 네 마디마다 작은 채움(필)
+			for k in 4:
+				_up_snare(buf, t0 + 3.0 * beat + k * beat / 4.0, rng, 0.22 + k * 0.08)
+		# ── 베이스: 근음·근음·옥타브·근음 ... 8분음표로 통통
+		var bf := root * 0.25 * pow(2.0, float(chord[0]) / 12.0)
+		for k in 8:
+			var f := bf * (2.0 if k % 4 == 2 else 1.0)
+			_up_tone(buf, t0 + k * e8, e8 * 0.9, f, 0.42, "bass")
+		# ── 아르페지오: 화음 세 음을 16분음표로 굴린다
+		for k in 16:
+			var tone: int = chord[[0, 1, 2, 1][k % 4]]
+			var f2 := root * pow(2.0, float(tone) / 12.0 + 1.0)
+			_up_tone(buf, t0 + k * e8 * 0.5, e8 * 0.45, f2, 0.11, "arp")
+		# ── 선율: 두 마디 동기를 되풀이하고, 뒤 절반은 한 옥타브 위에서 더 들뜬다
+		var section_hi := b >= bars / 2
+		var rhythm: Array = UPBEAT_RHYTHMS[(b / 2 + (1 if section_hi else 0)) % UPBEAT_RHYTHMS.size()]
+		if last_bar:
+			rhythm = [1, 0, 0, 0, 0, 0, 0, 0]
+		var deg := 0
+		for k in 8:
+			if int(rhythm[k]) == 0:
+				continue
+			# 센박(0·4)은 화음 음으로, 나머지는 음계를 따라 한두 칸 움직인다
+			var semis := 0
+			if k % 4 == 0:
+				semis = int(chord[rng.randi_range(0, 2)])
+				deg = scale.find(semis % 12) if scale.has(semis % 12) else 0
+			else:
+				deg = clampi(deg + rng.randi_range(-2, 2), 0, scale.size() + 2)
+				semis = int(scale[deg % scale.size()]) + 12 * (deg / scale.size())
+			var ln := e8
+			while k + roundi(ln / e8) < 8 and int(rhythm[k + roundi(ln / e8)]) == 0 and ln < e8 * 3.0:
+				ln += e8
+			if last_bar:
+				ln = bar
+				semis = 12
+			var oct := 1.0 + (1.0 if section_hi else 0.0)
+			var f3 := root * pow(2.0, float(semis) / 12.0 + oct)
+			_up_tone(buf, t0 + k * e8, ln * 0.92, f3, 0.30, "lead")
+	return _finalize_bright(buf, n)
+
+
+func _up_kick(buf: PackedFloat32Array, t: float, amp: float) -> void:
+	var s0 := int(t * BGM_RATE)
+	var cnt := int(0.2 * BGM_RATE)
+	var ph := 0.0
+	for i in cnt:
+		var idx := s0 + i
+		if idx >= buf.size():
+			idx -= buf.size()
+		var x := float(i) / BGM_RATE
+		var f := 45.0 + 110.0 * exp(-x * 30.0)
+		ph += f / BGM_RATE
+		buf[idx] += sin(ph * TAU) * exp(-x * 16.0) * amp
+
+
+func _up_snare(buf: PackedFloat32Array, t: float, rng: RandomNumberGenerator, amp: float) -> void:
+	var s0 := int(t * BGM_RATE)
+	var cnt := int(0.14 * BGM_RATE)
+	for i in cnt:
+		var idx := (s0 + i) % buf.size()
+		var x := float(i) / BGM_RATE
+		var v := (rng.randf() * 2.0 - 1.0) * 0.8 + sin(x * 190.0 * TAU) * 0.4
+		buf[idx] += v * exp(-x * 26.0) * amp
+
+
+func _up_hat(buf: PackedFloat32Array, t: float, rng: RandomNumberGenerator, amp: float) -> void:
+	var s0 := int(t * BGM_RATE)
+	var cnt := int(0.035 * BGM_RATE)
+	var prev := 0.0
+	for i in cnt:
+		var idx := (s0 + i) % buf.size()
+		var w := rng.randf() * 2.0 - 1.0
+		var hp := w - prev                       # 이웃과의 차이 = 쉭 하는 높은 소리만 남는다
+		prev = w
+		buf[idx] += hp * exp(-float(i) / BGM_RATE * 90.0) * amp
+
+
+func _up_tone(buf: PackedFloat32Array, t: float, dur: float, f: float, amp: float, kind: String) -> void:
+	var s0 := int(t * BGM_RATE)
+	var cnt := int(dur * BGM_RATE)
+	var att := int(0.006 * BGM_RATE)
+	var rel := int(0.03 * BGM_RATE)
+	for i in cnt:
+		var idx := (s0 + i) % buf.size()
+		var x := float(i) / BGM_RATE
+		var env := minf(1.0, float(i) / maxf(1.0, att)) * minf(1.0, float(cnt - i) / maxf(1.0, rel))
+		var ph := fposmod(x * f, 1.0)
+		var v := 0.0
+		match kind:
+			"bass":
+				# 삼각파 + 살짝 각진 맛
+				v = (4.0 * absf(ph - 0.5) - 1.0) * 0.8 + sin(x * f * TAU) * 0.4
+				env *= exp(-x * 5.0) * 0.6 + 0.4
+			"arp":
+				v = (1.0 if ph < 0.25 else -1.0) * 0.5 + sin(x * f * TAU) * 0.5
+				env *= exp(-x * 14.0)
+			_:
+				# 선율: 반반 펄스 + 삼각파, 살짝 떨림(비브라토)이 늦게 들어온다
+				var vib := 1.0 + 0.006 * sin(x * 6.0 * TAU) * minf(1.0, x * 4.0)
+				var ph2 := fposmod(x * f * vib, 1.0)
+				v = (1.0 if ph2 < 0.5 else -1.0) * 0.45 + (4.0 * absf(ph2 - 0.5) - 1.0) * 0.55
+				env *= 0.75 + 0.25 * exp(-x * 6.0)
+		buf[idx] += v * env * amp
+
+
+## `_finalize` 와 같지만 고역을 덜 깎는다 - 북과 선율이 또렷해야 신난다.
+func _finalize_bright(buf: PackedFloat32Array, n: int) -> AudioStreamWAV:
+	var peak := 0.0
+	for i in range(n):
+		peak = maxf(peak, absf(buf[i]))
+	var norm := 1.0 if peak < 0.001 else minf(1.0, 0.9 / peak)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var lp := 0.0
+	for i in range(maxi(0, n - 2000), n):
+		lp += (buf[i] * norm - lp) * 0.6
+	for i in range(n):
+		var v: float = buf[i] * norm
+		v = v - (v * v * v) / 3.0
+		lp += (v - lp) * 0.6
+		var sv := int(clampf(lp, -1.0, 1.0) * 29000.0)
+		data[i * 2] = sv & 0xFF
+		data[i * 2 + 1] = (sv >> 8) & 0xFF
+	var st := AudioStreamWAV.new()
+	st.format = AudioStreamWAV.FORMAT_16_BITS
+	st.mix_rate = BGM_RATE
 	st.stereo = false
 	st.data = data
 	st.loop_mode = AudioStreamWAV.LOOP_FORWARD
