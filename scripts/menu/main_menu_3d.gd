@@ -33,6 +33,8 @@ func _ready() -> void:
 	_add_title()
 	_add_subtitle()
 	_restyle_menu()
+	_fit_orientation()
+	get_viewport().size_changed.connect(_fit_orientation)
 
 func _process(delta: float) -> void:
 	_t += delta
@@ -138,6 +140,10 @@ func _add_title_scrim(ctrl: Control) -> void:
 ## 그래서 직접 계산하고, 자르는 위치를 위쪽으로 당긴다.
 const POSTER_BIAS := 0.5   # 0=위 정렬, 0.5=가운데
 
+## 세로 화면에서 포스터의 어디를 가운데에 둘지 (가로 비율). 쿼카가 왼쪽 1/4 즈음에 있다.
+const POSTER_PORTRAIT_FOCUS := 0.30
+
+
 func _fit_poster(bg: TextureRect) -> void:
 	var ctrl := bg.get_parent() as Control
 	if ctrl == null or bg.texture == null:
@@ -150,6 +156,9 @@ func _fit_poster(bg: TextureRect) -> void:
 	var out := tsz * s
 	bg.size = out
 	bg.position = Vector2((view.x - out.x) * 0.5, (view.y - out.y) * POSTER_BIAS)
+	if view.y > view.x:
+		# 세로 화면: 가로 포스터의 왼쪽(쿼카가 서 있는 자리)을 가운데로 가져온다
+		bg.position.x = clampf(view.x * 0.5 - out.x * POSTER_PORTRAIT_FOCUS, view.x - out.x, 0.0)
 
 
 # ─── 3D 마스코트 히어로 주입 (디버그 전용) ───
@@ -554,6 +563,60 @@ func _restyle_menu() -> void:
 	var tw := create_tween()
 	tw.tween_interval(0.25)
 	tw.tween_property(col, "modulate:a", 1.0, 0.35)
+
+
+## 세로 화면: 제목은 위 가운데, 버튼 기둥은 아래 가운데, 그늘은 아래에서 위로.
+## 가로 화면 배치(오른쪽 기둥)는 그대로 둔다.
+func _fit_orientation() -> void:
+	var ctrl := get_node_or_null("UILayer/Control") as Control
+	if ctrl == null:
+		return
+	var vs := get_viewport().get_visible_rect().size
+	var portrait := vs.y > vs.x
+	var logo := ctrl.get_node_or_null("LogoImage") as Control
+	var title := ctrl.get_node_or_null("TitleText") as Control
+	var sub := ctrl.get_node_or_null("Subtitle") as Control
+	var col := ctrl.get_node_or_null("MenuColumn") as Control
+	var shade := ctrl.get_node_or_null("RightShade") as TextureRect
+	if not portrait:
+		return
+	for t in [logo, title]:
+		if t != null:
+			t.anchor_left = 0.5
+			t.anchor_right = 0.5
+			t.offset_left = -310.0
+			t.offset_right = 310.0
+			t.offset_top = 70.0
+			t.offset_bottom = 240.0
+	if sub != null:
+		sub.anchor_left = 0.5
+		sub.anchor_right = 0.5
+		sub.offset_left = -340.0
+		sub.offset_right = 340.0
+		sub.offset_top = 256.0
+		sub.offset_bottom = 300.0
+	if col != null:
+		col.anchor_left = 0.5
+		col.anchor_right = 0.5
+		col.anchor_top = 1.0
+		col.anchor_bottom = 1.0
+		col.offset_left = -250.0
+		col.offset_right = 250.0
+		col.offset_top = -440.0
+		col.offset_bottom = -80.0
+	if shade != null:
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 1.0])
+		g.colors = PackedColorArray([Color(0.16, 0.12, 0.25, 0.0), Color(0.16, 0.12, 0.25, 0.78)])
+		var gt := GradientTexture2D.new()
+		gt.gradient = g
+		gt.fill_from = Vector2(0.5, 0.0)
+		gt.fill_to = Vector2(0.5, 1.0)
+		gt.width = 8
+		gt.height = 128
+		shade.texture = gt
+		shade.anchor_left = 0.0
+		shade.anchor_top = 0.45
 
 
 func _menu_button(t: String, icon_kind: String, style: String, fs: int, h: float, small := false) -> Button:

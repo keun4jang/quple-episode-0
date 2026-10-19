@@ -5,6 +5,8 @@ extends Control
 
 ## 땅이 시작하는 높이 (화면 높이 비율).
 const GROUND := 0.74
+## 이 화면에서 땅이 시작하는 높이. 세로 화면은 싸움을 위쪽에 두고 아래를 버튼 자리로 쓴다.
+var ground := GROUND
 
 ## 구역별 풍경 - mid: 가운데 풍경 종류, amb: 떠다니는 것.
 const THEMES := [
@@ -59,7 +61,7 @@ func _draw() -> void:
 	var sky: Array = IdleData.ZONES[clampi(zone, 0, IdleData.ZONES.size() - 1)]["sky"]
 	var top := Color(sky[0])
 	var bot := Color(sky[1])
-	var gy := h * GROUND
+	var gy := h * ground
 	var night := bool(th.get("night", false))
 	if night:
 		top = Color("#1E1B33")

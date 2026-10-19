@@ -646,15 +646,21 @@ const BGM_TRACKS := {
 	},
 	# 신나는 전투곡 - 피아노가 아니라 북·베이스·펄스 선율로 따로 짠다 (`_build_upbeat`).
 	# 근음과 화음 진행만 바꾸면 분위기가 달라진다. 선율은 씨앗으로 정해져 늘 같다.
+	# 저작권이 끝난 클래식을 빠른 춤곡으로 편곡한다 (작곡가가 세상을 떠난 지 70년이 훨씬 넘었다 -
+	# 곡은 누구나 쓸 수 있고, 연주는 여기서 코드로 새로 하니 음원 저작권도 없다).
+	# 베토벤 '환희의 송가' (교향곡 9번, 1824) - 다장조, 150 BPM 으로 통통 튀게.
 	"adventure": {
-		"upbeat": true, "root": 261.63, "bpm": 128.0, "bars": 16, "minor": false,
-		"prog": [[0, 4, 7], [7, 11, 14], [9, 12, 16], [5, 9, 12]],       # I - V - vi - IV
-		"seed": 31,
+		"upbeat": true, "root": 261.63, "bpm": 150.0, "minor": false, "seed": 31,
+		"notes": "ode", "lead_oct": 1.0,
+		# 마디마다 화음 (I=[0,4,7] V=[7,11,14]) - 16마디
+		"chords": [[0,4,7],[7,11,14],[0,4,7],[7,11,14], [0,4,7],[7,11,14],[0,4,7],[0,4,7],
+			[7,11,14],[0,4,7],[7,11,14],[7,11,14], [0,4,7],[7,11,14],[0,4,7],[0,4,7]],
 	},
+	# 그리그 '산속 마왕의 궁전' (페르 귄트, 1875) - 가단조, 165 BPM, 우두머리전.
 	"boss": {
-		"upbeat": true, "root": 220.0, "bpm": 150.0, "bars": 8, "minor": true,
-		"prog": [[0, 3, 7], [8, 12, 15], [3, 7, 10], [10, 14, 17]],      # i - VI - III - VII
-		"seed": 77,
+		"upbeat": true, "root": 220.0, "bpm": 165.0, "minor": true, "seed": 77,
+		"notes": "mountain_king", "lead_oct": 1.0,
+		"chords": [[0,3,7],[7,11,14],[0,3,7],[3,7,10], [7,10,14],[2,6,9],[7,10,14],[10,14,17]],
 	},
 	# 선율이 없는 곡 — 즉흥으로 조용히 친다
 	"room": {
@@ -1306,6 +1312,29 @@ func _amb_finalize(buf: PackedFloat32Array, n: int, gain: float) -> AudioStreamW
 # 북(킥·스네어·하이햇) + 8분음표 베이스 + 16분음표 아르페지오 + 펄스 선율.
 # 음 하나하나를 그 길이만큼만 버퍼에 더한다 (모든 샘플마다 모든 악기를 돌지 않는다 - 폰에서도 빨리 만든다).
 
+## 선율 (반음 수, 박). 으뜸음(근음) 기준. 마디는 4박.
+const UPBEAT_MELODIES := {
+	# 환희의 송가: A · A' · B · A'
+	"ode": [
+		[4,1],[4,1],[5,1],[7,1], [7,1],[5,1],[4,1],[2,1], [0,1],[0,1],[2,1],[4,1], [4,1.5],[2,0.5],[2,2],
+		[4,1],[4,1],[5,1],[7,1], [7,1],[5,1],[4,1],[2,1], [0,1],[0,1],[2,1],[4,1], [2,1.5],[0,0.5],[0,2],
+		[2,1],[2,1],[4,1],[0,1], [2,1],[4,0.5],[5,0.5],[4,1],[0,1], [2,1],[4,0.5],[5,0.5],[4,1],[2,1],
+		[0,1],[2,1],[-5,2],
+		[4,1],[4,1],[5,1],[7,1], [7,1],[5,1],[4,1],[2,1], [0,1],[0,1],[2,1],[4,1], [2,1.5],[0,0.5],[0,2],
+	],
+	# 산속 마왕의 궁전: 가단조 네 마디 + 다섯 도 위에서 한 번 더
+	"mountain_king": [
+		[0,.5],[2,.5],[3,.5],[5,.5],[7,.5],[3,.5],[7,1],
+		[6,.5],[2,.5],[6,1],[5,.5],[1,.5],[5,1],
+		[0,.5],[2,.5],[3,.5],[5,.5],[7,.5],[3,.5],[7,.5],[12,.5],
+		[10,.5],[7,.5],[3,.5],[7,.5],[10,2],
+		[7,.5],[9,.5],[10,.5],[12,.5],[14,.5],[10,.5],[14,1],
+		[13,.5],[9,.5],[13,1],[12,.5],[8,.5],[12,1],
+		[7,.5],[9,.5],[10,.5],[12,.5],[14,.5],[10,.5],[14,.5],[19,.5],
+		[17,.5],[14,.5],[10,.5],[14,.5],[17,2],
+	],
+}
+
 const UPBEAT_MAJOR := [0, 2, 4, 5, 7, 9, 11]
 const UPBEAT_MINOR := [0, 2, 3, 5, 7, 8, 10]
 ## 마디 안 8분음표 여덟 칸 중 어디서 선율이 소리 나나 (1 = 친다).
@@ -1323,13 +1352,19 @@ func _build_upbeat(cfg: Dictionary) -> AudioStreamWAV:
 	var bpm: float = float(cfg.bpm)
 	var beat := 60.0 / bpm
 	var e8 := beat * 0.5
-	var bars: int = int(cfg.bars)
+	var mel: Array = UPBEAT_MELODIES.get(String(cfg.get("notes", "")), [])
+	var bars: int = int(cfg.get("bars", 8))
+	if not mel.is_empty():
+		var tb := 0.0
+		for nt in mel:
+			tb += float(nt[1])
+		bars = int(ceil(tb / 4.0))
 	var bar := beat * 4.0
 	var n := int(BGM_RATE * bar * bars)
 	var buf := PackedFloat32Array()
 	buf.resize(n)
 	var root: float = float(cfg.root)
-	var prog: Array = cfg.prog
+	var prog: Array = cfg.get("chords", cfg.get("prog", [[0, 4, 7]]))
 	var scale: Array = UPBEAT_MINOR if bool(cfg.minor) else UPBEAT_MAJOR
 	var fast: bool = bpm >= 140.0
 
@@ -1360,6 +1395,8 @@ func _build_upbeat(cfg: Dictionary) -> AudioStreamWAV:
 			var tone: int = chord[[0, 1, 2, 1][k % 4]]
 			var f2 := root * pow(2.0, float(tone) / 12.0 + 1.0)
 			_up_tone(buf, t0 + k * e8 * 0.5, e8 * 0.45, f2, 0.11, "arp")
+		if not mel.is_empty():
+			continue                                 # 정해진 선율은 아래에서 한 번에 깐다
 		# ── 선율: 두 마디 동기를 되풀이하고, 뒤 절반은 한 옥타브 위에서 더 들뜬다
 		var section_hi := b >= bars / 2
 		var rhythm: Array = UPBEAT_RHYTHMS[(b / 2 + (1 if section_hi else 0)) % UPBEAT_RHYTHMS.size()]
@@ -1386,6 +1423,18 @@ func _build_upbeat(cfg: Dictionary) -> AudioStreamWAV:
 			var oct := 1.0 + (1.0 if section_hi else 0.0)
 			var f3 := root * pow(2.0, float(semis) / 12.0 + oct)
 			_up_tone(buf, t0 + k * e8, ln * 0.92, f3, 0.30, "lead")
+	if not mel.is_empty():
+		# ── 클래식 선율: 펄스 리드 + 한 옥타브 아래 그림자(두께), 짧은 음은 톡톡 끊어 춤곡처럼
+		var lo: float = float(cfg.get("lead_oct", 1.0))
+		var at := 0.0
+		for nt in mel:
+			var semi := float(nt[0])
+			var beats := float(nt[1])
+			var f := root * pow(2.0, semi / 12.0 + lo)
+			var d := beats * beat * (0.6 if beats <= 0.5 else 0.85)
+			_up_tone(buf, at, d, f, 0.32, "lead")
+			_up_tone(buf, at, d, f * 0.5, 0.12, "arp")
+			at += beats * beat
 	return _finalize_bright(buf, n)
 
 

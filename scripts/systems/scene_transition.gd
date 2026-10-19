@@ -26,6 +26,30 @@ const STUCK_MS := 4000
 func _ready() -> void:
 	overlay.color = Color(0, 0, 0, 0)
 	layer = 10
+	_go_portrait()
+
+
+## 세로 화면 (720x1280 기준, 긴 폰은 위아래로 늘어난다).
+## project.godot 의 방향·크기는 이미 깔린 앱(APK)에선 업데이트로 안 바뀐다. 그래서 켜질 때마다 코드로 바꾼다 -
+## 이 노드는 자동 로드 씬이라 업데이트 팩으로 전달된다 (`back_handler.gd` 와 같은 이유).
+const PORTRAIT := Vector2i(720, 1280)
+
+
+func _go_portrait() -> void:
+	var win := get_tree().root
+	win.content_scale_size = PORTRAIT
+	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	if OS.has_feature("mobile"):
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_PORTRAIT)
+	elif DisplayServer.get_name() != "headless":
+		# PC: 가로로 긴 창이면 세로 창으로 바꿔 가운데 둔다
+		var ws := DisplayServer.window_get_size()
+		if ws.x > ws.y:
+			var scr := DisplayServer.screen_get_usable_rect()
+			var hh := mini(960, int(scr.size.y * 0.9))
+			var nw := Vector2i(int(hh * 9.0 / 16.0), hh)
+			DisplayServer.window_set_size(nw)
+			DisplayServer.window_set_position(scr.position + (scr.size - nw) / 2)
 
 
 func go_to(raw_path: String, style: String = "normal") -> void:

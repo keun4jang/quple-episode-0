@@ -516,61 +516,107 @@ func _row_button(t: String, icon_kind: String, style: String) -> Button:
 func _layout() -> void:
 	var w := size.x
 	var h := size.y
+	var portrait := h > w
 	_world.size = size
 	_bg.size = size
 	_flash_rect.size = size
 	_post.size = size
 	_bokeh.emission_rect_extents = size * 0.5
 	_bokeh.position = size * 0.5
-	var gy := h * IdleBackdrop.GROUND
-	_hero_home = Vector2(w * 0.37, gy + 30)
-	_mon_home = Vector2(w * 0.64, gy + 30)
+	_bg.ground = 0.5 if portrait else IdleBackdrop.GROUND
+	var gy := h * _bg.ground
+	_hero_home = Vector2(w * (0.3 if portrait else 0.37), gy + 30)
+	_mon_home = Vector2(w * (0.72 if portrait else 0.64), gy + 30)
 	_hero.position = _hero_home
 	_mon.position = _mon_home
 
-	_stage_pill.position = Vector2(18, 14)
-	_lv_pill.position = Vector2(286, 14)
-	_menu_btn.size = Vector2(64, 64)
-	_menu_btn.position = Vector2(w - 82, 14)
-	_coin_pill.custom_minimum_size = Vector2(220, 0)
-	_coin_pill.position = Vector2(w - 82 - 14 - 220, 14)
-	_boss_box.position = Vector2(w * 0.5 - 260, 96)
-	_boss_box.size = Vector2(520, 60)
-	_tap_hint.position = Vector2(0, h * 0.25)
-	_tap_hint.size = Vector2(w, 40)
-
-	var bw := 168.0
 	var bh := 86.0
-	var x := 18.0
-	for k in ["char", "gear", "stage"]:
-		var b: Button = _btns[k]
-		b.position = Vector2(x, h - bh - 14)
-		b.size = Vector2(bw, bh)
-		x += bw + 10.0
-	_gear_dot.position = Vector2(bw - 30, 4)
-	_char_dot.position = Vector2(bw - 30, 4)
-	_boss_btn.size = Vector2(190, bh)
-	_boss_btn.position = Vector2(w - 208, h - bh - 14)
-	_auto_btn.size = Vector2(170, bh)
-	_auto_btn.position = Vector2(w - 208 - 12 - 170, h - bh - 14)
+	if portrait:
+		# ── 세로: 위 두 줄(스테이지·꿈조각·메뉴 / 레벨), 가운데 싸움, 아래 두 줄(자동·스킬 / 큰 버튼 셋)
+		_stage_pill.position = Vector2(14, 14)
+		_menu_btn.size = Vector2(64, 64)
+		_menu_btn.position = Vector2(w - 78, 14)
+		_coin_pill.custom_minimum_size = Vector2(190, 0)
+		_coin_pill.position = Vector2(w - 78 - 12 - 190, 14)
+		_lv_pill.position = Vector2(14, 100)
+		_boss_box.size = Vector2(w - 80, 60)
+		_boss_box.position = Vector2(40, 190)
+		_tap_hint.position = Vector2(0, h * 0.2)
+		_tap_hint.size = Vector2(w, 40)
+		var bw := (w - 28.0 - 20.0) / 3.0
+		var x := 14.0
+		for k in ["char", "gear", "stage"]:
+			var b: Button = _btns[k]
+			b.position = Vector2(x, h - bh - 18)
+			b.size = Vector2(bw, bh)
+			x += bw + 10.0
+		_gear_dot.position = Vector2(bw - 30, 4)
+		_char_dot.position = Vector2(bw - 30, 4)
+		var sk := 96.0
+		var row2 := h - bh - 18 - 14 - sk
+		_auto_btn.size = Vector2(150, sk)
+		_auto_btn.position = Vector2(14, row2)
+		for i in _skill_btns.size():
+			var sb: IdleSkillButton = _skill_btns[i]
+			sb.size = Vector2(sk, sk)
+			sb.position = Vector2(w - 14 - sk - (_skill_btns.size() - 1 - i) * (sk + 12), row2)
+		_boss_btn.size = Vector2(minf(320.0, w - 40.0), bh)
+		_boss_btn.position = Vector2((w - _boss_btn.size.x) * 0.5, row2 - bh - 16)
+	# 세로 화면은 싸움터가 좁고 높다 - 캐릭터를 조금 키운다
+	_hero.px = _px(HERO_PX)
+	if not fight.info.is_empty():
+		_mon.px = _px(BOSS_PX if bool(fight.info["boss"]) else MON_PX)
+	if portrait:
+		pass
+		_dim.size = size
+		_panel.position = Vector2(14, 92)
+		_panel.size = Vector2(w - 28, h - 92 - bh - 40)
+		_panel.custom_minimum_size = _panel.size
+		_banner.position = Vector2(0, h * 0.24)
+		_banner.size = Vector2(w, 70)
+		_toast_lbl.position = Vector2(0, h * 0.31)
+		_toast_lbl.size = Vector2(w, 44)
+		_toast_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	else:
+		_stage_pill.position = Vector2(18, 14)
+		_lv_pill.position = Vector2(286, 14)
+		_menu_btn.size = Vector2(64, 64)
+		_menu_btn.position = Vector2(w - 82, 14)
+		_coin_pill.custom_minimum_size = Vector2(220, 0)
+		_coin_pill.position = Vector2(w - 82 - 14 - 220, 14)
+		_boss_box.position = Vector2(w * 0.5 - 260, 96)
+		_boss_box.size = Vector2(520, 60)
+		_tap_hint.position = Vector2(0, h * 0.25)
+		_tap_hint.size = Vector2(w, 40)
+		var bw := 168.0
+		var x := 18.0
+		for k in ["char", "gear", "stage"]:
+			var b: Button = _btns[k]
+			b.position = Vector2(x, h - bh - 14)
+			b.size = Vector2(bw, bh)
+			x += bw + 10.0
+		_gear_dot.position = Vector2(bw - 30, 4)
+		_char_dot.position = Vector2(bw - 30, 4)
+		_boss_btn.size = Vector2(190, bh)
+		_boss_btn.position = Vector2(w - 208, h - bh - 14)
+		_auto_btn.size = Vector2(170, bh)
+		_auto_btn.position = Vector2(w - 208 - 12 - 170, h - bh - 14)
+		# 스킬 버튼: 오른쪽 위로 쌓는다 (첫 스킬이 맨 아래)
+		var sy := h - bh - 14 - 18 - 96
+		for i in _skill_btns.size():
+			var sb: IdleSkillButton = _skill_btns[i]
+			sb.size = Vector2(96, 96)
+			sb.position = Vector2(w - 18 - 96, sy - i * 108)
+		_dim.size = size
+		var pw := minf(w - 60.0, 1120.0)
+		_panel.position = Vector2((w - pw) * 0.5, 92)
+		_panel.size = Vector2(pw, h - 92 - bh - 30)
+		_panel.custom_minimum_size = _panel.size
+		_banner.position = Vector2(0, h * 0.26)
+		_banner.size = Vector2(w, 70)
+		_toast_lbl.position = Vector2(0, h * 0.36)
+		_toast_lbl.size = Vector2(w, 44)
 
-	# 스킬 버튼: 오른쪽 위로 쌓는다 (첫 스킬이 맨 아래)
-	var sy := h - bh - 14 - 18 - 96
-	for i in _skill_btns.size():
-		var sb: IdleSkillButton = _skill_btns[i]
-		sb.size = Vector2(96, 96)
-		sb.position = Vector2(w - 18 - 96, sy - i * 108)
-
-	_dim.size = size
-	var pw := minf(w - 60.0, 1120.0)
-	_panel.position = Vector2((w - pw) * 0.5, 92)
-	_panel.size = Vector2(pw, h - 92 - bh - 30)
-	_panel.custom_minimum_size = _panel.size
-
-	_banner.position = Vector2(0, h * 0.26)
-	_banner.size = Vector2(w, 70)
-	_toast_lbl.position = Vector2(0, h * 0.36)
-	_toast_lbl.size = Vector2(w, 44)
 	_say_layer.size = size
 	_say_hint.position = Vector2(0, h - 80)
 	_say_hint.size = Vector2(w, 40)
@@ -581,6 +627,15 @@ func _layout() -> void:
 	_reward_layer.size = size
 	_center_card(_menu_layer)
 	_center_card(_reward_layer)
+
+
+func _px(base: float) -> float:
+	return base * (1.3 if size.y > size.x else 1.0)
+
+
+## 세로 화면인가 (창 안의 칸 수를 줄인다).
+func _narrow() -> bool:
+	return size.x < 900.0
 
 
 func _center_card(layer: Control) -> void:
@@ -626,7 +681,7 @@ func _start_stage() -> void:
 		Color(IdleBackdrop.THEMES[_bg.zone]["accent"]), 0.35))
 	var boss := bool(info["boss"])
 	_mon.set_sheet("res://assets/sprites/s-%s-walk.png" % String(info["kind"]))
-	_mon.px = BOSS_PX if boss else MON_PX
+	_mon.px = _px(BOSS_PX if boss else MON_PX)
 	_mon_tint = _tint_of(_mon.tex)
 	if _die_tw != null and _die_tw.is_valid():
 		_die_tw.kill()
@@ -1689,7 +1744,8 @@ func _refresh() -> void:
 	_xp_bar.max_value = IdleData.exp_need(IdleState.level)
 	_xp_bar.value = IdleState.xp if IdleState.level < IdleData.LEVEL_MAX else _xp_bar.max_value
 	_boss_btn.visible = IdleState.boss_failed
-	_auto_btn.position.x = (size.x - 208 - 12 - 170) if IdleState.boss_failed else (size.x - 18 - 170)
+	if not _narrow():       # 가로 화면에서만 보스 버튼 자리를 비켜 준다 (세로는 보스 버튼이 위 줄에 따로 뜬다)
+		_auto_btn.position.x = (size.x - 208 - 12 - 170) if IdleState.boss_failed else (size.x - 18 - 170)
 	_refresh_auto()
 	if not IdleState.boss_failed:
 		_boss_btn.scale = Vector2.ONE
@@ -2018,7 +2074,7 @@ func _fill_gear() -> void:
 	_title("장비", "꿈조각으로 강화해요 - 실패는 없어요")
 	_gear_btns = {}
 	var grid := GridContainer.new()
-	grid.columns = 2
+	grid.columns = 1 if _narrow() else 2
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 10)
 	_panel_body.add_child(grid)
@@ -2144,7 +2200,7 @@ func _fill_stage() -> void:
 		hh.add_child(IdleUi.label(String(z["name"]), 24))
 		cv.add_child(hh)
 		var gr := GridContainer.new()
-		gr.columns = 10
+		gr.columns = 5 if _narrow() else 10
 		gr.add_theme_constant_override("h_separation", 6)
 		for i in range(1, IdleData.STAGES_PER_ZONE + 1):
 			var n := zi * IdleData.STAGES_PER_ZONE + i
