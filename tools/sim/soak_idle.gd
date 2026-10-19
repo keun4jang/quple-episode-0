@@ -112,7 +112,7 @@ func _click_say() -> void:
 ## 사람처럼 아무 버튼이나 누른다 (창 열기·닫기·강화·직업 바꾸기·스테이지 고르기·보스 도전·자동 켜고 끄기·뒤로가기).
 func _chaos() -> void:
 	var acts := ["tab_char", "tab_gear", "tab_stage", "close", "enhance_all", "job", "go_stage", "boss", "auto",
-		"back", "train"]
+		"back", "train", "skill", "skill"]
 	var a: String = acts[rng.randi_range(0, acts.size() - 1)]
 	actions[a] = int(actions.get(a, 0)) + 1
 	match a:
@@ -138,3 +138,6 @@ func _chaos() -> void:
 			g.close_panel()
 		"train":
 			g._on_train(IdleData.TRAIN_STATS[rng.randi_range(0, 2)])
+		"skill":
+			if g.has_method("_on_skill_btn"):
+				g._on_skill_btn(rng.randi_range(0, 2))
