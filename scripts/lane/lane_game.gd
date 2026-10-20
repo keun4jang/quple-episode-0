@@ -6,6 +6,10 @@ const MENU_PATH := "res://scenes/menu/MainMenu3D.tscn"
 const SAVE_EVERY := 10.0
 const UNIT_PX := 3.0
 const BUG_PX := 3.0
+## 픽셀 한 칸 = 화면 3점. 배경·길도 1/3 크기로 그려 3배로 키운다 - 캐릭터 도트와 픽셀 크기를 하나로 맞춘다.
+## (예전엔 배경만 매끈한 그림이라 도트 캐릭터와 따로 놀았다.)
+const PIX := 3
+const FX_PIX := 2
 ## 공격 모양 - 유닛마다 다르게 보여야 누가 무얼 하는지 안다. [모양, 색]
 ## slash 베기 · pierce 찌르기 · smash 내리찍기(충격파) · shot 던지기(날아감) · magic 마법 구슬 · quake 땅울림 ·
 ## claw 세 갈래 할퀴기 · ice 얼음 · tongue 혀 · dive 하늘에서 내리꽂기 · peck 쪼기 · splash 물보라 · bonk 콩 박기
@@ -32,6 +36,23 @@ static func _short_name(id: String) -> String:
 	var n := LaneData.unit_name(id, LaneState.level_of(id))
 	var parts := n.split(" ")
 	return parts[parts.size() - 1] if n.length() > 5 else n
+
+
+## 안에 넣은 그림을 1/PIX 크기로 그려 PIX 배로 키우는 판. 안의 노드는 화면 좌표 그대로 그리면 된다.
+func _pixel_layer(shrink := PIX) -> SubViewportContainer:
+	var c := SubViewportContainer.new()
+	c.stretch = true
+	c.stretch_shrink = shrink
+	c.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vp := SubViewport.new()
+	vp.name = "VP"
+	vp.disable_3d = true
+	vp.transparent_bg = true
+	vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
+	vp.canvas_transform = Transform2D.IDENTITY.scaled(Vector2.ONE / float(shrink))
+	c.add_child(vp)
+	return c
 
 
 ## 유닛 역할 한 단어.
@@ -73,6 +94,9 @@ var _fx: IdleFx
 var _vfx: IdleVfx
 var _flash_rect: ColorRect
 var _danger: Control          ## 성이 위험하면 화면 가장자리가 붉게 맥박친다
+var _pix: SubViewportContainer    ## 배경·길을 픽셀로 그리는 판
+var _home_pix: SubViewportContainer
+var _fx_pix: SubViewportContainer
 var _bars: Node2D             ## 머리 위 체력 띠
 var _ent_of: Dictionary = {}  ## uid → 판의 몸 (공격한 쪽이 누구인지 효과에 쓴다)
 var _fx_t: Dictionary = {}    ## uid → 마지막으로 공격 효과를 낸 때 (범위 공격이 여러 번 터지지 않게)
@@ -173,6 +197,8 @@ func _layout() -> void:
 		_home.size = size
 	if _world != null:
 		_world.size = size
+		_pix.size = size
+		_fx_pix.size = size
 		_bg.size = size
 		_field.size = size
 		_field.y_front = size.y - 470.0
@@ -197,12 +223,15 @@ func _build_home() -> void:
 	bg.color = IdleUi.INK
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_home.add_child(bg)
+	_home_pix = _pixel_layer()
+	_home_pix.name = "Deco"
+	_home_pix.modulate = Color(1, 1, 1, 0.45)
+	_home.add_child(_home_pix)
 	var deco := IdleBackdrop.new()
+	deco.name = "Back"
 	deco.zone = 1
 	deco.ground = 0.42
-	deco.set_anchors_preset(Control.PRESET_FULL_RECT)
-	deco.modulate = Color(1, 1, 1, 0.35)
-	_home.add_child(deco)
+	_home_pix.get_node("VP").add_child(deco)
 	var top := HBoxContainer.new()
 	top.name = "Top"
 	top.add_theme_constant_override("separation", 10)
@@ -270,6 +299,8 @@ func _build_home() -> void:
 func _layout_home() -> void:
 	var w := size.x
 	var h := size.y
+	_home_pix.size = size
+	(_home_pix.get_node("VP/Back") as Control).size = size
 	var top := _home.get_node("Top") as Control
 	top.position = Vector2(14, 14)
 	top.size = Vector2(w - 28, 64)
@@ -807,24 +838,30 @@ func _build_battle() -> void:
 	_world.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_world)
 	move_child(_world, 0)
+	_pix = _pixel_layer()
+	_world.add_child(_pix)
+	var vp := _pix.get_node("VP")
 	_bg = IdleBackdrop.new()
 	_bg.zone = int(battle.info["theme"])
 	_bg.ground = 0.13
-	_world.add_child(_bg)
+	vp.add_child(_bg)
 	_field = LaneField.new()
 	var th: Dictionary = IdleBackdrop.THEMES[_bg.zone]
 	_field.lane_col = Color(th["ground"]).lightened(0.18)
-	_world.add_child(_field)
+	vp.add_child(_field)
 	_actors = Node2D.new()
 	_actors.y_sort_enabled = true
 	_world.add_child(_actors)
 	_bars = Node2D.new()
 	_bars.draw.connect(_draw_bars)
 	_world.add_child(_bars)
+	# 효과도 도트로 - 글씨(숫자)가 읽히게 배경보다 한 단계 덜(2배) 거칠게
+	_fx_pix = _pixel_layer(FX_PIX)
+	_world.add_child(_fx_pix)
 	_fx = IdleFx.new()
-	_world.add_child(_fx)
+	_fx_pix.get_node("VP").add_child(_fx)
 	_vfx = IdleVfx.new()
-	_world.add_child(_vfx)
+	_fx_pix.get_node("VP").add_child(_vfx)
 	_flash_rect = ColorRect.new()
 	_flash_rect.color = Color(1, 1, 1, 0)
 	_flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1048,16 +1085,20 @@ func _draw_bars() -> void:
 			continue
 		var r := clampf(float(e["hp"]) / maxf(1.0, float(e["max"])), 0.0, 1.0)
 		var boss := bool(e.get("boss", false))
-		var depth := _field.scale_at(float(e["pos"]))
-		var w := (110.0 if boss else 44.0) * depth
-		var h := (10.0 if boss else 6.0) * maxf(0.8, depth)
-		var p: Vector2 = a.position + Vector2(-w * 0.5, -a.height() - 10.0 * depth - h)
+		# 도트 띠: 크기·위치를 픽셀(PIX) 칸에 맞춘다
+		var px := float(PIX)
+		var w := (36.0 if boss else 14.0) * px
+		var h := (3.0 if boss else 2.0) * px
+		var p: Vector2 = a.position + Vector2(-w * 0.5, -a.height() - 3.0 * px - h)
+		p = (p / px).round() * px
+		var fill := floorf(w * r / px) * px
 		var col := Color("#5CCB7A") if e["side"] == "q" else Color("#F0506E")
 		if e["side"] == "q" and r < 0.35:
 			col = Color("#FFB84A")
-		_bars.draw_rect(Rect2(p - Vector2(2, 2), Vector2(w + 4, h + 4)), Color(0.18, 0.1, 0.25, 0.85))
-		_bars.draw_rect(Rect2(p, Vector2(w * r, h)), col)
-		_bars.draw_rect(Rect2(p, Vector2(w * r, maxf(1.0, h * 0.35))), col.lightened(0.4))
+		_bars.draw_rect(Rect2(p - Vector2(px, px), Vector2(w + 2.0 * px, h + 2.0 * px)), Color("#2B1B2E"))
+		_bars.draw_rect(Rect2(p, Vector2(w, h)), Color("#5A4A66"))
+		_bars.draw_rect(Rect2(p, Vector2(fill, h)), col)
+		_bars.draw_rect(Rect2(p, Vector2(fill, px)), col.lightened(0.35))
 
 
 ## 성 체력이 반 아래면 가장자리가 붉게 - 낮을수록 진하고 빠르게 뛴다.
@@ -1136,8 +1177,9 @@ func _sync_actors() -> void:
 		if lg > 0.0:
 			_lunge[uid] = maxf(0.0, lg - get_process_delta_time() * 6.0)
 			p.y += (-18.0 if e["side"] == "q" else 18.0) * depth * sin(lg * PI)
-		a.position = p
-		a.px = (UNIT_PX if e["side"] == "q" else BUG_PX) * depth
+		# 픽셀 격자에 맞춰 놓고, 크기는 원근과 관계없이 한 가지 (도트 규칙: 픽셀 크기는 하나)
+		a.position = (p / float(PIX)).round() * float(PIX)
+		a.px = UNIT_PX if e["side"] == "q" else BUG_PX
 		a.walking = e["state"] == "walk"
 		if e["side"] == "q":
 			# 뒷모습으로 걷고, 싸울 땐 휘두르고, 밀려나면 앞을 보며 아파한다. 이기면 환호.
