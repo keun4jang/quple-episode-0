@@ -215,8 +215,8 @@ const TRAIT_NAME := {"crawl": "기어다님", "fly": "날벌레", "shell": "껍�
 const ZONES := [
 	{"name": "풀밭", "bugs": ["ant", "caterpillar"], "boss": "queen_ant", "pow": 3.0, "theme": 1},
 	{"name": "웅덩이", "bugs": ["mosquito", "ant", "caterpillar"], "boss": "mosquito_king", "pow": 3.2, "theme": 4},
-	{"name": "꽃밭", "bugs": ["bee", "mosquito", "caterpillar"], "boss": "hornet", "pow": 2.0, "theme": 8},
-	{"name": "참나무 숲", "bugs": ["ladybug", "termite", "bee"], "boss": "rhino", "pow": 1.2, "theme": 7},
+	{"name": "꽃밭", "bugs": ["bee", "mosquito", "caterpillar"], "boss": "hornet", "pow": 1.85, "theme": 8},
+	{"name": "참나무 숲", "bugs": ["bee", "termite", "ladybug"], "boss": "rhino", "pow": 1.5, "theme": 7},
 	{"name": "거미 굴", "bugs": ["termite", "spider", "ladybug"], "boss": "tarantula", "pow": 1.05, "theme": 2},
 	{"name": "쓰레기 언덕", "bugs": ["fly", "cricket", "spider"], "boss": "fly_king", "pow": 1.5, "theme": 6},
 	{"name": "밤 들판", "bugs": ["cricket", "moth", "fly"], "boss": "moth_queen", "pow": 0.75, "theme": 5},

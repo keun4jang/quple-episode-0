@@ -6,6 +6,8 @@ const MENU_PATH := "res://scenes/menu/MainMenu3D.tscn"
 const SAVE_EVERY := 10.0
 const UNIT_PX := 3.0
 const BUG_PX := 3.0
+## 후퇴해도 이만큼(초) 싸웠으면 다시 도전 응원을 받는다.
+const CHEER_MIN_FIGHT := 60.0
 
 
 ## 쿼카 그림 — 레벨 10 부터 진화한 모습.
@@ -84,7 +86,7 @@ func _ready() -> void:
 	if not r.is_empty():
 		_toast("자는 동안 쿼카들이 꿈조각 %s개를 모았어요" % _num(int(r["xp"])))
 	var old := LaneState.migrate_from_idle()
-	var gift := LaneState.claim_daily(int(Time.get_unix_time_from_system()))
+	var gift := LaneState.claim_daily(_local_now())
 	if not LaneState.seen_intro:
 		LaneState.seen_intro = true
 		_toast("벌레들이 꿈결을 갉아먹고 있어요! 쿼카 군단을 보내요\n뽑기에 선물 티켓이 있어요")
@@ -239,6 +241,18 @@ func _show_home() -> void:
 	AudioManager.play_bgm("adventure")
 	_layout_home()
 	_fill_home()
+	# 켜 둔 채로 자정이 지났으면 홈으로 돌아올 때 선물
+	var g := LaneState.claim_daily(_local_now())
+	if not g.is_empty():
+		LaneState.save()
+		_refresh_home_top()
+		_toast("매일 선물 %d일째!  티켓 %d장 · 꿈별 %d" % [int(g["streak"]), int(g["tickets"]), int(g["stars"])])
+
+
+## 기기 시간대의 '지금' (매일 선물이 그 나라 자정에 바뀌게).
+static func _local_now() -> int:
+	var bias := int(Time.get_time_zone_from_system().get("bias", 0))
+	return int(Time.get_unix_time_from_system()) + bias * 60
 
 
 func _refresh_home_top() -> void:
@@ -1209,7 +1223,9 @@ func _end_battle(res: String) -> void:
 		_fx.ring(np, 20.0, 400.0, IdleUi.GOLD, 20.0, 0.8)
 		AudioManager.souvenir_get()
 	else:
-		LaneState.on_lose(stage_n)
+		# 응원은 진짜로 싸우다 진 판에만 - 바로 후퇴를 눌러 쌓지 못하게
+		if battle.result == "lose" or _battle_t >= CHEER_MIN_FIGHT:
+			LaneState.on_lose(stage_n)
 		AudioManager.battle_defeat()
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	_later(1.0 if win else 0.6, func() -> void: _show_result(win, r))
@@ -1265,8 +1281,9 @@ func _show_result(win: bool, r: Dictionary) -> void:
 		for id in r.get("new_units", []):
 			v.add_child(_center(IdleUi.label("새 친구! %s 합류" % String(LaneData.UNITS[id]["name"]), 28, IdleUi.GREEN)))
 	else:
-		v.add_child(_center(IdleUi.label("다시 도전하면 응원을 받아 +%d%% 강해져요" % int(LaneState.cheer_for(stage_n)), 24,
-			IdleUi.LAV_DK)))
+		if LaneState.cheer_for(stage_n) > 0.0:
+			v.add_child(_center(IdleUi.label("다시 도전하면 응원을 받아 +%d%% 강해져요" % int(LaneState.cheer_for(stage_n)), 24,
+				IdleUi.LAV_DK)))
 		v.add_child(_center(IdleUi.label("레벨업 · 장신구 · 편성을 바꿔 봐도 좋아요", 20, IdleUi.SUB)))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
