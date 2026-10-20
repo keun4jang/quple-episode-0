@@ -146,11 +146,27 @@ func _make_scrollable() -> void:
 	var vp := get_viewport().get_visible_rect().size
 	panel.custom_minimum_size = Vector2(panel.custom_minimum_size.x, 0)
 	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var root := $Root as Control
-	if root != null:
-		panel.set_anchors_preset(Control.PRESET_CENTER)
-		panel.offset_top = -vp.y * 0.47
-		panel.offset_bottom = vp.y * 0.47
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	_fit_panel()
+	get_viewport().size_changed.connect(_fit_panel)
+
+
+## 창 크기를 화면에 맞춘다 - 세로 화면(폭 720)에서 800 폭 창이 양옆으로 잘렸고,
+## 높이를 화면의 94% 로 고정해서 아래가 텅 비어 보였다. 폭은 화면 안쪽으로, 높이는 내용만큼(넘치면 굴러감).
+func _fit_panel() -> void:
+	if panel == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var w := minf(800.0, vp.x - 40.0)
+	var body := close_btn.get_parent() as Control
+	var want := 0.0
+	if body != null:
+		want = body.get_combined_minimum_size().y + 80.0
+	var h := clampf(want, 300.0, vp.y * 0.86)
+	panel.offset_left = -w * 0.5
+	panel.offset_right = w * 0.5
+	panel.offset_top = -h * 0.5
+	panel.offset_bottom = h * 0.5
 
 
 func _add_home_button() -> void:
@@ -343,6 +359,7 @@ func open() -> void:
 		_update_btn.text = "업데이트 확인"
 	reset_btn.text = "기록 초기화"
 	visible = true
+	_fit_panel()
 	panel.scale = Vector2(0.9, 0.9)
 	panel.pivot_offset = panel.size / 2.0
 	var tw := create_tween()
@@ -365,6 +382,10 @@ func _on_reset() -> void:
 		reset_hint.text = "키운 기록이 모두 사라져요"
 		return
 	SaveManager.clear_save()
+	# 지금 게임(쿼카 군단) 기록도 지운다. 옛 게임 선물은 이미 받았으니 다시 주지 않는다.
+	LaneState.clear_save()
+	LaneState.migrated = true
+	LaneState.save()
 	_reset_armed = false
 	reset_btn.text = "기록 초기화"
 	reset_hint.text = "초기화했어요"

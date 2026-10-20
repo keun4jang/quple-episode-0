@@ -124,11 +124,12 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	#     예전엔 시각 바로 아래(y 68)에 뒀는데, 배낭·사진첩·편지·
 	#     행복첩·이 마을을 그리로 옮기면서 그 위에 겹치게 됐다
 	# 메뉴 아래(y 380~)는 여행 화면에서도 메인화면에서도 비어 있다.
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	l.anchor_left = 0.0; l.anchor_right = 0.0
-	l.anchor_top = 0.0;  l.anchor_bottom = 0.0
-	l.offset_left = 28.0; l.offset_right = 620.0
-	l.offset_top = 380.0; l.offset_bottom = 432.0
+	# 2026-10: 세로 쿼카 군단에선 왼쪽 위(y 380)가 지도 카드와 겹쳤다 → 아래 탭 바로 위 가운데, 작게.
+	l.add_theme_font_size_override("font_size", 20)
+	l.anchor_left = 0.0; l.anchor_right = 1.0
+	l.anchor_top = 1.0;  l.anchor_bottom = 1.0
+	l.offset_left = 0.0; l.offset_right = 0.0
+	l.offset_top = -150.0; l.offset_bottom = -120.0
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(l)
 	var tw := create_tween()

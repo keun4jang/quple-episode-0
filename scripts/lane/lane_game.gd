@@ -6,8 +6,50 @@ const MENU_PATH := "res://scenes/menu/MainMenu3D.tscn"
 const SAVE_EVERY := 10.0
 const UNIT_PX := 3.0
 const BUG_PX := 3.0
+## 공격 모양 - 유닛마다 다르게 보여야 누가 무얼 하는지 안다. [모양, 색]
+## slash 베기 · pierce 찌르기 · smash 내리찍기(충격파) · shot 던지기(날아감) · magic 마법 구슬 · quake 땅울림 ·
+## claw 세 갈래 할퀴기 · ice 얼음 · tongue 혀 · dive 하늘에서 내리꽂기 · peck 쪼기 · splash 물보라 · bonk 콩 박기
+const FX_STYLE := {
+	"tiny": ["slash", "#FFF1C2"], "shield": ["bonk", "#9CC8FF"], "spear": ["pierce", "#E8F4FF"],
+	"hammer": ["smash", "#FFC24A"], "runner": ["slash", "#7FE0FF"], "sling": ["shot", "#C9C2B8"],
+	"mage": ["magic", "#C58CFF"], "giant": ["quake", "#E0A060"],
+	"chick": ["peck", "#FFE15A"], "hedgehog": ["bonk", "#C99466"], "squirrel": ["shot", "#B07A44"],
+	"frog": ["tongue", "#FF8FB8"], "rabbit": ["slash", "#FFFFFF"], "duck": ["splash", "#7FD0FF"],
+	"mole": ["smash", "#B0906A"], "sheep": ["bonk", "#FFFFFF"], "turtle": ["bonk", "#7CC48A"],
+	"penguin": ["ice", "#BFF0FF"], "owl": ["magic", "#D9B8FF"], "panda": ["smash", "#9CE07A"],
+	"otter": ["splash", "#6FC8FF"], "tiger": ["claw", "#FFD23F"], "polar": ["ice", "#E0F8FF"],
+	"eagle": ["dive", "#FFD23F"],
+}
+## 역할 이름 (버튼·카드에 붙는 작은 딱지)
+const ROLE_COL := {"벽": "#8FB5FF", "근접": "#FF9F7A", "범위": "#FFB84A", "돌격": "#7FE0FF", "원거리": "#9CE07A",
+	"마법": "#C58CFF", "거대": "#E0A060"}
 ## 후퇴해도 이만큼(초) 싸웠으면 다시 도전 응원을 받는다.
 const CHEER_MIN_FIGHT := 60.0
+
+
+## 버튼에 들어갈 짧은 이름 ("도토리 다람쥐" → "다람쥐").
+static func _short_name(id: String) -> String:
+	var n := LaneData.unit_name(id, LaneState.level_of(id))
+	var parts := n.split(" ")
+	return parts[parts.size() - 1] if n.length() > 5 else n
+
+
+## 유닛 역할 한 단어.
+static func role_of(id: String) -> String:
+	var u: Dictionary = LaneData.UNITS[id]
+	if LaneData.is_wall(id):
+		return "벽"
+	if bool(u.get("no_kb", false)):
+		return "거대"
+	if FX_STYLE.has(id) and String(FX_STYLE[id][0]) == "magic":
+		return "마법"
+	if float(u["range"]) >= 280.0:
+		return "원거리"
+	if float(u["speed"]) >= 250.0:
+		return "돌격"
+	if bool(u["area"]):
+		return "범위"
+	return "근접"
 
 
 ## 쿼카 그림 — 레벨 10 부터 진화한 모습.
@@ -31,6 +73,11 @@ var _fx: IdleFx
 var _vfx: IdleVfx
 var _flash_rect: ColorRect
 var _danger: Control          ## 성이 위험하면 화면 가장자리가 붉게 맥박친다
+var _bars: Node2D             ## 머리 위 체력 띠
+var _ent_of: Dictionary = {}  ## uid → 판의 몸 (공격한 쪽이 누구인지 효과에 쓴다)
+var _fx_t: Dictionary = {}    ## uid → 마지막으로 공격 효과를 낸 때 (범위 공격이 여러 번 터지지 않게)
+var _calm := false            ## 설정: 화면 흔들림·번쩍임 줄이기
+var _toast_box: PanelContainer
 var _actor_of: Dictionary = {}     ## uid → IdleActor
 var _lat: Dictionary = {}          ## uid → 옆 위치
 var _lunge: Dictionary = {}        ## uid → 덤벼듦 (1 → 0)
@@ -45,6 +92,7 @@ var _speed_btn: Button
 var _auto_btn: Button
 var _stage_lbl: Label
 var _our_bar: ProgressBar
+var _our_lbl: Label
 var _result: Control
 var _trauma := 0.0
 var _battle_t := 0.0
@@ -71,11 +119,20 @@ func _ready() -> void:
 		LaneState.reset()
 	AudioManager.play_bgm("adventure")
 	_build_home()
-	_toast_lbl = IdleUi.label("", 28, IdleUi.CREAM, true)
+	# 알림은 알약 모양 판 위에 - 글씨가 아래 화면과 겹쳐 지저분해 보이지 않게
+	_toast_box = PanelContainer.new()
+	var tsb := IdleUi.box(Color(1, 1, 1, 0.97), IdleUi.LAV, 26, 4, 16)
+	_toast_box.add_theme_stylebox_override("panel", tsb)
+	_toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast_box.modulate.a = 0.0
+	add_child(_toast_box)
+	_toast_lbl = IdleUi.label("", 26, IdleUi.CREAM)
 	_toast_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_toast_lbl.modulate.a = 0.0
-	add_child(_toast_lbl)
+	_toast_box.add_child(_toast_lbl)
+	var cfg := ConfigFile.new()
+	if cfg.load("user://settings.cfg") == OK:
+		_calm = bool(cfg.get_value("fx", "calm", false))
 	_banner = IdleUi.label("", 56, Color.WHITE, true)
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner.modulate.a = 0.0
@@ -125,8 +182,8 @@ func _layout() -> void:
 			_danger.size = size
 		_hud.size = size
 		_layout_hud()
-	_toast_lbl.position = Vector2(20, size.y * 0.34)
-	_toast_lbl.size = Vector2(size.x - 40, 80)
+	_toast_box.position = Vector2(30, 96)
+	_toast_box.size = Vector2(size.x - 60, 0)
 	_banner.position = Vector2(0, size.y * 0.3)
 	_banner.size = Vector2(size.x, 80)
 
@@ -401,7 +458,7 @@ func _fill_units() -> void:
 		var tt := LaneData.trait_text(String(id))
 		if tt != "":
 			v.add_child(IdleUi.label(tt, 19, IdleUi.GREEN))
-		var role := String(u["role"])
+		var role := "[%s] %s" % [role_of(String(id)), String(u["role"])]
 		if lv < LaneData.EVOLVE_LV:
 			role += "  ·  Lv %d 에 진화!" % LaneData.EVOLVE_LV
 		v.add_child(IdleUi.label(role, 19, IdleUi.SUB))
@@ -761,6 +818,9 @@ func _build_battle() -> void:
 	_actors = Node2D.new()
 	_actors.y_sort_enabled = true
 	_world.add_child(_actors)
+	_bars = Node2D.new()
+	_bars.draw.connect(_draw_bars)
+	_world.add_child(_bars)
 	_fx = IdleFx.new()
 	_world.add_child(_fx)
 	_vfx = IdleVfx.new()
@@ -815,60 +875,113 @@ func _build_hud() -> void:
 			_end_battle("lose"))
 	top.add_child(quit)
 
+	# ── 아래 판: [수입] [꿈빛] [꿈 대포] / 유닛 버튼 (얼굴·이름·역할·비용)
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
-	panel.add_theme_stylebox_override("panel", IdleUi.panel_style())
+	var psb := IdleUi.panel_style()
+	psb.set_content_margin_all(14)
+	panel.add_theme_stylebox_override("panel", psb)
 	_hud.add_child(panel)
 	var pv := VBoxContainer.new()
-	pv.add_theme_constant_override("separation", 8)
+	pv.add_theme_constant_override("separation", 10)
 	panel.add_child(pv)
 	var row1 := HBoxContainer.new()
 	row1.add_theme_constant_override("separation", 10)
 	pv.add_child(row1)
-	_worker_btn = IdleUi.button("", 20)
-	_worker_btn.custom_minimum_size = Vector2(150, 78)
+	_worker_btn = IdleUi.button("", 20, "plum")
+	_worker_btn.custom_minimum_size = Vector2(136, 92)
 	_worker_btn.pressed.connect(func() -> void:
 		if battle.upgrade_worker():
-			AudioManager.ui_confirm())
+			AudioManager.ui_confirm()
+		else:
+			_shake_ctrl(_worker_btn))
 	row1.add_child(_worker_btn)
 	var wv := VBoxContainer.new()
 	wv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wv.alignment = BoxContainer.ALIGNMENT_CENTER
+	wv.add_theme_constant_override("separation", 4)
 	row1.add_child(wv)
-	_wallet_lbl = IdleUi.label("", 26, IdleUi.GOLD, true)
+	_wallet_lbl = IdleUi.label("", 28, IdleUi.GOLD, true)
 	_wallet_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	wv.add_child(_wallet_lbl)
-	_wallet_bar = IdleUi.bar(IdleUi.GOLD, Vector2(200, 12))
+	_wallet_bar = IdleUi.bar(IdleUi.GOLD, Vector2(200, 16))
 	_wallet_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wv.add_child(_wallet_bar)
-	_our_bar = IdleUi.bar(IdleUi.GREEN, Vector2(200, 10))
+	var orow := HBoxContainer.new()
+	orow.add_theme_constant_override("separation", 6)
+	wv.add_child(orow)
+	_our_lbl = IdleUi.label("", 16, IdleUi.CREAM)
+	_our_lbl.custom_minimum_size = Vector2(150, 0)
+	orow.add_child(_our_lbl)
+	_our_bar = IdleUi.bar(IdleUi.GREEN, Vector2(100, 14))
 	_our_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wv.add_child(_our_bar)
-	_cannon_btn = IdleUi.button("", 20, "gold")
-	_cannon_btn.custom_minimum_size = Vector2(150, 78)
+	_our_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	orow.add_child(_our_bar)
+	_cannon_btn = IdleUi.button("", 22, "gold")
+	_cannon_btn.custom_minimum_size = Vector2(150, 92)
 	_cannon_btn.pressed.connect(func() -> void:
 		if battle.fire_cannon():
-			_on_event({"k": "cannon_fx"}))
+			AudioManager.ui_confirm()
+		else:
+			_shake_ctrl(_cannon_btn))
 	row1.add_child(_cannon_btn)
 	var gr := GridContainer.new()
+	gr.name = "Units"
 	gr.columns = 5
 	gr.add_theme_constant_override("h_separation", 8)
 	gr.add_theme_constant_override("v_separation", 8)
 	pv.add_child(gr)
 	_unit_btns = {}
 	for id in battle.lineup:
-		var b := IdleUi.button("", 18)
-		b.custom_minimum_size = Vector2(124, 120)
-		var p := _portrait(String(id), 64.0)
-		p.position = Vector2(30, 4)
-		b.add_child(p)
+		var uid_s := String(id)
+		var rr := LaneData.rarity(uid_s)
+		var b := IdleUi.button("", 18, "ghost")
+		b.custom_minimum_size = Vector2(0, 134)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.clip_contents = true
+		if rr != "base":
+			var bsb := IdleUi.box(Color.WHITE, RARITY_COL[rr], 22, 4, 6)
+			b.add_theme_stylebox_override("normal", bsb)
+			b.add_theme_stylebox_override("hover", bsb)
+		var col := VBoxContainer.new()
+		col.name = "Col"
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
+		col.add_theme_constant_override("separation", 0)
+		col.set_anchors_preset(Control.PRESET_FULL_RECT)
+		b.add_child(col)
+		var role := role_of(uid_s)
+		var chip := PanelContainer.new()
+		var csb := IdleUi.box(Color(ROLE_COL[role]), Color(ROLE_COL[role]).darkened(0.25), 10, 2, 2, false)
+		csb.content_margin_left = 8
+		csb.content_margin_right = 8
+		chip.add_theme_stylebox_override("panel", csb)
+		chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var cl := Label.new()
+		cl.text = role
+		cl.add_theme_font_size_override("font_size", 14)
+		cl.add_theme_color_override("font_color", Color("#2E1A4A"))
+		chip.add_child(cl)
+		col.add_child(chip)
+		var pic := _portrait(uid_s, 54.0)
+		pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		col.add_child(pic)
+		var nm := IdleUi.label(_short_name(uid_s), 15, IdleUi.CREAM)
+		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		nm.clip_text = true
+		col.add_child(nm)
+		var cost := IdleUi.label("", 20, IdleUi.GOLD_DK)
+		cost.name = "Cost"
+		cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(cost)
 		var cd := ColorRect.new()
 		cd.name = "Cd"
-		cd.color = Color(0.05, 0.03, 0.1, 0.6)
+		cd.color = Color(0.23, 0.15, 0.35, 0.45)
 		cd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(cd)
 		b.pressed.connect(func() -> void:
-			if battle.summon(String(id)):
+			if battle.summon(uid_s):
 				AudioManager.pickup()
 			else:
 				_shake_ctrl(b))
@@ -884,8 +997,13 @@ func _layout_hud() -> void:
 	top.position = Vector2(12, 12)
 	top.size = Vector2(w - 24, 60)
 	var panel := _hud.get_node("Panel") as Control
-	panel.position = Vector2(8, h - 392)
-	panel.size = Vector2(w - 16, 384)
+	# 유닛 줄 수만큼만 - 빈 판이 화면 아래를 먹지 않게
+	var rows := maxi(1, int(ceil(float(battle.lineup.size()) / 5.0)))
+	var ph := 28.0 + 92.0 + 10.0 + float(rows) * 134.0 + float(rows - 1) * 8.0 + 6.0
+	panel.position = Vector2(8, h - ph - 8.0)
+	panel.size = Vector2(w - 16, ph)
+	if _field != null:
+		_field.y_front = h - ph - 8.0 - 86.0
 
 
 func _refresh_hud_toggles() -> void:
@@ -918,6 +1036,28 @@ func _process(dt: float) -> void:
 	_sync_actors()
 	_refresh_hud()
 	_danger.queue_redraw()
+	_bars.queue_redraw()
+
+
+## 머리 위 체력 띠 - 우리 편 초록, 벌레 빨강, 우두머리는 굵고 길게.
+func _draw_bars() -> void:
+	for uid in _actor_of.keys():
+		var a = _actor_of[uid]
+		var e = _ent_of.get(uid)
+		if a == null or not is_instance_valid(a) or e == null or a.dissolve > 0.0:
+			continue
+		var r := clampf(float(e["hp"]) / maxf(1.0, float(e["max"])), 0.0, 1.0)
+		var boss := bool(e.get("boss", false))
+		var depth := _field.scale_at(float(e["pos"]))
+		var w := (110.0 if boss else 44.0) * depth
+		var h := (10.0 if boss else 6.0) * maxf(0.8, depth)
+		var p: Vector2 = a.position + Vector2(-w * 0.5, -a.height() - 10.0 * depth - h)
+		var col := Color("#5CCB7A") if e["side"] == "q" else Color("#F0506E")
+		if e["side"] == "q" and r < 0.35:
+			col = Color("#FFB84A")
+		_bars.draw_rect(Rect2(p - Vector2(2, 2), Vector2(w + 4, h + 4)), Color(0.18, 0.1, 0.25, 0.85))
+		_bars.draw_rect(Rect2(p, Vector2(w * r, h)), col)
+		_bars.draw_rect(Rect2(p, Vector2(w * r, maxf(1.0, h * 0.35))), col.lightened(0.4))
 
 
 ## 성 체력이 반 아래면 가장자리가 붉게 - 낮을수록 진하고 빠르게 뛴다.
@@ -947,12 +1087,14 @@ func _refresh_hud() -> void:
 	_our_bar.max_value = battle.our_max
 	_our_bar.value = battle.our_hp
 	_field.our_ratio = battle.our_hp / maxf(1.0, battle.our_max)
+	_our_lbl.text = "우리 성 %s" % _num(int(battle.our_hp))
+	_our_lbl.add_theme_color_override("font_color", IdleUi.RED if battle.our_hp < battle.our_max * 0.4 else IdleUi.CREAM)
 	_field.nest_ratio = battle.nest_hp / maxf(1.0, battle.nest_max)
 	var wc := battle.worker_cost()
-	_worker_btn.text = "수입 Lv%d\n%s" % [battle.worker, ("최고" if wc < 0 else "✦%d" % wc)]
+	_worker_btn.text = "수입 Lv%d\n%s" % [battle.worker, ("최고" if wc < 0 else "올리기 ✦%d" % wc)]
 	_worker_btn.disabled = not battle.can_worker()
 	var ready := battle.cannon_ready()
-	_cannon_btn.text = "꿈 대포!\n발사" if ready else "꿈 대포\n%d%%" % int(battle.cannon / LaneData.CANNON_CHARGE * 100.0)
+	_cannon_btn.text = "꿈 대포!\n누르면 발사" if ready else "꿈 대포\n충전 %d%%" % int(battle.cannon / LaneData.CANNON_CHARGE * 100.0)
 	_cannon_btn.disabled = not ready
 	if ready:
 		var s := 1.0 + 0.05 * sin(_t * 8.0)
@@ -964,8 +1106,9 @@ func _refresh_hud() -> void:
 		var s2: Dictionary = battle.stats[id]
 		var left := float(battle.cds.get(id, 0.0))
 		var cost := int(s2["cost"])
-		b.text = "\n\n\n%d" % cost
+		(b.get_node("Col/Cost") as Label).text = "✦%d" % cost
 		b.disabled = battle.wallet < float(cost) or left > 0.0
+		b.modulate = Color(1, 1, 1, 0.55) if b.disabled else Color.WHITE
 		var cd := b.get_node("Cd") as ColorRect
 		var k := clampf(left / maxf(0.01, float(s2["cd"])), 0.0, 1.0)
 		cd.size = Vector2(b.size.x, b.size.y * k)
@@ -976,8 +1119,10 @@ func _refresh_hud() -> void:
 
 func _sync_actors() -> void:
 	var alive := {}
+	_ent_of = {}
 	for e in battle.ents:
 		var uid := int(e["uid"])
+		_ent_of[uid] = e
 		alive[uid] = true
 		if _dead.has(uid):
 			continue
@@ -1055,6 +1200,10 @@ func _on_event(e: Dictionary) -> void:
 					if a != null and is_instance_valid(a):
 						a.squash = Vector2(1.3, 0.7)
 						_vfx.burst(a.position, Color("#F2E2C2"), 6, 140.0, 0.4, 0.35, true)
+						# 누가 나왔는지 머리 위에 이름
+						var kid := String(e["kind"])
+						_fx.text(a.position + Vector2(0, -a.height() - 30.0), LaneData.unit_name(kid, LaneState.level_of(kid)),
+							RARITY_COL[rr] if rr != "base" else Color.WHITE, 22, 1.0, 0.0, 30.0)
 						if rr == "legend":
 							# 전설이 나오면 판 전체가 알아챈다
 							_fx.pillar(a.position, RARITY_COL["legend"], 0.8)
@@ -1085,9 +1234,14 @@ func _on_event(e: Dictionary) -> void:
 				a.flash_col = Color.WHITE if e["side"] == "b" else Color("#FF8080")
 				var p: Vector2 = a.position + Vector2(0, -a.height() * 0.5)
 				if e["side"] == "b":
+					_attack_fx(int(e.get("by", -1)), p, a)
 					_hit_fx(e, p)
 				else:
-					_vfx.burst(p, Color("#FF9A9A"), 3, 160.0, 0.3, 0.25)
+					# 우리 편이 맞았다 - 빨간 숫자 + 할퀸 자국
+					_fx.slash(p, randf_range(-0.8, 0.8), 30.0, Color("#FF7A8A"), 8.0, 0.16)
+					_vfx.burst(p, Color("#FF9A9A"), 5, 200.0, 0.3, 0.3)
+					_fx.text(p + Vector2(randf_range(-14, 14), -18), "-%s" % _num(int(e["dmg"])), Color("#FF5A6A"), 22,
+						0.55, 0.0, 34.0)
 			if randf() < 0.35:
 				AudioManager.battle_weak_hit()
 		"kb":
@@ -1160,6 +1314,87 @@ func _on_event(e: Dictionary) -> void:
 				_vfx.burst(a.position + Vector2(0, -a.height() * 0.5), Color("#9FD8FF"), 8, 120.0, 0.6, 0.35, true)
 
 
+## 공격한 쪽의 모양대로 - 베기·찌르기·충격파·탄·마법·얼음·할퀴기·내리꽂기.
+func _attack_fx(by: int, p: Vector2, target) -> void:
+	var src = _ent_of.get(by)
+	if src == null or String(src["side"]) != "q":
+		return
+	var kind := String(src["kind"])
+	var st: Array = FX_STYLE.get(kind, ["slash", "#FFFFFF"])
+	var col := Color(String(st[1]))
+	var depth := _field.scale_at(float(src["pos"]))
+	var aa = _actor_of.get(by)
+	var from: Vector2 = p + Vector2(0, 80)
+	if aa != null and is_instance_valid(aa):
+		from = aa.position + Vector2(0, -aa.height() * 0.6)
+	# 범위 공격이면 맞은 놈마다 터지지 않게 한 번만 크게
+	var now := _battle_t
+	var first: bool = now - float(_fx_t.get(by, -9.0)) > 0.12
+	if first:
+		_fx_t[by] = now
+	match String(st[0]):
+		"slash":
+			_fx.slash(p, randf_range(-0.9, 0.9), 54.0 * depth, col, 14.0, 0.2)
+			_vfx.burst(p, col, 8, 300.0, 0.3, 0.4)
+		"pierce":
+			if first:
+				_fx.arrow(from, p, col, 0.1)
+			_fx.ring(p, 4.0, 40.0 * depth, col, 6.0, 0.2)
+			_vfx.burst(p, col, 6, 320.0, 0.25, 0.35)
+		"bonk", "peck":
+			_fx.ring(p, 6.0, 44.0 * depth, col, 8.0, 0.22)
+			_vfx.burst(p, col, 7, 220.0, 0.3, 0.4)
+		"smash":
+			if first:
+				_fx.ring(p + Vector2(0, 20), 10.0, 120.0 * depth, col, 12.0, 0.32)
+				_fx.wave(p + Vector2(0, 30), 150.0 * depth, col.darkened(0.2), 10.0, 0.4)
+				_vfx.burst(p + Vector2(0, 26), Color("#E8DCC8"), 12, 260.0, 0.45, 0.45, true)
+				_add_trauma(0.05)
+			_vfx.burst(p, col, 8, 300.0, 0.35, 0.45)
+		"shot":
+			if first:
+				_fx.orb(from, p, col, 0.16)
+			_vfx.burst(p, col, 9, 280.0, 0.35, 0.4, false, 0.14)
+			_fx.ring(p, 6.0, 50.0 * depth, col, 7.0, 0.22, 0.14)
+		"magic":
+			if first:
+				_fx.orb(from, p, col, 0.2)
+				_fx.rays(p, col, 10, 12.0, 110.0 * depth, 0.3, 0.18)
+				_fx.ring(p, 10.0, 130.0 * depth, col, 10.0, 0.35, 0.18)
+			_vfx.burst(p, col, 12, 340.0, 0.45, 0.45, false, 0.18)
+			_fx.burst(p, Color.WHITE, 6, 260.0, 6.0, 0.4, 0.0, "star", 0.18)
+		"quake":
+			if first:
+				_fx.wave(p + Vector2(0, 30), 220.0 * depth, col, 16.0, 0.5)
+				_fx.ring(p, 20.0, 180.0 * depth, Color.WHITE, 10.0, 0.35)
+				_vfx.burst(p + Vector2(0, 30), Color("#C9A27A"), 20, 360.0, 0.6, 0.55, true)
+				_add_trauma(0.14)
+			_vfx.burst(p, col, 10, 300.0, 0.4, 0.5)
+		"claw":
+			for k in 3:
+				_fx.slash(p + Vector2(-16 + 16 * k, 0) * depth, 0.9, 60.0 * depth, col, 10.0, 0.22, 0.03 * k)
+			_vfx.burst(p, col, 12, 380.0, 0.35, 0.45)
+		"ice":
+			if first:
+				_fx.orb(from, p, col, 0.14)
+				_fx.ring(p, 8.0, 100.0 * depth, col, 10.0, 0.4, 0.12)
+			_fx.burst(p, col, 10, 300.0, 7.0, 0.5, 300.0, "sq", 0.12)
+			_vfx.burst(p, Color.WHITE, 8, 240.0, 0.4, 0.35, true, 0.12)
+		"tongue":
+			if first:
+				_fx.arrow(from, p, col, 0.12)
+			_vfx.burst(p, col, 8, 260.0, 0.3, 0.4)
+		"splash":
+			if first:
+				_fx.orb(from, p, col, 0.16)
+				_fx.wave(p + Vector2(0, 20), 130.0 * depth, col, 10.0, 0.4, 0.14)
+			_vfx.burst(p, col, 12, 320.0, 0.45, 0.4, true, 0.14)
+		"dive":
+			if first:
+				_fx.meteor(p + Vector2(randf_range(-60, 60), -320), p, col, 0.24)
+			_vfx.burst(p, col, 8, 300.0, 0.35, 0.4, false, 0.24)
+
+
 ## 벌레가 맞았을 때. 평소엔 작게, 특성·치명타일 때만 크게 - 그래야 '강한 한 방' 이 눈에 띈다.
 func _hit_fx(e: Dictionary, p: Vector2) -> void:
 	var dmg := int(e["dmg"])
@@ -1186,9 +1421,10 @@ func _hit_fx(e: Dictionary, p: Vector2) -> void:
 		_vfx.burst(p, Color("#9CF0A0"), 9, 280.0, 0.4, 0.4)
 		_fx.text(p + Vector2(randf_range(-16, 16), -24), _num(dmg), Color("#9CF0A0"), 28, 0.7, 0.0, 45.0)
 		return
-	_vfx.burst(p, Color("#FFE7B0") if not legend else IdleUi.GOLD, 5 if not legend else 10, 220.0, 0.35, 0.3)
-	if dmg >= 30 or bool(e.get("cannon", false)):
-		_fx.text(p + Vector2(randf_range(-20, 20), -20), _num(dmg), Color.WHITE, 26, 0.6, 0.0, 40.0)
+	_vfx.burst(p, Color("#FFE7B0") if not legend else IdleUi.GOLD, 7 if not legend else 12, 260.0, 0.35, 0.35)
+	# 숫자는 맞을 때마다 - 세게 맞을수록 크게
+	var fs := clampi(22 + int(sqrt(float(dmg)) * 0.6), 22, 44)
+	_fx.text(p + Vector2(randf_range(-20, 20), -24), _num(dmg), Color("#FFF27A") if not legend else Color("#FFB84A"), fs, 0.75, 0.0, 46.0)
 
 
 func _cannon_fx() -> void:
@@ -1198,6 +1434,13 @@ func _cannon_fx() -> void:
 	_add_trauma(0.7)
 	_hitstop(0.06)
 	_fx.pillar(base, Color("#9FD8FF"), 0.7)
+	_fx.rays(base, IdleUi.GOLD, 16, 40.0, 320.0, 0.35)
+	_fx.ring(base, 20.0, 360.0, Color.WHITE, 16.0, 0.45)
+	_banner_show("꿈 대포 발사!", IdleUi.GOLD)
+	for i in 12:
+		var t2 := float(i) / 11.0
+		var q := base.lerp(reach, t2)
+		_fx.burst(q, IdleUi.GOLD, 8, 420.0, 8.0, 0.5, 400.0, "star", t2 * 0.2)
 	for i in 8:
 		var t := float(i) / 7.0
 		var p := base.lerp(reach, t)
@@ -1316,17 +1559,19 @@ func _center(l: Label) -> Label:
 # ── 도우미 ───────────────────────────────────────────────────────────
 
 func _add_trauma(a: float) -> void:
-	_trauma = clampf(_trauma + a, 0.0, 1.0)
+	_trauma = clampf(_trauma + a * (0.25 if _calm else 1.0), 0.0, 1.0)
 
 
 func _hitstop(d: float) -> void:
+	if _calm:
+		return
 	Engine.time_scale = 0.06
 	get_tree().create_timer(d, true, false, true).timeout.connect(func() -> void: Engine.time_scale = 1.0)
 
 
 func _flash(a: float) -> void:
 	if _flash_rect != null:
-		_flash_rect.color = Color(1, 1, 1, maxf(_flash_rect.color.a, a))
+		_flash_rect.color = Color(1, 1, 1, maxf(_flash_rect.color.a, a * (0.3 if _calm else 1.0)))
 
 
 func _later(d: float, f: Callable) -> void:
@@ -1346,11 +1591,14 @@ func _shake_ctrl(c: Control) -> void:
 
 func _toast(t: String) -> void:
 	_toast_lbl.text = t
-	_toast_lbl.modulate.a = 1.0
-	move_child(_toast_lbl, get_child_count() - 1)
+	_toast_box.size = Vector2(size.x - 60, 0)
+	_toast_box.reset_size()
+	_toast_box.position = Vector2(30, 96 if mode == "home" else 90)
+	_toast_box.modulate.a = 1.0
+	move_child(_toast_box, get_child_count() - 1)
 	var tw := create_tween()
-	tw.tween_interval(2.2)
-	tw.tween_property(_toast_lbl, "modulate:a", 0.0, 0.5)
+	tw.tween_interval(2.4)
+	tw.tween_property(_toast_box, "modulate:a", 0.0, 0.5)
 
 
 func _banner_show(t: String, col: Color) -> void:

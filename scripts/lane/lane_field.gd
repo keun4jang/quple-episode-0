@@ -10,6 +10,8 @@ var theme_col := Color("#9CC76A")
 var lane_col := Color("#D9B98A")
 var our_ratio := 1.0
 var nest_ratio := 1.0
+var our_text := ""
+var _font: Font
 var shake_our := 0.0
 var shake_nest := 0.0
 var _t := 0.0
@@ -125,3 +127,4 @@ func _draw_fort() -> void:
 	draw_colored_polygon(PackedVector2Array([Vector2(c.x + 2, c.y - 226), Vector2(c.x + 46, c.y - 214 + wave),
 		Vector2(c.x + 2, c.y - 200)]), Color("#FFD15A"))
 	draw_circle(Vector2(c.x + 18, c.y - 213 + wave * 0.5), 5.0, Color("#B8784F"))
+

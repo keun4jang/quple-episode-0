@@ -44,6 +44,18 @@ func _ready() -> void:
 		g.stage_n = st
 		g.battle.done = true
 		g._end_battle("win")
+	elif OS.get_environment("SHOT_MODE") == "settings":
+		var sv = get_tree().get_first_node_in_group("settings_ui")
+		if sv == null:
+			sv = load("res://scenes/ui/SettingsUI.tscn").instantiate()
+			add_child(sv)
+			await get_tree().process_frame
+		sv.open()
+	elif OS.get_environment("SHOT_MODE") == "cannon":
+		g._start_battle(st)
+		await get_tree().create_timer(14.0).timeout
+		g.battle.cannon = LaneData.CANNON_CHARGE
+		g._cannon_btn.pressed.emit()
 	elif OS.get_environment("SHOT_MODE") == "acc":
 		g._open_acc_picker("tiny")
 	elif OS.get_environment("SHOT_TAB") != "":
