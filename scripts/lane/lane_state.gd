@@ -34,6 +34,8 @@ static var acc_on: Dictionary = {}
 static var migrated := false
 ## 판 → 연달아 진 횟수 (다시 도전 응원). 저장한다.
 static var fails: Dictionary = {}
+## 처음 안내 단계: 0 아직 · 1 첫 싸움 중 · 2 첫 싸움 끝 · 3 홈 안내 · 99 끝
+static var tut := 0
 static var _rng := RandomNumberGenerator.new()
 
 
@@ -60,6 +62,7 @@ static func reset() -> void:
 	acc_on = {}
 	migrated = false
 	fails = {}
+	tut = 0
 
 
 static func has_unit(id: String) -> bool:
@@ -424,7 +427,7 @@ static func to_dict() -> Dictionary:
 		"cleared": cleared, "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed2,
 		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
 		"daily_day": daily_day, "daily_streak": daily_streak, "treasures": treasures.duplicate(true),
-		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate()}
+		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -475,6 +478,8 @@ static func from_dict(d: Dictionary) -> void:
 			if units.has(String(k)) and accs.has(String(ao[k])) and wearer(String(ao[k])) == "":
 				acc_on[String(k)] = String(ao[k])
 	migrated = bool(d.get("migrated", false))
+	# 이미 하던 사람은 안내를 다시 보지 않는다
+	tut = clampi(int(d.get("tut", 99 if cleared > 0 else 0)), 0, 99)
 	var fl = d.get("fails", {})
 	if fl is Dictionary:
 		for k in (fl as Dictionary).keys():

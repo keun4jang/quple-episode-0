@@ -58,8 +58,9 @@ func _pixel_layer(shrink := PIX) -> SubViewportContainer:
 	vp.disable_3d = true
 	vp.transparent_bg = true
 	vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
-	vp.canvas_transform = Transform2D.IDENTITY.scaled(Vector2.ONE / float(shrink))
 	c.add_child(vp)
+	# 트리에 들어간 뒤에 줄인다 (그 전에 넣으면 그릴 판이 없다는 오류가 난다)
+	vp.ready.connect(func() -> void: vp.canvas_transform = Transform2D.IDENTITY.scaled(Vector2.ONE / float(shrink)))
 	return c
 
 
@@ -112,6 +113,10 @@ var _swing_at: Dictionary = {}  ## uid → 마지막으로 휘두른 때 (판 �
 var _hit_at: Dictionary = {}    ## uid → 마지막으로 맞은 때 - 살짝 밀린다
 var _calm := false            ## 설정: 화면 흔들림·번쩍임 줄이기
 var _toast_box: PanelContainer
+var _tut: LaneTutorial
+var _tut_pause := false          ## 안내 말풍선이 떠 있는 동안 싸움을 멈춘다
+var _tut_after_gacha := Callable()
+var _result_home: Button
 var _actor_of: Dictionary = {}     ## uid → IdleActor
 var _lat: Dictionary = {}          ## uid → 옆 위치
 var _lunge: Dictionary = {}        ## uid → 덤벼듦 (1 → 0)
@@ -138,6 +143,8 @@ var _home: Control
 var _home_body: VBoxContainer
 var _home_tab := "map"
 var _xp_lbl: Label
+var _ticket_lbl: Label
+var _card_title: Label
 var _star_lbl: Label
 var _toast_lbl: Label
 var _banner: Label
@@ -179,8 +186,8 @@ func _ready() -> void:
 	var old := LaneState.migrate_from_idle()
 	var gift := LaneState.claim_daily(_local_now())
 	if not LaneState.seen_intro:
+		# 처음 온 사람은 한 걸음씩 안내(`_tut_*`)가 대신 알려 준다
 		LaneState.seen_intro = true
-		_toast("벌레들이 꿈결을 갉아먹고 있어요! 쿼카 군단을 보내요\n뽑기에 선물 티켓이 있어요")
 	if not old.is_empty():
 		_later(2.8, func() -> void:
 			_toast("옛 꿈결에서 온 선물!  ★ %s · 티켓 %d장 · ✦ %s" % [_num(int(old["stars"])), int(old["tickets"]),
@@ -189,7 +196,15 @@ func _ready() -> void:
 		_toast("매일 선물 %d일째!  티켓 %d장 · 꿈별 %d" % [int(gift["streak"]), int(gift["tickets"]), int(gift["stars"])])
 	_rng.randomize()
 	LaneState.save(int(Time.get_unix_time_from_system()))
+	_tut = LaneTutorial.new()
+	_tut.visible = false
+	_tut.skipped.connect(_tut_skip)
+	add_child(_tut)
 	_show_home()
+	if LaneState.tut == 0:
+		_later(0.6, _tut_home_intro.bind(0))
+	elif LaneState.tut == 3:
+		_later(0.6, _tut_home_guide.bind(0))
 
 
 func _notification(what: int) -> void:
@@ -227,83 +242,177 @@ func _layout() -> void:
 # ══ 홈 ════════════════════════════════════════════════════════════════
 
 func _build_home() -> void:
+	# 홈 (다른 모바일 게임들처럼): 위 재화 줄 → 친구들이 서 있는 무대 → 내용 카드 → 엄지 자리의 큰 출전 → 아이콘 탭
 	_home = Control.new()
 	add_child(_home)
 	var bg := ColorRect.new()
-	bg.color = IdleUi.INK
+	bg.color = Color("#F3EAFB")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_home.add_child(bg)
 	_home_pix = _pixel_layer()
 	_home_pix.name = "Deco"
-	_home_pix.modulate = Color(1, 1, 1, 0.45)
 	_home.add_child(_home_pix)
 	var deco := IdleBackdrop.new()
 	deco.name = "Back"
 	deco.zone = 1
-	deco.ground = 0.42
+	deco.ground = 0.24
 	_home_pix.get_node("VP").add_child(deco)
+	# 위 재화 줄
 	var top := HBoxContainer.new()
 	top.name = "Top"
-	top.add_theme_constant_override("separation", 10)
+	top.add_theme_constant_override("separation", 8)
 	_home.add_child(top)
-	var xp_pill := PanelContainer.new()
-	xp_pill.add_theme_stylebox_override("panel", IdleUi.pill_style())
-	_xp_lbl = IdleUi.label("", 26, IdleUi.GOLD)
-	xp_pill.add_child(_xp_lbl)
-	top.add_child(xp_pill)
-	var st_pill := PanelContainer.new()
-	st_pill.add_theme_stylebox_override("panel", IdleUi.pill_style())
-	_star_lbl = IdleUi.label("", 26, Color("#9FD8FF"))
-	st_pill.add_child(_star_lbl)
-	top.add_child(st_pill)
+	_xp_lbl = _res_pill(top, "coin", IdleUi.GOLD_DK)
+	_star_lbl = _res_pill(top, "star", Color("#4A90D9"))
+	_ticket_lbl = _res_pill(top, "chest", IdleUi.LAV_DK)
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(sp)
-	var menu := IdleUi.button("메뉴", 22)
-	menu.custom_minimum_size = Vector2(96, 60)
+	var menu := IdleUi.round_button("gear", 60.0, "plum")
 	menu.pressed.connect(func() -> void:
 		LaneState.save(int(Time.get_unix_time_from_system()))
 		SceneTransition.go_to(MENU_PATH, "normal"))
 	top.add_child(menu)
-
-	var title := IdleUi.label("쿼카 군단", 64, IdleUi.GOLD, true)
+	# 무대: 제목 + 편성한 친구들
+	var title := IdleUi.label("쿼카 군단", 60, IdleUi.GOLD, true)
 	title.name = "Title"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_home.add_child(title)
-	var sub := IdleUi.label("벌레들에게서 꿈결을 지켜요", 24, IdleUi.SUB)
+	var sub := IdleUi.label("벌레들에게서 꿈결을 지켜요", 22, Color.WHITE, true)
 	sub.name = "Sub"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_home.add_child(sub)
-
-	var go := IdleUi.button("", 40, "gold")
-	go.name = "Go"
-	go.pressed.connect(func() -> void: _start_battle(mini(LaneState.cleared + 1, LaneData.STAGE_MAX)))
-	_home.add_child(go)
-
+	var stage := Node2D.new()
+	stage.name = "Parade"
+	_home.add_child(stage)
+	# 내용 카드 (머리띠 + 굴러가는 내용)
+	var card := PanelContainer.new()
+	card.name = "Card"
+	var csb := IdleUi.box(Color(1, 1, 1, 0.97), IdleUi.LAV, 26, 4, 0)
+	card.add_theme_stylebox_override("panel", csb)
+	_home.add_child(card)
+	var cv := VBoxContainer.new()
+	cv.add_theme_constant_override("separation", 0)
+	card.add_child(cv)
+	var head := PanelContainer.new()
+	var hsb := IdleUi.box(IdleUi.LAV, IdleUi.LAV, 22, 0, 10, false)
+	hsb.corner_radius_bottom_left = 0
+	hsb.corner_radius_bottom_right = 0
+	head.add_theme_stylebox_override("panel", hsb)
+	cv.add_child(head)
+	_card_title = IdleUi.label("", 26, Color.WHITE, true)
+	_card_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.add_child(_card_title)
+	var margin := MarginContainer.new()
+	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	for k in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + k, 12)
+	cv.add_child(margin)
 	var sc := ScrollContainer.new()
 	sc.name = "Scroll"
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	IdleUi.style_scroll(sc)
-	_home.add_child(sc)
+	margin.add_child(sc)
 	_home_body = VBoxContainer.new()
 	_home_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_home_body.add_theme_constant_override("separation", 10)
 	sc.add_child(_home_body)
-
+	# 큰 출전 단추 (엄지 자리)
+	var go := IdleUi.button("", 38, "gold")
+	go.name = "Go"
+	go.pressed.connect(func() -> void: _start_battle(mini(LaneState.cleared + 1, LaneData.STAGE_MAX)))
+	_home.add_child(go)
+	# 아래 아이콘 탭
+	var bar := PanelContainer.new()
+	bar.name = "TabBar"
+	var bsb := IdleUi.box(Color(IdleUi.LAV.r, IdleUi.LAV.g, IdleUi.LAV.b, 0.97), IdleUi.LAV_DK, 0, 0, 8)
+	bsb.corner_radius_top_left = 26
+	bsb.corner_radius_top_right = 26
+	bsb.border_width_top = 4
+	bar.add_theme_stylebox_override("panel", bsb)
+	_home.add_child(bar)
 	var tabs := HBoxContainer.new()
 	tabs.name = "Tabs"
-	tabs.add_theme_constant_override("separation", 10)
-	_home.add_child(tabs)
-	for k in [["map", "지도"], ["units", "동물"], ["lineup", "편성"], ["gacha", "뽑기"]]:
-		var b := IdleUi.button(String(k[1]), 28)
+	tabs.add_theme_constant_override("separation", 6)
+	bar.add_child(tabs)
+	for k in [["map", "지도", "map"], ["units", "동물", "hero"], ["lineup", "편성", "sword"], ["gacha", "뽑기", "chest"]]:
+		var b := Button.new()
 		b.name = "Tab_" + String(k[0])
-		b.custom_minimum_size = Vector2(0, 92)
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(0, 96)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var v := VBoxContainer.new()
+		v.name = "V"
+		v.alignment = BoxContainer.ALIGNMENT_CENTER
+		v.add_theme_constant_override("separation", 0)
+		v.set_anchors_preset(Control.PRESET_FULL_RECT)
+		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(v)
+		var ic := IdleUi.icon(String(k[2]), 38.0, Color.WHITE)
+		ic.name = "Icon"
+		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		v.add_child(ic)
+		var l := IdleUi.label(String(k[1]), 22, Color.WHITE)
+		l.name = "Label"
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(l)
+		var dot := IdleUi.label("●", 20, IdleUi.GOLD)
+		dot.name = "Dot"
+		dot.position = Vector2(8, 4)
+		dot.visible = false
+		b.add_child(dot)
 		b.pressed.connect(func() -> void:
 			AudioManager.ui_click()
 			_home_tab = String(k[0])
 			_fill_home())
 		tabs.add_child(b)
+
+
+## 위 재화 알약 (아이콘 + 숫자).
+func _res_pill(parent: Control, kind: String, col: Color) -> Label:
+	var pill := PanelContainer.new()
+	pill.add_theme_stylebox_override("panel", IdleUi.pill_style())
+	parent.add_child(pill)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	pill.add_child(row)
+	row.add_child(IdleUi.icon(kind, 36.0, col))
+	var l := IdleUi.label("", 24, IdleUi.CREAM)
+	row.add_child(l)
+	return l
+
+
+## 탭 모양: 고른 탭은 흰 바탕에 라벤더 글씨로 떠오른다.
+func _style_tab(b: Button, on: bool) -> void:
+	var sb := IdleUi.box(Color.WHITE if on else Color(1, 1, 1, 0.0), Color.WHITE if on else Color(1, 1, 1, 0.0), 20, 0, 4,
+		false)
+	for st in ["normal", "hover", "pressed"]:
+		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	var col := IdleUi.LAV_DK if on else Color.WHITE
+	(b.get_node("V/Icon") as Control).modulate = col     # 흰 아이콘에 색을 곱한다
+	(b.get_node("V/Label") as Label).add_theme_color_override("font_color", col)
+	b.position.y = -6.0 if on else 0.0
+
+
+## 무대 위 친구들 (편성 앞쪽 다섯) - 숨 쉬듯 살짝 움직인다.
+func _fill_parade() -> void:
+	var stage := _home.get_node("Parade") as Node2D
+	for c in stage.get_children():
+		c.queue_free()
+	var ids: Array = LaneState.lineup.slice(0, 5)
+	var n := ids.size()
+	var gap := minf(120.0, (size.x - 80.0) / maxf(1.0, float(n)))
+	for i in n:
+		var a := IdleActor.new()
+		a.set_sheet(unit_sheet(String(ids[i])))
+		a.row = 0
+		a.px = 3.0
+		a.walking = false
+		a.position = Vector2(size.x * 0.5 + (float(i) - float(n - 1) * 0.5) * gap, 0)
+		a.position = (a.position / 3.0).round() * 3.0
+		stage.add_child(a)
 
 
 func _layout_home() -> void:
@@ -314,19 +423,23 @@ func _layout_home() -> void:
 	var top := _home.get_node("Top") as Control
 	top.position = Vector2(14, 14)
 	top.size = Vector2(w - 28, 64)
-	(_home.get_node("Title") as Control).position = Vector2(0, 96)
-	(_home.get_node("Title") as Control).size = Vector2(w, 80)
-	(_home.get_node("Sub") as Control).position = Vector2(0, 176)
-	(_home.get_node("Sub") as Control).size = Vector2(w, 34)
+	var hero_h := clampf(h * 0.24, 230.0, 380.0)
+	(_home.get_node("Title") as Control).position = Vector2(0, 86)
+	(_home.get_node("Title") as Control).size = Vector2(w, 76)
+	(_home.get_node("Sub") as Control).position = Vector2(0, 156)
+	(_home.get_node("Sub") as Control).size = Vector2(w, 32)
+	(_home.get_node("Parade") as Node2D).position = Vector2(0, 86.0 + hero_h - 6.0)
+	var tabs_h := 112.0
+	var bar := _home.get_node("TabBar") as Control
+	bar.position = Vector2(0, h - tabs_h)
+	bar.size = Vector2(w, tabs_h)
 	var go := _home.get_node("Go") as Control
-	go.position = Vector2(40, 222)
-	go.size = Vector2(w - 80, 104)
-	var sc := _home.get_node("Scroll") as Control
-	sc.position = Vector2(14, 344)
-	sc.size = Vector2(w - 28, h - 344 - 120)
-	var tabs := _home.get_node("Tabs") as Control
-	tabs.position = Vector2(14, h - 106)
-	tabs.size = Vector2(w - 28, 92)
+	go.position = Vector2(24, h - tabs_h - 16.0 - 108.0)
+	go.size = Vector2(w - 48, 108)
+	var card := _home.get_node("Card") as Control
+	var cy := 86.0 + hero_h + 4.0
+	card.position = Vector2(14, cy)
+	card.size = Vector2(w - 28, go.position.y - 14.0 - cy)
 
 
 func _show_home() -> void:
@@ -354,16 +467,17 @@ static func _local_now() -> int:
 
 
 func _refresh_home_top() -> void:
-	_xp_lbl.text = "✦ %s" % _num(LaneState.xp)
-	_star_lbl.text = "★ %s" % _num(LaneState.stars)
+	_xp_lbl.text = _num(LaneState.xp)
+	_star_lbl.text = _num(LaneState.stars)
+	_ticket_lbl.text = str(LaneState.tickets)
 	var nxt := mini(LaneState.cleared + 1, LaneData.STAGE_MAX)
-	(_home.get_node("Go") as Button).text = "▶ 출전!  %s" % LaneData.stage_label(nxt)
+	(_home.get_node("Go") as Button).text = "▶  출전!   %s" % LaneData.stage_label(nxt)
 	for k in ["map", "units", "lineup", "gacha"]:
-		var b := _home.get_node("Tabs/Tab_" + k) as Button
-		b.modulate = Color.WHITE if _home_tab == k else Color(1, 1, 1, 0.6)
-	var gb := _home.get_node("Tabs/Tab_gacha") as Button
-	gb.text = "뽑기 ●" if LaneState.can_pull(1) else "뽑기"
-	gb.add_theme_color_override("font_color", IdleUi.GOLD if LaneState.can_pull(1) else IdleUi.CREAM)
+		var b := _home.get_node("TabBar/Tabs/Tab_" + k) as Button
+		_style_tab(b, _home_tab == k)
+	(_home.get_node("TabBar/Tabs/Tab_gacha/Dot") as Control).visible = LaneState.can_pull(1)
+	_card_title.text = {"map": "지도 · 판 고르기", "units": "동물 친구들", "lineup": "편성 · 콤보", "gacha": "꿈 캡슐 뽑기"}[_home_tab]
+	_fill_parade()
 
 
 func _clear(box: Container) -> void:
@@ -520,6 +634,7 @@ func _fill_units() -> void:
 		ab.pressed.connect(_open_acc_picker.bind(String(id)))
 		accrow.add_child(ab)
 		var b := IdleUi.button("", 20, "gold")
+		b.name = "Lv_" + String(id)
 		b.custom_minimum_size = Vector2(150, 76)
 		if lv >= LaneData.UNIT_LV_MAX:
 			b.text = "최고 레벨"
@@ -627,6 +742,7 @@ func _fill_gacha() -> void:
 	else:
 		one.text = "1번 뽑기   ★ %d" % LaneData.GACHA_COST
 	one.disabled = not LaneState.can_pull(1)
+	one.name = "PullOne"
 	one.pressed.connect(_do_pull.bind(1))
 	v.add_child(one)
 	var ten := IdleUi.button("10번 뽑기   ★ %d\n특급 이상 1마리 확정" % LaneData.GACHA10_COST, 26, "plum")
@@ -649,7 +765,12 @@ func _do_pull(count: int) -> void:
 	var g := LaneGacha.new()
 	g.size = size
 	add_child(g)
-	g.finished.connect(_fill_home)
+	g.finished.connect(func() -> void:
+		_fill_home()
+		if _tut_after_gacha.is_valid():
+			var f := _tut_after_gacha
+			_tut_after_gacha = Callable()
+			_later(0.3, f))
 	g.play(res)
 
 
@@ -841,6 +962,10 @@ func _start_battle(n: int) -> void:
 	_banner_show(LaneData.stage_label(n), Color.WHITE)
 	if battle.cheer > 0.0:
 		_toast("다시 도전 응원!  공격·체력 +%d%%" % int(battle.cheer))
+	# 출전 단추를 누른 '뒤에' 안내 단계가 1이 되므로 조금 뒤에 본다
+	_later(0.4, func() -> void:
+		if LaneState.tut == 1 and stage_n == 1:
+			_tut_battle_guide(0))
 
 
 func _build_battle() -> void:
@@ -1073,7 +1198,7 @@ func _process(dt: float) -> void:
 	var st := Time.get_ticks_msec() / 1000.0 * 30.0
 	_world.position = Vector2(14.0 * sh * sin(st * 1.1), 10.0 * sh * sin(st * 1.7 + 2.0))
 	_flash_rect.color.a = maxf(0.0, _flash_rect.color.a - dt * 2.5)
-	if not _ended:
+	if not _ended and not _tut_pause:
 		var sdt := minf(dt, 0.25) * (2.0 if LaneState.speed2 else 1.0)
 		_battle_t += sdt
 		for e in battle.tick(sdt):
@@ -1616,6 +1741,7 @@ func _show_result(win: bool, r: Dictionary) -> void:
 	var home := IdleUi.button("홈으로", 28)
 	home.custom_minimum_size = Vector2(240, 90)
 	home.pressed.connect(_show_home)
+	_result_home = home
 	row.add_child(home)
 	var next := IdleUi.button("다음 판 ▶" if win else "다시 ▶", 28, "gold")
 	next.custom_minimum_size = Vector2(240, 90)
@@ -1631,11 +1757,113 @@ func _show_result(win: bool, r: Dictionary) -> void:
 	card.scale = Vector2(0.8, 0.8)
 	card.pivot_offset = cs * 0.5
 	create_tween().tween_property(card, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if LaneState.tut == 2 and win:
+		_later(0.6, func() -> void:
+			_tut.point(_result_home, "이겼어요! 홈으로 가서 친구들을 키워 봐요", _tut_to_home))
+
+
+func _tut_to_home() -> void:
+	LaneState.tut = 3
+	LaneState.save()
+	_later(0.5, _tut_home_guide.bind(0))
 
 
 func _center(l: Label) -> Label:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
+
+
+# ── 처음 안내 (한 걸음씩) ───────────────────────────────────────────────
+
+func _tut_skip() -> void:
+	LaneState.tut = 99
+	LaneState.save()
+	_tut.visible = false
+	_tut_pause = false
+	_tut_after_gacha = Callable()
+
+
+## 홈 첫 안내: 0 환영 · 1 이야기 · 2 출전.
+func _tut_home_intro(i := 0) -> void:
+	if mode != "home":
+		return
+	match i:
+		0:
+			_tut.point(null, "쿼카 군단에 온 걸 환영해요!", _tut_home_intro.bind(1))
+		1:
+			_tut.point(null, "벌레들이 꿈결을 갉아먹고 있어요. 함께 막아 봐요", _tut_home_intro.bind(2))
+		2:
+			_tut.point(_home.get_node("Go") as Control, "출전을 눌러 첫 싸움을 해 봐요", func() -> void:
+				LaneState.tut = 1
+				LaneState.save())
+
+
+## 첫 싸움 안내. 말풍선이 떠 있는 동안은 싸움이 멈추고, 단추를 누르면 몇 초 흘려 보여 준다.
+func _tut_battle_guide(i := 0) -> void:
+	if mode != "battle" or _ended or LaneState.tut != 1:
+		_tut_pause = false
+		return
+	_tut_pause = true
+	match i:
+		0:
+			_tut.point(null, "위에서 벌레가 내려와요. 아래 우리 성을 지켜요!", _tut_battle_guide.bind(1))
+		1:
+			battle.wallet = maxf(battle.wallet, 60.0)
+			_tut.point(_unit_btns.get("tiny"), "꼬마 쿼카를 눌러 불러 보세요", _tut_run.bind(2.5, 2))
+		2:
+			battle.wallet = maxf(battle.wallet, 110.0)
+			_tut.point(_unit_btns.get("shield"), "방패 쿼카도 불러요. 튼튼한 벽이에요", _tut_run.bind(3.0, 3))
+		3:
+			battle.wallet = maxf(battle.wallet, float(battle.worker_cost()) + 5.0)
+			_tut.point(_worker_btn, "수입을 올리면 꿈빛이 더 빨리 차요", _tut_run.bind(3.5, 4))
+		4:
+			battle.cannon = LaneData.CANNON_CHARGE
+			_tut.point(_cannon_btn, "꿈 대포가 찼어요! 눌러서 쏴요", _tut_run.bind(2.0, 5))
+		5:
+			_tut.point(_auto_btn, "자동 소환을 켜면 알아서 불러 줘요", _tut_battle_guide.bind(6))
+		6:
+			_tut.point(null, "이제 직접 해 봐요. 벌레 둥지를 부수면 이겨요!", func() -> void:
+				LaneState.tut = 2
+				LaneState.save()
+				_tut_pause = false)
+
+
+## 안내 사이에 싸움을 잠깐 흘려 본다 (방금 한 일이 어떻게 되는지 보이게).
+func _tut_run(secs: float, next: int) -> void:
+	_tut_pause = false
+	_later(secs, _tut_battle_guide.bind(next))
+
+
+## 홈 키우기 안내: 동물 → 레벨 업 → 뽑기 → (캡슐) → 편성 → 콤보 → 출전.
+func _tut_home_guide(i := 0) -> void:
+	if mode != "home" or LaneState.tut != 3:
+		return
+	match i:
+		0:
+			_tut.point(_home.get_node("TabBar/Tabs/Tab_units") as Control, "동물 탭을 눌러 보세요", _tut_later.bind(1))
+		1:
+			_tut.point(_home.find_child("Lv_tiny", true, false) as Control, "꿈조각으로 레벨 업! 더 튼튼해져요",
+				_tut_later.bind(2))
+		2:
+			_tut.point(_home.get_node("TabBar/Tabs/Tab_gacha") as Control, "이번엔 뽑기 탭이에요", _tut_later.bind(3))
+		3:
+			_tut_after_gacha = _tut_home_guide.bind(4)
+			_tut.point(_home.find_child("PullOne", true, false) as Control, "선물 티켓으로 새 친구를 뽑아 봐요!", Callable())
+		4:
+			_tut.point(_home.get_node("TabBar/Tabs/Tab_lineup") as Control, "새 친구는 편성에 들어가요. 편성을 볼까요?",
+				_tut_later.bind(5))
+		5:
+			_tut.point(null, "같이 편성하면 힘이 세지는 콤보도 있어요", _tut_home_guide.bind(6))
+		6:
+			_tut.point(_home.get_node("Go") as Control, "준비 끝! 출전해서 다음 판으로 가요", func() -> void:
+				LaneState.tut = 99
+				LaneState.save()
+				_toast("이제 혼자서도 할 수 있어요! 화이팅"))
+
+
+## 탭을 바꾼 뒤 화면이 다시 그려질 때까지 잠깐 기다렸다가 다음 단계.
+func _tut_later(i: int) -> void:
+	_later(0.35, _tut_home_guide.bind(i))
 
 
 # ── 도우미 ───────────────────────────────────────────────────────────
@@ -1673,6 +1901,8 @@ func _shake_ctrl(c: Control) -> void:
 
 func _toast(t: String) -> void:
 	_toast_lbl.text = t
+	# 폭을 붙잡아 둔다 - 안 그러면 글씨가 한 글자씩 세로로 늘어선다
+	_toast_box.custom_minimum_size = Vector2(size.x - 60, 0)
 	_toast_box.size = Vector2(size.x - 60, 0)
 	_toast_box.reset_size()
 	_toast_box.position = Vector2(30, 96 if mode == "home" else 90)

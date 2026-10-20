@@ -14,6 +14,7 @@ func _ready() -> void:
 	LaneState.seen_intro = true
 	LaneState.daily_day = int(Time.get_unix_time_from_system()) / 86400
 	LaneState.migrated = true
+	LaneState.tut = 99 if OS.get_environment("SHOT_TUT") == "" else int(OS.get_environment("SHOT_TUT"))
 	if OS.get_environment("SHOT_LOOT") == "1":
 		# 보물 몇 개 + 장신구 둘 (지도·카드에 보이게)
 		LaneState.treasures[0] = [3, 2, 1]

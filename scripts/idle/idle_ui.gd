@@ -109,9 +109,14 @@ static func button(t: String, fs: int, kind := "plum", tint := Color(0, 0, 0, 0)
 	for st in ["font_color", "font_pressed_color", "font_hover_color", "font_focus_color"]:
 		b.add_theme_color_override(st, fc)
 	b.add_theme_color_override("font_disabled_color", MUTED)
+	# 게임 버튼처럼 도톰하게: 아래 테두리를 두껍고 진하게 (눌리면 얇아지며 내려간다)
 	var n := box(bg, border, 22, 3, 8)
+	n.border_width_bottom = 8
 	var h := box(bg.lightened(0.08), border, 22, 3, 8)
-	var p := box(bg.darkened(0.15), border, 22, 3, 8)
+	h.border_width_bottom = 8
+	var p := box(bg.darkened(0.12), border, 22, 3, 8)
+	p.border_width_bottom = 3
+	p.content_margin_top = 13
 	p.shadow_size = 2
 	p.shadow_offset = Vector2(0, 1)
 	var d := box(Color("#E9E1F1"), Color("#D8CCE4"), 22, 3, 8, false)
