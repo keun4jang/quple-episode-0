@@ -816,22 +816,30 @@ func _popup(title: String) -> VBoxContainer:
 	var layer := Control.new()
 	layer.name = "Popup"
 	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	layer.size = size
 	add_child(layer)
 	var dim := ColorRect.new()
 	dim.color = Color(0.05, 0.02, 0.09, 0.75)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.size = size
 	dim.gui_input.connect(func(ev: InputEvent) -> void:
 		if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
 			layer.queue_free())
 	layer.add_child(dim)
 	var card := PanelContainer.new()
+	card.name = "Card"
 	card.add_theme_stylebox_override("panel", IdleUi.panel_style())
 	card.position = Vector2(24, 140)
 	card.size = Vector2(size.x - 48, size.y - 280)
 	layer.add_child(card)
+	# 내용만큼만 - 텅 빈 창이 화면을 다 먹지 않게 (내용을 채운 뒤에 잰다)
+	_later(0.0, func() -> void:
+		if not is_instance_valid(card):
+			return
+		var want: float = (card.get_node("V/Scroll/Body") as Control).get_combined_minimum_size().y + 130.0
+		var hh := clampf(want, 260.0, size.y - 280.0)
+		card.size = Vector2(size.x - 48, hh)
+		card.position = Vector2(24, (size.y - hh) * 0.5))
 	var outer := VBoxContainer.new()
+	outer.name = "V"
 	outer.add_theme_constant_override("separation", 10)
 	card.add_child(outer)
 	var head := HBoxContainer.new()
@@ -844,11 +852,13 @@ func _popup(title: String) -> VBoxContainer:
 	close.pressed.connect(layer.queue_free)
 	head.add_child(close)
 	var sc := ScrollContainer.new()
+	sc.name = "Scroll"
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	IdleUi.style_scroll(sc)
 	outer.add_child(sc)
 	var body := VBoxContainer.new()
+	body.name = "Body"
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 10)
 	sc.add_child(body)
@@ -896,7 +906,7 @@ func _open_acc_picker(unit: String) -> void:
 		v.add_child(IdleUi.label(LaneData.acc_text(acc, lv), 19, IdleUi.GREEN))
 		var who := LaneState.wearer(acc)
 		if who != "":
-			v.add_child(IdleUi.label("%s 이(가) 달고 있어요" % String(LaneData.UNITS[who]["name"]), 18, IdleUi.SUB))
+			v.add_child(IdleUi.label("%s 착용 중" % String(LaneData.UNITS[who]["name"]), 18, IdleUi.SUB))
 		var bv := VBoxContainer.new()
 		row.add_child(bv)
 		var on := IdleUi.button("달고 있음" if who == unit else "달기", 20, "ghost" if who == unit else "gold")
@@ -951,8 +961,17 @@ func _start_battle(n: int) -> void:
 	_ended = false
 	_won = false
 	_battle_t = 0.0
+	# 판마다 번호(uid)가 1부터 다시 붙는다 - 지난 판의 기록을 다 비워야 한다.
+	# (예전엔 `_dead` 가 남아, 지난 판에 쓰러진 번호를 받은 새 친구가 안 그려지다가 갑자기 나타났다)
 	_actor_of = {}
 	_lat = {}
+	_dead = {}
+	_ent_of = {}
+	_swing_at = {}
+	_hit_at = {}
+	_fx_t = {}
+	_lunge = {}
+	_tut_pause = false
 	battle.start(n)
 	battle.auto = LaneState.auto_summon
 	_build_battle()
@@ -1336,7 +1355,7 @@ func _sync_actors() -> void:
 			p.y += fwd * lunge
 		# 맞으면 뒤로 살짝 밀린다
 		var hs := _battle_t - float(_hit_at.get(uid, -99.0))
-		if hs < 0.12:
+		if hs >= 0.0 and hs < 0.12:
 			p.y -= fwd * 9.0 * (1.0 - hs / 0.12)
 		# 픽셀 격자에 맞춰 놓고, 크기는 원근과 관계없이 한 가지 (도트 규칙: 픽셀 크기는 하나)
 		a.position = (p / float(PIX)).round() * float(PIX)
@@ -1684,12 +1703,10 @@ func _end_battle(res: String) -> void:
 func _show_result(win: bool, r: Dictionary) -> void:
 	_result = Control.new()
 	_result.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_result.size = size
 	_hud.add_child(_result)
 	var dim := ColorRect.new()
 	dim.color = Color(0.06, 0.03, 0.1, 0.7)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.size = size
 	_result.add_child(dim)
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", IdleUi.panel_style())
