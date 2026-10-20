@@ -129,6 +129,11 @@ func height() -> float:
 	return cell.y * px
 
 
+## 몸 높이 (px) - 칸 위쪽에 무기를 휘두를 여유가 있는 시트는 그만큼 뺀다 (칸 높이 > 폭).
+func body_height() -> float:
+	return minf(cell.x, cell.y) * px
+
+
 func _process(dt: float) -> void:
 	_t += dt
 	flash = maxf(0.0, flash - dt * 5.0)

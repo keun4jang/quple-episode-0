@@ -179,7 +179,8 @@ def draw(kind, spec, frame, mode):
     s = 1.55 if boss else 1.0
     cx = W / 2 - 0.5
     bob = (0, -1, 0, 1)[frame % 4] if mode == "walk" else 0
-    lean = 1.5 * s if mode == "attack" else 0
+    # 공격: 0 뒤로 움찔 · 1 덤벼듦 · 2 깨묾 · 3 돌아옴 (쿼카 쪽 = 아래)
+    lean = (-1.0, 2.0, 1.6, 0.4)[frame % 4] * s if mode == "attack" else 0
     foot = W - 3
     cy = foot - 9 * s + bob + lean          # 머리 중심
     shape = spec["shape"]

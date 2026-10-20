@@ -126,64 +126,141 @@ def hat(cv, spec, cx, top, hr, back, evo):
         cv.set(cx, top - 1.5, hx("#E8405A"))
 
 
+import math
+
+# 공격 4칸 (뒷모습 - 적은 화면 위쪽): 0 웅크려 당김 · 1 위로 크게 휘두름(잔상) · 2 끝에서 반짝 · 3 돌아옴
+ATTACK_POSE = ("low", "up", "up", "mid")
+ATTACK_BOB = (1, -2, -1, 0)
+
+
+def hand_at(cx, by, hr, pose):
+    """오른손 위치 - 당기면 아래, 휘두르면 머리 위로."""
+    if pose == "low":
+        return (cx + hr * 1.05, by + hr * 0.2)
+    if pose == "up":
+        return (cx + hr * 0.8, by - hr * 1.05)
+    return (cx + hr * 0.95, by - hr * 0.2)
+
+
+def aim(pose):
+    """무기가 가리키는 방향 (라디안, 화면 좌표: -90도 = 위)."""
+    return {"low": math.radians(35), "up": math.radians(-92), "mid": math.radians(-62)}[pose]
+
+
+WEAPON_LEN = {"spear": 2.4, "hammer": 1.7, "mage": 2.1, "giant": 1.5, "sling": 1.3}
+
+
+def weapon_tip(spec, cx, by, hr, pose):
+    g = spec["gear"]
+    hand = hand_at(cx, by, hr, pose)
+    L = WEAPON_LEN.get(g, 0.9) * hr * (1.15 if pose == "up" else 1.0)
+    a = aim(pose)
+    return hand, (hand[0] + math.cos(a) * L, hand[1] + math.sin(a) * L)
+
+
 def weapon(cv, spec, cx, by, hr, pose, back, evo):
-    """pose: -1 들어 올림 · 0 보통 · 1 내려침. 뒷모습에선 오른손에 든다."""
+    """pose: low(당김) · mid(보통) · up(휘두름). 뒷모습에선 오른손에 든다."""
     g = spec["gear"]
     wood, wood_d = hx("#A9754A"), hx("#6E4628")
     metal, metal_l = hx("#BFC8D6"), hx("#F0F4FA")
-    hand = (cx + hr * 0.95, by - hr * 0.2)
+    hand, tip = weapon_tip(spec, cx, by, hr, pose)
     if g == "shield":
-        sx = cx - hr * 0.95 if back else cx - hr * 0.6
+        # 방패 밀치기 - 휘두르면 방패가 머리 앞(위)으로 올라간다
+        if pose == "up":
+            sx, sy = cx + hr * 0.2, by - hr * 1.15
+        elif pose == "low":
+            sx, sy = cx - hr * 1.0, by + hr * 0.2
+        else:
+            sx, sy = (cx - hr * 0.95 if back else cx - hr * 0.6), by + hr * 0.05
         col = hx("#5B8FD8") if not evo else hx("#E0B030")
-        cv.ellipse(sx, by + hr * 0.05, hr * 0.62, hr * 0.78, col, mix(col, (0, 0, 0, 255), 0.3), mix(col, (255, 255, 255, 255), 0.4))
-        cv.set(sx, by + hr * 0.05, GOLD)
+        cv.ellipse(sx, sy, hr * 0.62, hr * 0.78, col, mix(col, (0, 0, 0, 255), 0.3), mix(col, (255, 255, 255, 255), 0.4))
+        cv.set(sx, sy, GOLD)
     elif g == "spear":
-        ang_top = {-1: (hand[0] + 1, hand[1] - hr * 2.2), 0: (hand[0] + 2, hand[1] - hr * 2.0), 1: (hand[0] + hr * 1.4, hand[1] - hr * 1.5)}[pose]
-        cv.line(hand[0], hand[1] + hr * 0.6, ang_top[0], ang_top[1], wood)
-        cv.ellipse(ang_top[0], ang_top[1] - 1, 1.2, 2.2, metal if not evo else GOLD, metal, metal_l)
+        cv.line(hand[0], hand[1], tip[0], tip[1], wood)
+        # 손 뒤로 자루가 조금 남는다
+        a = aim(pose)
+        cv.line(hand[0], hand[1], hand[0] - math.cos(a) * hr * 0.5, hand[1] - math.sin(a) * hr * 0.5, wood)
+        cv.ellipse(tip[0], tip[1], 1.4, 1.4, metal if not evo else GOLD, metal, metal_l)
+        cv.set(tip[0] + math.cos(a) * 1.5, tip[1] + math.sin(a) * 1.5, metal_l)
     elif g == "hammer":
-        top = {-1: (hand[0] - 1, hand[1] - hr * 1.9), 0: (hand[0] + 1, hand[1] - hr * 1.5), 1: (hand[0] + hr * 1.3, hand[1] - hr * 0.6)}[pose]
-        cv.line(hand[0], hand[1] + hr * 0.3, top[0], top[1], wood)
+        cv.line(hand[0], hand[1], tip[0], tip[1], wood)
         hc = hx("#8E6A4E") if not evo else GOLD
-        cv.rect(top[0] - hr * 0.55, top[1] - hr * 0.4, top[0] + hr * 0.55, top[1] + hr * 0.2, hc)
-        cv.rect(top[0] - hr * 0.55, top[1] - hr * 0.4, top[0] + hr * 0.55, top[1] - hr * 0.3, mix(hc, (255, 255, 255, 255), 0.4))
+        cv.rect(tip[0] - hr * 0.6, tip[1] - hr * 0.42, tip[0] + hr * 0.6, tip[1] + hr * 0.28, hc)
+        cv.rect(tip[0] - hr * 0.6, tip[1] - hr * 0.42, tip[0] + hr * 0.6, tip[1] - hr * 0.3, mix(hc, (255, 255, 255, 255), 0.4))
     elif g == "sling":
-        top = (hand[0] + (0 if pose < 1 else 1), hand[1] - hr * (1.3 if pose >= 0 else 1.6))
-        cv.line(hand[0], hand[1] + 1, top[0], top[1], wood_d)
-        cv.line(top[0] - 1.5, top[1] - 1.5, top[0], top[1], wood_d)
-        cv.line(top[0] + 1.5, top[1] - 1.5, top[0], top[1], wood_d)
-        if pose == 1:
-            cv.set(top[0], top[1] - 4, hx("#9AA6B8"))
+        cv.line(hand[0], hand[1], tip[0], tip[1], wood_d)
+        cv.line(tip[0] - 1.5, tip[1] - 1.5, tip[0], tip[1], wood_d)
+        cv.line(tip[0] + 1.5, tip[1] - 1.5, tip[0], tip[1], wood_d)
+        if pose == "low":
+            cv.line(tip[0] - 1.5, tip[1] - 1.5, hand[0] - 1, hand[1] + 2, hx("#E8DCC8"))   # 당긴 고무줄
     elif g == "mage":
-        top = {-1: (hand[0], hand[1] - hr * 2.0), 0: (hand[0] + 1, hand[1] - hr * 1.8), 1: (hand[0] + hr * 1.2, hand[1] - hr * 1.4)}[pose]
-        cv.line(hand[0], hand[1] + hr * 0.6, top[0], top[1], wood)
+        cv.line(hand[0], hand[1], tip[0], tip[1], wood)
         star = GOLD if not evo else hx("#FF8FD8")
-        for dx, dy in ((0, -2), (0, 2), (-2, 0), (2, 0), (0, 0), (-1, -1), (1, 1), (1, -1), (-1, 1)):
-            cv.set(top[0] + dx, top[1] - 2 + dy, star)
-    elif g == "runner":
-        pass
+        big = 2 if pose == "up" else 1
+        for dx in range(-big - 1, big + 2):
+            cv.set(tip[0] + dx, tip[1], star)
+        for dy in range(-big - 1, big + 2):
+            cv.set(tip[0], tip[1] + dy, star)
+        for d in (-1, 1):
+            cv.set(tip[0] + d, tip[1] + d, star)
+            cv.set(tip[0] + d, tip[1] - d, star)
     elif g == "giant":
-        top = {-1: (hand[0], hand[1] - hr * 1.5), 0: (hand[0] + 1, hand[1] - hr * 1.2), 1: (hand[0] + hr * 1.1, hand[1] - hr * 0.4)}[pose]
-        cv.line(hand[0], hand[1] + hr * 0.4, top[0], top[1], wood_d, 2)
-        cv.ellipse(top[0], top[1], hr * 0.45, hr * 0.45, wood, wood_d, hx("#C99466"))
+        cv.line(hand[0], hand[1], tip[0], tip[1], wood_d, 2)
+        cv.ellipse(tip[0], tip[1], hr * 0.5, hr * 0.5, wood, wood_d, hx("#C99466"))
+
+
+def strike_fx(cv, spec, cx, by, hr, frame):
+    """윤곽선을 그린 뒤에 얹는다 - 잔상(1칸)과 끝에서 반짝(2칸). 윤곽선이 붙지 않아야 빛처럼 보인다."""
+    hand, tip = weapon_tip(spec, cx, by, hr, "up")
+    if spec["gear"] in ("leaf", "runner"):
+        tip = (hand[0] + 0.5, hand[1] - hr * 0.6)
+    if spec["gear"] == "shield":
+        tip = (cx + hr * 0.2, by - hr * 1.9)
+    if frame == 1:
+        # 아래(당긴 곳)에서 위(휘두른 곳)까지 반달 잔상
+        _, low_tip = weapon_tip(spec, cx, by, hr, "low")
+        r = math.dist((cx, by), tip) * 0.95
+        a0 = math.atan2(low_tip[1] - by, low_tip[0] - cx)
+        a1 = math.atan2(tip[1] - by, tip[0] - cx)
+        n = 14
+        for i in range(n):
+            t = i / (n - 1)
+            a = a0 + (a1 - a0) * t
+            for k in (0, 1, 2):
+                x = cx + math.cos(a) * (r - k)
+                y = by + math.sin(a) * (r - k)
+                if cv.get(x, y) is None:
+                    col = [(255, 255, 255), (255, 244, 170), (255, 214, 90)][k]
+                    cv.set(x, y, col + (int(110 + 145 * t),))
+    if frame == 2:
+        # 끝에서 반짝 (십자 별)
+        for d in range(-2, 3):
+            cv.set(tip[0] + d, tip[1], (255, 255, 255, 255) if abs(d) < 2 else (255, 240, 150, 255))
+            cv.set(tip[0], tip[1] + d, (255, 255, 255, 255) if abs(d) < 2 else (255, 240, 150, 255))
+
+
+def head_room(W):
+    """칸 위쪽 여유 - 무기를 머리 위로 휘둘러도 잘리지 않게. 게임은 (칸 높이 - 칸 폭)을 몸 위 여유로 안다."""
+    return int(W * 0.62)
 
 
 def quokka(spec, view, frame, evo=False):
     W = spec["cell"] + (2 if evo else 0)
-    cv = Canvas(W, W)
+    H = W + head_room(W)
+    cv = Canvas(W, H)
     hr = spec["head"] * (1.08 if evo else 1.0)
     cx = W / 2 - 0.5
-    foot = W - 2
+    foot = H - 2
     bob = 0
     arms_up = False
     eyes = "open"
-    pose = 0
+    pose = "mid"
     walk_phase = frame
     if view == "walk":
         bob = (0, -1, 0, -1)[frame]
     if view == "attack":
-        pose = (-1, 1, 1, 0)[frame]
-        bob = (0, 1, 1, 0)[frame]
+        pose = ATTACK_POSE[frame]
+        bob = ATTACK_BOB[frame]
     if view == "front":
         if frame == 1:
             arms_up = True
@@ -196,7 +273,7 @@ def quokka(spec, view, frame, evo=False):
     back = view != "front"
     body_r = hr * 0.78
     by = foot - body_r * 0.95 + bob            # 몸통 중심
-    hy = by - body_r * 0.55 - hr * 0.72 + (1 if view == "attack" and pose == 1 else 0)
+    hy = by - body_r * 0.55 - hr * 0.72 + (1 if view == "attack" and frame == 0 else 0)
     # 망토 (진화)
     if evo:
         cape = hx("#C43A5A")
@@ -220,6 +297,12 @@ def quokka(spec, view, frame, evo=False):
         cv.ellipse(cx, by + 0.6, body_r * 0.6, body_r * 0.62, BELLY, mix(BELLY, FUR, 0.3), BELLY)
     # 팔
     for side in (-1, 1):
+        if view == "attack" and side > 0:
+            # 휘두르는 오른팔 - 어깨에서 손까지
+            hx_, hy_ = hand_at(cx, by, hr, pose)
+            cv.line(cx + body_r * 0.7, by - body_r * 0.35, hx_, hy_, FUR_D, 2)
+            cv.ellipse(hx_, hy_, 1.4, 1.4, FUR, FUR_D, FUR)
+            continue
         if arms_up:
             cv.line(cx + side * body_r * 0.8, by - body_r * 0.3, cx + side * body_r * 1.25, by - body_r * 1.4, FUR_D, 1)
             cv.ellipse(cx + side * body_r * 1.25, by - body_r * 1.45, 1.2, 1.2, FUR, FUR, FUR)
@@ -266,16 +349,19 @@ def quokka(spec, view, frame, evo=False):
             cv.rect(cx + side * body_r * 0.5 - 1.2, foot - 1, cx + side * body_r * 0.5 + 1.2, foot, hx("#FF6B6B"))
     weapon(cv, spec, cx, by, hr, pose, back, evo)
     cv.outline()
+    if view == "attack":
+        strike_fx(cv, spec, cx, by, hr, frame)
     return cv.image()
 
 
 def sheet(spec, evo):
     W = spec["cell"] + (2 if evo else 0)
-    im = Image.new("RGBA", (W * 4, W * 3), (0, 0, 0, 0))
+    H = W + head_room(W)
+    im = Image.new("RGBA", (W * 4, H * 3), (0, 0, 0, 0))
     for f in range(4):
         im.paste(quokka(spec, "front", f, evo), (f * W, 0))
-        im.paste(quokka(spec, "attack", f, evo), (f * W, W))
-        im.paste(quokka(spec, "walk", f, evo), (f * W, W * 2))
+        im.paste(quokka(spec, "attack", f, evo), (f * W, H))
+        im.paste(quokka(spec, "walk", f, evo), (f * W, H * 2))
     return im
 
 

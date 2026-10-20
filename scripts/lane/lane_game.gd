@@ -31,6 +31,14 @@ const ROLE_COL := {"벽": "#8FB5FF", "근접": "#FF9F7A", "범위": "#FFB84A", "
 const CHEER_MIN_FIGHT := 60.0
 
 
+## 시트의 앞모습 첫 칸 - 칸 위쪽의 무기 여유(칸 높이 - 칸 폭)는 빼고 몸만.
+static func _face_region(tex: Texture2D, col := 0) -> Rect2:
+	var w := tex.get_width() / 4.0
+	var h := tex.get_height() / 3.0
+	var pad := maxf(0.0, h - w)
+	return Rect2(col * w, pad, w, h - pad)
+
+
 ## 버튼에 들어갈 짧은 이름 ("도토리 다람쥐" → "다람쥐").
 static func _short_name(id: String) -> String:
 	var n := LaneData.unit_name(id, LaneState.level_of(id))
@@ -100,6 +108,8 @@ var _fx_pix: SubViewportContainer
 var _bars: Node2D             ## 머리 위 체력 띠
 var _ent_of: Dictionary = {}  ## uid → 판의 몸 (공격한 쪽이 누구인지 효과에 쓴다)
 var _fx_t: Dictionary = {}    ## uid → 마지막으로 공격 효과를 낸 때 (범위 공격이 여러 번 터지지 않게)
+var _swing_at: Dictionary = {}  ## uid → 마지막으로 휘두른 때 (판 시간) - 공격 그림을 실제 타격에 맞춘다
+var _hit_at: Dictionary = {}    ## uid → 마지막으로 맞은 때 - 살짝 밀린다
 var _calm := false            ## 설정: 화면 흔들림·번쩍임 줄이기
 var _toast_box: PanelContainer
 var _actor_of: Dictionary = {}     ## uid → IdleActor
@@ -675,7 +685,7 @@ func _bug_face(kind: String, sz: float) -> TextureRect:
 	if tex != null:
 		var a := AtlasTexture.new()
 		a.atlas = tex
-		a.region = Rect2(0, 0, tex.get_width() / 4.0, tex.get_height() / 3.0)
+		a.region = _face_region(tex)
 		t.texture = a
 	return t
 
@@ -803,7 +813,7 @@ func _portrait(id: String, sz: float) -> Control:
 	if tex != null:
 		var a := AtlasTexture.new()
 		a.atlas = tex
-		a.region = Rect2(0, 0, tex.get_width() / 4.0, tex.get_height() / 3.0)
+		a.region = _face_region(tex)
 		t.texture = a
 	if not LaneState.has_unit(id):
 		t.modulate = Color(0.1, 0.08, 0.15, 0.9)
@@ -1089,7 +1099,7 @@ func _draw_bars() -> void:
 		var px := float(PIX)
 		var w := (36.0 if boss else 14.0) * px
 		var h := (3.0 if boss else 2.0) * px
-		var p: Vector2 = a.position + Vector2(-w * 0.5, -a.height() - 3.0 * px - h)
+		var p: Vector2 = a.position + Vector2(-w * 0.5, -a.body_height() - 3.0 * px - h)
 		p = (p / px).round() * px
 		var fill := floorf(w * r / px) * px
 		var col := Color("#5CCB7A") if e["side"] == "q" else Color("#F0506E")
@@ -1173,10 +1183,36 @@ func _sync_actors() -> void:
 		var pos := float(e["pos"])
 		var depth := _field.scale_at(pos)
 		var p := _field.to_screen(pos, float(_lat.get(uid, 0.0)))
-		var lg := float(_lunge.get(uid, 0.0))
-		if lg > 0.0:
-			_lunge[uid] = maxf(0.0, lg - get_process_delta_time() * 6.0)
-			p.y += (-18.0 if e["side"] == "q" else 18.0) * depth * sin(lg * PI)
+		# 공격 동작: 웅크림(공격 0.25초 전) → 쭉 뻗으며 덤벼듦 → 돌아옴. 앞쪽 = 쿼카는 위, 벌레는 아래.
+		var fwd := -1.0 if e["side"] == "q" else 1.0
+		var atk_f := -1
+		if e["state"] == "fight":
+			# 실제 시간으로 잰다 - 2배속에서도 휘두르는 게 눈에 보이게
+			var since := _t - float(_swing_at.get(uid, -99.0))
+			var until := float(e["t_atk"]) / (2.0 if LaneState.speed2 else 1.0)
+			var lunge := 0.0
+			if since < 0.08:
+				atk_f = 1
+				lunge = 27.0 * since / 0.08
+				a.squash = Vector2(0.84, 1.2)
+			elif since < 0.21:
+				atk_f = 2
+				lunge = 27.0
+				a.squash = Vector2(0.9, 1.1)
+			elif since < 0.37:
+				atk_f = 3
+				lunge = 27.0 * (1.0 - (since - 0.21) / 0.16)
+			elif until <= 0.22:
+				atk_f = 0
+				lunge = -9.0 * (1.0 - until / 0.22)
+				a.squash = Vector2(1.12, 0.88)
+			else:
+				atk_f = 3
+			p.y += fwd * lunge
+		# 맞으면 뒤로 살짝 밀린다
+		var hs := _battle_t - float(_hit_at.get(uid, -99.0))
+		if hs < 0.12:
+			p.y -= fwd * 9.0 * (1.0 - hs / 0.12)
 		# 픽셀 격자에 맞춰 놓고, 크기는 원근과 관계없이 한 가지 (도트 규칙: 픽셀 크기는 하나)
 		a.position = (p / float(PIX)).round() * float(PIX)
 		a.px = UNIT_PX if e["side"] == "q" else BUG_PX
@@ -1193,11 +1229,15 @@ func _sync_actors() -> void:
 				a.frame_override = 3
 			elif e["state"] == "fight":
 				a.row = 1
-				a.walking = true
+				a.walking = false
+				a.frame_override = atk_f
 			else:
 				a.row = 2
 		else:
 			a.row = 2 if e["state"] == "kb" else (1 if e["state"] == "fight" else 0)
+			a.frame_override = atk_f if e["state"] == "fight" else -1
+			if e["state"] == "fight":
+				a.walking = false
 	for uid in _actor_of.keys():
 		if not alive.has(uid):
 			var a2 = _actor_of[uid]
@@ -1226,7 +1266,7 @@ func _actor_pos(uid: int) -> Vector2:
 	var a = _actor_of.get(uid)
 	if a == null or not is_instance_valid(a):
 		return Vector2(size.x * 0.5, size.y * 0.5)
-	return a.position + Vector2(0, -a.height() * 0.5)
+	return a.position + Vector2(0, -a.body_height() * 0.5)
 
 
 # ── 사건 → 연출 ───────────────────────────────────────────────────────
@@ -1244,7 +1284,7 @@ func _on_event(e: Dictionary) -> void:
 						_vfx.burst(a.position, Color("#F2E2C2"), 6, 140.0, 0.4, 0.35, true)
 						# 누가 나왔는지 머리 위에 이름
 						var kid := String(e["kind"])
-						_fx.text(a.position + Vector2(0, -a.height() - 30.0), LaneData.unit_name(kid, LaneState.level_of(kid)),
+						_fx.text(a.position + Vector2(0, -a.body_height() - 30.0), LaneData.unit_name(kid, LaneState.level_of(kid)),
 							RARITY_COL[rr] if rr != "base" else Color.WHITE, 22, 1.0, 0.0, 30.0)
 						if rr == "legend":
 							# 전설이 나오면 판 전체가 알아챈다
@@ -1266,15 +1306,15 @@ func _on_event(e: Dictionary) -> void:
 		"swing":
 			var a = _actor_of.get(int(e["uid"]))
 			if a != null and is_instance_valid(a):
-				# 앞으로 몸을 날린다 - 위치는 매 프레임 길에서 다시 잡으니 '덤벼듦' 만 따로 더한다
-				a.squash = Vector2(1.18, 0.86)
-				_lunge[int(e["uid"])] = 1.0
+				# 휘두른 때를 적어 두면 `_sync_actors` 가 덤벼드는 동작을 그린다
+				_swing_at[int(e["uid"])] = _t
 		"hit":
+			_hit_at[int(e["uid"])] = _battle_t
 			var a = _actor_of.get(int(e["uid"]))
 			if a != null and is_instance_valid(a):
 				a.flash = 0.9
 				a.flash_col = Color.WHITE if e["side"] == "b" else Color("#FF8080")
-				var p: Vector2 = a.position + Vector2(0, -a.height() * 0.5)
+				var p: Vector2 = a.position + Vector2(0, -a.body_height() * 0.5)
 				if e["side"] == "b":
 					_attack_fx(int(e.get("by", -1)), p, a)
 					_hit_fx(e, p)
@@ -1297,7 +1337,7 @@ func _on_event(e: Dictionary) -> void:
 			_actor_of.erase(uid)
 			_dead[uid] = true
 			if a != null and is_instance_valid(a):
-				var p: Vector2 = a.position + Vector2(0, -a.height() * 0.5)
+				var p: Vector2 = a.position + Vector2(0, -a.body_height() * 0.5)
 				a.dissolve = 0.01
 				a.edge_col = Color("#FFE7A0") if e["side"] == "b" else Color("#FFB0C0")
 				var tw := create_tween()
@@ -1353,7 +1393,7 @@ func _on_event(e: Dictionary) -> void:
 		"slow":
 			var a = _actor_of.get(int(e["uid"]))
 			if a != null and is_instance_valid(a):
-				_vfx.burst(a.position + Vector2(0, -a.height() * 0.5), Color("#9FD8FF"), 8, 120.0, 0.6, 0.35, true)
+				_vfx.burst(a.position + Vector2(0, -a.body_height() * 0.5), Color("#9FD8FF"), 8, 120.0, 0.6, 0.35, true)
 
 
 ## 공격한 쪽의 모양대로 - 베기·찌르기·충격파·탄·마법·얼음·할퀴기·내리꽂기.
@@ -1368,7 +1408,7 @@ func _attack_fx(by: int, p: Vector2, target) -> void:
 	var aa = _actor_of.get(by)
 	var from: Vector2 = p + Vector2(0, 80)
 	if aa != null and is_instance_valid(aa):
-		from = aa.position + Vector2(0, -aa.height() * 0.6)
+		from = aa.position + Vector2(0, -aa.body_height() * 0.6)
 	# 범위 공격이면 맞은 놈마다 터지지 않게 한 번만 크게
 	var now := _battle_t
 	var first: bool = now - float(_fx_t.get(by, -9.0)) > 0.12

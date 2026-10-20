@@ -64,10 +64,11 @@ def shade(c):
 
 def animal(spec, view, frame, evo=False):
     W = spec["cell"] + (2 if evo else 0)
-    cv = Canvas(W, W)
+    H = W + qk.head_room(W)
+    cv = Canvas(W, H)
     hr = spec["head"] * (1.08 if evo else 1.0)
     cx = W / 2 - 0.5
-    foot = W - 2
+    foot = H - 2
     FUR = hx(spec["fur"])
     FUR_D, FUR_L = shade(FUR)
     BEL = hx(spec["belly"])
@@ -75,8 +76,9 @@ def animal(spec, view, frame, evo=False):
     if view == "walk":
         bob = (0, -1, 0, -1)[frame]
     if view == "attack":
-        pose = (-1, 1, 1, 0)[frame]
-        bob = (0, 1, 1, 0)[frame]
+        # 0 웅크림 · 1 앞발을 높이 들어 휘두름(잔상) · 2 내리꽂기/던지기(반짝) · 3 돌아옴
+        pose = (0, -1, 1, 0)[frame]
+        bob = (1, -2, -1, 0)[frame]
     if view == "front":
         if frame == 1:
             arms_up, eyes, bob = True, "happy", -1
@@ -87,7 +89,9 @@ def animal(spec, view, frame, evo=False):
     back = view != "front"
     body_r = hr * 0.78
     by = foot - body_r * 0.95 + bob
-    hy = by - body_r * 0.55 - hr * 0.72 + (1 if view == "attack" and pose == 1 else 0)
+    hy = by - body_r * 0.55 - hr * 0.72 + (1 if view == "attack" and frame == 0 else 0)
+    if view == "attack" and spec["face"] in ("beak", "owl", "eagle") and frame in (1, 2):
+        hy -= 1.5      # 쪼기 - 머리를 앞(위)으로 내민다
     face = spec["face"]
     if evo:
         cape = hx("#C43A5A")
@@ -171,7 +175,7 @@ def animal(spec, view, frame, evo=False):
     for side in (-1, 1):
         if arms in ("wing", "bigwing", "flipper"):
             big = 1.6 if arms == "bigwing" else 1.0
-            if arms_up or (back and pose == -1):
+            if arms_up or (back and view == "attack" and frame in (1, 2)):
                 cv.ellipse(cx + side * body_r * 1.1, by - body_r * 0.7, body_r * 0.3 * big, body_r * 0.55 * big, ac, ac, FUR)
             else:
                 cv.ellipse(cx + side * body_r * (0.95 + 0.2 * (big - 1)), by + body_r * 0.05, body_r * 0.26 * big,
@@ -180,8 +184,10 @@ def animal(spec, view, frame, evo=False):
             cv.line(cx + side * body_r * 0.8, by - body_r * 0.3, cx + side * body_r * 1.25, by - body_r * 1.4, ac, 1)
             cv.ellipse(cx + side * body_r * 1.25, by - body_r * 1.45, 1.2, 1.2, ac, ac, FUR)
         else:
-            raise_r = back and side > 0 and pose == -1
-            ay = by - body_r * (0.7 if raise_r else -0.05)
+            raise_r = back and side > 0 and view == "attack" and frame in (1, 2)
+            ay = by - body_r * ((1.35 if frame == 1 else 1.0) if raise_r else -0.05)
+            if back and side > 0 and view == "attack" and frame == 0:
+                ay = by + body_r * 0.3     # 웅크려 당김
             cv.ellipse(cx + side * body_r * 0.92, ay, body_r * 0.24, body_r * 0.42, ac, ac, FUR)
             if arms == "claw" or spec.get("acc") == "claw":
                 for k in (-1, 0, 1):
@@ -361,8 +367,23 @@ def animal(spec, view, frame, evo=False):
         cv.rect(cx - hr * 0.95, top + hr * 0.45, cx + hr * 0.95, top + hr * 0.6, hx("#5A4A3A"))
         for side in (-1, 1):
             cv.ellipse(cx + side * hr * 0.42, top + hr * 0.5, hr * 0.26, hr * 0.2, hx("#7FD0FF"), hx("#3F8FC8"), WHITE)
+    # 휘두르는 앞발은 머리 앞에 다시 그린다 (머리에 가려 안 보였다)
+    if back and view == "attack" and frame in (1, 2) and spec["arms"] not in ("wing", "bigwing", "flipper") \
+            and face != "frog":
+        ac2 = INK if spec["arms"] == "dark" else FUR_D
+        px_, py_ = cx + body_r * 1.0, by - body_r * (1.35 if frame == 1 else 1.0)
+        cv.line(cx + body_r * 0.7, by - body_r * 0.3, px_, py_, ac2, 2)
+        cv.ellipse(px_, py_, body_r * 0.3, body_r * 0.3, FUR, ac2, FUR_L)
+        for k in (-1, 0, 1):
+            cv.set(px_ + k, py_ - body_r * 0.32, hx("#F4F0E6"))
     # 손에 쥐는 것 (뒷모습 공격에선 오른손)
-    hand = (cx + body_r * 0.95, by - body_r * (0.7 if back and pose == -1 else 0.0))
+    hand = (cx + body_r * 0.95, by - body_r * (1.2 if back and view == "attack" and frame in (1, 2) else 0.0))
+    if view == "attack" and face == "frog" and frame in (1, 2):
+        # 혀를 위로 쭉 - 끝에 동그란 혀끝
+        L = hr * (1.7 if frame == 1 else 2.4)
+        tongue = hx("#FF7AA8")
+        cv.line(cx, hy - hr * 0.2, cx, hy - hr * 0.2 - L, tongue, 2)
+        cv.ellipse(cx + 0.5, hy - hr * 0.2 - L, 1.6, 1.6, tongue, hx("#D04A7A"), hx("#FFC0D8"))
     if acc == "acorn":
         if not (back and pose == 1):
             cv.ellipse(hand[0], hand[1] - 1, 1.3, 1.5, hx("#A9754A"), hx("#6E4628"), hx("#C99466"))
@@ -388,16 +409,19 @@ def animal(spec, view, frame, evo=False):
             cv.set(cx + k * hr * 0.5, top - 0.5, GOLD)
         cv.set(cx, top - 1.5, hx("#E8405A"))
     cv.outline()
+    if view == "attack" and face != "frog":
+        qk.strike_fx(cv, {"gear": "leaf"}, cx, by, hr, frame)
     return cv.image()
 
 
 def sheet(spec, evo):
     W = spec["cell"] + (2 if evo else 0)
-    im = Image.new("RGBA", (W * 4, W * 3), (0, 0, 0, 0))
+    H = W + qk.head_room(W)
+    im = Image.new("RGBA", (W * 4, H * 3), (0, 0, 0, 0))
     for f in range(4):
         im.paste(animal(spec, "front", f, evo), (f * W, 0))
-        im.paste(animal(spec, "attack", f, evo), (f * W, W))
-        im.paste(animal(spec, "walk", f, evo), (f * W, W * 2))
+        im.paste(animal(spec, "attack", f, evo), (f * W, H))
+        im.paste(animal(spec, "walk", f, evo), (f * W, H * 2))
     return im
 
 

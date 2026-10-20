@@ -246,7 +246,9 @@ func _show_card(res: Dictionary) -> void:
 		a.atlas = tex
 		var w := tex.get_width() / 4.0
 		var h := tex.get_height() / 3.0
-		a.region = Rect2(w, 0, w, h)   # 만세 칸
+		var pad := maxf(0.0, h - w)
+		a.region = Rect2(w, pad, w, h - pad)   # 만세 칸 (위쪽 무기 여유는 뺀다)
+		h -= pad
 		pic.texture = a
 		pic.size = Vector2(w, h) * SHOW_PX * (0.8 if w > 30 else 1.0)
 	pic.position = c - pic.size * 0.5
@@ -333,7 +335,10 @@ func _summary() -> void:
 		if tex != null:
 			var a := AtlasTexture.new()
 			a.atlas = tex
-			a.region = Rect2(0, 0, tex.get_width() / 4.0, tex.get_height() / 3.0)
+			var fw := tex.get_width() / 4.0
+			var fh := tex.get_height() / 3.0
+			var cpad := maxf(0.0, fh - fw)
+			a.region = Rect2(0, cpad, fw, fh - cpad)
 			pic.texture = a
 		v.add_child(pic)
 		var nm := IdleUi.label(String(LaneData.UNITS[id]["name"]), 20, IdleUi.CREAM)
