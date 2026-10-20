@@ -213,16 +213,16 @@ const TRAIT_NAME := {"crawl": "기어다님", "fly": "날벌레", "shell": "껍�
 ## 무거운 벌레가 졸개로 끝없이 나오면 구역이 바뀔 때마다 벽이 된다 (시뮬레이션).
 ## 구역 - 벌레 셋 + 우두머리, 풍경은 `IdleBackdrop.THEMES` 번호.
 const ZONES := [
-	{"name": "풀밭", "bugs": ["ant", "caterpillar"], "boss": "queen_ant", "theme": 1},
-	{"name": "웅덩이", "bugs": ["mosquito", "ant", "caterpillar"], "boss": "mosquito_king", "theme": 4},
-	{"name": "꽃밭", "bugs": ["bee", "mosquito", "caterpillar"], "boss": "hornet", "theme": 8},
-	{"name": "참나무 숲", "bugs": ["ladybug", "termite", "bee"], "boss": "rhino", "theme": 7},
-	{"name": "거미 굴", "bugs": ["termite", "spider", "ladybug"], "boss": "tarantula", "theme": 2},
-	{"name": "쓰레기 언덕", "bugs": ["fly", "cricket", "spider"], "boss": "fly_king", "theme": 6},
-	{"name": "밤 들판", "bugs": ["cricket", "moth", "fly"], "boss": "moth_queen", "theme": 5},
-	{"name": "땅속 마을", "bugs": ["termite", "centipede", "molecricket", "pillbug"], "boss": "cricket_king", "theme": 3},
-	{"name": "축축한 부엌", "bugs": ["roach", "centipede", "wasp"], "boss": "centipede_king", "theme": 0},
-	{"name": "악몽 하수구", "bugs": ["roach", "wasp", "stag", "pillbug"], "boss": "roach_king", "theme": 9},
+	{"name": "풀밭", "bugs": ["ant", "caterpillar"], "boss": "queen_ant", "pow": 3.0, "theme": 1},
+	{"name": "웅덩이", "bugs": ["mosquito", "ant", "caterpillar"], "boss": "mosquito_king", "pow": 3.2, "theme": 4},
+	{"name": "꽃밭", "bugs": ["bee", "mosquito", "caterpillar"], "boss": "hornet", "pow": 2.0, "theme": 8},
+	{"name": "참나무 숲", "bugs": ["ladybug", "termite", "bee"], "boss": "rhino", "pow": 1.2, "theme": 7},
+	{"name": "거미 굴", "bugs": ["termite", "spider", "ladybug"], "boss": "tarantula", "pow": 1.05, "theme": 2},
+	{"name": "쓰레기 언덕", "bugs": ["fly", "cricket", "spider"], "boss": "fly_king", "pow": 1.5, "theme": 6},
+	{"name": "밤 들판", "bugs": ["cricket", "moth", "fly"], "boss": "moth_queen", "pow": 0.75, "theme": 5},
+	{"name": "땅속 마을", "bugs": ["termite", "centipede", "molecricket", "pillbug"], "boss": "cricket_king", "pow": 0.9, "theme": 3},
+	{"name": "축축한 부엌", "bugs": ["roach", "centipede", "wasp"], "boss": "centipede_king", "pow": 0.9, "theme": 0},
+	{"name": "악몽 하수구", "bugs": ["roach", "wasp", "stag", "pillbug"], "boss": "roach_king", "pow": 0.9, "theme": 9},
 ]
 const STAGES_PER_ZONE := 10
 ## 우두머리는 표의 몸보다 체력은 이만큼만, 공격은 이만큼만 (표는 '느낌', 이 둘로 판 길이를 맞춘다).
@@ -243,6 +243,17 @@ const CANNON_REACH := 900.0
 const CANNON_DMG := 120.0
 
 const OUR_BASE_HP := 3000.0
+## 벌레 떼 - 첫 떼(초) · 간격 · 가장 짧은 간격 · 기본 마리 수. 오기 WAVE_WARN 초 전에 알려 준다.
+const WAVE_FIRST := 28.0
+const WAVE_EVERY := 32.0
+const WAVE_MIN := 20.0
+const WAVE_BASE := 4
+const WAVE_WARN := 3.0
+## 위기 역전: 성 체력이 이 아래로 처음 떨어지면 대포가 바로 차고 꿈빛이 지갑의 반만큼 들어온다 (판마다 한 번).
+const CRISIS_AT := 0.4
+## 다시 도전 응원: 같은 판에서 질 때마다 공격·체력 +10% (최대 +30%), 이기면 사라진다.
+const CHEER_STEP := 10.0
+const CHEER_MAX := 30.0
 ## 넉백 거리·멈춤 시간. 보스 충격파는 더 멀리.
 const KB_DIST := 160.0
 const KB_SECS := 0.6
@@ -255,7 +266,16 @@ static func stage_info(n: int) -> Dictionary:
 	var idx := ((s - 1) % STAGES_PER_ZONE) + 1
 	var z: Dictionary = ZONES[zi]
 	return {"stage": s, "zone": zi, "idx": idx, "boss": idx == STAGES_PER_ZONE, "zone_name": String(z["name"]),
-		"theme": int(z["theme"]), "mag": magnification(s), "base_hp": int(round(1200.0 * (1.0 + 0.05 * float(s - 1))))}
+		"theme": int(z["theme"]), "mag": magnification(s) * zone_pow(zi, idx), "base_hp": int(round(1200.0 * (1.0 + 0.05 * float(s - 1))))}
+
+
+## 구역 세기 - 벌레 조합마다 어려움이 달라서 시뮬레이션으로 하나씩 맞췄다 (첫 도전 승률 70~85% 를 노린다).
+## 첫 구역 앞 판들은 배우는 판이라 살살.
+static func zone_pow(zi: int, idx: int) -> float:
+	var p := float(ZONES[zi].get("pow", 1.0))
+	if zi == 0:
+		p *= minf(1.0, 0.25 + 0.15 * float(idx))
+	return p
 
 
 static func stage_label(n: int) -> String:
@@ -265,7 +285,7 @@ static func stage_label(n: int) -> String:
 
 ## 벌레 세기 배율.
 static func magnification(n: int) -> float:
-	return 1.0 + 0.036 * float(maxi(1, n) - 1)
+	return 1.0 + 0.045 * float(maxi(1, n) - 1)
 
 
 ## 이 스테이지의 벌레 나오는 차례 - [{kind, first 첫 등장(초), every 간격, max 최대 마리}].
@@ -289,6 +309,13 @@ static func spawns(n: int) -> Array:
 		for e in out:
 			e["every"] = float(e["every"]) * 1.7
 		out.append({"kind": String(z["boss"]), "first": 12.0, "every": 9999.0, "max": 1, "boss": true})
+	# 벌레 떼: 주기적으로 한꺼번에 몰려와 전선을 민다 - 판이 한쪽으로 기울지 않고 출렁이게
+	var zi := int(info["zone"])
+	var wave := {"kind": String(bugs[0]), "first": WAVE_FIRST, "every": maxf(WAVE_MIN, WAVE_EVERY - float(idx) * 1.5),
+		"max": 999, "burst": WAVE_BASE + idx / 2 + zi / 2, "wave": true}
+	if bugs.size() > 1 and idx >= 4:
+		wave["extra"] = String(bugs[1])
+	out.append(wave)
 	# 둥지가 반 아래로 떨어지면 몰려온다 (냥코의 '성이 맞으면 쏟아짐')
 	out.append({"kind": String(bugs[0]), "first": -1.0, "every": 2.0, "max": 4 + idx / 2, "on_half": true})
 	return out

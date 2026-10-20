@@ -148,7 +148,7 @@ func _test_gacha() -> void:
 	rng.seed = 5
 	ck("처음엔 선물 티켓 1장", LaneState.tickets == 1 and LaneState.can_pull(1))
 	var r := LaneState.pull(1, rng)
-	ck("첫 뽑기는 특급 이상", r.size() == 1 and String(r[0]["rarity"]) != "rare" and bool(r[0]["new"]))
+	ck("첫 뽑기는 새 친구", r.size() == 1 and bool(r[0]["new"]))
 	ck("티켓을 썼고 꿈별은 그대로", LaneState.tickets == 0 and LaneState.stars == 0)
 	ck("뽑은 친구가 편성에 들어간다", LaneState.lineup.has(String(r[0]["id"])))
 	ck("꿈별이 없으면 못 뽑는다", not LaneState.can_pull(1) and LaneState.pull(1, rng).is_empty())

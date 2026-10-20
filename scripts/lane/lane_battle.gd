@@ -40,6 +40,9 @@ var bonus: Dictionary = {}
 var rate_mult := 1.0
 var cannon_mult := 1.0
 var slow_mult := 1.0
+var crisis_used := false
+var cheer := 0.0          ## 다시 도전 응원 (%)
+var _queue: Array = []    ## 떼로 줄지어 나올 벌레 [{t, kind}]
 
 
 func start(stage_n: int, seed_value: int = -1) -> void:
@@ -64,14 +67,17 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 	stats = {}
 	cds = {}
 	bonus = LaneState.bonuses()
+	crisis_used = false
+	_queue = []
+	cheer = LaneState.cheer_for(n)
 	rate_mult = 1.0 + float(bonus.get("rate", 0.0)) / 100.0
 	cannon_mult = 1.0 + float(bonus.get("cannon", 0.0)) / 100.0
 	slow_mult = 1.0 + float(bonus.get("slow", 0.0)) / 100.0
 	wallet = float(bonus.get("wallet", 0.0))
 	for id in lineup:
 		var st := LaneState.unit_stats(String(id))
-		st["atk"] = float(st["atk"]) * (1.0 + float(bonus.get("atk", 0.0)) / 100.0)
-		st["hp"] = float(st["hp"]) * (1.0 + float(bonus.get("hp", 0.0)) / 100.0)
+		st["atk"] = float(st["atk"]) * (1.0 + (float(bonus.get("atk", 0.0)) + cheer) / 100.0)
+		st["hp"] = float(st["hp"]) * (1.0 + (float(bonus.get("hp", 0.0)) + cheer) / 100.0)
 		st["speed"] = float(st["speed"]) * (1.0 + float(bonus.get("speed", 0.0)) / 100.0)
 		st["guard"] = float(st.get("guard", 1.0)) * (1.0 - float(bonus.get("guard", 0.0)) / 100.0)
 		stats[id] = st
@@ -181,6 +187,11 @@ func _step(d: float) -> void:
 		if float(e["hp"]) > 0.0 or e["state"] == "kb":
 			keep.append(e)
 	ents = keep
+	if not crisis_used and not done and our_hp > 0.0 and our_hp < our_max * LaneData.CRISIS_AT:
+		crisis_used = true
+		cannon = LaneData.CANNON_CHARGE
+		wallet = minf(float(wallet_cap()), wallet + float(wallet_cap()) * 0.5)
+		events.append({"k": "crisis"})
 	if nest_hp <= 0.0 and not done:
 		done = true
 		result = "win"
@@ -192,6 +203,15 @@ func _step(d: float) -> void:
 
 
 func _spawn_bugs(d: float) -> void:
+	if not _queue.is_empty():
+		var rest: Array = []
+		for q in _queue:
+			q["t"] = float(q["t"]) - d
+			if float(q["t"]) <= 0.0:
+				_spawn_bug(String(q["kind"]))
+			else:
+				rest.append(q)
+		_queue = rest
 	if not _half_fired and nest_hp < nest_max * 0.5:
 		_half_fired = true
 		events.append({"k": "rush"})
@@ -201,11 +221,22 @@ func _spawn_bugs(d: float) -> void:
 	for s in _spawns:
 		if float(s["t"]) < 0.0 or int(s["count"]) >= int(s["max"]):
 			continue
-		s["t"] = float(s["t"]) - d
+		var before := float(s["t"])
+		s["t"] = before - d
+		if bool(s.get("wave", false)) and before > LaneData.WAVE_WARN and float(s["t"]) <= LaneData.WAVE_WARN:
+			events.append({"k": "wave_warn"})
 		if float(s["t"]) <= 0.0:
 			s["t"] = float(s["every"])
 			s["count"] = int(s["count"]) + 1
-			_spawn_bug(String(s["kind"]))
+			if s.has("burst"):
+				# 떼: 한 덩어리로 줄지어 온다
+				for i in int(s["burst"]):
+					_queue.append({"t": float(i) * 0.35, "kind": String(s["kind"])})
+				if s.has("extra"):
+					_queue.append({"t": float(int(s["burst"])) * 0.35, "kind": String(s["extra"])})
+				events.append({"k": "wave"})
+			else:
+				_spawn_bug(String(s["kind"]))
 
 
 func _spawn_bug(kind: String) -> void:

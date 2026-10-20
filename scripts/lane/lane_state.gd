@@ -32,6 +32,8 @@ static var accs: Dictionary = {}
 static var acc_on: Dictionary = {}
 ## 옛 꿈결 키우기 저장에서 선물을 받았나
 static var migrated := false
+## 판 → 연달아 진 횟수 (다시 도전 응원). 저장한다.
+static var fails: Dictionary = {}
 static var _rng := RandomNumberGenerator.new()
 
 
@@ -46,7 +48,7 @@ static func reset() -> void:
 	speed2 = false
 	seen_intro = false
 	last_seen = 0
-	tickets = 1          # 처음 하나는 선물 - 첫 뽑기는 특급 이상
+	tickets = 1          # 처음 하나는 선물
 	pity = 0
 	pulls = 0
 	daily_day = 0
@@ -57,6 +59,7 @@ static func reset() -> void:
 	accs = {}
 	acc_on = {}
 	migrated = false
+	fails = {}
 
 
 static func has_unit(id: String) -> bool:
@@ -78,6 +81,15 @@ static func unlock_by_stage() -> Array:
 			if lineup.size() < LaneData.LINEUP_MAX:
 				lineup.append(id)
 	return got
+
+
+## 이 판의 다시 도전 응원 (%).
+static func cheer_for(n: int) -> float:
+	return minf(LaneData.CHEER_MAX, LaneData.CHEER_STEP * float(int(fails.get(n, 0))))
+
+
+static func on_lose(n: int) -> void:
+	fails[n] = int(fails.get(n, 0)) + 1
 
 
 static func can_level(id: String) -> bool:
@@ -143,6 +155,7 @@ static func on_win(n: int, rng: RandomNumberGenerator = null) -> Dictionary:
 		rng = _rng
 		rng.randomize()
 	var first := n > cleared
+	fails.erase(n)
 	var r := LaneData.reward(n, first)
 	r["xp"] = int(round(float(r["xp"]) * (1.0 + float(bonuses().get("xp", 0.0)) / 100.0)))
 	xp += int(r["xp"])
@@ -327,7 +340,7 @@ static func pull(count: int, rng: RandomNumberGenerator) -> Array:
 		stars -= LaneData.GACHA10_COST
 	var out: Array = []
 	for i in count:
-		var floor_r := "super" if (pulls == 0 or (count > 1 and i == count - 1)) else "rare"
+		var floor_r := "super" if (count > 1 and i == count - 1) else "rare"
 		out.append(_grant(roll(rng, floor_r)))
 	return out
 
@@ -411,7 +424,7 @@ static func to_dict() -> Dictionary:
 		"cleared": cleared, "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed2,
 		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
 		"daily_day": daily_day, "daily_streak": daily_streak, "treasures": treasures.duplicate(true),
-		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated}
+		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate()}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -462,6 +475,10 @@ static func from_dict(d: Dictionary) -> void:
 			if units.has(String(k)) and accs.has(String(ao[k])) and wearer(String(ao[k])) == "":
 				acc_on[String(k)] = String(ao[k])
 	migrated = bool(d.get("migrated", false))
+	var fl = d.get("fails", {})
+	if fl is Dictionary:
+		for k in (fl as Dictionary).keys():
+			fails[int(k)] = clampi(int(fl[k]), 0, 99)
 	unlock_by_stage()
 
 

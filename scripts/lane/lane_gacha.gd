@@ -42,7 +42,7 @@ func _ready() -> void:
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_flash)
-	_hint = IdleUi.label("", 24, IdleUi.SUB)
+	_hint = IdleUi.label("", 24, IdleUi.LAV_LT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_hint)
 
@@ -64,7 +64,7 @@ func _process(dt: float) -> void:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.02, 0.09, 0.96))
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.17, 0.11, 0.27, 0.96))
 	var c := size * Vector2(0.5, 0.42)
 	if _rays > 0.0:
 		# 뒤에서 천천히 도는 빛 줄기
@@ -266,7 +266,7 @@ func _show_card(res: Dictionary) -> void:
 	var name := IdleUi.label(LaneData.unit_name(id, int(res["lv"])), 50, Color.WHITE, true)
 	_card.add_child(_at(name, y + 50))
 	var sub := IdleUi.label(LaneData.trait_text(id) if LaneData.trait_text(id) != "" else String(LaneData.UNITS[id]["role"]),
-		24, IdleUi.SUB)
+		24, IdleUi.LAV_LT)
 	_card.add_child(_at(sub, y + 120))
 	var tag: Label
 	if bool(res["new"]):
@@ -336,7 +336,7 @@ func _summary() -> void:
 			a.region = Rect2(0, 0, tex.get_width() / 4.0, tex.get_height() / 3.0)
 			pic.texture = a
 		v.add_child(pic)
-		var nm := IdleUi.label(String(LaneData.UNITS[id]["name"]), 20, Color.WHITE)
+		var nm := IdleUi.label(String(LaneData.UNITS[id]["name"]), 20, IdleUi.CREAM)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(nm)
 		var tg := IdleUi.label("NEW!" if bool(res["new"]) else "Lv %d" % int(res["lv"]), 20,

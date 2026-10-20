@@ -9,6 +9,12 @@ var gacha := false
 var rng := RandomNumberGenerator.new()
 var days := 0
 var pulled := 0
+## 구역별 긴장도: 첫 도전 수 · 첫 도전 승 · 이긴 판의 남은 성 체력 합 · 판 시간 합
+var zf: Array = []
+var zw: Array = []
+var zhp: Array = []
+var zn: Array = []
+var _tried: Dictionary = {}
 
 func _ready() -> void:
 	var goal := int(OS.get_environment("SIM_STAGES")) if OS.get_environment("SIM_STAGES") != "" else 100
@@ -19,6 +25,11 @@ func _ready() -> void:
 	var b := LaneBattle.new()
 	var stuck := 0
 	print("\n==== 쿼카 군단 시뮬레이션 ====")
+	for z in LaneData.ZONES.size():
+		zf.append(0)
+		zw.append(0)
+		zhp.append(0.0)
+		zn.append(0)
 	while LaneState.cleared < goal and tries < 4000:
 		tries += 1
 		_spend()
@@ -30,6 +41,16 @@ func _ready() -> void:
 			b.tick(0.25)
 			t += 0.25
 		secs += t + 8.0   # 판 사이 쉬는 시간
+		var zi := (n - 1) / LaneData.STAGES_PER_ZONE
+		var first_try := not _tried.has(n)
+		_tried[n] = true
+		if first_try:
+			zf[zi] += 1
+			if b.result == "win":
+				zw[zi] += 1
+		if b.result == "win":
+			zhp[zi] += b.our_hp / b.our_max
+			zn[zi] += 1
 		if b.result == "win":
 			var r := LaneState.on_win(n)
 			stuck = 0
@@ -41,6 +62,7 @@ func _ready() -> void:
 		else:
 			losses += 1
 			stuck += 1
+			LaneState.on_lose(n)
 			LaneState.xp += int(LaneData.reward(n, false)["xp"]) / 3
 			# 앞 판을 돌아 꿈조각을 모은다
 			if n > 1:
@@ -67,6 +89,12 @@ func _ready() -> void:
 			tc += LaneState.treasure_count(zi)
 		print("보물 %d / 90 · 장신구 %d · 보너스 %s" % [tc, LaneState.accs.size(), str(LaneState.treasure_bonus())])
 		print("뽑기 %d번 · 가진 친구 %d / %d" % [pulled, LaneState.owned_count(), LaneData.ALL_ORDER.size()])
+	if OS.get_environment("SIM_TENSION") != "":
+		var line := "  구역별 첫 도전 승률 / 이길 때 남은 성:"
+		for z in LaneData.ZONES.size():
+			if zf[z] > 0:
+				line += " %d:%d%%/%d%%" % [z + 1, int(100.0 * zw[z] / zf[z]), int(100.0 * zhp[z] / maxf(1, zn[z]))]
+		print(line)
 	print("끝: %.1f시간 · 깬 곳 %d · 진 판 %d · 꿈조각 %d · 레벨 %s" % [secs / 3600.0, LaneState.cleared, losses, LaneState.xp, _lv()])
 	get_tree().quit()
 

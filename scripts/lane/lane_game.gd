@@ -28,6 +28,7 @@ var _actors: Node2D
 var _fx: IdleFx
 var _vfx: IdleVfx
 var _flash_rect: ColorRect
+var _danger: Control          ## 성이 위험하면 화면 가장자리가 붉게 맥박친다
 var _actor_of: Dictionary = {}     ## uid → IdleActor
 var _lat: Dictionary = {}          ## uid → 옆 위치
 var _lunge: Dictionary = {}        ## uid → 덤벼듦 (1 → 0)
@@ -118,6 +119,8 @@ func _layout() -> void:
 		_field.y_front = size.y - 470.0
 		_field.y_far = size.y * 0.15
 		_flash_rect.size = size
+		if _danger != null:
+			_danger.size = size
 		_hud.size = size
 		_layout_hud()
 	_toast_lbl.position = Vector2(20, size.y * 0.34)
@@ -421,6 +424,11 @@ func _fill_units() -> void:
 					_toast("진화! %s → %s" % [String(LaneData.UNITS[id]["name"]), LaneData.unit_name(String(id), LaneData.EVOLVE_LV)])
 				_fill_home())
 		row.add_child(b)
+		# 긴 설명은 줄을 바꿔 버튼을 밀어내지 않게
+		for c in v.get_children():
+			if c is Label:
+				(c as Label).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				(c as Label).custom_minimum_size.x = 10
 
 
 func _fill_lineup() -> void:
@@ -719,6 +727,8 @@ func _start_battle(n: int) -> void:
 	var info := battle.info
 	AudioManager.play_bgm("boss" if bool(info["boss"]) else "adventure")
 	_banner_show(LaneData.stage_label(n), Color.WHITE)
+	if battle.cheer > 0.0:
+		_toast("다시 도전 응원!  공격·체력 +%d%%" % int(battle.cheer))
 
 
 func _build_battle() -> void:
@@ -745,6 +755,11 @@ func _build_battle() -> void:
 	_flash_rect.color = Color(1, 1, 1, 0)
 	_flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_world.add_child(_flash_rect)
+	_danger = Control.new()
+	_danger.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_danger.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_danger.draw.connect(_draw_danger)
+	_world.add_child(_danger)
 	_build_hud()
 
 
@@ -888,7 +903,28 @@ func _process(dt: float) -> void:
 			_end_battle(battle.result)
 	_sync_actors()
 	_refresh_hud()
+	_danger.queue_redraw()
 
+
+## 성 체력이 반 아래면 가장자리가 붉게 - 낮을수록 진하고 빠르게 뛴다.
+func _draw_danger() -> void:
+	if battle == null or _ended:
+		return
+	var r := battle.our_hp / maxf(1.0, battle.our_max)
+	if r >= 0.5:
+		return
+	var k := (0.5 - r) / 0.5
+	var beat := 0.55 + 0.45 * sin(_t * (5.0 + 6.0 * k))
+	var a := (0.12 + 0.3 * k) * beat
+	var w := 70.0
+	for i in 7:
+		var c := Color(0.9, 0.1, 0.25, a * (1.0 - float(i) / 7.0) * 0.5)
+		var o := float(i) * w / 7.0
+		var t := w / 7.0
+		_danger.draw_rect(Rect2(0, o, size.x, t), c)
+		_danger.draw_rect(Rect2(0, size.y - o - t, size.x, t), c)
+		_danger.draw_rect(Rect2(o, 0, t, size.y), c)
+		_danger.draw_rect(Rect2(size.x - o - t, 0, t, size.y), c)
 
 func _refresh_hud() -> void:
 	_wallet_lbl.text = "꿈빛 %d / %d" % [int(battle.wallet), battle.wallet_cap()]
@@ -1082,6 +1118,21 @@ func _on_event(e: Dictionary) -> void:
 			_add_trauma(0.9)
 			_flash(0.3)
 			_fx.ring(Vector2(size.x * 0.5, _field.y_far + 40.0), 30.0, 700.0, Color("#FF9A9A"), 18.0, 0.8)
+		"wave_warn":
+			_banner_show("벌레 떼가 몰려와요!", Color("#FF9A9A"))
+			_field.shake_nest = 8.0
+		"wave":
+			_add_trauma(0.25)
+		"crisis":
+			# 위기 역전 - 성의 힘
+			_flash(0.5)
+			_add_trauma(0.5)
+			_banner_show("위기! 성의 힘이 깨어나요", IdleUi.GOLD)
+			var cp := Vector2(size.x * 0.5, _field.y_front + 20.0)
+			_fx.pillar(cp, IdleUi.LAV, 0.9)
+			_fx.ring(cp, 30.0, 420.0, IdleUi.GOLD, 16.0, 0.7)
+			_vfx.burst(cp, IdleUi.GOLD, 30, 500.0, 0.9, 0.5, true)
+			AudioManager.souvenir_get()
 		"rush":
 			_toast("둥지가 흔들려요! 벌레가 몰려와요")
 		"worker":
@@ -1158,6 +1209,7 @@ func _end_battle(res: String) -> void:
 		_fx.ring(np, 20.0, 400.0, IdleUi.GOLD, 20.0, 0.8)
 		AudioManager.souvenir_get()
 	else:
+		LaneState.on_lose(stage_n)
 		AudioManager.battle_defeat()
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	_later(1.0 if win else 0.6, func() -> void: _show_result(win, r))
@@ -1213,7 +1265,9 @@ func _show_result(win: bool, r: Dictionary) -> void:
 		for id in r.get("new_units", []):
 			v.add_child(_center(IdleUi.label("새 친구! %s 합류" % String(LaneData.UNITS[id]["name"]), 28, IdleUi.GREEN)))
 	else:
-		v.add_child(_center(IdleUi.label("쿼카를 레벨업하고 다시 도전해요", 22, IdleUi.SUB)))
+		v.add_child(_center(IdleUi.label("다시 도전하면 응원을 받아 +%d%% 강해져요" % int(LaneState.cheer_for(stage_n)), 24,
+			IdleUi.LAV_DK)))
+		v.add_child(_center(IdleUi.label("레벨업 · 장신구 · 편성을 바꿔 봐도 좋아요", 20, IdleUi.SUB)))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	v.add_child(row)

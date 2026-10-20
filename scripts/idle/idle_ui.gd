@@ -3,22 +3,27 @@ extends RefCounted
 ## 진짜 행복 UI 한 벌 (2026-10 전체 개편). 색·상자·버튼·그림 아이콘을 **여기 한 곳**에서 만든다 -
 ## 전투 화면(`idle_game.gd`)과 메인 화면(`main_menu_3d.gd`)이 같은 것을 쓴다.
 ##
-## 방향: "해 질 녘 그림책" - 밝은 풍경 위에 **짙은 보랏빛 판 + 금빛 테두리 + 크림색 글씨**.
-## 예전 크림색 상자는 밝은 하늘·모래 위에서 묻혀 글씨가 흐렸다. 짙은 판은 어느 구역 하늘에서도 또렷하다.
+## 방향 (2026-10-20): **라벤더 + 노랑** 이 핵심 색. 밝은 라벤더 판 · 라벤더 테두리와 버튼 · 노란 주 버튼 ·
+## 진한 자두색 글씨. 예전 짙은 보라 판은 너무 진하다는 의견으로 바꿨다.
+## 밝은 글씨(노랑·초록·흰색)는 밝은 바탕에 묻히므로 `label()` 이 자동으로 자두색 테두리를 두른다.
 ## 폰트에 없는 기호(✕ ⚙ ▶ 같은)는 쓰지 않고 아이콘은 전부 직접 그린다 (`draw_icon`).
 
-const INK := Color("#2A2140")          ## 판 바탕
-const INK_2 := Color("#3B2E5A")        ## 판 안의 카드
-const INK_3 := Color("#4C3D72")        ## 보조 버튼
-const LINE := Color("#6A5A96")         ## 카드 테두리
-const GOLD := Color("#F2C14E")
-const GOLD_DK := Color("#A87420")
-const CREAM := Color("#FFF4DC")
-const SUB := Color("#C9BCE6")          ## 보조 글씨
-const MUTED := Color("#8A7FA6")        ## 잠긴 것
-const RED := Color("#FF6B6B")
-const GREEN := Color("#7BD88F")
-const SHADOW := Color(0.08, 0.04, 0.14, 0.45)
+const LAV := Color("#BF94E4")          ## 라벤더 (핵심 색)
+const LAV_DK := Color("#9A6CC8")       ## 라벤더 그늘
+const LAV_LT := Color("#EADCF7")       ## 연한 라벤더
+const INK := Color("#F6EFFC")          ## 판 바탕 (밝은 라벤더)
+const INK_2 := Color("#FFFFFF")        ## 판 안의 카드
+const INK_3 := LAV                     ## 보통 버튼
+const LINE := Color("#D4BCEE")         ## 카드 테두리
+const GOLD := Color("#FFD23F")         ## 노랑 (핵심 색) - 주 버튼·강조
+const GOLD_DK := Color("#C99700")
+const CREAM := Color("#3B2559")        ## 본문 글씨 (이름은 옛것 - 지금은 진한 자두색)
+const SUB := Color("#7B629B")          ## 보조 글씨
+const MUTED := Color("#B4A6C6")        ## 잠긴 것
+const RED := Color("#F0506E")
+const GREEN := Color("#5CCB7A")
+const OUTLINE := Color("#3B2559")      ## 밝은 글씨의 테두리
+const SHADOW := Color(0.35, 0.2, 0.5, 0.22)
 
 ## 직업 빛깔 (필살기·스킬 버튼 테두리).
 const JOB_COL := {"novice": Color("#E8D9B0"), "warrior": Color("#FF9F45"), "mage": Color("#8FB5FF"),
@@ -42,15 +47,15 @@ static func box(bg: Color, border: Color, radius := 22, bw := 3, margin := 12, s
 
 ## 큰 판 (창). 짙은 바탕 + 금빛 테두리 + 안쪽 은은한 빛줄.
 static func panel_style() -> StyleBoxFlat:
-	var s := box(Color(INK.r, INK.g, INK.b, 0.96), GOLD, 28, 3, 22)
+	var s := box(Color(INK.r, INK.g, INK.b, 0.97), LAV, 28, 5, 22)
 	s.shadow_size = 18
-	s.shadow_color = Color(0.05, 0.02, 0.1, 0.55)
+	s.shadow_color = Color(0.3, 0.15, 0.45, 0.35)
 	return s
 
 
 ## 위쪽 정보 알약.
 static func pill_style() -> StyleBoxFlat:
-	var s := box(Color(INK.r, INK.g, INK.b, 0.78), Color(1, 1, 1, 0.16), 20, 2, 10)
+	var s := box(Color(1, 1, 1, 0.92), LAV, 20, 3, 10)
 	s.content_margin_left = 18
 	s.content_margin_right = 18
 	return s
@@ -65,9 +70,14 @@ static func label(t: String, fs: int, col := CREAM, outline := false) -> Label:
 	l.text = t
 	l.add_theme_font_size_override("font_size", fs)
 	l.add_theme_color_override("font_color", col)
+	# 밝은 글씨는 자두색 테두리, 어두운 글씨에 테두리를 달라면 흰 테두리 (풍경 위 스티커처럼)
+	var light := col.get_luminance() > 0.5
 	if outline:
-		l.add_theme_color_override("font_outline_color", Color("#1E1630"))
+		l.add_theme_color_override("font_outline_color", OUTLINE if light else Color(1, 1, 1, 0.95))
 		l.add_theme_constant_override("outline_size", maxi(6, fs / 5))
+	elif light:
+		l.add_theme_color_override("font_outline_color", OUTLINE)
+		l.add_theme_constant_override("outline_size", maxi(4, fs / 7))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
@@ -78,21 +88,23 @@ static func button(t: String, fs: int, kind := "plum", tint := Color(0, 0, 0, 0)
 	b.text = t
 	b.add_theme_font_size_override("font_size", fs)
 	var bg := INK_3
-	var border := Color(1, 1, 1, 0.18)
-	var fc := CREAM
+	var border := LAV_DK
+	var fc := Color("#2E1A4A")
 	match kind:
 		"gold":
 			bg = GOLD
-			border = Color("#FFE7A0")
+			border = GOLD_DK
 			fc = Color("#3A2410")
 		"ghost":
-			bg = Color(INK_2.r, INK_2.g, INK_2.b, 0.9)
-			border = LINE
+			bg = Color(1, 1, 1, 0.95)
+			border = LAV
+			fc = CREAM
 		"danger":
-			bg = Color("#7A2E45")
-			border = Color("#FF8FA3")
+			bg = Color("#F07C93")
+			border = Color("#C9445F")
+			fc = Color("#3A0E1C")
 	if tint.a > 0.0:
-		bg = INK_2.lerp(tint, 0.35)
+		bg = Color.WHITE.lerp(tint, 0.35)
 		border = tint
 	for st in ["font_color", "font_pressed_color", "font_hover_color", "font_focus_color"]:
 		b.add_theme_color_override(st, fc)
@@ -102,7 +114,7 @@ static func button(t: String, fs: int, kind := "plum", tint := Color(0, 0, 0, 0)
 	var p := box(bg.darkened(0.15), border, 22, 3, 8)
 	p.shadow_size = 2
 	p.shadow_offset = Vector2(0, 1)
-	var d := box(Color("#2E2840"), Color(1, 1, 1, 0.08), 22, 3, 8, false)
+	var d := box(Color("#E9E1F1"), Color("#D8CCE4"), 22, 3, 8, false)
 	b.add_theme_stylebox_override("normal", n)
 	b.add_theme_stylebox_override("hover", h)
 	b.add_theme_stylebox_override("pressed", p)
@@ -127,10 +139,10 @@ static func bar(col: Color, sz: Vector2) -> ProgressBar:
 	fill.border_width_top = int(maxf(1.0, sz.y * 0.25))
 	fill.border_color = col.lightened(0.35)
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.1, 0.06, 0.16, 0.7)
+	bg.bg_color = Color(0.23, 0.15, 0.35, 0.55)
 	bg.set_corner_radius_all(int(sz.y * 0.5))
 	bg.set_border_width_all(2)
-	bg.border_color = Color(1, 1, 1, 0.75)
+	bg.border_color = Color(1, 1, 1, 0.9)
 	b.add_theme_stylebox_override("fill", fill)
 	b.add_theme_stylebox_override("background", bg)
 	return b
