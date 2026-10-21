@@ -26,6 +26,16 @@ func _ready() -> void:
 		for id in OS.get_environment("SHOT_ANIMALS").split(","):
 			LaneState.units[id] = lv
 			LaneState.lineup.append(id)
+	if OS.get_environment("SHOT_WEAR") == "1":
+		# 장신구 10개를 편성 앞쪽부터 하나씩
+		LaneState.accs = {}
+		LaneState.acc_on = {}
+		var k := 0
+		for acc in LaneData.ACC_ORDER:
+			LaneState.accs[acc] = 1
+			if k < LaneState.lineup.size():
+				LaneState.acc_on[String(LaneState.lineup[k])] = acc
+			k += 1
 	LaneState.auto_summon = true
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	var g = load("res://scenes/lane/LaneGame.tscn").instantiate()
@@ -45,6 +55,8 @@ func _ready() -> void:
 		g.stage_n = st
 		g.battle.done = true
 		g._end_battle("win")
+	elif OS.get_environment("SHOT_MODE") == "wear":
+		g._start_battle(st)
 	elif OS.get_environment("SHOT_MODE") == "toast":
 		g._toast("매일 선물 2일째!  티켓 1장 · 꿈별 30")   # SHOT_TOAST
 	elif OS.get_environment("SHOT_MODE") == "settings":

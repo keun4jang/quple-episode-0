@@ -418,6 +418,8 @@ func _fill_parade() -> void:
 		a.position = Vector2(size.x * 0.5 + (float(i) - float(n - 1) * 0.5) * gap, 0)
 		a.position = (a.position / 3.0).round() * 3.0
 		stage.add_child(a)
+		_add_wear(a, String(ids[i]))
+		_place_wear(a)
 
 
 func _layout_home() -> void:
@@ -1365,6 +1367,7 @@ func _sync_actors() -> void:
 		# 픽셀 격자에 맞춰 놓고, 크기는 원근과 관계없이 한 가지 (도트 규칙: 픽셀 크기는 하나)
 		a.position = (p / float(PIX)).round() * float(PIX)
 		a.px = UNIT_PX if e["side"] == "q" else BUG_PX
+		_place_wear(a)
 		a.walking = e["state"] == "walk"
 		if e["side"] == "q":
 			# 뒷모습으로 걷고, 싸울 땐 휘두르고, 밀려나면 앞을 보며 아파한다. 이기면 환호.
@@ -1404,11 +1407,57 @@ func _make_actor(e: Dictionary) -> IdleActor:
 	_lat[uid] = randf_range(-150.0, 150.0)
 	if e["side"] == "q":
 		a.set_sheet(unit_sheet(String(e["kind"])))
+		_add_wear(a, String(e["kind"]))
 	else:
 		a.set_sheet("res://assets/sprites/bug-%s.png" % String(e["kind"]))
 	_actors.add_child(a)
 	_actor_of[uid] = a
 	return a
+
+
+## 장신구를 단 친구는 싸움 그림에도 그 장신구를 얹는다 (캐릭터와 같은 픽셀 크기).
+func _add_wear(a: IdleActor, kind: String) -> void:
+	var acc := String(LaneState.acc_on.get(kind, ""))
+	if acc == "" or not LaneData.ACCESSORIES.has(acc):
+		return
+	var tex := load("res://assets/sprites/lane-wear.png") as Texture2D
+	var i := LaneData.ACC_ORDER.find(acc)
+	if tex == null or i < 0:
+		return
+	var sp := Sprite2D.new()
+	sp.name = "Wear"
+	sp.texture = tex
+	sp.region_enabled = true
+	sp.region_rect = Rect2(i * 12, 0, 12, 12)
+	sp.centered = false
+	sp.offset = Vector2(-6, -12)          # 아래 가운데가 붙는 점
+	sp.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sp.set_meta("wear", String(LaneData.ACCESSORIES[acc].get("wear", "side")))
+	a.add_child(sp)
+
+
+## 장신구 자리 - 몸 크기에 맞춰 매 프레임 (공격 자세에 따라 몸이 늘고 줄어도 따라간다).
+func _place_wear(a: IdleActor) -> void:
+	var sp := a.get_node_or_null("Wear") as Sprite2D
+	if sp == null:
+		return
+	var px := a.px
+	sp.scale = Vector2(px, px)
+	var bh := a.body_height() * a.squash.y
+	var bw := a.cell.x * px * a.squash.x
+	var p := Vector2.ZERO
+	match String(sp.get_meta("wear", "side")):
+		"head":
+			p = Vector2(0, -bh * 0.84)
+		"neck":
+			p = Vector2(0, -bh * 0.38)
+		"hand":
+			p = Vector2(bw * 0.36, -bh * 0.2)
+		"feet":
+			p = Vector2(-bw * 0.12, 0)
+		_:
+			p = Vector2(-bw * 0.42, -bh * 0.36)
+	sp.position = (p / px).round() * px
 
 
 func _actor_pos(uid: int) -> Vector2:
@@ -1489,6 +1538,9 @@ func _on_event(e: Dictionary) -> void:
 				var p: Vector2 = a.position + Vector2(0, -a.body_height() * 0.5)
 				a.dissolve = 0.01
 				a.edge_col = Color("#FFE7A0") if e["side"] == "b" else Color("#FFB0C0")
+				var wear = a.get_node_or_null("Wear")
+				if wear != null:
+					wear.queue_free()
 				var tw := create_tween()
 				tw.tween_property(a, "dissolve", 1.0, 0.45)
 				tw.tween_callback(a.queue_free)

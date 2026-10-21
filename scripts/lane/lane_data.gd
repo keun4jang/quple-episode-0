@@ -396,20 +396,22 @@ static func bonus_text(kind: String, v: float) -> String:
 ## eff: 그 유닛에만. 레벨(1~5)마다 per 만큼 더. 레벨업은 꿈조각.
 ## atk·hp·speed % · every 공격 간격 -% · cd 다시 내기 -% · cost 비용 -% · guard 받는 피해 -% · crit 치명타 +%p · slow 느리게 확률 %p
 const ACCESSORIES := {
-	"feather_hat":  {"name": "깃털 모자", "eff": {"speed": [15.0, 4.0]}, "icon": "feather", "col": "#FF8FB8", "zone": 0},
-	"star_necklace":{"name": "별 목걸이", "eff": {"atk": [6.0, 3.0]}, "icon": "star", "col": "#FFD15A", "zone": 1},
-	"fluffy_vest":  {"name": "솜털 조끼", "eff": {"hp": [10.0, 4.0]}, "icon": "vest", "col": "#FFF4E0", "zone": 2},
-	"clover_pin":   {"name": "네잎 브로치", "eff": {"crit": [5.0, 2.0]}, "icon": "clover", "col": "#6CC24A", "zone": 3},
-	"ice_bell":     {"name": "얼음 방울", "eff": {"slow": [10.0, 3.0]}, "icon": "bell", "col": "#9FE4FF", "zone": 4},
-	"bolt_gloves":  {"name": "번개 장갑", "eff": {"every": [5.0, 2.0]}, "icon": "glove", "col": "#FFE05A", "zone": 5},
-	"wind_shoes":   {"name": "바람 신발", "eff": {"cd": [8.0, 3.0]}, "icon": "shoe", "col": "#7FD0FF", "zone": 6},
-	"honey_candy":  {"name": "꿀 사탕", "eff": {"cost": [6.0, 2.0]}, "icon": "candy", "col": "#F2B33C", "zone": 7},
-	"mirror_shield":{"name": "거울 방패", "eff": {"guard": [8.0, 3.0]}, "icon": "shield", "col": "#D8DEE8", "zone": 8},
-	"dream_crown":  {"name": "꿈 왕관", "eff": {"atk": [8.0, 3.0], "hp": [8.0, 3.0]}, "icon": "crown", "col": "#FFD15A", "zone": 9},
+	"feather_hat":  {"name": "깃털 모자", "wear": "head", "eff": {"speed": [15.0, 4.0]}, "icon": "feather", "col": "#FF8FB8", "zone": 0},
+	"star_necklace":{"name": "별 목걸이", "wear": "neck", "eff": {"atk": [6.0, 3.0]}, "icon": "star", "col": "#FFD15A", "zone": 1},
+	"fluffy_vest":  {"name": "솜털 조끼", "wear": "neck", "eff": {"hp": [10.0, 4.0]}, "icon": "vest", "col": "#FFF4E0", "zone": 2},
+	"clover_pin":   {"name": "네잎 브로치", "wear": "side", "eff": {"crit": [5.0, 2.0]}, "icon": "clover", "col": "#6CC24A", "zone": 3},
+	"ice_bell":     {"name": "얼음 방울", "wear": "side", "eff": {"slow": [10.0, 3.0]}, "icon": "bell", "col": "#9FE4FF", "zone": 4},
+	"bolt_gloves":  {"name": "번개 장갑", "wear": "hand", "eff": {"every": [5.0, 2.0]}, "icon": "glove", "col": "#FFE05A", "zone": 5},
+	"wind_shoes":   {"name": "바람 신발", "wear": "feet", "eff": {"cd": [8.0, 3.0]}, "icon": "shoe", "col": "#7FD0FF", "zone": 6},
+	"honey_candy":  {"name": "꿀 사탕", "wear": "side", "eff": {"cost": [6.0, 2.0]}, "icon": "candy", "col": "#F2B33C", "zone": 7},
+	"mirror_shield":{"name": "거울 방패", "wear": "hand", "eff": {"guard": [8.0, 3.0]}, "icon": "shield", "col": "#D8DEE8", "zone": 8},
+	"dream_crown":  {"name": "꿈 왕관", "wear": "head", "eff": {"atk": [8.0, 3.0], "hp": [8.0, 3.0]}, "icon": "crown", "col": "#FFD15A", "zone": 9},
 }
 const ACC_ORDER := ["feather_hat", "star_necklace", "fluffy_vest", "clover_pin", "ice_bell", "bolt_gloves",
 	"wind_shoes", "honey_candy", "mirror_shield", "dream_crown"]
 const ACC_LV_MAX := 5
+## 싸움 그림에서 장신구가 붙는 자리 ("wear"): head 머리 위 · neck 목 · hand 오른손 · feet 발 · side 몸 옆.
+## 그림은 `lane-wear.png` (ACC_ORDER 순서, 12x12) - `tools/pixel/make-lane-wear.py`.
 const ACC_EFF_NAME := {"atk": "공격", "hp": "체력", "speed": "걸음", "every": "공격 간격", "cd": "다시 내기",
 	"cost": "비용", "guard": "받는 피해", "crit": "치명타", "slow": "느리게 확률"}
 
