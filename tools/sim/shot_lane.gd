@@ -45,6 +45,8 @@ func _ready() -> void:
 		g.stage_n = st
 		g.battle.done = true
 		g._end_battle("win")
+	elif OS.get_environment("SHOT_MODE") == "toast":
+		g._toast("매일 선물 2일째!  티켓 1장 · 꿈별 30")   # SHOT_TOAST
 	elif OS.get_environment("SHOT_MODE") == "settings":
 		var sv = get_tree().get_first_node_in_group("settings_ui")
 		if sv == null:

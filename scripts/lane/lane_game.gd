@@ -188,7 +188,11 @@ func _ready() -> void:
 	if not LaneState.seen_intro:
 		# 처음 온 사람은 한 걸음씩 안내(`_tut_*`)가 대신 알려 준다
 		LaneState.seen_intro = true
-	if not old.is_empty():
+	# 처음 안내 중엔 알림을 띄우지 않는다 (선물은 그대로 받는다) - 안내 말풍선과 겹쳐 어수선했다
+	var quiet := LaneState.tut != 99
+	if quiet:
+		pass
+	elif not old.is_empty():
 		_later(2.8, func() -> void:
 			_toast("옛 꿈결에서 온 선물!  ★ %s · 티켓 %d장 · ✦ %s" % [_num(int(old["stars"])), int(old["tickets"]),
 				_num(int(old["xp"]))]))
@@ -454,7 +458,7 @@ func _show_home() -> void:
 	_fill_home()
 	# 켜 둔 채로 자정이 지났으면 홈으로 돌아올 때 선물
 	var g := LaneState.claim_daily(_local_now())
-	if not g.is_empty():
+	if not g.is_empty() and LaneState.tut == 99:
 		LaneState.save()
 		_refresh_home_top()
 		_toast("매일 선물 %d일째!  티켓 %d장 · 꿈별 %d" % [int(g["streak"]), int(g["tickets"]), int(g["stars"])])
@@ -1917,12 +1921,21 @@ func _shake_ctrl(c: Control) -> void:
 
 
 func _toast(t: String) -> void:
+	if _tut != null and _tut.visible:
+		return
 	_toast_lbl.text = t
-	# 폭을 붙잡아 둔다 - 안 그러면 글씨가 한 글자씩 세로로 늘어선다
-	_toast_box.custom_minimum_size = Vector2(size.x - 60, 0)
-	_toast_box.size = Vector2(size.x - 60, 0)
+	# 폭을 먼저 정하고(글씨도 같이) 높이는 글씨만큼 - 화면 크기가 정해지기 전(첫 실행)에 재면
+	# 폭 0 으로 줄바꿈을 계산해 판이 화면 절반만큼 길어졌다.
+	var w := maxf(320.0, (size.x if size.x > 0.0 else 720.0) - 60.0)
+	_toast_lbl.custom_minimum_size = Vector2(w - 40.0, 0)
+	_toast_box.custom_minimum_size = Vector2(w, 0)
+	_toast_box.size = Vector2(w, 0)
 	_toast_box.reset_size()
 	_toast_box.position = Vector2(30, 96 if mode == "home" else 90)
+	# 한 프레임 뒤 다시 줄인다 (줄바꿈이 제 폭으로 다시 계산된 뒤)
+	_later(0.0, func() -> void:
+		_toast_box.size = Vector2(w, 0)
+		_toast_box.reset_size())
 	_toast_box.modulate.a = 1.0
 	move_child(_toast_box, get_child_count() - 1)
 	var tw := create_tween()
