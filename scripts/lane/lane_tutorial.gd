@@ -124,8 +124,8 @@ func _draw() -> void:
 	draw_rect(Rect2(r.end.x, r.position.y, size.x - r.end.x, r.size.y), dim)
 	# 반짝이는 테두리
 	var k := 0.5 + 0.5 * sin(_t * 6.0)
-	draw_rect(r, Color(1.0, 0.86, 0.25, 0.6 + 0.4 * k), false, 6.0)
-	draw_rect(r.grow(6.0 + 6.0 * k), Color(1.0, 0.95, 0.6, 0.35 * (1.0 - k)), false, 4.0)
+	draw_rect(r, Color(0.97, 0.55, 0.72, 0.6 + 0.4 * k), false, 6.0)
+	draw_rect(r.grow(6.0 + 6.0 * k), Color(1.0, 0.8, 0.9, 0.35 * (1.0 - k)), false, 4.0)
 	# 손가락 (도트) - 구멍 위나 아래에서 콕콕
 	var below := r.position.y < size.y * 0.5
 	var tip := Vector2(r.get_center().x, (r.end.y + 8.0) if below else (r.position.y - 8.0))

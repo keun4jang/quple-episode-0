@@ -259,7 +259,7 @@ func _build_home() -> void:
 	_home.add_child(_home_pix)
 	var deco := IdleBackdrop.new()
 	deco.name = "Back"
-	deco.zone = 1
+	deco.zone = 8          # 벚꽃 풍경 (홈 분위기: 라벤더 + 벚꽃 분홍)
 	deco.ground = 0.24
 	_home_pix.get_node("VP").add_child(deco)
 	# 위 재화 줄

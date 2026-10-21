@@ -3,7 +3,7 @@ extends RefCounted
 ## 진짜 행복 UI 한 벌 (2026-10 전체 개편). 색·상자·버튼·그림 아이콘을 **여기 한 곳**에서 만든다 -
 ## 전투 화면(`idle_game.gd`)과 메인 화면(`main_menu_3d.gd`)이 같은 것을 쓴다.
 ##
-## 방향 (2026-10-20): **라벤더 + 노랑** 이 핵심 색. 밝은 라벤더 판 · 라벤더 테두리와 버튼 · 노란 주 버튼 ·
+## 방향 (2026-10-21): **라벤더가 키 컬러, 벚꽃 분홍이 포인트** (노랑은 뺐다). 밝은 라벤더 판 · 라벤더 테두리와 버튼 · 노란 주 버튼 ·
 ## 진한 자두색 글씨. 예전 짙은 보라 판은 너무 진하다는 의견으로 바꿨다.
 ## 밝은 글씨(노랑·초록·흰색)는 밝은 바탕에 묻히므로 `label()` 이 자동으로 자두색 테두리를 두른다.
 ## 폰트에 없는 기호(✕ ⚙ ▶ 같은)는 쓰지 않고 아이콘은 전부 직접 그린다 (`draw_icon`).
@@ -15,8 +15,9 @@ const INK := Color("#F6EFFC")          ## 판 바탕 (밝은 라벤더)
 const INK_2 := Color("#FFFFFF")        ## 판 안의 카드
 const INK_3 := LAV                     ## 보통 버튼
 const LINE := Color("#D4BCEE")         ## 카드 테두리
-const GOLD := Color("#FFD23F")         ## 노랑 (핵심 색) - 주 버튼·강조
-const GOLD_DK := Color("#C99700")
+## 이름은 옛것(GOLD) 그대로 두고 색만 벚꽃 분홍으로 - 주 버튼·제목·강조 (쓰는 곳이 많아 이름을 안 바꿨다)
+const GOLD := Color("#F7A8C4")         ## 벚꽃 분홍 (포인트 색)
+const GOLD_DK := Color("#D9708F")
 const CREAM := Color("#3B2559")        ## 본문 글씨 (이름은 옛것 - 지금은 진한 자두색)
 const SUB := Color("#7B629B")          ## 보조 글씨
 const MUTED := Color("#B4A6C6")        ## 잠긴 것
@@ -94,7 +95,7 @@ static func button(t: String, fs: int, kind := "plum", tint := Color(0, 0, 0, 0)
 		"gold":
 			bg = GOLD
 			border = GOLD_DK
-			fc = Color("#3A2410")
+			fc = Color("#4A1D3A")
 		"ghost":
 			bg = Color(1, 1, 1, 0.95)
 			border = LAV
@@ -247,10 +248,10 @@ static func icon_button(t: String, kind: String, fs := 24, style := "plum") -> B
 	v.add_theme_constant_override("separation", 0)
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var ic := icon(kind, 34.0, GOLD if style != "gold" else Color("#3A2410"))
+	var ic := icon(kind, 34.0, GOLD if style != "gold" else Color("#4A1D3A"))
 	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(ic)
-	var l := label(t, fs, CREAM if style != "gold" else Color("#3A2410"))
+	var l := label(t, fs, CREAM if style != "gold" else Color("#4A1D3A"))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(l)
 	b.add_child(v)
@@ -266,7 +267,7 @@ static func round_button(kind: String, sz := 64.0, style := "plum") -> Button:
 		var s := b.get_theme_stylebox(st) as StyleBoxFlat
 		if s != null:
 			s.set_corner_radius_all(int(sz * 0.5))
-	var ic := icon(kind, sz * 0.6, CREAM if style != "gold" else Color("#3A2410"))
+	var ic := icon(kind, sz * 0.6, CREAM if style != "gold" else Color("#4A1D3A"))
 	ic.position = Vector2(sz * 0.2, sz * 0.2)
 	b.add_child(ic)
 	return b
