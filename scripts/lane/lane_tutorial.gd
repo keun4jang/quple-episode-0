@@ -18,7 +18,8 @@ var _skip: Button
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 크기는 `_fit()` 이 부모(화면) 크기로 직접 맞춘다 - 앵커에 맡겼더니 0 이 되어 어두운 막이
+	# 누를 곳 줄에만 그려졌다(나머지는 밝게). 앵커는 0 그대로 둬야 크기 경고도 안 난다.
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_bubble = PanelContainer.new()
 	var sb := IdleUi.box(Color.WHITE, IdleUi.LAV, 24, 5, 18)
@@ -47,6 +48,7 @@ func point(target: Control, text: String, on_next: Callable) -> void:
 	_target = target
 	_tap_any = target == null
 	_on_next = on_next
+	_fit()
 	_text.text = text
 	_hint.text = "화면을 눌러 넘겨요" if _tap_any else "반짝이는 곳을 눌러 보세요"
 	visible = true
@@ -69,9 +71,19 @@ func _advance() -> void:
 		f.call()
 
 
+func _fit() -> void:
+	var par := get_parent() as Control
+	var want := par.size if par != null else get_viewport_rect().size
+	if want.x <= 0.0 or want.y <= 0.0:
+		want = get_viewport_rect().size
+	position = Vector2.ZERO
+	size = want
+
+
 func _process(dt: float) -> void:
 	if not visible:
 		return
+	_fit()
 	_t += dt
 	if _target != null and is_instance_valid(_target) and _target.is_visible_in_tree():
 		_rect = Rect2(_target.global_position - global_position, _target.size * _target.get_global_transform().get_scale())
@@ -112,7 +124,7 @@ func _gui_input(ev: InputEvent) -> void:
 
 
 func _draw() -> void:
-	var dim := Color(0.13, 0.07, 0.2, 0.62)
+	var dim := Color(0.13, 0.07, 0.2, 0.7)
 	if _rect.size.x <= 0.0:
 		draw_rect(Rect2(Vector2.ZERO, size), dim)
 		return
