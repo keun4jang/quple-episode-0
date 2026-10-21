@@ -303,10 +303,8 @@ func _add_title() -> void:
 	var logo := get_node_or_null("UILayer/Control/LogoImage") as TextureRect
 	if logo == null:
 		return
-	if logo.texture != null:
-		logo.visible = true
-		return
-
+	# 2026-10: 로고 그림(흰 글씨 + 초록 테두리)은 라벤더·벚꽃 색과 따로 놀아서 쓰지 않고 글자로 그린다.
+	# 그림 파일은 그대로 둔다.
 	logo.visible = false
 	var t := Label.new()
 	t.name = "TitleText"
@@ -314,9 +312,14 @@ func _add_title() -> void:
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	t.add_theme_font_size_override("font_size", 92)
-	t.add_theme_color_override("font_color", Color(0.99, 0.97, 0.90))
-	t.add_theme_color_override("font_outline_color", Color(0.36, 0.44, 0.30))
-	t.add_theme_constant_override("outline_size", 20)
+	# 흰 글씨 + 라벤더 테두리 + 벚꽃 분홍 그림자 (키 컬러)
+	t.add_theme_color_override("font_color", Color.WHITE)
+	t.add_theme_color_override("font_outline_color", IdleUi.LAV_DK)
+	t.add_theme_constant_override("outline_size", 22)
+	t.add_theme_color_override("font_shadow_color", IdleUi.GOLD)
+	t.add_theme_constant_override("shadow_offset_x", 0)
+	t.add_theme_constant_override("shadow_offset_y", 7)
+	t.add_theme_constant_override("shadow_outline_size", 22)
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	t.anchor_left = logo.anchor_left
 	t.anchor_right = logo.anchor_right
@@ -342,10 +345,14 @@ func _add_subtitle() -> void:
 	l.name = "Subtitle"
 	l.text = "쿼카와 동물 친구들이 벌레를 막아요"
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 얇고 둥근 글꼴(주아) + 흰 글씨 + 얇은 라벤더 테두리 - 굵은 갈색 글씨는 무겁고 키 컬러와 안 맞았다
+	var jua := load("res://assets/fonts/Jua.ttf") as Font
+	if jua != null:
+		l.add_theme_font_override("font", jua)
 	l.add_theme_font_size_override("font_size", 28)
-	l.add_theme_color_override("font_color", Color(0.42, 0.36, 0.30))
-	l.add_theme_color_override("font_outline_color", Color(1, 0.99, 0.95, 0.75))
-	l.add_theme_constant_override("outline_size", 6)
+	l.add_theme_color_override("font_color", Color.WHITE)
+	l.add_theme_color_override("font_outline_color", IdleUi.LAV_DK)
+	l.add_theme_constant_override("outline_size", 8)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	l.anchor_left = logo.anchor_left
@@ -488,8 +495,9 @@ func _restyle_menu() -> void:
 			node.visible = false
 	var sub := ctrl.get_node_or_null("Subtitle") as Label
 	if sub != null:
-		sub.add_theme_color_override("font_color", IdleUi.CREAM)
-		sub.add_theme_color_override("font_outline_color", Color("#2A2140"))
+		# 흰 글씨 + 얇은 라벤더 테두리 (`_add_subtitle` 과 같게 - 예전엔 여기서 진한 글씨로 덮어썼다)
+		sub.add_theme_color_override("font_color", Color.WHITE)
+		sub.add_theme_color_override("font_outline_color", IdleUi.LAV_DK)
 		sub.add_theme_constant_override("outline_size", 8)
 
 	# 오른쪽을 어둡게 (버튼 글씨가 바다·하늘 위에서도 또렷하게)

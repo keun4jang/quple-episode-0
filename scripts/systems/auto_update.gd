@@ -126,12 +126,13 @@ func _toast(text: String, secs: float, col: Color) -> void:
 	# 메뉴 아래(y 380~)는 여행 화면에서도 메인화면에서도 비어 있다.
 	# 2026-10: 세로 쿼카 군단에선 왼쪽 위(y 380)가 지도 카드와 겹쳤다 → 아래 탭 바로 위 가운데, 작게.
 	# 아래 가운데는 홈의 큰 출전 단추와 겹쳤다 → 위 오른쪽, 재화 알약 바로 아래에 작게.
-	l.add_theme_font_size_override("font_size", 18)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# 위 오른쪽은 메뉴 제목과 겹쳤다 → 맨 아래 가운데에 작게 (앱을 켤 때 메뉴에서 잠깐만 뜬다)
+	l.add_theme_font_size_override("font_size", 16)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.anchor_left = 0.0; l.anchor_right = 1.0
-	l.anchor_top = 0.0;  l.anchor_bottom = 0.0
-	l.offset_left = 0.0; l.offset_right = -18.0
-	l.offset_top = 84.0; l.offset_bottom = 108.0
+	l.anchor_top = 1.0;  l.anchor_bottom = 1.0
+	l.offset_left = 0.0; l.offset_right = 0.0
+	l.offset_top = -34.0; l.offset_bottom = -12.0
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(l)
 	var tw := create_tween()
