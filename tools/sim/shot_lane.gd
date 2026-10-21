@@ -36,6 +36,7 @@ func _ready() -> void:
 			if k < LaneState.lineup.size():
 				LaneState.acc_on[String(LaneState.lineup[k])] = acc
 			k += 1
+	LaneState.speed2 = OS.get_environment("SHOT_FAST") == "1"
 	LaneState.auto_summon = true
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	var g = load("res://scenes/lane/LaneGame.tscn").instantiate()

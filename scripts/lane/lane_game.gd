@@ -9,6 +9,8 @@ const BUG_PX := 3.0
 ## 픽셀 한 칸 = 화면 3점. 배경·길도 1/3 크기로 그려 3배로 키운다 - 캐릭터 도트와 픽셀 크기를 하나로 맞춘다.
 ## (예전엔 배경만 매끈한 그림이라 도트 캐릭터와 따로 놀았다.)
 const PIX := 3
+## 빨리 감기 배속 (켜면). 저장 이름은 옛것(speed2) 그대로 - 켜짐/꺼짐만 저장한다.
+const FAST := 3.0
 const FX_PIX := 2
 ## 공격 모양 - 유닛마다 다르게 보여야 누가 무얼 하는지 안다. [모양, 색]
 ## slash 베기 · pierce 찌르기 · smash 내리찍기(충격파) · shot 던지기(날아감) · magic 마법 구슬 · quake 땅울림 ·
@@ -1051,7 +1053,7 @@ func _build_hud() -> void:
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(gap)
 	_speed_btn = IdleUi.button("", 22)
-	_speed_btn.custom_minimum_size = Vector2(88, 60)
+	_speed_btn.custom_minimum_size = Vector2(112, 60)
 	_speed_btn.pressed.connect(func() -> void:
 		LaneState.speed2 = not LaneState.speed2
 		AudioManager.ui_click()
@@ -1219,7 +1221,7 @@ func _layout_hud() -> void:
 
 
 func _refresh_hud_toggles() -> void:
-	_speed_btn.text = "2배 ▶▶" if LaneState.speed2 else "1배 ▶"
+	_speed_btn.text = "%d배 ▶▶▶" % int(FAST) if LaneState.speed2 else "1배 ▶"
 	_auto_btn.text = "자동 켜짐" if LaneState.auto_summon else "자동 소환"
 	_auto_btn.modulate = Color("#B8F0A8") if LaneState.auto_summon else Color.WHITE
 
@@ -1239,7 +1241,7 @@ func _process(dt: float) -> void:
 	_world.position = Vector2(14.0 * sh * sin(st * 1.1), 10.0 * sh * sin(st * 1.7 + 2.0))
 	_flash_rect.color.a = maxf(0.0, _flash_rect.color.a - dt * 2.5)
 	if not _ended and not _tut_pause:
-		var sdt := minf(dt, 0.25) * (2.0 if LaneState.speed2 else 1.0)
+		var sdt := minf(dt, 0.25) * (FAST if LaneState.speed2 else 1.0)
 		_battle_t += sdt
 		for e in battle.tick(sdt):
 			_on_event(e)
@@ -1367,7 +1369,7 @@ func _sync_actors() -> void:
 		if e["state"] == "fight":
 			# 실제 시간으로 잰다 - 2배속에서도 휘두르는 게 눈에 보이게
 			var since := _t - float(_swing_at.get(uid, -99.0))
-			var until := float(e["t_atk"]) / (2.0 if LaneState.speed2 else 1.0)
+			var until := float(e["t_atk"]) / (FAST if LaneState.speed2 else 1.0)
 			var lunge := 0.0
 			if since < 0.08:
 				atk_f = 1
