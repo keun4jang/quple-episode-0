@@ -607,10 +607,10 @@ func _fit_orientation() -> void:
 		sub.offset_right = 350.0
 		sub.offset_top = 300.0      # 제목과 살짝 띄운다
 		sub.offset_bottom = 346.0
-		# 부제는 그냥 흰 글씨 (제목은 라벤더 테두리 - 위아래 색을 다르게). 읽히게 옅은 그림자만.
-		sl.add_theme_color_override("font_color", Color.WHITE)
+		# 부제는 검은 글씨 (제목은 라벤더 테두리 - 위아래 색을 다르게). 테두리·그림자 없이 깔끔하게.
+		sl.add_theme_color_override("font_color", Color("#1E1A22"))
 		sl.add_theme_constant_override("outline_size", 0)
-		sl.add_theme_color_override("font_shadow_color", Color(0.23, 0.15, 0.35, 0.45))
+		sl.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.0))
 		sl.add_theme_constant_override("shadow_offset_x", 0)
 		sl.add_theme_constant_override("shadow_offset_y", 2)
 		# 부제 폭을 "진짜 행복" 글자 폭에 맞춘다 (글꼴 크기를 재서 비례로)
