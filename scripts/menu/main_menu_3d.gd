@@ -600,13 +600,32 @@ func _fit_orientation() -> void:
 	if title != null:
 		(title as Label).add_theme_font_size_override("font_size", 116)
 	if sub != null:
+		var sl := sub as Label
 		sub.anchor_left = 0.5
 		sub.anchor_right = 0.5
 		sub.offset_left = -350.0
 		sub.offset_right = 350.0
-		sub.offset_top = 286.0
-		sub.offset_bottom = 334.0
-		(sub as Label).add_theme_font_size_override("font_size", 36)
+		sub.offset_top = 300.0      # 제목과 살짝 띄운다
+		sub.offset_bottom = 346.0
+		# 부제는 그냥 흰 글씨 (제목은 라벤더 테두리 - 위아래 색을 다르게). 읽히게 옅은 그림자만.
+		sl.add_theme_color_override("font_color", Color.WHITE)
+		sl.add_theme_constant_override("outline_size", 0)
+		sl.add_theme_color_override("font_shadow_color", Color(0.23, 0.15, 0.35, 0.45))
+		sl.add_theme_constant_override("shadow_offset_x", 0)
+		sl.add_theme_constant_override("shadow_offset_y", 2)
+		# 부제 폭을 "진짜 행복" 글자 폭에 맞춘다 (글꼴 크기를 재서 비례로)
+		var fs := 36
+		if title != null:
+			var tl := title as Label
+			var tf := tl.get_theme_font("font")
+			# 제목 테두리(라벤더)까지 친 폭
+			var tw := tf.get_string_size(tl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 116).x \
+				+ float(tl.get_theme_constant("outline_size"))
+			var sf := sl.get_theme_font("font")
+			var sw := sf.get_string_size(sl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
+			if sw > 0.0:
+				fs = clampi(int(floor(36.0 * tw / sw)), 20, 60)
+		sl.add_theme_font_size_override("font_size", fs)
 	if col != null:
 		col.anchor_left = 0.5
 		col.anchor_right = 0.5
