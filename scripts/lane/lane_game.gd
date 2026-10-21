@@ -1172,16 +1172,31 @@ func _build_hud() -> void:
 		cost.name = "Cost"
 		cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(cost)
+		# 꿈빛이 모이는 띠 (모자랄 때만, 버튼 아래쪽) - 쿨타임과 헷갈리지 않게 따로
+		var money := ColorRect.new()
+		money.name = "Money"
+		money.color = Color(IdleUi.GOLD.r, IdleUi.GOLD.g, IdleUi.GOLD.b, 0.9)
+		money.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(money)
+		# 쿨타임은 그 친구 버튼에만: 어두운 막 + 남은 초
 		var cd := ColorRect.new()
 		cd.name = "Cd"
-		cd.color = Color(0.23, 0.15, 0.35, 0.45)
+		cd.color = Color(0.17, 0.1, 0.27, 0.62)
 		cd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(cd)
+		var cdt := IdleUi.label("", 30, Color.WHITE, true)
+		cdt.name = "CdText"
+		cdt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cdt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		b.add_child(cdt)
 		b.pressed.connect(func() -> void:
 			if battle.summon(uid_s):
 				AudioManager.pickup()
 			else:
-				_shake_ctrl(b))
+				_shake_ctrl(b)
+				var need := float(battle.stats[uid_s]["cost"]) - battle.wallet
+				if float(battle.cds.get(uid_s, 0.0)) <= 0.0 and need > 0.0:
+					_toast("꿈빛이 모자라요 (✦%d 더 모이면 불러요)" % int(ceil(need))))
 		gr.add_child(b)
 		_unit_btns[id] = b
 	_refresh_hud_toggles()
@@ -1307,13 +1322,26 @@ func _refresh_hud() -> void:
 		var s2: Dictionary = battle.stats[id]
 		var left := float(battle.cds.get(id, 0.0))
 		var cost := int(s2["cost"])
-		(b.get_node("Col/Cost") as Label).text = "✦%d" % cost
-		b.disabled = battle.wallet < float(cost) or left > 0.0
-		b.modulate = Color(1, 1, 1, 0.55) if b.disabled else Color.WHITE
+		# 친구마다 따로: 쿨타임은 그 버튼에만 막 + 초, 꿈빛이 모자라면 비용만 빨갛게 + 모이는 띠.
+		# (예전엔 꿈빛이 모자란 버튼도 쿨타임처럼 흐려져서, 하나를 부르면 다른 친구도 쿨타임이 도는 것처럼 보였다)
+		var short := battle.wallet < float(cost)
+		var cl := b.get_node("Col/Cost") as Label
+		cl.text = "✦%d" % cost
+		cl.add_theme_color_override("font_color", IdleUi.RED if short else IdleUi.GOLD_DK)
+		b.disabled = false
+		b.modulate = Color.WHITE
 		var cd := b.get_node("Cd") as ColorRect
 		var k := clampf(left / maxf(0.01, float(s2["cd"])), 0.0, 1.0)
 		cd.size = Vector2(b.size.x, b.size.y * k)
 		cd.position = Vector2(0, b.size.y * (1.0 - k))
+		var cdt := b.get_node("CdText") as Label
+		cdt.size = b.size
+		cdt.text = ("%.1f" % left) if left > 0.0 else ""
+		var mb := b.get_node("Money") as ColorRect
+		var mk := clampf(battle.wallet / maxf(1.0, float(cost)), 0.0, 1.0)
+		mb.visible = short and left <= 0.0
+		mb.size = Vector2((b.size.x - 16.0) * mk, 6.0)
+		mb.position = Vector2(8.0, b.size.y - 14.0)
 
 
 # ── 그림 맞추기 ───────────────────────────────────────────────────────
