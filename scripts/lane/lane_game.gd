@@ -162,12 +162,14 @@ func _ready() -> void:
 	_build_home()
 	# 알림은 알약 모양 판 위에 - 글씨가 아래 화면과 겹쳐 지저분해 보이지 않게
 	_toast_box = PanelContainer.new()
-	var tsb := IdleUi.box(Color(1, 1, 1, 0.97), IdleUi.LAV, 26, 4, 16)
+	var tsb := IdleUi.box(Color.WHITE, IdleUi.LAV, 26, 4, 14)
 	_toast_box.add_theme_stylebox_override("panel", tsb)
 	_toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toast_box.modulate.a = 0.0
 	add_child(_toast_box)
 	_toast_lbl = IdleUi.label("", 26, IdleUi.CREAM)
+	_toast_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_toast_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_toast_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_toast_box.add_child(_toast_lbl)
@@ -237,8 +239,7 @@ func _layout() -> void:
 			_danger.size = size
 		_hud.size = size
 		_layout_hud()
-	_toast_box.position = Vector2(30, 96)
-	_toast_box.size = Vector2(size.x - 60, 0)
+	_toast_box.position = Vector2(10, 6)
 	_banner.position = Vector2(0, size.y * 0.3)
 	_banner.size = Vector2(size.x, 80)
 
@@ -1926,15 +1927,16 @@ func _toast(t: String) -> void:
 	_toast_lbl.text = t
 	# 폭을 먼저 정하고(글씨도 같이) 높이는 글씨만큼 - 화면 크기가 정해지기 전(첫 실행)에 재면
 	# 폭 0 으로 줄바꿈을 계산해 판이 화면 절반만큼 길어졌다.
-	var w := maxf(320.0, (size.x if size.x > 0.0 else 720.0) - 60.0)
+	# 위 재화 줄(높이 64)을 통째로 덮는 자리 - 제목 위에 걸치면 뒤 글자가 위아래로 삐져나와 겹쳐 보였다
+	var w := maxf(320.0, (size.x if size.x > 0.0 else 720.0) - 20.0)
 	_toast_lbl.custom_minimum_size = Vector2(w - 40.0, 0)
-	_toast_box.custom_minimum_size = Vector2(w, 0)
-	_toast_box.size = Vector2(w, 0)
+	_toast_box.custom_minimum_size = Vector2(w, 80)
+	_toast_box.size = Vector2(w, 80)
 	_toast_box.reset_size()
-	_toast_box.position = Vector2(30, 96 if mode == "home" else 90)
+	_toast_box.position = Vector2(10, 6)
 	# 한 프레임 뒤 다시 줄인다 (줄바꿈이 제 폭으로 다시 계산된 뒤)
 	_later(0.0, func() -> void:
-		_toast_box.size = Vector2(w, 0)
+		_toast_box.size = Vector2(w, 80)
 		_toast_box.reset_size())
 	_toast_box.modulate.a = 1.0
 	move_child(_toast_box, get_child_count() - 1)
