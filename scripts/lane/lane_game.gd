@@ -160,7 +160,7 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	if not LaneState.load_save():
 		LaneState.reset()
-	AudioManager.play_bgm("adventure")
+	AudioManager.play_bgm("home")
 	_build_home()
 	# 알림은 알약 모양 판 위에 - 글씨가 아래 화면과 겹쳐 지저분해 보이지 않게
 	_toast_box = PanelContainer.new()
@@ -458,7 +458,7 @@ func _show_home() -> void:
 		_world.queue_free()
 		_world = null
 	_home.visible = true
-	AudioManager.play_bgm("adventure")
+	AudioManager.play_bgm("home")
 	_layout_home()
 	_fill_home()
 	# 켜 둔 채로 자정이 지났으면 홈으로 돌아올 때 선물
@@ -986,7 +986,12 @@ func _start_battle(n: int) -> void:
 	_build_battle()
 	_layout()
 	var info := battle.info
-	AudioManager.play_bgm("boss" if bool(info["boss"]) else "adventure")
+	# 구역마다 다른 전투곡, 우두머리는 앞 구역 / 뒤 구역이 다르다
+	var zi := int(info["zone"])
+	if bool(info["boss"]):
+		AudioManager.play_bgm("boss" if zi < 5 else "boss2")
+	else:
+		AudioManager.play_bgm(String(AudioManager.BATTLE_TRACKS[zi % AudioManager.BATTLE_TRACKS.size()]))
 	_banner_show(LaneData.stage_label(n), Color.WHITE)
 	if battle.cheer > 0.0:
 		_toast("다시 도전 응원!  공격·체력 +%d%%" % int(battle.cheer))

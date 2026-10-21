@@ -25,7 +25,7 @@ func _ready() -> void:
 	$UILayer/Control/SmallBtnRow/SettingsBtn.pressed.connect(
 		func(): var sv = get_tree().get_first_node_in_group("settings_ui"); if sv: sv.open())
 	_add_credits_button()
-	AudioManager.play_bgm("arirang")
+	AudioManager.play_bgm("title")
 
 	if OS.get_environment("QUPLE_SHOT") != "":
 		_capture_shot()
