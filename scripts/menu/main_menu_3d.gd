@@ -588,21 +588,25 @@ func _fit_orientation() -> void:
 	var shade := ctrl.get_node_or_null("RightShade") as TextureRect
 	if not portrait:
 		return
+	# 세로: 제목과 부제를 바짝 붙여 한 덩어리로, 더 크게, 조금 아래로
 	for t in [logo, title]:
 		if t != null:
 			t.anchor_left = 0.5
 			t.anchor_right = 0.5
-			t.offset_left = -310.0
-			t.offset_right = 310.0
-			t.offset_top = 70.0
-			t.offset_bottom = 240.0
+			t.offset_left = -350.0
+			t.offset_right = 350.0
+			t.offset_top = 150.0
+			t.offset_bottom = 290.0
+	if title != null:
+		(title as Label).add_theme_font_size_override("font_size", 116)
 	if sub != null:
 		sub.anchor_left = 0.5
 		sub.anchor_right = 0.5
-		sub.offset_left = -340.0
-		sub.offset_right = 340.0
-		sub.offset_top = 256.0
-		sub.offset_bottom = 300.0
+		sub.offset_left = -350.0
+		sub.offset_right = 350.0
+		sub.offset_top = 286.0
+		sub.offset_bottom = 334.0
+		(sub as Label).add_theme_font_size_override("font_size", 36)
 	if col != null:
 		col.anchor_left = 0.5
 		col.anchor_right = 0.5
