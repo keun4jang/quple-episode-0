@@ -55,7 +55,6 @@ func play(results: Array) -> void:
 
 func _process(dt: float) -> void:
 	_t += dt
-	_flash.size = size
 	_flash.color.a = maxf(0.0, _flash.color.a - dt * 2.5)
 	_hint.position = Vector2(0, size.y - 120)
 	_hint.size = Vector2(size.x, 40)

@@ -73,7 +73,6 @@ func _process(dt: float) -> void:
 	if not visible:
 		return
 	_t += dt
-	size = get_parent_area_size() if get_parent() is Control else size
 	if _target != null and is_instance_valid(_target) and _target.is_visible_in_tree():
 		_rect = Rect2(_target.global_position - global_position, _target.size * _target.get_global_transform().get_scale())
 		_rect = _rect.grow(10)

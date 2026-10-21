@@ -1029,7 +1029,6 @@ func _build_battle() -> void:
 	_world.add_child(_flash_rect)
 	_danger = Control.new()
 	_danger.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_danger.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_danger.draw.connect(_draw_danger)
 	_world.add_child(_danger)
 	_build_hud()
