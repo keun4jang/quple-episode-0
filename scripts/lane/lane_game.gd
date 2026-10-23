@@ -210,6 +210,7 @@ func _ready() -> void:
 	_rng.randomize()
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	_tut = LaneTutorial.new()
+	_tut.add_to_group("modal")
 	_tut.visible = false
 	_tut.skipped.connect(_tut_skip)
 	add_child(_tut)
@@ -326,6 +327,7 @@ func _build_home() -> void:
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	IdleUi.style_scroll(sc)
+	DragScroll.attach(sc)      # 카드·단추 위를 잡고 끌어도 넘어가게
 	margin.add_child(sc)
 	_home_body = VBoxContainer.new()
 	_home_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -714,6 +716,7 @@ func _evolve_show(id: String) -> void:
 	var lay := Control.new()
 	lay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	lay.mouse_filter = Control.MOUSE_FILTER_STOP
+	lay.add_to_group("modal")
 	add_child(lay)
 	var dim := ColorRect.new()
 	dim.color = Color(0.08, 0.04, 0.14, 0.0)
@@ -1009,6 +1012,7 @@ func _popup(title: String) -> VBoxContainer:
 	var layer := Control.new()
 	layer.name = "Popup"
 	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_to_group("modal")
 	add_child(layer)
 	var dim := ColorRect.new()
 	dim.color = Color(0.05, 0.02, 0.09, 0.75)
@@ -1049,6 +1053,7 @@ func _popup(title: String) -> VBoxContainer:
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	IdleUi.style_scroll(sc)
+	DragScroll.attach(sc)
 	outer.add_child(sc)
 	var body := VBoxContainer.new()
 	body.name = "Body"
