@@ -31,6 +31,8 @@ const ROLE_COL := {"벽": "#8FB5FF", "근접": "#FF9F7A", "범위": "#FFB84A", "
 	"마법": "#C58CFF", "거대": "#E0A060"}
 ## 후퇴해도 이만큼(초) 싸웠으면 다시 도전 응원을 받는다.
 const CHEER_MIN_FIGHT := 60.0
+## 우리 성 앞(길의 0) 화면 높이 - 위 단추 줄(72) 아래로 작게 그린 망루가 들어가는 자리.
+const FORT_Y := 250.0
 
 
 ## 시트의 앞모습 첫 칸 - 칸 위쪽의 무기 여유(칸 높이 - 칸 폭)는 빼고 몸만.
@@ -236,8 +238,9 @@ func _layout() -> void:
 		_fx_pix.size = size
 		_bg.size = size
 		_field.size = size
-		_field.y_front = size.y - 470.0
-		_field.y_far = size.y * 0.15
+		# 우리 성이 위(위 단추 줄 밑), 둥지가 아래 - 쿼카가 화면 아래로 걸어와 얼굴이 보인다
+		_field.y_front = FORT_Y
+		_field.y_far = size.y - 500.0
 		_flash_rect.size = size
 		if _danger != null:
 			_danger.size = size
@@ -1253,7 +1256,7 @@ func _layout_hud() -> void:
 	panel.position = Vector2(8, h - ph - 8.0)
 	panel.size = Vector2(w - 16, ph)
 	if _field != null:
-		_field.y_front = h - ph - 8.0 - 86.0
+		_field.y_far = h - ph - 8.0 - 120.0
 
 
 func _refresh_hud_toggles() -> void:
@@ -1399,8 +1402,8 @@ func _sync_actors() -> void:
 		var pos := float(e["pos"])
 		var depth := _field.scale_at(pos)
 		var p := _field.to_screen(pos, float(_lat.get(uid, 0.0)))
-		# 공격 동작: 웅크림(공격 0.25초 전) → 쭉 뻗으며 덤벼듦 → 돌아옴. 앞쪽 = 쿼카는 위, 벌레는 아래.
-		var fwd := -1.0 if e["side"] == "q" else 1.0
+		# 공격 동작: 웅크림(공격 0.25초 전) → 쭉 뻗으며 덤벼듦 → 돌아옴. 앞쪽 = 쿼카는 아래, 벌레는 위.
+		var fwd := 1.0 if e["side"] == "q" else -1.0
 		var atk_f := -1
 		if e["state"] == "fight":
 			# 실제 시간으로 잰다 - 2배속에서도 휘두르는 게 눈에 보이게
@@ -1435,7 +1438,7 @@ func _sync_actors() -> void:
 		_place_wear(a)
 		a.walking = e["state"] == "walk"
 		if e["side"] == "q":
-			# 뒷모습으로 걷고, 싸울 땐 휘두르고, 밀려나면 앞을 보며 아파한다. 이기면 환호.
+			# 앞모습으로 걸어오고, 싸울 땐 휘두르고, 밀려나면 아파한다. 이기면 환호.
 			a.frame_override = -1
 			if _ended and _won:
 				a.row = 0
@@ -1626,14 +1629,14 @@ func _on_event(e: Dictionary) -> void:
 		"base_hit":
 			if e["side"] == "b":
 				_field.shake_nest = 6.0
-				_vfx.burst(Vector2(size.x * 0.5, _field.y_far - 30.0), Color("#C9A27A"), 4, 200.0, 0.4, 0.35)
+				_vfx.burst(_field.nest_pos() + Vector2(0, -40), Color("#C9A27A"), 4, 200.0, 0.4, 0.35)
 			else:
 				_field.shake_our = 6.0
 				_add_trauma(0.05)
 		"shock":
 			_add_trauma(0.9)
 			_flash(0.3)
-			_fx.ring(Vector2(size.x * 0.5, _field.y_far + 40.0), 30.0, 700.0, Color("#FF9A9A"), 18.0, 0.8)
+			_fx.ring(_field.nest_pos() + Vector2(0, -100), 30.0, 700.0, Color("#FF9A9A"), 18.0, 0.8)
 		"wave_warn":
 			_banner_show("벌레 떼가 몰려와요!", Color("#FF9A9A"))
 			_field.shake_nest = 8.0
@@ -1644,7 +1647,7 @@ func _on_event(e: Dictionary) -> void:
 			_flash(0.5)
 			_add_trauma(0.5)
 			_banner_show("위기! 성의 힘이 깨어나요", IdleUi.GOLD)
-			var cp := Vector2(size.x * 0.5, _field.y_front + 20.0)
+			var cp := _field.fort_pos()
 			_fx.pillar(cp, IdleUi.LAV, 0.9)
 			_fx.ring(cp, 30.0, 420.0, IdleUi.GOLD, 16.0, 0.7)
 			_vfx.burst(cp, IdleUi.GOLD, 30, 500.0, 0.9, 0.5, true)
@@ -1776,7 +1779,7 @@ func _hit_fx(e: Dictionary, p: Vector2) -> void:
 
 
 func _cannon_fx() -> void:
-	var base := Vector2(size.x * 0.5, _field.y_front + 20.0)
+	var base := _field.fort_pos() + Vector2(0, 10)
 	var reach := _field.to_screen(LaneData.CANNON_REACH, 0.0)
 	_flash(0.45)
 	_add_trauma(0.7)
@@ -1809,7 +1812,7 @@ func _end_battle(res: String) -> void:
 		r = LaneState.on_win(stage_n)
 		_flash(0.5)
 		_add_trauma(1.0)
-		var np := Vector2(size.x * 0.5, _field.y_far - 30.0)
+		var np := _field.nest_pos() + Vector2(0, -40)
 		_vfx.burst(np, Color("#FFD27A"), 40, 600.0, 1.2, 0.8)
 		_fx.ring(np, 20.0, 400.0, IdleUi.GOLD, 20.0, 0.8)
 		AudioManager.souvenir_get()
@@ -1950,7 +1953,7 @@ func _tut_battle_guide(i := 0) -> void:
 	_tut_pause = true
 	match i:
 		0:
-			_tut.point(null, "위에서 벌레가 내려와요. 아래 우리 성을 지켜요!", _tut_battle_guide.bind(1))
+			_tut.point(null, "벌레는 아래 둥지에서 와요. 위 우리 성을 지켜요!", _tut_battle_guide.bind(1))
 		1:
 			battle.wallet = maxf(battle.wallet, 60.0)
 			_tut.point(_unit_btns.get("tiny"), "꼬마 쿼카를 눌러 불러 보세요", _tut_run.bind(2.5, 2))

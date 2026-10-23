@@ -270,7 +270,7 @@ def quokka(spec, view, frame, evo=False):
             eyes = "closed"
         elif frame == 3:
             eyes = "hurt"
-    back = view != "front"
+    back = False                               # 길이 위→아래라 걷기·공격도 앞모습 (우리 성이 위)
     body_r = hr * 0.78
     by = foot - body_r * 0.95 + bob            # 몸통 중심
     hy = by - body_r * 0.55 - hr * 0.72 + (1 if view == "attack" and frame == 0 else 0)
