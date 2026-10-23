@@ -132,6 +132,9 @@ func summon(id: String) -> bool:
 	wallet -= float(s["cost"])
 	cds[id] = float(s["cd"])
 	var e := _make(s, "q", rng.randf_range(0.0, 20.0))
+	# 첫 스킬 때를 조금씩 흩뜨린다 - 한꺼번에 부른 친구들의 스킬이 한순간에 겹쳐 터지지 않게
+	if String(e["sk"]) != "":
+		e["sk_t"] = float(e["sk_t"]) * rng.randf_range(0.7, 1.3)
 	ents.append(e)
 	events.append({"k": "spawn", "side": "q", "uid": e["uid"], "kind": id})
 	return true
@@ -273,7 +276,19 @@ func _make(s: Dictionary, side: String, pos: float) -> Dictionary:
 		"reward": float(s.get("reward", 0)), "slow_rule": s.get("slow", {}), "kb_from": 0.0, "kb_to": 0.0,
 		"strong": s.get("strong", []), "massive": s.get("massive", []), "crit": float(s.get("crit", 0.0)),
 		"kb_hit": float(s.get("kb_hit", 0.0)), "rarity": String(s.get("rarity", "")),
-		"guard": float(s.get("guard", 1.0))}
+		"guard": float(s.get("guard", 1.0)),
+		# 스킬 (쿼카 쪽만): 남은 대기 · 받은 버프(공격 ×, 받는 피해 ×)와 남은 시간
+		"sk": String(s["id"]) if side == "q" and LaneData.SKILLS.has(String(s["id"])) else "",
+		"sk_cd": _skill_cd(s, side),
+		"sk_t": _skill_cd(s, side) * 0.5,
+		"b_atk": 1.0, "b_atk_t": 0.0, "b_guard": 1.0, "b_guard_t": 0.0}
+
+
+## 스킬 간격 - 진화한 친구는 더 자주 쓴다.
+func _skill_cd(s: Dictionary, side: String) -> float:
+	if side != "q" or not LaneData.SKILLS.has(String(s["id"])):
+		return 0.0
+	return float(LaneData.SKILLS[String(s["id"])]["cd"]) * (LaneData.EVOLVE_SKILL_CD if bool(s.get("evo", false)) else 1.0)
 
 
 func _count(side: String) -> int:
@@ -330,6 +345,15 @@ func _act(e: Dictionary, d: float) -> void:
 	e["slow"] = maxf(0.0, float(e["slow"]) - d)
 	var tg := _targets(e)
 	var base_in := _base_ahead(e) <= float(e["range"])
+	if String(e["sk"]) != "":
+		e["b_atk_t"] = maxf(0.0, float(e["b_atk_t"]) - d)
+		e["b_guard_t"] = maxf(0.0, float(e["b_guard_t"]) - d)
+		e["sk_t"] = float(e["sk_t"]) - d
+		if float(e["sk_t"]) <= 0.0 and _try_skill(e, tg, base_in):
+			e["sk_t"] = float(e["sk_cd"])
+			e["t_atk"] = maxf(float(e["t_atk"]), 0.35)   # 스킬 쓰는 동안 잠깐 평타를 쉰다
+			if e["state"] == "kb":
+				return
 	if tg.is_empty() and not base_in:
 		e["state"] = "walk"
 		e["t_atk"] = maxf(float(e["t_atk"]), FORESWING)
@@ -341,7 +365,7 @@ func _act(e: Dictionary, d: float) -> void:
 	if float(e["t_atk"]) > 0.0:
 		return
 	e["t_atk"] = float(e["every"]) * (1.5 if float(e["slow"]) > 0.0 else 1.0)
-	var dmg := float(e["atk"])
+	var dmg := float(e["atk"]) * _atk_buff(e)
 	events.append({"k": "swing", "uid": e["uid"], "side": e["side"]})
 	if tg.is_empty():
 		_hit_base(e, dmg)
@@ -367,6 +391,8 @@ func _strike(e: Dictionary, o: Dictionary, base: float) -> void:
 			eff = "strong"
 	else:
 		dmg *= float(o["guard"])
+		if float(o.get("b_guard_t", 0.0)) > 0.0:
+			dmg *= float(o["b_guard"])
 		if (o["strong"] as Array).has(String(e["trait"])):
 			dmg *= LaneData.STRONG_TAKEN
 			eff = "guard"
@@ -421,6 +447,143 @@ func _knockback(o: Dictionary, dist: float) -> void:
 	o["kb_from"] = float(o["pos"])
 	o["kb_to"] = clampf(float(o["pos"]) + (-dist if o["side"] == "q" else dist), 0.0, LaneData.LEN)
 	events.append({"k": "kb", "uid": o["uid"], "side": o["side"]})
+
+
+# ── 스킬 (자동) ───────────────────────────────────────────────────────
+
+func _atk_buff(e: Dictionary) -> float:
+	return float(e["b_atk"]) if float(e.get("b_atk_t", 0.0)) > 0.0 else 1.0
+
+
+## 살아 있는 벌레 중 이 친구 기준 앞쪽 거리가 [lo, hi] 인 것들.
+func _foes_ahead(e: Dictionary, lo: float, hi: float) -> Array:
+	var out: Array = []
+	for o in ents:
+		if o["side"] == "b" and float(o["hp"]) > 0.0:
+			var dd := _ahead(e, float(o["pos"]))
+			if dd >= lo and dd <= hi:
+				out.append(o)
+	return out
+
+
+func _allies_near(e: Dictionary, r: float) -> Array:
+	var out: Array = []
+	for o in ents:
+		if o["side"] == "q" and float(o["hp"]) > 0.0 and o["state"] != "kb" and absf(float(o["pos"]) - float(e["pos"])) <= r:
+			out.append(o)
+	return out
+
+
+## 쓸 만할 때만 쓴다 (벌레가 없는데 헛방을 날리지 않게). 썼으면 true.
+func _try_skill(e: Dictionary, tg: Array, base_in: bool) -> bool:
+	var k: Dictionary = LaneData.SKILLS[String(e["sk"])]
+	var kind := String(k["kind"])
+	var atk := float(e["atk"]) * _atk_buff(e)
+	var fighting := not tg.is_empty() or base_in
+	var hit: Array = []
+	var allies: Array = []
+	var base_dmg := 0.0
+	match kind:
+		"smash", "quake", "freeze":
+			var r := float(k["r"])
+			hit = _foes_ahead(e, -r, r)
+			if _base_ahead(e) <= r:
+				base_dmg = atk * float(k["mult"])
+			if hit.is_empty() and base_dmg <= 0.0:
+				return false
+			for o in hit:
+				_damage(o, atk * float(k["mult"]), false, e, "skill")
+				if kind == "quake" and float(o["hp"]) > 0.0 and o["state"] != "kb" and not bool(o["boss"]):
+					_knockback(o, LaneData.KB_DIST)
+				if kind == "freeze" and float(o["hp"]) > 0.0:
+					o["slow"] = float(k["secs"]) * slow_mult
+					events.append({"k": "slow", "uid": o["uid"]})
+		"pierce":
+			var r := float(k["r"])
+			hit = _foes_ahead(e, -OVERLAP, r)
+			if _base_ahead(e) <= r:
+				base_dmg = atk * float(k["mult"])
+			if hit.is_empty() and base_dmg <= 0.0:
+				return false
+			for o in hit:
+				_damage(o, atk * float(k["mult"]), false, e, "skill")
+		"storm":
+			var cands := _foes_ahead(e, -OVERLAP, float(e["range"]) * 1.2)
+			if cands.is_empty() and not base_in:
+				return false
+			for i in int(k["hits"]):
+				var live: Array = cands.filter(func(o) -> bool: return float(o["hp"]) > 0.0)
+				if live.is_empty():
+					base_dmg += atk * float(k["mult"]) if base_in else 0.0
+					continue
+				var o: Dictionary = live[rng.randi() % live.size()]
+				_damage(o, atk * float(k["mult"]), false, e, "skill")
+				if not hit.has(o):
+					hit.append(o)
+		"thunder":
+			var reach := maxf(float(e["range"]) * 1.5, 420.0)
+			var cands := _foes_ahead(e, -OVERLAP, reach)
+			var best: Dictionary = {}
+			for o in cands:
+				if best.is_empty() or (bool(o["boss"]) and not bool(best["boss"])) \
+						or (bool(o["boss"]) == bool(best["boss"]) and float(o["hp"]) > float(best["hp"])):
+					best = o
+			if best.is_empty():
+				if _base_ahead(e) > reach:
+					return false
+				base_dmg = atk * float(k["mult"])
+			else:
+				hit = [best]
+				_damage(best, atk * float(k["mult"]), false, e, "skill")
+		"dash":
+			if tg.is_empty():
+				return false
+			var from := float(e["pos"])
+			var front := float(tg[0]["pos"])
+			for o in tg:
+				front = minf(front, float(o["pos"]))
+			e["pos"] = clampf(minf(from + float(k["r"]), front + 40.0), from, LaneData.LEN)
+			hit = _foes_ahead(e, -float(k["r"]) - 40.0, 160.0)
+			for o in hit:
+				_damage(o, atk * float(k["mult"]), false, e, "skill")
+				if float(o["hp"]) > 0.0 and o["state"] != "kb" and not bool(o["boss"]):
+					_knockback(o, LaneData.KB_DIST)
+			events.append({"k": "dash", "uid": e["uid"], "from": from, "to": float(e["pos"])})
+		"heal":
+			var hurt := false
+			for o in _allies_near(e, float(k["r"])):
+				if float(o["hp"]) < float(o["max"]) * 0.8:
+					hurt = true
+			if not hurt:
+				return false
+			for o in _allies_near(e, float(k["r"])):
+				var amt := minf(float(o["max"]) * float(k["pct"]), float(o["max"]) - float(o["hp"]))
+				o["hp"] = float(o["hp"]) + amt
+				allies.append(o)
+				if amt >= 1.0:
+					events.append({"k": "heal", "uid": o["uid"], "amt": int(round(amt))})
+		"guard", "rally":
+			if not fighting:
+				return false
+			for o in _allies_near(e, float(k["r"])):
+				if kind == "guard":
+					o["b_guard"] = float(k["pct"])
+					o["b_guard_t"] = float(k["secs"])
+				else:
+					o["b_atk"] = float(k["pct"])
+					o["b_atk_t"] = float(k["secs"])
+				allies.append(o)
+	if base_dmg > 0.0:
+		_hit_base(e, base_dmg)
+	var hu: Array = []
+	for o in hit:
+		hu.append(o["uid"])
+	var au: Array = []
+	for o in allies:
+		au.append(o["uid"])
+	events.append({"k": "skill", "uid": e["uid"], "id": String(e["sk"]), "kind": kind, "pos": float(e["pos"]),
+		"hits": hu, "allies": au, "base": base_dmg > 0.0})
+	return true
 
 
 # ── 자동 소환 ─────────────────────────────────────────────────────────

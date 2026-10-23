@@ -152,7 +152,16 @@ func _spend() -> void:
 					best = String(id)
 					cost = c
 		if best == "":
-			return
+			# 레벨이 다 찬 친구는 진화부터 (진화해야 더 올린다)
+			var evo := ""
+			for id in (LaneState.lineup if gacha else LaneState.units.keys()):
+				if LaneState.can_evolve(String(id)):
+					evo = String(id)
+					break
+			if evo == "":
+				return
+			LaneState.evolve(evo)
+			continue
 		LaneState.level_up(best)
 
 

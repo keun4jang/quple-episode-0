@@ -125,6 +125,84 @@ func _ready() -> void:
 		tb += 0.25
 	ck("우두머리가 나오면 충격파", shock)
 
+	print("\n[스킬]")
+	var all_sk := true
+	for id in LaneData.ALL_ORDER:
+		if not LaneData.SKILLS.has(id) or LaneData.skill_text(String(id)) == "":
+			all_sk = false
+	ck("친구마다 스킬이 하나씩", all_sk and LaneData.SKILLS.size() == LaneData.ALL_ORDER.size())
+	LaneState.reset()
+	for id in LaneData.ALL_ORDER:
+		LaneState.units[id] = 10
+	LaneState.lineup = ["tiny", "shield", "spear", "hammer", "duck", "chick", "owl", "penguin", "rabbit", "turtle"]
+	var sb := LaneBattle.new()
+	sb.start(25, 3)
+	sb.auto = true
+	var sk_kinds := {}
+	var skill_dmg := 0
+	var healed := 0
+	for i in 400:
+		for ev in sb.tick(0.25):
+			if ev["k"] == "skill":
+				sk_kinds[String(ev["kind"])] = true
+			elif ev["k"] == "hit" and String(ev.get("eff", "")) == "skill":
+				skill_dmg += int(ev["dmg"])
+			elif ev["k"] == "heal":
+				healed += int(ev["amt"])
+		if sb.done:
+			break
+	ck("싸우면 스킬이 저절로 나간다", sk_kinds.size() >= 5, str(sk_kinds.keys()))
+	ck("스킬이 벌레에게 피해를 준다", skill_dmg > 0, str(skill_dmg))
+	# 버프: 방어 스킬을 받으면 덜 아프다
+	var gb := LaneBattle.new()
+	gb.start(5, 1)
+	var sq := gb._make(gb.stats["shield"], "q", 100.0)
+	var sbug := gb._make(LaneData.BUGS["ant"].merged({"id": "ant"}), "b", 150.0)
+	gb.ents = [sq, sbug]
+	var shp0 := float(sq["hp"])
+	gb._strike(sbug, sq, 100.0)
+	var splain := shp0 - float(sq["hp"])
+	sq["hp"] = shp0
+	sq["b_guard"] = 0.5
+	sq["b_guard_t"] = 3.0
+	gb._strike(sbug, sq, 100.0)
+	ck("방어 스킬은 받는 피해를 줄인다", is_equal_approx(shp0 - float(sq["hp"]), splain * 0.5), "%s / %s" % [splain, shp0 - float(sq["hp"])])
+	sq["sk"] = "duck"
+	sq["hp"] = shp0 * 0.3
+	ck("치유 스킬은 다친 친구를 고친다", gb._try_skill(sq, [], false) and float(sq["hp"]) > shp0 * 0.3)
+	LaneState.reset()
+
+	print("\n[진화]")
+	LaneState.reset()
+	LaneState.units["spear"] = LaneData.EVOLVE_LV
+	LaneState.xp = 99999999
+	ck("진화 전엔 레벨 10 에서 멈춘다", not LaneState.can_level("spear") and LaneState.evolve_ready("spear"))
+	var pre: Dictionary = LaneState.unit_stats("spear")
+	ck("진화 전 그림·이름", not LaneData.sheet_path("spear", 10).ends_with("-2.png") and LaneData.unit_name("spear", 10) == "창 쿼카")
+	var xp_before := LaneState.xp
+	ck("진화", LaneState.evolve("spear") and LaneState.is_evolved("spear")
+		and LaneState.xp == xp_before - LaneData.evolve_cost("spear"))
+	var post: Dictionary = LaneState.unit_stats("spear")
+	ck("진화하면 체력·공격 ×1.2", is_equal_approx(float(post["atk"]), float(pre["atk"]) * LaneData.EVOLVE_ATK)
+		and is_equal_approx(float(post["hp"]), float(pre["hp"]) * LaneData.EVOLVE_HP))
+	ck("진화 뒤 그림·이름", LaneData.sheet_path("spear", 10).ends_with("-2.png") and LaneData.unit_name("spear", 10) == "번개창 쿼카")
+	ck("진화하면 다시 레벨업", LaneState.can_level("spear") and not LaneState.evolve("spear"))
+	var eb := LaneBattle.new()
+	LaneState.lineup = ["spear"]
+	eb.start(3, 1)
+	var es := eb._make(eb.stats["spear"], "q", 0.0)
+	ck("진화하면 스킬이 더 자주", is_equal_approx(float(es["sk_cd"]), float(LaneData.SKILLS["spear"]["cd"]) * LaneData.EVOLVE_SKILL_CD))
+	var ed := LaneState.to_dict()
+	LaneState.reset()
+	LaneState.from_dict(ed)
+	ck("진화 저장", LaneState.is_evolved("spear"))
+	LaneState.from_dict({"units": {"tiny": 14, "shield": 6}})
+	ck("옛 저장: 레벨 10 넘은 친구는 진화한 채로", LaneState.is_evolved("tiny") and LaneState.level_of("tiny") == 14
+		and not LaneState.is_evolved("shield"))
+	LaneState.from_dict({"units": {"tiny": 14}, "evolved": []})
+	ck("진화 안 한 친구는 레벨 10 까지만", LaneState.level_of("tiny") == LaneData.EVOLVE_LV)
+	LaneState.reset()
+
 	print("\n[4] 저장")
 	LaneState.reset()
 	LaneState.xp = 4321

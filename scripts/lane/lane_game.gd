@@ -139,6 +139,7 @@ var _our_lbl: Label
 var _result: Control
 var _trauma := 0.0
 var _battle_t := 0.0
+var _cutin_t := -99.0      ## 마지막 스킬 컷인 때 (실제 시간)
 var _ended := false
 var _won := false
 
@@ -646,14 +647,18 @@ func _fill_units() -> void:
 		if rr != "base":
 			title = "★".repeat(int(LaneData.RARITY_STARS[rr])) + " " + title
 		v.add_child(IdleUi.label(title, 26, RARITY_COL[rr] if rr != "base" else
-			(IdleUi.GOLD if lv >= LaneData.EVOLVE_LV else IdleUi.CREAM)))
+			(IdleUi.GOLD if LaneState.is_evolved(String(id)) else IdleUi.CREAM)))
 		var tt := LaneData.trait_text(String(id))
 		if tt != "":
 			v.add_child(IdleUi.label(tt, 19, IdleUi.GREEN))
 		var role := "[%s] %s" % [role_of(String(id)), String(u["role"])]
-		if lv < LaneData.EVOLVE_LV:
-			role += "  ·  Lv %d 에 진화!" % LaneData.EVOLVE_LV
+		if LaneState.is_evolved(String(id)):
+			role += "  ·  진화 완료"
+		elif lv < LaneData.EVOLVE_LV:
+			role += "  ·  Lv %d 에 진화할 수 있어요" % LaneData.EVOLVE_LV
 		v.add_child(IdleUi.label(role, 19, IdleUi.SUB))
+		v.add_child(IdleUi.label("스킬: " + LaneData.skill_text(String(id)), 18,
+			Color(String(LaneData.SKILLS[id]["col"])).darkened(0.45)))
 		v.add_child(IdleUi.label("체력 %s · 공격 %s · 사거리 %d · 꿈빛 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
 			int(u["range"]), int(u["cost"])], 18, IdleUi.SUB))
 		var accrow := HBoxContainer.new()
@@ -673,19 +678,28 @@ func _fill_units() -> void:
 		var b := IdleUi.button("", 20, "gold")
 		b.name = "Lv_" + String(id)
 		b.custom_minimum_size = Vector2(150, 76)
-		if lv >= LaneData.UNIT_LV_MAX:
+		if LaneState.evolve_ready(String(id)):
+			b.text = "진화!\n✦ %s" % _num(LaneData.evolve_cost(String(id)))
+			b.disabled = not LaneState.can_evolve(String(id))
+			b.custom_minimum_size = Vector2(150, 86)
+		elif lv >= LaneData.UNIT_LV_MAX:
 			b.text = "최고 레벨"
 			b.disabled = true
 		else:
 			b.text = "레벨 업\n✦ %s" % _num(LaneData.level_cost(String(id), lv))
 			b.disabled = not LaneState.can_level(String(id))
 		b.pressed.connect(func() -> void:
+			if LaneState.evolve_ready(String(id)):
+				if LaneState.evolve(String(id)):
+					LaneState.save()
+					_fill_home()
+					_evolve_show(String(id))
+				return
 			if LaneState.level_up(String(id)):
 				AudioManager.ui_confirm()
 				LaneState.save()
-				if LaneState.level_of(String(id)) == LaneData.EVOLVE_LV:
-					AudioManager.souvenir_get()
-					_toast("진화! %s → %s" % [String(LaneData.UNITS[id]["name"]), LaneData.unit_name(String(id), LaneData.EVOLVE_LV)])
+				if LaneState.evolve_ready(String(id)):
+					_toast("%s 진화할 수 있어요!" % LaneData.unit_name(String(id), 0))
 				_fill_home())
 		row.add_child(b)
 		# 긴 설명은 줄을 바꿔 버튼을 밀어내지 않게
@@ -693,6 +707,148 @@ func _fill_units() -> void:
 			if c is Label:
 				(c as Label).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				(c as Label).custom_minimum_size.x = 10
+
+
+## 진화 연출: 어두워지고 → 옛 모습이 떨며 빛에 휩싸이고 → 번쩍 → 커진 새 모습이 튀어나오며 빛살이 돈다.
+func _evolve_show(id: String) -> void:
+	var lay := Control.new()
+	lay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(lay)
+	var dim := ColorRect.new()
+	dim.color = Color(0.08, 0.04, 0.14, 0.0)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lay.add_child(dim)
+	var rays := EvoRays.new()
+	rays.col = Color(String(LaneData.SKILLS[id]["col"])) if LaneData.SKILLS.has(id) else IdleUi.GOLD
+	rays.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rays.modulate.a = 0.0
+	lay.add_child(rays)
+	var c := size * Vector2(0.5, 0.42)
+	rays.center = c
+	# 옛 모습 (진화 전 그림)
+	var old := TextureRect.new()
+	old.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	old.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	old.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var otex := load(LaneData.sheet_path(id, 1).replace("-2.png", ".png")) as Texture2D
+	if otex != null:
+		var oa := AtlasTexture.new()
+		oa.atlas = otex
+		oa.region = _face_region(otex)
+		old.texture = oa
+	old.size = Vector2(200, 200)
+	old.position = c - old.size * 0.5
+	old.pivot_offset = old.size * 0.5
+	old.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lay.add_child(old)
+	var neu := _portrait(id, 280.0)
+	neu.position = c - neu.size * 0.5
+	neu.pivot_offset = neu.size * 0.5
+	neu.scale = Vector2(0.2, 0.2)
+	neu.modulate.a = 0.0
+	lay.add_child(neu)
+	var flash := ColorRect.new()
+	flash.color = Color(1, 1, 1, 0)
+	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lay.add_child(flash)
+	var title := IdleUi.label("진화!", 84, IdleUi.GOLD, true)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.size = Vector2(size.x, 110)
+	title.position = Vector2(0, c.y - 300)
+	title.modulate.a = 0.0
+	lay.add_child(title)
+	var nm := IdleUi.label(LaneData.unit_name(id, 0), 40, Color.WHITE, true)
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	nm.size = Vector2(size.x, 60)
+	nm.position = Vector2(0, c.y + 170)
+	nm.modulate.a = 0.0
+	lay.add_child(nm)
+	var info := IdleUi.label("체력·공격 ×%s · 스킬이 더 자주 나와요\n레벨을 %d 까지 올릴 수 있어요" % [str(LaneData.EVOLVE_ATK),
+		LaneData.UNIT_LV_MAX], 24, IdleUi.INK, true)
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info.size = Vector2(size.x, 80)
+	info.position = Vector2(0, c.y + 236)
+	info.modulate.a = 0.0
+	lay.add_child(info)
+	var hint := IdleUi.label("화면을 눌러 닫아요", 20, IdleUi.MUTED)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.size = Vector2(size.x, 40)
+	hint.position = Vector2(0, size.y - 160)
+	hint.modulate.a = 0.0
+	lay.add_child(hint)
+	AudioManager.warm_swell()
+	var tw := create_tween()
+	tw.tween_property(dim, "color:a", 0.86, 0.3)
+	tw.parallel().tween_property(rays, "modulate:a", 0.6, 0.6)
+	# 떨며 빛에 휩싸인다
+	for i in 10:
+		var k := float(i) / 10.0
+		tw.tween_property(old, "position:x", c.x - 100.0 + (6.0 + 10.0 * k) * (1.0 if i % 2 == 0 else -1.0), 0.06)
+		tw.parallel().tween_property(old, "modulate", Color(1.0 + k * 2.0, 1.0 + k * 2.0, 1.0 + k * 2.0), 0.06)
+	tw.tween_callback(func() -> void:
+		flash.color.a = 1.0
+		old.visible = false
+		rays.burst = 1.0
+		AudioManager.souvenir_get())
+	tw.tween_property(flash, "color:a", 0.0, 0.5)
+	tw.parallel().tween_property(neu, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(neu, "modulate:a", 1.0, 0.2)
+	tw.parallel().tween_property(rays, "modulate:a", 1.0, 0.3)
+	tw.tween_property(title, "modulate:a", 1.0, 0.2)
+	tw.parallel().tween_property(nm, "modulate:a", 1.0, 0.3)
+	tw.tween_property(info, "modulate:a", 1.0, 0.3)
+	tw.tween_property(hint, "modulate:a", 1.0, 0.3)
+	lay.gui_input.connect(func(ev: InputEvent) -> void:
+		var tap: bool = (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed)
+		if tap and hint.modulate.a > 0.5:
+			var tw2 := create_tween()
+			tw2.tween_property(lay, "modulate:a", 0.0, 0.25)
+			tw2.tween_callback(lay.queue_free))
+
+
+## 진화 연출 뒤에 도는 빛살 + 반짝이 (그림 파일 없이).
+class EvoRays extends Control:
+	var col := Color.WHITE
+	var center := Vector2.ZERO
+	var burst := 0.0
+	var _t := 0.0
+	var _sparks: Array = []
+
+	func _process(dt: float) -> void:
+		_t += dt
+		if burst > 0.0:
+			for i in 60:
+				var a := randf() * TAU
+				_sparks.append({"p": center, "v": Vector2(cos(a), sin(a)) * randf_range(200.0, 900.0), "l": 0.0,
+					"m": randf_range(0.6, 1.4), "s": randf_range(6.0, 14.0)})
+			burst = 0.0
+		for sp in _sparks:
+			sp["l"] = float(sp["l"]) + dt
+			sp["v"] = (sp["v"] as Vector2) * (1.0 - minf(0.9, 2.0 * dt))
+			sp["p"] = (sp["p"] as Vector2) + (sp["v"] as Vector2) * dt
+		_sparks = _sparks.filter(func(sp) -> bool: return float(sp["l"]) < float(sp["m"]))
+		queue_redraw()
+
+	func _draw() -> void:
+		var n := 16
+		for i in n:
+			var a := _t * 0.6 + TAU * float(i) / float(n)
+			var w := 0.09
+			var r := maxf(size.x, size.y)
+			var pts := PackedVector2Array([center, center + Vector2(cos(a - w), sin(a - w)) * r,
+				center + Vector2(cos(a + w), sin(a + w)) * r])
+			draw_colored_polygon(pts, Color(col.r, col.g, col.b, 0.22 if i % 2 == 0 else 0.12))
+		draw_circle(center, 150.0 + sin(_t * 4.0) * 10.0, Color(1, 1, 1, 0.12))
+		draw_circle(center, 100.0 + sin(_t * 5.0) * 8.0, Color(col.r, col.g, col.b, 0.25))
+		for sp in _sparks:
+			var k := 1.0 - float(sp["l"]) / float(sp["m"])
+			var s := float(sp["s"]) * k
+			draw_rect(Rect2((sp["p"] as Vector2) - Vector2(s, s) * 0.5, Vector2(s, s)),
+				Color(1, 1, 0.9, k) if randf() < 0.5 else Color(col.r, col.g, col.b, k))
 
 
 func _fill_lineup() -> void:
@@ -1552,6 +1708,10 @@ func _on_event(e: Dictionary) -> void:
 						var kid := String(e["kind"])
 						_fx.text(a.position + Vector2(0, -a.body_height() - 30.0), LaneData.unit_name(kid, LaneState.level_of(kid)),
 							RARITY_COL[rr] if rr != "base" else Color.WHITE, 22, 1.0, 0.0, 30.0)
+						if LaneState.is_evolved(kid):
+							# 진화한 친구: 금빛 고리 + 솟는 별
+							_fx.ring(a.position + Vector2(0, -a.body_height() * 0.5), 10.0, 120.0, IdleUi.GOLD, 10.0, 0.45)
+							_fx.burst(a.position, Color("#FFE7A0"), 12, 260.0, 7.0, 0.7, -200.0, "star", 0.0, true)
 						if rr == "legend":
 							# 전설이 나오면 판 전체가 알아챈다
 							_fx.pillar(a.position, RARITY_COL["legend"], 0.8)
@@ -1569,6 +1729,18 @@ func _on_event(e: Dictionary) -> void:
 				_banner_show("%s 등장!" % String(LaneData.BUGS[String(e["kind"])]["name"]), Color("#FF8A8A"))
 				_add_trauma(0.8)
 				AudioManager.sky_crack()
+		"skill":
+			_skill_fx(e)
+		"dash":
+			_dash_fx(e)
+		"heal":
+			var ha = _actor_of.get(int(e["uid"]))
+			if ha != null and is_instance_valid(ha):
+				var hp2: Vector2 = ha.position + Vector2(0, -ha.body_height() * 0.5)
+				_fx.text(hp2 + Vector2(randf_range(-12, 12), -20), "+%s" % _num(int(e["amt"])), Color("#7FF0A0"), 28, 0.9, 0.0, 60.0)
+				_fx.burst(hp2, Color("#B8FFC8"), 10, 200.0, 7.0, 0.8, -300.0, "star", 0.0, true)
+				ha.flash = 0.8
+				ha.flash_col = Color("#B8FFC8")
 		"swing":
 			var a = _actor_of.get(int(e["uid"]))
 			if a != null and is_instance_valid(a):
@@ -1582,7 +1754,8 @@ func _on_event(e: Dictionary) -> void:
 				a.flash_col = Color.WHITE if e["side"] == "b" else Color("#FF8080")
 				var p: Vector2 = a.position + Vector2(0, -a.body_height() * 0.5)
 				if e["side"] == "b":
-					_attack_fx(int(e.get("by", -1)), p, a)
+					if String(e.get("eff", "")) != "skill":
+						_attack_fx(int(e.get("by", -1)), p, a)
 					_hit_fx(e, p)
 				else:
 					# 우리 편이 맞았다 - 빨간 숫자 + 할퀸 자국
@@ -1752,6 +1925,18 @@ func _hit_fx(e: Dictionary, p: Vector2) -> void:
 	var eff := String(e.get("eff", ""))
 	var crit := bool(e.get("crit", false))
 	var legend := String(e.get("by_rarity", "")) == "legend"
+	if eff == "skill":
+		# 스킬로 맞은 벌레 - 친구의 스킬 색으로 크게
+		var src = _ent_of.get(int(e.get("by", -1)))
+		var sc := Color("#FFD0F0")
+		if src != null and LaneData.SKILLS.has(String(src["kind"])):
+			sc = Color(String(LaneData.SKILLS[String(src["kind"])]["col"]))
+		_vfx.burst(p, sc, 18, 420.0, 0.55, 0.5)
+		_fx.burst(p, Color.WHITE, 8, 360.0, 7.0, 0.45, 500.0, "star")
+		_fx.ring(p, 8.0, 100.0, sc, 9.0, 0.32)
+		_fx.text(p + Vector2(randf_range(-18, 18), -36), _num(dmg), sc.lightened(0.35), clampi(30 + int(sqrt(float(dmg)) * 0.5), 30, 52),
+			0.95, 0.0, 70.0)
+		return
 	if crit:
 		_vfx.burst(p, IdleUi.GOLD, 22, 460.0, 0.6, 0.55)
 		_fx.slash(p, randf_range(-0.6, 0.6), 70.0, Color("#FFF3B0"), 18.0, 0.22)
@@ -1776,6 +1961,181 @@ func _hit_fx(e: Dictionary, p: Vector2) -> void:
 	# 숫자는 맞을 때마다 - 세게 맞을수록 크게
 	var fs := clampi(22 + int(sqrt(float(dmg)) * 0.6), 22, 44)
 	_fx.text(p + Vector2(randf_range(-20, 20), -24), _num(dmg), Color("#FFF27A") if not legend else Color("#FFB84A"), fs, 0.75, 0.0, 46.0)
+
+
+## 스킬 효과 - 친구 둘레가 번쩍이고(빛기둥·집중선·고리) 스킬 이름이 뜬다. 종류마다 터지는 모양이 다르다.
+## 피해 숫자·맞은 벌레의 번쩍임은 `_hit_fx` (eff = "skill") 가 따로 그린다.
+func _skill_fx(e: Dictionary) -> void:
+	var id := String(e["id"])
+	var k: Dictionary = LaneData.SKILLS[id]
+	var col := Color(String(k["col"]))
+	var kind := String(e["kind"])
+	var a = _actor_of.get(int(e["uid"]))
+	var p := _field.to_screen(float(e["pos"]), 0.0)
+	if a != null and is_instance_valid(a):
+		p = a.position + Vector2(0, -a.body_height() * 0.5)
+		a.flash = 1.0
+		a.flash_col = col.lightened(0.4)
+		a.squash = Vector2(1.25, 0.8)
+	var depth := _field.scale_at(float(e["pos"]))
+	# 공통: 시전 - 빛기둥 + 집중선 + 두 겹 고리 + 위로 솟는 별 + 이름
+	_fx.pillar(p + Vector2(0, 30), col, 0.8)
+	_fx.rays(p, col, 20, 30.0, 230.0, 0.4)
+	_fx.ring(p, 10.0, 170.0, col, 14.0, 0.5)
+	_fx.ring(p, 6.0, 110.0, Color.WHITE, 8.0, 0.35, 0.08)
+	_fx.burst(p, col.lightened(0.3), 18, 420.0, 9.0, 0.9, -200.0, "star", 0.0, true)
+	_vfx.burst(p, col, 26, 420.0, 0.8, 0.6, true)
+	_fx.text(p + Vector2(0, -72), String(k["name"]), col.lightened(0.45), 34, 1.25, 0.0, 70.0)
+	_flash(0.12)
+	_add_trauma(0.18)
+	_cutin(id)
+	var hits: Array = []
+	for u in e.get("hits", []):
+		var ha = _actor_of.get(int(u))
+		if ha != null and is_instance_valid(ha):
+			hits.append(ha.position + Vector2(0, -ha.body_height() * 0.5))
+	var allies: Array = []
+	for u in e.get("allies", []):
+		var aa = _actor_of.get(int(u))
+		if aa != null and is_instance_valid(aa):
+			allies.append(aa)
+	match kind:
+		"smash":
+			for i in 3:
+				_fx.ring(p, 20.0, (float(k["r"]) * 0.55 + 60.0 * i) * depth, col if i != 1 else Color.WHITE, 16.0 - i * 4.0, 0.5, i * 0.09)
+			_fx.wave(p + Vector2(0, 30), float(k["r"]) * 0.8 * depth, col, 16.0, 0.6)
+			_fx.burst(p, col, 34, 620.0, 10.0, 0.8, 600.0, "star")
+			_hitstop(0.05)
+			AudioManager.battle_hit()
+		"quake":
+			for i in 3:
+				_fx.wave(p + Vector2(0, 34), (float(k["r"]) * 0.7 + 70.0 * i) * depth, col if i % 2 == 0 else Color.WHITE, 18.0, 0.55, i * 0.1)
+			_vfx.burst(p + Vector2(0, 34), Color("#C9A27A"), 40, 520.0, 0.9, 0.6, true)
+			_fx.rays(p + Vector2(0, 30), Color("#FFE7B0"), 16, 40.0, 300.0, 0.35, 0.05)
+			_add_trauma(0.5)
+			_hitstop(0.06)
+			AudioManager.battle_hit()
+		"pierce":
+			var far := _field.to_screen(float(e["pos"]) + float(k["r"]), 0.0) + Vector2(0, -30)
+			for i in 3:
+				_fx.arrow(p + Vector2((i - 1) * 14, 0), far + Vector2((i - 1) * 22, 0), col if i != 1 else Color.WHITE, 0.16, i * 0.04)
+			for i in 7:
+				var q := p.lerp(far, float(i + 1) / 7.0)
+				_fx.ring(q, 6.0, 60.0, col, 8.0, 0.3, 0.03 * i)
+				_vfx.burst(q, col, 8, 300.0, 0.4, 0.4, false, 0.03 * i)
+			_fx.slash(far, PI * 0.5, 90.0, Color.WHITE, 16.0, 0.25, 0.15)
+			AudioManager.battle_hit()
+		"storm":
+			var i := 0
+			for q in hits:
+				for j in 2:
+					_fx.orb(p, q + Vector2(randf_range(-16, 16), randf_range(-16, 16)), col if j == 0 else Color.WHITE, 0.16, 0.07 * i)
+					i += 1
+				_fx.ring(q, 6.0, 80.0, col, 9.0, 0.3, 0.07 * i)
+				_fx.burst(q, col, 12, 380.0, 8.0, 0.5, 400.0, "star", 0.07 * i)
+			_fx.rays(p, Color.WHITE, 12, 20.0, 160.0, 0.3, 0.1)
+			AudioManager.battle_hit()
+		"thunder":
+			for q in hits:
+				_fx.meteor(q + Vector2(randf_range(-40, 40), -560), q, col, 0.28)
+				_fx.pillar(q + Vector2(0, 40), Color.WHITE, 0.6)
+				_fx.rays(q, col, 24, 40.0, 380.0, 0.45, 0.28)
+				_fx.ring(q, 20.0, 300.0, Color.WHITE, 18.0, 0.5, 0.28)
+				_vfx.burst(q, col, 40, 600.0, 0.9, 0.7, false, 0.28)
+			if hits.is_empty():
+				var nq := _field.nest_pos() + Vector2(0, -50)
+				_fx.meteor(nq + Vector2(0, -560), nq, col, 0.28)
+			_later(0.28, func() -> void:
+				_flash(0.4)
+				_add_trauma(0.6)
+				_hitstop(0.08))
+			AudioManager.sky_crack()
+		"freeze":
+			for i in 2:
+				_fx.ring(p, 20.0, float(k["r"]) * 0.8 * depth + 40.0 * i, col if i == 0 else Color.WHITE, 14.0, 0.6, i * 0.12)
+			_fx.wave(p + Vector2(0, 30), float(k["r"]) * depth, Color("#DFF5FF"), 14.0, 0.7)
+			for q in hits:
+				_fx.pillar(q + Vector2(0, 30), col, 0.6)
+				_fx.burst(q, Color.WHITE, 12, 260.0, 7.0, 0.9, -100.0, "star")
+			_fx.burst(p, Color("#DFF5FF"), 30, 520.0, 8.0, 1.1, -80.0, "star")
+			AudioManager.water_ripple()
+		"heal":
+			for aa in allies:
+				var q: Vector2 = aa.position + Vector2(0, -aa.body_height() * 0.5)
+				_fx.pillar(q + Vector2(0, 30), Color("#9CF0B0"), 0.8)
+				_fx.ring(q, 6.0, 70.0, Color("#B8FFC8"), 8.0, 0.4)
+			_fx.burst(p, Color("#B8FFC8"), 30, 360.0, 9.0, 1.1, -260.0, "star", 0.0, true)
+			AudioManager.battle_heal()
+		"guard", "rally":
+			var word := "방어 UP" if kind == "guard" else "공격 UP"
+			for aa in allies:
+				var q: Vector2 = aa.position + Vector2(0, -aa.body_height() * 0.5)
+				_fx.ring(q, 40.0, 10.0, col, 8.0, 0.4)
+				_fx.ring(q, 10.0, 70.0, Color.WHITE, 6.0, 0.4, 0.15)
+				_fx.text(q + Vector2(0, -34), word, col.lightened(0.3), 20, 0.9, 0.1, 40.0)
+				aa.flash = 0.8
+				aa.flash_col = col.lightened(0.3)
+			_fx.ring(p, 20.0, float(k["r"]) * depth, col, 12.0, 0.6, 0.05)
+			AudioManager.warm_swell()
+
+
+## 돌진: 지나온 길에 잔상과 먼지.
+func _dash_fx(e: Dictionary) -> void:
+	var a := _field.to_screen(float(e["from"]), float(_lat.get(int(e["uid"]), 0.0)))
+	var b := _field.to_screen(float(e["to"]), float(_lat.get(int(e["uid"]), 0.0)))
+	var k: Dictionary = LaneData.SKILLS.get(String(_ent_of.get(int(e["uid"]), {}).get("kind", "")), {})
+	var col := Color(String(k.get("col", "#FFFFFF")))
+	for i in 6:
+		var t := float(i) / 5.0
+		var q := a.lerp(b, t) + Vector2(0, -30)
+		_fx.ring(q, 4.0, 50.0, col, 8.0, 0.35, 0.03 * i)
+		_vfx.burst(q + Vector2(0, 20), Color("#E8DCC8"), 8, 200.0, 0.5, 0.4, true, 0.03 * i)
+	_fx.arrow(a + Vector2(0, -30), b + Vector2(0, -30), Color.WHITE, 0.2)
+	_fx.slash(b + Vector2(0, -20), PI * 0.5, 80.0, col, 18.0, 0.25, 0.1)
+
+
+## 스킬 컷인: 화면을 가로지르는 띠에 친구 얼굴 + 스킬 이름. 너무 자주 나오면 정신없어서
+## 하나가 떠 있는 동안은 다음 것을 건너뛴다 (전설은 2초 뒤면 다시, 나머지는 4초).
+func _cutin(id: String) -> void:
+	if _calm or _hud == null:
+		return
+	var legend := LaneData.rarity(id) == "legend"
+	if _t - _cutin_t < (2.0 if legend else 4.0):
+		return
+	_cutin_t = _t
+	var k: Dictionary = LaneData.SKILLS[id]
+	var col := Color(String(k["col"]))
+	var band := Control.new()
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.size = Vector2(size.x + 80.0, 118.0)
+	band.position = Vector2(size.x, size.y * 0.28)
+	_hud.add_child(band)
+	var bg := ColorRect.new()
+	bg.color = Color(0.13, 0.07, 0.22, 0.86)
+	bg.size = band.size
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.add_child(bg)
+	for yy in [0.0, band.size.y - 8.0]:
+		var stripe := ColorRect.new()
+		stripe.color = col
+		stripe.size = Vector2(band.size.x, 8.0)
+		stripe.position = Vector2(0, yy)
+		stripe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.add_child(stripe)
+	var pic := _portrait(id, 96.0)
+	pic.position = Vector2(36, 11)
+	band.add_child(pic)
+	var nm := IdleUi.label(LaneData.unit_name(id, LaneState.level_of(id)), 22, IdleUi.INK)
+	nm.position = Vector2(150, 14)
+	band.add_child(nm)
+	var sk := IdleUi.label(String(k["name"]) + "!", 46, col.lightened(0.35), true)
+	sk.position = Vector2(150, 40)
+	band.add_child(sk)
+	var tw := create_tween()
+	tw.tween_property(band, "position:x", 0.0, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(band, "position:x", -24.0, 0.6)
+	tw.tween_property(band, "position:x", -size.x - 120.0, 0.16).set_ease(Tween.EASE_IN)
+	tw.tween_callback(band.queue_free)
 
 
 func _cannon_fx() -> void:

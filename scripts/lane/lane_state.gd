@@ -13,6 +13,8 @@ static var units: Dictionary = {}
 static var lineup: Array = []
 ## 가장 멀리 깬 스테이지 (0 = 아직 없음).
 static var cleared := 0
+## 진화한 친구 (id → true). 레벨 10 에서 꿈조각을 내고 진화해야 그 위로 올릴 수 있다.
+static var evolved: Dictionary = {}
 static var clears: Dictionary = {}       ## 스테이지 → 깬 횟수
 static var auto_summon := false
 static var speed2 := false
@@ -45,6 +47,7 @@ static func reset() -> void:
 	units = {"tiny": 1, "shield": 1}
 	lineup = ["tiny", "shield"]
 	cleared = 0
+	evolved = {}
 	clears = {}
 	auto_summon = false
 	speed2 = false
@@ -96,7 +99,33 @@ static func on_lose(n: int) -> void:
 
 
 static func can_level(id: String) -> bool:
-	return units.has(id) and level_of(id) < LaneData.UNIT_LV_MAX and xp >= LaneData.level_cost(id, level_of(id))
+	return units.has(id) and level_of(id) < level_cap(id) and xp >= LaneData.level_cost(id, level_of(id))
+
+
+## 지금 올릴 수 있는 가장 높은 레벨 - 진화 전엔 EVOLVE_LV 에서 멈춘다.
+static func level_cap(id: String) -> int:
+	return LaneData.UNIT_LV_MAX if is_evolved(id) else LaneData.EVOLVE_LV
+
+
+static func is_evolved(id: String) -> bool:
+	return evolved.has(id)
+
+
+## 진화할 차례인가 (레벨이 다 찼다) - 꿈조각이 모자라도 참.
+static func evolve_ready(id: String) -> bool:
+	return units.has(id) and not is_evolved(id) and level_of(id) >= LaneData.EVOLVE_LV
+
+
+static func can_evolve(id: String) -> bool:
+	return evolve_ready(id) and xp >= LaneData.evolve_cost(id)
+
+
+static func evolve(id: String) -> bool:
+	if not can_evolve(id):
+		return false
+	xp -= LaneData.evolve_cost(id)
+	evolved[id] = true
+	return true
 
 
 static func level_up(id: String) -> bool:
@@ -126,6 +155,10 @@ static func unit_stats(id: String) -> Dictionary:
 	var m := LaneData.unit_mult(level_of(id))
 	u["hp"] = float(u["hp"]) * m
 	u["atk"] = float(u["atk"]) * m
+	if is_evolved(id):
+		u["hp"] = float(u["hp"]) * LaneData.EVOLVE_HP
+		u["atk"] = float(u["atk"]) * LaneData.EVOLVE_ATK
+		u["evo"] = true
 	u["id"] = id
 	var acc := String(acc_on.get(id, ""))
 	if acc != "" and accs.has(acc):
@@ -391,7 +424,7 @@ static func _grant(id: String) -> Dictionary:
 		res["new"] = true
 		if lineup.size() < LaneData.LINEUP_MAX:
 			lineup.append(id)
-	elif level_of(id) < LaneData.UNIT_LV_MAX:
+	elif level_of(id) < level_cap(id):
 		units[id] = level_of(id) + 1
 	else:
 		var g := LaneData.dupe_xp(id)
@@ -426,7 +459,7 @@ static func owned_count() -> int:
 
 static func to_dict() -> Dictionary:
 	return {"v": 1, "xp": xp, "stars": stars, "units": units.duplicate(), "lineup": lineup.duplicate(),
-		"cleared": cleared, "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed2,
+		"cleared": cleared, "evolved": evolved.keys(), "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed2,
 		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
 		"daily_day": daily_day, "daily_streak": daily_streak, "treasures": treasures.duplicate(true),
 		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut}
@@ -442,6 +475,19 @@ static func from_dict(d: Dictionary) -> void:
 		for id in (u as Dictionary).keys():
 			if LaneData.UNITS.has(String(id)):
 				units[String(id)] = clampi(int(u[id]), 1, LaneData.UNIT_LV_MAX)
+	var ev = d.get("evolved", null)
+	if ev is Array:
+		for id in ev:
+			if units.has(String(id)):
+				evolved[String(id)] = true
+	else:
+		# 진화가 따로 없던 옛 저장: 레벨 10 이상이면 이미 진화한 모습이었다 - 그대로 둔다
+		for id in units.keys():
+			if int(units[id]) >= LaneData.EVOLVE_LV:
+				evolved[String(id)] = true
+	for id in units.keys():
+		if not evolved.has(id):
+			units[id] = mini(int(units[id]), LaneData.EVOLVE_LV)
 	var l = d.get("lineup", [])
 	if l is Array:
 		lineup = []

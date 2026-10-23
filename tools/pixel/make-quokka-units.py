@@ -6,7 +6,7 @@
   0줄 앞모습  - 0 서 있음 · 1 만세(이겼다) · 2 눈 감음(^^) · 3 아파함(><)   ← 초상화·결과 창
   1줄 뒷모습 공격 - 0 들어 올림 · 1 내려침 · 2 따라감 · 3 돌아옴
   2줄 뒷모습 걷기 - 4칸 (꼬리가 흔들린다)
-진화(레벨 10): `quokka-<id>-2.png` - 금테·망토·조금 더 크게.
+진화: `quokka-<id>-2.png` - 몸집 1.3배 · 뿔 왕관 · 금 어깨 갑옷 · 망토 · 둘레 빛.
     python3 tools/pixel/make-quokka-units.py
 """
 import os
@@ -28,6 +28,43 @@ NOSE = hx("#3A2418")
 EYE_W, EYE_P = hx("#FFFFFF"), hx("#231626")
 BLUSH = hx("#FF8FA3")
 GOLD, GOLD_D = hx("#FFD15A"), hx("#C9921E")
+GOLD_L = hx("#FFF3B0")
+GEM = hx("#E8405A")
+## 진화하면: 칸이 EVO_PAD 만큼 넓고, 머리·몸이 EVO_HEAD 배 크다 (몸집이 확 커 보이게).
+EVO_PAD = 6
+EVO_HEAD = 1.3
+AURA = (255, 200, 236, 150)       # 진화한 몸 둘레의 은은한 빛
+
+
+def evo_armor(cv, cx, by, body_r):
+    """진화: 금 어깨 갑옷 + 보석 허리띠 - 몸이 단단해 보이게."""
+    for side in (-1, 1):
+        cv.ellipse(cx + side * body_r * 0.86, by - body_r * 0.42, body_r * 0.38, body_r * 0.28, GOLD, GOLD_D, GOLD_L)
+    cv.rect(cx - body_r * 0.78, by + body_r * 0.22, cx + body_r * 0.78, by + body_r * 0.36, GOLD_D)
+    cv.ellipse(cx, by + body_r * 0.29, 1.2, 1.0, GEM, GEM, GOLD_L)
+
+
+def evo_crown(cv, cx, top, hr):
+    """진화: 뿔이 셋 솟은 금 왕관 + 가운데 보석."""
+    cv.rect(cx - hr * 0.72, top + hr * 0.05, cx + hr * 0.72, top + hr * 0.28, GOLD)
+    cv.rect(cx - hr * 0.72, top + hr * 0.24, cx + hr * 0.72, top + hr * 0.3, GOLD_D)
+    for k in (-1, 0, 1):
+        h = 3.5 if k == 0 else 2.5
+        x = cx + k * hr * 0.5
+        for i in range(int(h) + 1):
+            cv.set(x, top + hr * 0.05 - i, GOLD if i < h - 0.5 else GOLD_L)
+    cv.ellipse(cx, top + hr * 0.16, 1.1, 1.0, GEM, GEM, GOLD_L)
+
+
+def evo_aura(cv):
+    """겉테두리 바깥에 한 줄 더 - 빛이 감도는 진화한 몸."""
+    add = {}
+    for (x, y) in list(cv.px.keys()):
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            p = (x + dx, y + dy)
+            if p not in cv.px and 0 <= p[0] < cv.w and 0 <= p[1] < cv.h:
+                add[p] = AURA
+    cv.px.update(add)
 
 UNITS = {
     "tiny":   dict(cell=22, head=6.2, gear="leaf"),
@@ -119,11 +156,7 @@ def hat(cv, spec, cx, top, hr, back, evo):
         cv.line(cx, top + 1, cx + 1, top - 2, hx("#4E8A35"))
         cv.ellipse(cx + 2.5, top - 2.5, 2.0, 1.2, hx("#7CC15A"), hx("#4E8A35"), hx("#B4E58E"))
     if evo:
-        # 진화: 금 왕관 띠
-        cv.rect(cx - hr * 0.7, top + hr * 0.1, cx + hr * 0.7, top + hr * 0.25, GOLD)
-        for k in (-1, 0, 1):
-            cv.set(cx + k * hr * 0.5, top - 0.5, GOLD)
-        cv.set(cx, top - 1.5, hx("#E8405A"))
+        evo_crown(cv, cx, top, hr)
 
 
 import math
@@ -245,10 +278,10 @@ def head_room(W):
 
 
 def quokka(spec, view, frame, evo=False):
-    W = spec["cell"] + (2 if evo else 0)
+    W = spec["cell"] + (EVO_PAD if evo else 0)
     H = W + head_room(W)
     cv = Canvas(W, H)
-    hr = spec["head"] * (1.08 if evo else 1.0)
+    hr = spec["head"] * (EVO_HEAD if evo else 1.0)
     cx = W / 2 - 0.5
     foot = H - 2
     bob = 0
@@ -295,6 +328,8 @@ def quokka(spec, view, frame, evo=False):
     cv.ellipse(cx, by, body_r, body_r * 0.92, FUR, FUR_D, FUR_L)
     if not back:
         cv.ellipse(cx, by + 0.6, body_r * 0.6, body_r * 0.62, BELLY, mix(BELLY, FUR, 0.3), BELLY)
+    if evo:
+        evo_armor(cv, cx, by, body_r)
     # 팔
     for side in (-1, 1):
         if view == "attack" and side > 0:
@@ -349,13 +384,15 @@ def quokka(spec, view, frame, evo=False):
             cv.rect(cx + side * body_r * 0.5 - 1.2, foot - 1, cx + side * body_r * 0.5 + 1.2, foot, hx("#FF6B6B"))
     weapon(cv, spec, cx, by, hr, pose, back, evo)
     cv.outline()
+    if evo:
+        evo_aura(cv)
     if view == "attack":
         strike_fx(cv, spec, cx, by, hr, frame)
     return cv.image()
 
 
 def sheet(spec, evo):
-    W = spec["cell"] + (2 if evo else 0)
+    W = spec["cell"] + (EVO_PAD if evo else 0)
     H = W + head_room(W)
     im = Image.new("RGBA", (W * 4, H * 3), (0, 0, 0, 0))
     for f in range(4):

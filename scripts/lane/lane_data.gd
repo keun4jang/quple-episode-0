@@ -78,8 +78,76 @@ const UNITS := {
 		"cd": 36.0, "hp": 720, "atk": 310, "every": 2.4, "range": 650, "speed": 160, "kb": 2, "area": true, "unlock": -1,
 		"massive": ["fly"], "crit": 0.25},
 }
-## 이 레벨에 닿으면 모습이 바뀐다 (금빛 띠 + 빨간 망토).
+# ── 스킬 (자동) ───────────────────────────────────────────────────────
+## 친구마다 하나. 싸우는 동안 `cd` 초마다 저절로 쓴다 (사람이 누르지 않는다). 처음 한 번은 `cd` 의 반만 기다린다.
+## kind:
+##   smash 주변 벌레 모두 (r 반지름, mult 배) · quake 주변 + 밀어내기 · pierce 앞으로 길게(r) 꿰뚫기 ·
+##   storm 사거리 안 벌레에게 hits 번 나눠 때리기 · thunder 가장 튼튼한 벌레(우두머리 먼저)에게 한 방 ·
+##   dash 앞으로 돌진(r 만큼)하며 들이받기 + 밀어내기 · freeze 주변 + 느리게(secs) ·
+##   heal 주변 친구 체력 pct 회복 · guard 주변 친구 받는 피해 ×pct (secs) · rally 주변 친구 공격 ×pct (secs)
+## 피해는 그 친구 공격력 × mult (레벨·보물이 그대로 붙는다). col = 효과 색.
+const SKILLS := {
+	"tiny":     {"name": "데굴데굴 돌진", "kind": "dash", "cd": 9.0, "mult": 2.0, "r": 200, "col": "#FFB8D0"},
+	"shield":   {"name": "철벽 방패", "kind": "guard", "cd": 12.0, "pct": 0.5, "secs": 5.0, "r": 260, "col": "#9FD8FF"},
+	"spear":    {"name": "꿰뚫는 창", "kind": "pierce", "cd": 9.0, "mult": 2.6, "r": 340, "col": "#FFE07A"},
+	"hammer":   {"name": "땅울림", "kind": "quake", "cd": 11.0, "mult": 2.0, "r": 260, "col": "#E0A060"},
+	"runner":   {"name": "질풍 연타", "kind": "storm", "cd": 9.0, "mult": 0.8, "hits": 5, "col": "#7FE0FF"},
+	"sling":    {"name": "별사탕 난사", "kind": "storm", "cd": 11.0, "mult": 0.9, "hits": 5, "col": "#FF9FD8"},
+	"mage":     {"name": "별빛 마법진", "kind": "freeze", "cd": 13.0, "mult": 1.6, "r": 380, "secs": 4.0, "col": "#C58CFF"},
+	"giant":    {"name": "대지 내려찍기", "kind": "quake", "cd": 14.0, "mult": 2.4, "r": 360, "col": "#FFB070"},
+	"chick":    {"name": "삐약 응원", "kind": "rally", "cd": 10.0, "pct": 1.3, "secs": 6.0, "r": 320, "col": "#FFE59A"},
+	"hedgehog": {"name": "가시 폭발", "kind": "smash", "cd": 10.0, "mult": 2.6, "r": 210, "col": "#C9A27A"},
+	"squirrel": {"name": "도토리 비", "kind": "storm", "cd": 11.0, "mult": 0.8, "hits": 6, "col": "#E0A060"},
+	"frog":     {"name": "기다란 혀", "kind": "pierce", "cd": 9.0, "mult": 2.6, "r": 400, "col": "#9CE07A"},
+	"rabbit":   {"name": "번개 점프", "kind": "dash", "cd": 8.0, "mult": 2.2, "r": 260, "col": "#FFF3B0"},
+	"duck":     {"name": "물보라 치유", "kind": "heal", "cd": 12.0, "pct": 0.25, "r": 320, "col": "#7FD0FF"},
+	"mole":     {"name": "땅굴 기습", "kind": "thunder", "cd": 11.0, "mult": 4.0, "col": "#D8B07A"},
+	"sheep":    {"name": "몽글 구름", "kind": "heal", "cd": 12.0, "pct": 0.3, "r": 280, "col": "#F6EFFC"},
+	"turtle":   {"name": "등껍질 요새", "kind": "guard", "cd": 13.0, "pct": 0.45, "secs": 6.0, "r": 320, "col": "#7FD8A8"},
+	"penguin":  {"name": "눈보라 썰매", "kind": "freeze", "cd": 11.0, "mult": 1.6, "r": 300, "secs": 4.0, "col": "#BFEFFF"},
+	"owl":      {"name": "지혜의 별똥별", "kind": "thunder", "cd": 12.0, "mult": 5.0, "col": "#C58CFF"},
+	"panda":    {"name": "쿵푸 회오리", "kind": "quake", "cd": 12.0, "mult": 2.2, "r": 300, "col": "#9CE07A"},
+	"otter":    {"name": "진주 물대포", "kind": "smash", "cd": 11.0, "mult": 2.2, "r": 320, "col": "#7FD0FF"},
+	"tiger":    {"name": "천둥 연격", "kind": "storm", "cd": 11.0, "mult": 1.4, "hits": 6, "col": "#FFE05A"},
+	"polar":    {"name": "오로라 폭풍", "kind": "freeze", "cd": 14.0, "mult": 2.0, "r": 460, "secs": 5.0, "col": "#9FFFE0"},
+	"eagle":    {"name": "태양 낙하", "kind": "thunder", "cd": 12.0, "mult": 6.0, "col": "#FFB84A"},
+}
+const SKILL_KIND_TEXT := {"smash": "주변 벌레를 한꺼번에", "quake": "주변 벌레를 치고 밀어낸다",
+	"pierce": "앞으로 길게 꿰뚫는다", "storm": "여러 번 나눠 때린다", "thunder": "가장 튼튼한 벌레에게 한 방",
+	"dash": "앞으로 돌진해 들이받는다", "freeze": "주변 벌레를 치고 얼린다(느리게)", "heal": "주변 친구 체력 회복",
+	"guard": "주변 친구가 덜 아프게", "rally": "주변 친구 공격력 UP"}
+
+
+## 스킬 한 줄 ("꿰뚫는 창 - 앞으로 길게 꿰뚫는다 (공격 ×2.6) · 9초마다 자동").
+static func skill_text(id: String) -> String:
+	if not SKILLS.has(id):
+		return ""
+	var k: Dictionary = SKILLS[id]
+	var kind := String(k["kind"])
+	var num := ""
+	if k.has("mult"):
+		num = "공격 ×%s" % str(snappedf(float(k["mult"]), 0.1)) + (" · %d번" % int(k["hits"]) if k.has("hits") else "")
+	elif kind == "heal":
+		num = "체력 %d%%" % int(round(float(k["pct"]) * 100.0))
+	elif kind == "guard":
+		num = "피해 -%d%% · %d초" % [int(round((1.0 - float(k["pct"])) * 100.0)), int(k["secs"])]
+	elif kind == "rally":
+		num = "공격 +%d%% · %d초" % [int(round((float(k["pct"]) - 1.0) * 100.0)), int(k["secs"])]
+	return "%s - %s (%s) · %d초마다 자동" % [String(k["name"]), String(SKILL_KIND_TEXT[kind]), num, int(k["cd"])]
+
+
+## 진화: 이 레벨에 닿으면 꿈조각을 내고 진화할 수 있다 (진화 전엔 여기서 레벨이 멈춘다).
+## 진화하면 몸집이 커지고(왕관·갑옷·망토) 체력·공격 ×1.2, 스킬이 더 자주 나온다.
 const EVOLVE_LV := 10
+const EVOLVE_HP := 1.2
+const EVOLVE_ATK := 1.2
+const EVOLVE_SKILL_CD := 0.8
+## 진화 값 = 레벨 10 → 11 값의 이만큼.
+const EVOLVE_COST_MULT := 3.0
+
+
+static func evolve_cost(id: String) -> int:
+	return int(round(float(level_cost(id, EVOLVE_LV)) * EVOLVE_COST_MULT))
 const EVOLVED_NAME := {"tiny": "용감한 꼬마 쿼카", "shield": "철벽 쿼카", "spear": "번개창 쿼카",
 	"hammer": "대장장이 쿼카", "runner": "질풍 쿼카", "sling": "명사수 쿼카", "mage": "대마법 쿼카", "giant": "산만한 쿼카",
 	"chick": "꼬꼬 대장", "hedgehog": "강철가시 고슴도치", "squirrel": "황금도토리 다람쥐", "frog": "개굴 왕자",
@@ -90,7 +158,7 @@ const EVOLVED_NAME := {"tiny": "용감한 꼬마 쿼카", "shield": "철벽 쿼�
 
 ## 레벨에 맞는 이름.
 static func unit_name(id: String, lv: int) -> String:
-	if lv >= EVOLVE_LV and EVOLVED_NAME.has(id):
+	if LaneState.is_evolved(id) and EVOLVED_NAME.has(id):
 		return String(EVOLVED_NAME[id])
 	return String(UNITS[id]["name"])
 
@@ -110,7 +178,7 @@ static func rarity(id: String) -> String:
 ## 그림 시트 - 쿼카는 quokka-, 동물 친구는 animal-, 레벨 10 부터 진화한 모습(-2).
 static func sheet_path(id: String, lv: int) -> String:
 	var pre := "quokka" if rarity(id) == "base" else "animal"
-	return "res://assets/sprites/%s-%s%s.png" % [pre, id, "-2" if lv >= EVOLVE_LV else ""]
+	return "res://assets/sprites/%s-%s%s.png" % [pre, id, "-2" if LaneState.is_evolved(id) else ""]
 
 
 ## 이 유닛이 벽(앞에서 막는 역할) 인가 - 자동 소환이 벽부터 깐다.
@@ -213,9 +281,9 @@ const TRAIT_NAME := {"crawl": "기어다님", "fly": "날벌레", "shell": "껍�
 ## 무거운 벌레가 졸개로 끝없이 나오면 구역이 바뀔 때마다 벽이 된다 (시뮬레이션).
 ## 구역 - 벌레 셋 + 우두머리, 풍경은 `IdleBackdrop.THEMES` 번호.
 const ZONES := [
-	{"name": "풀밭", "bugs": ["ant", "caterpillar"], "boss": "queen_ant", "pow": 3.0, "theme": 1},
+	{"name": "풀밭", "bugs": ["ant", "caterpillar"], "boss": "queen_ant", "pow": 3.0, "pow2": 2.5, "theme": 1},
 	{"name": "웅덩이", "bugs": ["mosquito", "ant", "caterpillar"], "boss": "mosquito_king", "pow": 3.2, "pow2": 2.9, "theme": 4},
-	{"name": "꽃밭", "bugs": ["bee", "mosquito", "caterpillar"], "boss": "hornet", "pow": 1.85, "theme": 8},
+	{"name": "꽃밭", "bugs": ["bee", "mosquito", "caterpillar"], "boss": "hornet", "pow": 1.85, "pow2": 1.55, "theme": 8},
 	{"name": "참나무 숲", "bugs": ["bee", "termite", "ladybug"], "boss": "rhino", "pow": 1.5, "theme": 7},
 	{"name": "거미 굴", "bugs": ["termite", "spider", "ladybug"], "boss": "tarantula", "pow": 1.05, "pow2": 0.95, "theme": 2},
 	{"name": "쓰레기 언덕", "bugs": ["fly", "cricket", "spider"], "boss": "fly_king", "pow": 1.5, "pow2": 1.35, "theme": 6},
@@ -229,11 +297,13 @@ const STAGES_PER_ZONE := 10
 const BOSS_HP := 0.25
 const BOSS_ATK := 0.5
 ## 1장 100판(10구역 × 10판)을 깨면 2장이 열린다 - 같은 구역을 더 센 벌레로 다시 돈다.
+## 벌레 전체 세기 - 친구들이 스킬·진화로 세진 만큼 (스킬을 넣기 전엔 1.0 으로 맞춰져 있었다).
+const BUG_POW := 1.35
 const CH_STAGES := 100
 const CHAPTERS := 2
 const STAGE_MAX := CH_STAGES * CHAPTERS
 ## 2장 세기: 1장 끝 배율에서 `CH2_RAMP` 기울기로 오르는 배율에 이만큼 곱한다. 구역별 조합 차이는 1장과 같은 `pow` (따로 맞출 땐 `pow2`).
-const CH2_POW := 1.2
+const CH2_POW := 1.4
 ## 2장 안에서 판마다 세지는 기울기 (1장 = 1.0). 1장 그대로 오르면 친구 레벨이 다 찬 뒤 막힌다.
 const CH2_RAMP := 0.6
 
@@ -273,11 +343,11 @@ static func stage_info(n: int) -> Dictionary:
 	var zi := ((s - 1) % CH_STAGES) / STAGES_PER_ZONE
 	var idx := ((s - 1) % STAGES_PER_ZONE) + 1
 	var z: Dictionary = ZONES[zi]
-	var mag := magnification(s) * zone_pow(zi, idx)
+	var mag := magnification(s) * zone_pow(zi, idx) * BUG_POW
 	if ch > 0:
 		# 2장은 1장 끝 세기에서 출발해 더 완만하게 오른다 - 레벨이 다 찬 뒤에도 깰 수 있게
 		var eff := float(CH_STAGES) + float(s - CH_STAGES) * CH2_RAMP
-		mag = (1.0 + 0.045 * (eff - 1.0)) * CH2_POW * float(z.get("pow2", z.get("pow", 1.0)))
+		mag = (1.0 + 0.045 * (eff - 1.0)) * CH2_POW * float(z.get("pow2", z.get("pow", 1.0))) * BUG_POW
 	return {"stage": s, "chapter": ch, "zone": zi, "idx": idx, "boss": idx == STAGES_PER_ZONE, "zone_name": String(z["name"]),
 		"theme": int(z["theme"]), "mag": mag, "base_hp": int(round(1200.0 * (1.0 + 0.05 * float(s - 1))))}
 

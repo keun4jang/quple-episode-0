@@ -1,5 +1,5 @@
 extends Node
-## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES
+## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES
 func _ready() -> void:
 	LaneState.clear_save()
 	LaneState.reset()
@@ -9,6 +9,8 @@ func _ready() -> void:
 	LaneState.unlock_by_stage()
 	for id in LaneState.units.keys():
 		LaneState.units[id] = lv
+		if lv >= LaneData.EVOLVE_LV:
+			LaneState.evolved[id] = true
 	LaneState.xp = 12345
 	LaneState.stars = 30
 	LaneState.seen_intro = true
@@ -25,6 +27,8 @@ func _ready() -> void:
 		LaneState.lineup = []
 		for id in OS.get_environment("SHOT_ANIMALS").split(","):
 			LaneState.units[id] = lv
+			if lv >= LaneData.EVOLVE_LV:
+				LaneState.evolved[id] = true
 			LaneState.lineup.append(id)
 	if OS.get_environment("SHOT_WEAR") == "1":
 		# 장신구 10개를 편성 앞쪽부터 하나씩
@@ -72,6 +76,14 @@ func _ready() -> void:
 		await get_tree().create_timer(14.0).timeout
 		g.battle.cannon = LaneData.CANNON_CHARGE
 		g._cannon_btn.pressed.emit()
+	elif OS.get_environment("SHOT_MODE") == "evolve":
+		# SHOT_EVO_ID 를 진화시키는 연출 (SHOT_WAIT 로 어느 순간을 찍을지)
+		var eid := OS.get_environment("SHOT_EVO_ID") if OS.get_environment("SHOT_EVO_ID") != "" else "spear"
+		LaneState.units[eid] = LaneData.EVOLVE_LV
+		LaneState.evolved.erase(eid)
+		LaneState.xp = 9999999
+		LaneState.evolve(eid)
+		g._evolve_show(eid)
 	elif OS.get_environment("SHOT_MODE") == "acc":
 		g._open_acc_picker("tiny")
 	elif OS.get_environment("SHOT_TAB") != "":
