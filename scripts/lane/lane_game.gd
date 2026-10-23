@@ -2035,12 +2035,26 @@ func _later(d: float, f: Callable) -> void:
 	create_tween().tween_callback(f).set_delay(d)
 
 
+## 못 누를 때 좌우로 흔든다. 제자리는 처음 흔들 때 한 번만 기억한다 - 흔들리는 중에 또 누르면
+## 그때의 (비껴 있는) 자리를 제자리로 삼아, 연타할수록 카드가 옆으로 밀려 화면 밖으로 나갔다.
 func _shake_ctrl(c: Control) -> void:
-	var x := c.position.x
+	var old = c.get_meta("shake_tw", null)
+	if old is Tween and (old as Tween).is_valid():
+		(old as Tween).kill()
+	if not c.has_meta("shake_x"):
+		c.set_meta("shake_x", c.position.x)
+	var x := float(c.get_meta("shake_x"))
 	var tw := create_tween()
+	c.set_meta("shake_tw", tw)
 	for i in 4:
 		tw.tween_property(c, "position:x", x + (8.0 if i % 2 == 0 else -8.0), 0.035)
 	tw.tween_property(c, "position:x", x, 0.035)
+	tw.finished.connect(func() -> void:
+		if is_instance_valid(c):
+			c.remove_meta("shake_x")
+			c.remove_meta("shake_tw")
+			if c.get_parent() is Container:
+				(c.get_parent() as Container).queue_sort())
 
 
 func _toast(t: String) -> void:
