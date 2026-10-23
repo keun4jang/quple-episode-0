@@ -214,21 +214,28 @@ const TRAIT_NAME := {"crawl": "기어다님", "fly": "날벌레", "shell": "껍�
 ## 구역 - 벌레 셋 + 우두머리, 풍경은 `IdleBackdrop.THEMES` 번호.
 const ZONES := [
 	{"name": "풀밭", "bugs": ["ant", "caterpillar"], "boss": "queen_ant", "pow": 3.0, "theme": 1},
-	{"name": "웅덩이", "bugs": ["mosquito", "ant", "caterpillar"], "boss": "mosquito_king", "pow": 3.2, "theme": 4},
+	{"name": "웅덩이", "bugs": ["mosquito", "ant", "caterpillar"], "boss": "mosquito_king", "pow": 3.2, "pow2": 2.9, "theme": 4},
 	{"name": "꽃밭", "bugs": ["bee", "mosquito", "caterpillar"], "boss": "hornet", "pow": 1.85, "theme": 8},
 	{"name": "참나무 숲", "bugs": ["bee", "termite", "ladybug"], "boss": "rhino", "pow": 1.5, "theme": 7},
-	{"name": "거미 굴", "bugs": ["termite", "spider", "ladybug"], "boss": "tarantula", "pow": 1.05, "theme": 2},
-	{"name": "쓰레기 언덕", "bugs": ["fly", "cricket", "spider"], "boss": "fly_king", "pow": 1.5, "theme": 6},
+	{"name": "거미 굴", "bugs": ["termite", "spider", "ladybug"], "boss": "tarantula", "pow": 1.05, "pow2": 0.95, "theme": 2},
+	{"name": "쓰레기 언덕", "bugs": ["fly", "cricket", "spider"], "boss": "fly_king", "pow": 1.5, "pow2": 1.35, "theme": 6},
 	{"name": "밤 들판", "bugs": ["cricket", "moth", "fly"], "boss": "moth_queen", "pow": 0.75, "theme": 5},
 	{"name": "땅속 마을", "bugs": ["termite", "centipede", "molecricket", "pillbug"], "boss": "cricket_king", "pow": 0.9, "theme": 3},
-	{"name": "축축한 부엌", "bugs": ["roach", "centipede", "wasp"], "boss": "centipede_king", "pow": 0.9, "theme": 0},
-	{"name": "악몽 하수구", "bugs": ["roach", "wasp", "stag", "pillbug"], "boss": "roach_king", "pow": 0.9, "theme": 9},
+	{"name": "축축한 부엌", "bugs": ["roach", "centipede", "wasp"], "boss": "centipede_king", "pow": 0.9, "pow2": 0.75, "theme": 0},
+	{"name": "악몽 하수구", "bugs": ["roach", "wasp", "stag", "pillbug"], "boss": "roach_king", "pow": 0.9, "pow2": 0.82, "theme": 9},
 ]
 const STAGES_PER_ZONE := 10
 ## 우두머리는 표의 몸보다 체력은 이만큼만, 공격은 이만큼만 (표는 '느낌', 이 둘로 판 길이를 맞춘다).
 const BOSS_HP := 0.25
 const BOSS_ATK := 0.5
-const STAGE_MAX := 100
+## 1장 100판(10구역 × 10판)을 깨면 2장이 열린다 - 같은 구역을 더 센 벌레로 다시 돈다.
+const CH_STAGES := 100
+const CHAPTERS := 2
+const STAGE_MAX := CH_STAGES * CHAPTERS
+## 2장 세기: 1장 끝 배율에서 `CH2_RAMP` 기울기로 오르는 배율에 이만큼 곱한다. 구역별 조합 차이는 1장과 같은 `pow` (따로 맞출 땐 `pow2`).
+const CH2_POW := 1.2
+## 2장 안에서 판마다 세지는 기울기 (1장 = 1.0). 1장 그대로 오르면 친구 레벨이 다 찬 뒤 막힌다.
+const CH2_RAMP := 0.6
 
 # ── 판 ───────────────────────────────────────────────────────────────
 ## 꿈빛 지갑: 일꾼(꿈 우체부) 레벨마다 초당 들어오는 양과 한도가 커진다.
@@ -262,11 +269,27 @@ const SHOCK_DIST := 420.0
 
 static func stage_info(n: int) -> Dictionary:
 	var s := clampi(n, 1, STAGE_MAX)
-	var zi := (s - 1) / STAGES_PER_ZONE
+	var ch := (s - 1) / CH_STAGES
+	var zi := ((s - 1) % CH_STAGES) / STAGES_PER_ZONE
 	var idx := ((s - 1) % STAGES_PER_ZONE) + 1
 	var z: Dictionary = ZONES[zi]
-	return {"stage": s, "zone": zi, "idx": idx, "boss": idx == STAGES_PER_ZONE, "zone_name": String(z["name"]),
-		"theme": int(z["theme"]), "mag": magnification(s) * zone_pow(zi, idx), "base_hp": int(round(1200.0 * (1.0 + 0.05 * float(s - 1))))}
+	var mag := magnification(s) * zone_pow(zi, idx)
+	if ch > 0:
+		# 2장은 1장 끝 세기에서 출발해 더 완만하게 오른다 - 레벨이 다 찬 뒤에도 깰 수 있게
+		var eff := float(CH_STAGES) + float(s - CH_STAGES) * CH2_RAMP
+		mag = (1.0 + 0.045 * (eff - 1.0)) * CH2_POW * float(z.get("pow2", z.get("pow", 1.0)))
+	return {"stage": s, "chapter": ch, "zone": zi, "idx": idx, "boss": idx == STAGES_PER_ZONE, "zone_name": String(z["name"]),
+		"theme": int(z["theme"]), "mag": mag, "base_hp": int(round(1200.0 * (1.0 + 0.05 * float(s - 1))))}
+
+
+## 몇 장인가 (0 = 1장).
+static func chapter_of(n: int) -> int:
+	return (clampi(n, 1, STAGE_MAX) - 1) / CH_STAGES
+
+
+## 이 장 이 구역의 첫 판 번호.
+static func stage_no(ch: int, zi: int, idx: int) -> int:
+	return ch * CH_STAGES + zi * STAGES_PER_ZONE + idx
 
 
 ## 구역 세기 - 벌레 조합마다 어려움이 달라서 시뮬레이션으로 하나씩 맞췄다 (첫 도전 승률 70~85% 를 노린다).
@@ -280,7 +303,8 @@ static func zone_pow(zi: int, idx: int) -> float:
 
 static func stage_label(n: int) -> String:
 	var i := stage_info(n)
-	return "%s %d-%d" % [String(i["zone_name"]), int(i["zone"]) + 1, int(i["idx"])]
+	var t := "%s %d-%d" % [String(i["zone_name"]), int(i["zone"]) + 1, int(i["idx"])]
+	return t if int(i["chapter"]) == 0 else "2장 " + t
 
 
 ## 벌레 세기 배율.
@@ -295,13 +319,16 @@ static func spawns(n: int) -> Array:
 	var z: Dictionary = ZONES[int(info["zone"])]
 	var bugs: Array = z["bugs"]
 	var idx := int(info["idx"])
+	var ch2 := int(info["chapter"]) > 0
+	# 2장은 구역의 벌레가 처음부터 다 섞여 나온다
+	var mix := idx + (5 if ch2 else 0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = n * 7919
 	var out: Array = []
 	# 첫 벌레는 늘 빨리, 무리로 계속 온다
 	out.append({"kind": String(bugs[0]), "first": 3.0, "every": maxf(5.0, 11.0 - idx * 0.5), "max": 999})
 	for k in range(1, bugs.size()):
-		if idx >= 3 * k - 1:
+		if mix >= 3 * k - 1:
 			out.append({"kind": String(bugs[k]), "first": 8.0 + rng.randf() * 10.0,
 				"every": maxf(11.0, 28.0 - idx * 1.0 - k * 2.0), "max": 999})
 	if bool(info["boss"]):
@@ -312,8 +339,8 @@ static func spawns(n: int) -> Array:
 	# 벌레 떼: 주기적으로 한꺼번에 몰려와 전선을 민다 - 판이 한쪽으로 기울지 않고 출렁이게
 	var zi := int(info["zone"])
 	var wave := {"kind": String(bugs[0]), "first": WAVE_FIRST, "every": maxf(WAVE_MIN, WAVE_EVERY - float(idx) * 1.5),
-		"max": 999, "burst": WAVE_BASE + idx / 2 + zi / 2, "wave": true}
-	if bugs.size() > 1 and idx >= 4:
+		"max": 999, "burst": WAVE_BASE + idx / 2 + zi / 2 + (2 if ch2 else 0), "wave": true}
+	if bugs.size() > 1 and mix >= 4:
 		wave["extra"] = String(bugs[1])
 	out.append(wave)
 	# 둥지가 반 아래로 떨어지면 몰려온다 (냥코의 '성이 맞으면 쏟아짐')
@@ -327,8 +354,9 @@ static func reward(n: int, first: bool) -> Dictionary:
 	if first:
 		# 뒤 구역일수록 꿈별이 많다 - 새 친구를 만나는 순간이 처음 몇 시간에 몰리지 않게
 		var boss := n % STAGES_PER_ZONE == 0
-		var z := (n - 1) / STAGES_PER_ZONE
-		return {"xp": xp * 2, "stars": (20 + 5 * z) if boss else (6 + 2 * z), "tickets": 1 if boss else 0}
+		var z := (n - 1) / STAGES_PER_ZONE      # 2장은 10~19 - 꿈별이 이어서 많아진다
+		var t := (1 if n <= CH_STAGES else 2) if boss else 0
+		return {"xp": xp * 2, "stars": (20 + 5 * z) if boss else (6 + 2 * z), "tickets": t}
 	return {"xp": xp, "stars": 1, "tickets": 0}
 
 

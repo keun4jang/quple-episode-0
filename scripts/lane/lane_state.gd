@@ -171,7 +171,8 @@ static func on_win(n: int, rng: RandomNumberGenerator = null) -> Dictionary:
 	r["new_units"] = unlock_by_stage()
 	r["treasure"] = _roll_treasure(n, first, rng)
 	r["acc"] = ""
-	if first and n % LaneData.STAGES_PER_ZONE == 0:
+	# 장신구는 1장 우두머리만 준다 (2장은 이미 다 가졌다)
+	if first and n % LaneData.STAGES_PER_ZONE == 0 and n <= LaneData.CH_STAGES:
 		var zi := (n - 1) / LaneData.STAGES_PER_ZONE
 		for id in LaneData.ACC_ORDER:
 			if int(LaneData.ACCESSORIES[id]["zone"]) == zi and not accs.has(id):
@@ -186,7 +187,7 @@ static func on_win(n: int, rng: RandomNumberGenerator = null) -> Dictionary:
 static func _roll_treasure(n: int, first: bool, rng: RandomNumberGenerator) -> Dictionary:
 	if rng.randf() >= (LaneData.TREASURE_FIRST if first else LaneData.TREASURE_DROP):
 		return {}
-	var zi := clampi((n - 1) / LaneData.STAGES_PER_ZONE, 0, LaneData.ZONES.size() - 1)
+	var zi := int(LaneData.stage_info(n)["zone"])
 	var row: Array = treasures[zi]
 	# 아직 상급이 아닌 것 중에서 고른다 (다 모았으면 아무거나)
 	var cands: Array = []
@@ -196,7 +197,8 @@ static func _roll_treasure(n: int, first: bool, rng: RandomNumberGenerator) -> D
 	if cands.is_empty():
 		return {}
 	var idx := int(cands[rng.randi() % cands.size()])
-	var roll: Array = LaneData.GRADE_ROLL_BOSS if n % LaneData.STAGES_PER_ZONE == 0 else LaneData.GRADE_ROLL
+	# 2장은 판마다 우두머리만큼 좋은 등급이 잘 나온다 - 1장에서 못 채운 보물을 2장에서 채운다
+	var roll: Array = LaneData.GRADE_ROLL_BOSS if n % LaneData.STAGES_PER_ZONE == 0 or n > LaneData.CH_STAGES else LaneData.GRADE_ROLL
 	var x := rng.randf()
 	var g := 3 if x < float(roll[0]) else (2 if x < float(roll[0]) + float(roll[1]) else 1)
 	var up := g > int(row[idx])

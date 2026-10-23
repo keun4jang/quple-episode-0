@@ -17,6 +17,14 @@ func _ready() -> void:
 	print("\n[1] 표")
 	ck("1번은 풀밭 1-1", LaneData.stage_label(1) == "풀밭 1-1")
 	ck("100번은 악몽 하수구 우두머리", bool(LaneData.stage_info(100)["boss"]) and LaneData.stage_label(100) == "악몽 하수구 10-10")
+	# 2장
+	var c2: Dictionary = LaneData.stage_info(101)
+	ck("101번은 2장 풀밭 1-1", LaneData.stage_label(101) == "2장 풀밭 1-1" and int(c2["chapter"]) == 1 and int(c2["zone"]) == 0)
+	ck("200번은 2장 마지막 우두머리", LaneData.stage_label(200) == "2장 악몽 하수구 10-10" and bool(LaneData.stage_info(200)["boss"]))
+	ck("2장 첫 판은 1장 마지막 판보다 세다", float(c2["mag"]) > float(LaneData.stage_info(100)["mag"]))
+	ck("2장은 처음부터 벌레가 다 섞인다", LaneData.spawns(101).size() > LaneData.spawns(1).size())
+	ck("2장 우두머리는 티켓 2장", int(LaneData.reward(110, true)["tickets"]) == 2 and int(LaneData.reward(10, true)["tickets"]) == 1)
+	ck("판 번호 계산", LaneData.stage_no(1, 3, 5) == 135 and LaneData.chapter_of(100) == 0 and LaneData.chapter_of(101) == 1)
 	var last: Dictionary = LaneData.ZONES[9]
 	ck("마지막 우두머리는 바퀴벌레 대왕", String(last["boss"]) == "roach_king" and LaneData.BUGS["roach_king"]["name"] == "바퀴벌레 대왕")
 	ck("우두머리 판에는 우두머리가 나온다", LaneData.spawns(10).any(func(s): return bool(s.get("boss", false))))
@@ -252,6 +260,20 @@ func _test_extras() -> void:
 	LaneState.cleared = 9
 	var rb := LaneState.on_win(10, rng)
 	ck("우두머리 첫 클리어 = 장신구", String(rb["acc"]) == "feather_hat" and LaneState.accs.has("feather_hat"))
+	# 2장 판: 보물은 그 구역 것이 나오고, 장신구는 안 준다
+	var save_cl := LaneState.cleared
+	LaneState.cleared = 134
+	var r2c := LaneState.on_win(135, rng)
+	ck("2장 판을 깨면 다음 판이 열린다", LaneState.cleared == 135 and bool(r2c["first"]))
+	var zones_ok := true
+	for i in 60:
+		var t2: Dictionary = LaneState.on_win(135, rng)["treasure"]
+		if not t2.is_empty() and int(t2["zone"]) != 3:
+			zones_ok = false
+	ck("2장 4구역 판의 보물은 4구역 보물", zones_ok)
+	LaneState.cleared = 109
+	ck("2장 우두머리는 장신구를 안 준다", String(LaneState.on_win(110, rng)["acc"]) == "")
+	LaneState.cleared = save_cl
 	var sp0 := float(LaneState.unit_stats("tiny")["speed"])
 	ck("장신구 달기", LaneState.equip("tiny", "feather_hat") and LaneState.wearer("feather_hat") == "tiny")
 	ck("달면 그 유닛만 세진다", is_equal_approx(float(LaneState.unit_stats("tiny")["speed"]), sp0 * 1.15)

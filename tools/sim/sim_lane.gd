@@ -22,10 +22,17 @@ func _ready() -> void:
 	LaneState.reset()
 	gacha = OS.get_environment("SIM_GACHA") == "1"
 	rng.seed = seed_v
+	# SIM_LOAD=파일: 저장해 둔 지점(예: 1장 끝)부터 이어서 - 2장만 여러 번 맞춰 볼 때
+	if OS.get_environment("SIM_LOAD") != "":
+		var saved = JSON.parse_string(FileAccess.get_file_as_string(OS.get_environment("SIM_LOAD")))
+		LaneState.from_dict(saved["state"])
+		secs = float(saved["secs"])
+		days = int(saved["days"])
+		pulled = int(saved["pulled"])
 	var b := LaneBattle.new()
 	var stuck := 0
 	print("\n==== 쿼카 군단 시뮬레이션 ====")
-	for z in LaneData.ZONES.size():
+	for z in LaneData.ZONES.size() * LaneData.CHAPTERS:
 		zf.append(0)
 		zw.append(0)
 		zhp.append(0.0)
@@ -41,7 +48,7 @@ func _ready() -> void:
 			b.tick(0.25)
 			t += 0.25
 		secs += t + 8.0   # 판 사이 쉬는 시간
-		var zi := (n - 1) / LaneData.STAGES_PER_ZONE
+		var zi := (n - 1) / LaneData.STAGES_PER_ZONE   # 2장은 10~19
 		var first_try := not _tried.has(n)
 		_tried[n] = true
 		if first_try:
@@ -54,7 +61,12 @@ func _ready() -> void:
 		if b.result == "win":
 			var r := LaneState.on_win(n)
 			stuck = 0
-			if OS.get_environment("SIM_LOG") != "" and (n % 10 == 0 or n <= 3):
+			# SIM_DUMP=파일: 1장을 막 깬 지점을 남긴다
+			if n == LaneData.CH_STAGES and OS.get_environment("SIM_DUMP") != "":
+				var f := FileAccess.open(OS.get_environment("SIM_DUMP"), FileAccess.WRITE)
+				f.store_string(JSON.stringify({"state": LaneState.to_dict(), "secs": secs, "days": days, "pulled": pulled}))
+				f.close()
+			if OS.get_environment("SIM_LOG") != "" and (n % 10 == 0 or n <= 3) or n == LaneData.CH_STAGES:
 				print("  %-12s %5.2f시간 · 판 %4.0f초 · 진 판 %3d · 레벨 %s" % [LaneData.stage_label(n), secs / 3600.0, t,
 					losses, _lv()])
 			if not (r["new_units"] as Array).is_empty() and OS.get_environment("SIM_LOG") != "":
@@ -91,9 +103,9 @@ func _ready() -> void:
 		print("뽑기 %d번 · 가진 친구 %d / %d" % [pulled, LaneState.owned_count(), LaneData.ALL_ORDER.size()])
 	if OS.get_environment("SIM_TENSION") != "":
 		var line := "  구역별 첫 도전 승률 / 이길 때 남은 성:"
-		for z in LaneData.ZONES.size():
+		for z in zf.size():
 			if zf[z] > 0:
-				line += " %d:%d%%/%d%%" % [z + 1, int(100.0 * zw[z] / zf[z]), int(100.0 * zhp[z] / maxf(1, zn[z]))]
+				line += " %s%d:%d%%/%d%%" % ["" if z < 10 else "2장", z % 10 + 1, int(100.0 * zw[z] / zf[z]), int(100.0 * zhp[z] / maxf(1, zn[z]))]
 		print(line)
 	print("끝: %.1f시간 · 깬 곳 %d · 진 판 %d · 꿈조각 %d · 레벨 %s" % [secs / 3600.0, LaneState.cleared, losses, LaneState.xp, _lv()])
 	get_tree().quit()

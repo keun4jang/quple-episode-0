@@ -144,6 +144,8 @@ var _won := false
 var _home: Control
 var _home_body: VBoxContainer
 var _home_tab := "map"
+## 지도에서 보고 있는 장 (0 = 1장). -1 이면 다음 판이 있는 장.
+var _map_ch := -1
 var _xp_lbl: Label
 var _ticket_lbl: Label
 var _card_title: Label
@@ -527,7 +529,30 @@ func _fill_map() -> void:
 		20, IdleUi.GOLD)
 	sum.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_home_body.add_child(sum)
-	var last_zone := clampi(LaneState.cleared / LaneData.STAGES_PER_ZONE, 0, LaneData.ZONES.size() - 1)
+	# 장 고르기 - 1장을 다 깨야 2장 단추가 열린다
+	var next_ch := LaneData.chapter_of(LaneState.cleared + 1)
+	var ch := next_ch if _map_ch < 0 else mini(_map_ch, next_ch)
+	if LaneState.cleared >= LaneData.CH_STAGES:
+		var chrow := HBoxContainer.new()
+		chrow.add_theme_constant_override("separation", 12)
+		_home_body.add_child(chrow)
+		for c in LaneData.CHAPTERS:
+			var done_all := LaneState.cleared >= (c + 1) * LaneData.CH_STAGES
+			var cb := IdleUi.button("%d장%s" % [c + 1, "  ✓" if done_all else ""], 24, "gold" if c == ch else "plum")
+			cb.custom_minimum_size = Vector2(0, 72)
+			cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			cb.pressed.connect(func() -> void:
+				_map_ch = c
+				AudioManager.ui_click()
+				_fill_home())
+			chrow.add_child(cb)
+		if ch == 1:
+			var note := IdleUi.label("2장: 같은 곳, 더 센 벌레. 처음부터 벌레가 다 섞여 나오고 떼도 커요. 보물은 좋은 등급이 잘 나와요.",
+				19, IdleUi.LAV_DK)
+			note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			_home_body.add_child(note)
+	var in_ch := LaneState.cleared - ch * LaneData.CH_STAGES
+	var last_zone := clampi(in_ch / LaneData.STAGES_PER_ZONE, 0, LaneData.ZONES.size() - 1)
 	for zi in range(last_zone, -1, -1):
 		var z: Dictionary = LaneData.ZONES[zi]
 		var card := _card()
@@ -576,7 +601,7 @@ func _fill_map() -> void:
 		gr.add_theme_constant_override("v_separation", 8)
 		v.add_child(gr)
 		for i in range(1, LaneData.STAGES_PER_ZONE + 1):
-			var n := zi * LaneData.STAGES_PER_ZONE + i
+			var n := LaneData.stage_no(ch, zi, i)
 			var open := n <= LaneState.cleared + 1
 			var done := n <= LaneState.cleared
 			var lbl := ("왕" if i == 10 else str(i)) + (" ✓" if done else "")
@@ -988,10 +1013,12 @@ func _start_battle(n: int) -> void:
 	var info := battle.info
 	# 구역마다 다른 전투곡, 우두머리는 앞 구역 / 뒤 구역이 다르다
 	var zi := int(info["zone"])
+	var ch := int(info["chapter"])
 	if bool(info["boss"]):
-		AudioManager.play_bgm("boss" if zi < 5 else "boss2")
+		AudioManager.play_bgm("boss" if zi < 5 and ch == 0 else "boss2")
 	else:
-		AudioManager.play_bgm(String(AudioManager.BATTLE_TRACKS[zi % AudioManager.BATTLE_TRACKS.size()]))
+		# 2장은 곡 순서를 둘씩 밀어 같은 구역이라도 1장과 다른 곡이 나온다
+		AudioManager.play_bgm(String(AudioManager.BATTLE_TRACKS[(zi + ch * 2) % AudioManager.BATTLE_TRACKS.size()]))
 	_banner_show(LaneData.stage_label(n), Color.WHITE)
 	if battle.cheer > 0.0:
 		_toast("다시 도전 응원!  공격·체력 +%d%%" % int(battle.cheer))
@@ -1017,6 +1044,10 @@ func _build_battle() -> void:
 	var th: Dictionary = IdleBackdrop.THEMES[_bg.zone]
 	_field.lane_col = Color(th["ground"]).lightened(0.18)
 	vp.add_child(_field)
+	if int(battle.info["chapter"]) > 0:
+		# 2장은 해 질 녘 라벤더빛 - 같은 곳이어도 다른 판인 게 한눈에 보이게
+		_bg.modulate = Color(0.86, 0.78, 1.0)
+		_field.modulate = Color(0.88, 0.8, 1.0)
 	_actors = Node2D.new()
 	_actors.y_sort_enabled = true
 	_world.add_child(_actors)
@@ -1838,6 +1869,11 @@ func _show_result(win: bool, r: Dictionary) -> void:
 			arow.add_child(IdleUi.label("장신구! %s" % String(ad["name"]), 28, IdleUi.GOLD))
 		for id in r.get("new_units", []):
 			v.add_child(_center(IdleUi.label("새 친구! %s 합류" % String(LaneData.UNITS[id]["name"]), 28, IdleUi.GREEN)))
+		if bool(r.get("first", false)) and stage_n == LaneData.CH_STAGES:
+			v.add_child(_center(IdleUi.label("2장이 열렸어요! 더 센 벌레가 기다려요", 28, IdleUi.LAV_DK)))
+			_map_ch = -1
+		elif bool(r.get("first", false)) and stage_n == LaneData.STAGE_MAX:
+			v.add_child(_center(IdleUi.label("모든 판을 지켜 냈어요! 고마워요", 28, IdleUi.LAV_DK)))
 	else:
 		if LaneState.cheer_for(stage_n) > 0.0:
 			v.add_child(_center(IdleUi.label("다시 도전하면 응원을 받아 +%d%% 강해져요" % int(LaneState.cheer_for(stage_n)), 24,
