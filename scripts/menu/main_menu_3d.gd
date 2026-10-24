@@ -427,7 +427,7 @@ func _show_credits() -> void:
 		["기획 · 개발 · 아트", 26, Color(0.82, 0.86, 0.96)],
 		["Godot 4.3 · Blender · Python", 24, Color(0.72, 0.78, 0.90)],
 		["", 18, Color.WHITE],
-		["글꼴  PoorStory (SIL Open Font License)", 22, Color(0.72, 0.78, 0.90)],
+		["글꼴  Jua · PoorStory (SIL Open Font License)", 22, Color(0.72, 0.78, 0.90)],
 		["음악  한국 동요 편곡 (저작권 만료)", 22, Color(0.72, 0.78, 0.90)],
 		["", 18, Color.WHITE],
 		["화면을 누르면 닫혀요", 24, Color(1, 0.86, 0.62)],

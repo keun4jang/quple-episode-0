@@ -593,12 +593,12 @@ func _fill_map() -> void:
 			var ic := _icon(String(t["icon"]), Color(t["col"]) if g > 0 else Color(0.25, 0.22, 0.3), 44.0)
 			ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			cv.add_child(ic)
-			var tn := IdleUi.label(String(t["name"]) if g > 0 else "???", 16, IdleUi.CREAM if g > 0 else IdleUi.MUTED)
+			var tn := IdleUi.label(String(t["name"]) if g > 0 else "???", 18, IdleUi.CREAM if g > 0 else IdleUi.MUTED)
 			tn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			cv.add_child(tn)
 			var te := IdleUi.label("%s %s" % [String(LaneData.GRADE_NAME[g]), LaneData.bonus_text(String(t["kind"]),
 				float(t["per"]) * float(maxi(1, g)))] if g > 0 else LaneData.bonus_text(String(t["kind"]), float(t["per"]) * 3.0) + " 까지",
-				14, Color(LaneData.GRADE_COL[g]) if g > 0 else IdleUi.MUTED)
+				16, Color(LaneData.GRADE_COL[g]) if g > 0 else IdleUi.MUTED)
 			te.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			cv.add_child(te)
 		var gr := GridContainer.new()
@@ -650,19 +650,20 @@ func _fill_units() -> void:
 			title = "★".repeat(int(LaneData.RARITY_STARS[rr])) + " " + title
 		v.add_child(IdleUi.label(title, 26, RARITY_COL[rr] if rr != "base" else
 			(IdleUi.GOLD if LaneState.is_evolved(String(id)) else IdleUi.CREAM)))
+		# 줄마다 한 가지만: 역할 / 특성 / 스킬 이름 / 스킬 설명 / 능력치 / 진화
+		v.add_child(IdleUi.label("[%s] %s" % [role_of(String(id)), String(u["role"])], 20, IdleUi.SUB))
 		var tt := LaneData.trait_text(String(id))
 		if tt != "":
-			v.add_child(IdleUi.label(tt, 19, IdleUi.GREEN))
-		var role := "[%s] %s" % [role_of(String(id)), String(u["role"])]
+			v.add_child(IdleUi.label(tt, 20, IdleUi.GREEN))
+		v.add_child(IdleUi.label("스킬  " + String(LaneData.SKILLS[id]["name"]), 21,
+			Color(String(LaneData.SKILLS[id]["col"]))))
+		v.add_child(IdleUi.label(LaneData.skill_desc(String(id)), 18, IdleUi.SUB))
+		v.add_child(IdleUi.label("체력 %s · 공격 %s · 꿈빛 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
+			int(u["cost"])], 19, IdleUi.CREAM))
 		if LaneState.is_evolved(String(id)):
-			role += "  ·  진화 완료"
+			v.add_child(IdleUi.label("진화 완료", 18, IdleUi.GOLD))
 		elif lv < LaneData.EVOLVE_LV:
-			role += "  ·  Lv %d 에 진화할 수 있어요" % LaneData.EVOLVE_LV
-		v.add_child(IdleUi.label(role, 19, IdleUi.SUB))
-		v.add_child(IdleUi.label("스킬: " + LaneData.skill_text(String(id)), 18,
-			Color(String(LaneData.SKILLS[id]["col"])).darkened(0.45)))
-		v.add_child(IdleUi.label("체력 %s · 공격 %s · 사거리 %d · 꿈빛 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
-			int(u["range"]), int(u["cost"])], 18, IdleUi.SUB))
+			v.add_child(IdleUi.label("Lv %d 에 진화할 수 있어요" % LaneData.EVOLVE_LV, 18, IdleUi.GOLD))
 		var accrow := HBoxContainer.new()
 		accrow.add_theme_constant_override("separation", 6)
 		v.add_child(accrow)
@@ -777,7 +778,7 @@ func _evolve_show(id: String) -> void:
 	info.position = Vector2(0, c.y + 236)
 	info.modulate.a = 0.0
 	lay.add_child(info)
-	var hint := IdleUi.label("화면을 눌러 닫아요", 20, IdleUi.MUTED)
+	var hint := IdleUi.label("화면을 눌러 닫아요", 22, IdleUi.LAV_LT, true)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.size = Vector2(size.x, 40)
 	hint.position = Vector2(0, size.y - 160)
@@ -1359,14 +1360,14 @@ func _build_hud() -> void:
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var cl := Label.new()
 		cl.text = role
-		cl.add_theme_font_size_override("font_size", 14)
+		cl.add_theme_font_size_override("font_size", 15)
 		cl.add_theme_color_override("font_color", Color("#2E1A4A"))
 		chip.add_child(cl)
 		col.add_child(chip)
 		var pic := _portrait(uid_s, 54.0)
 		pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(pic)
-		var nm := IdleUi.label(_short_name(uid_s), 15, IdleUi.CREAM)
+		var nm := IdleUi.label(_short_name(uid_s), 17, IdleUi.CREAM)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		nm.clip_text = true
 		col.add_child(nm)
@@ -2130,7 +2131,7 @@ func _cutin(id: String) -> void:
 	var pic := _portrait(id, 96.0)
 	pic.position = Vector2(36, 11)
 	band.add_child(pic)
-	var nm := IdleUi.label(LaneData.unit_name(id, LaneState.level_of(id)), 22, IdleUi.INK)
+	var nm := IdleUi.label(LaneData.unit_name(id, LaneState.level_of(id)), 22, IdleUi.INK, true)
 	nm.position = Vector2(150, 14)
 	band.add_child(nm)
 	var sk := IdleUi.label(String(k["name"]) + "!", 46, col.lightened(0.35), true)

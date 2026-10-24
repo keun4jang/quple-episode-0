@@ -42,7 +42,7 @@ func _ready() -> void:
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_flash)
-	_hint = IdleUi.label("", 24, IdleUi.LAV_LT)
+	_hint = IdleUi.label("", 24, IdleUi.LAV_LT, true)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_hint)
 
@@ -267,7 +267,7 @@ func _show_card(res: Dictionary) -> void:
 	var name := IdleUi.label(LaneData.unit_name(id, int(res["lv"])), 50, Color.WHITE, true)
 	_card.add_child(_at(name, y + 50))
 	var sub := IdleUi.label(LaneData.trait_text(id) if LaneData.trait_text(id) != "" else String(LaneData.UNITS[id]["role"]),
-		24, IdleUi.LAV_LT)
+		24, IdleUi.LAV_LT, true)
 	_card.add_child(_at(sub, y + 120))
 	var tag: Label
 	if bool(res["new"]):

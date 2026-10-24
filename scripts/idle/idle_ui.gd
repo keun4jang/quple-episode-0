@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## 방향 (2026-10-21): **라벤더가 키 컬러, 벚꽃 분홍이 포인트** (노랑은 뺐다). 밝은 라벤더 판 · 라벤더 테두리와 버튼 · 노란 주 버튼 ·
 ## 진한 자두색 글씨. 예전 짙은 보라 판은 너무 진하다는 의견으로 바꿨다.
-## 밝은 글씨(노랑·초록·흰색)는 밝은 바탕에 묻히므로 `label()` 이 자동으로 자두색 테두리를 두른다.
+## 밝은 글씨(분홍·초록·흰색)는 밝은 바탕에 묻히므로 `label()` 이 같은 빛깔을 진하게 바꾼다 (테두리는 outline=true 일 때만).
 ## 폰트에 없는 기호(✕ ⚙ ▶ 같은)는 쓰지 않고 아이콘은 전부 직접 그린다 (`draw_icon`).
 
 const LAV := Color("#BF94E4")          ## 라벤더 (핵심 색)
@@ -71,16 +71,27 @@ static func label(t: String, fs: int, col := CREAM, outline := false) -> Label:
 	l.text = t
 	l.add_theme_font_size_override("font_size", fs)
 	l.add_theme_color_override("font_color", col)
-	# 밝은 글씨는 자두색 테두리, 어두운 글씨에 테두리를 달라면 흰 테두리 (풍경 위 스티커처럼)
+	# 테두리를 달라면: 밝은 글씨는 자두색, 어두운 글씨는 흰 테두리 (어두운 바탕·풍경 위 스티커처럼).
+	# 테두리 없이 밝은 글씨(분홍·초록·하늘)는 흰 카드 위에서 안 읽힌다 - 예전엔 자두색 테두리를 둘렀는데
+	# 작은 글씨는 테두리가 획을 먹어 뭉개졌다. 이제는 같은 빛깔을 읽힐 만큼 진하게 바꾼다 (`readable`).
 	var light := col.get_luminance() > 0.5
 	if outline:
 		l.add_theme_color_override("font_outline_color", OUTLINE if light else Color(1, 1, 1, 0.95))
 		l.add_theme_constant_override("outline_size", maxi(6, fs / 5))
 	elif light:
-		l.add_theme_color_override("font_outline_color", OUTLINE)
-		l.add_theme_constant_override("outline_size", maxi(4, fs / 7))
+		l.add_theme_color_override("font_color", readable(col))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
+
+
+## 밝은 바탕(흰 카드·연한 라벤더) 위에서 읽히는 같은 빛깔 - 밝기가 0.3 아래가 될 때까지 어둡게.
+static func readable(col: Color) -> Color:
+	var c := col
+	var guard := 0
+	while c.get_luminance() > 0.3 and guard < 12:
+		c = c.darkened(0.12)
+		guard += 1
+	return c
 
 
 ## 버튼 종류: gold(주 행동) · plum(보통) · ghost(닫기 같은 가벼운 것) · danger(지우기).

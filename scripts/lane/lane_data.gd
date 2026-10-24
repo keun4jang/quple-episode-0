@@ -118,6 +118,15 @@ const SKILL_KIND_TEXT := {"smash": "주변 벌레를 한꺼번에", "quake": "�
 	"guard": "주변 친구가 덜 아프게", "rally": "주변 친구 공격력 UP"}
 
 
+## 스킬 설명만 ("앞으로 길게 꿰뚫는다 · 공격 ×2.6 · 9초마다") - 카드에서 이름 아래 줄에 쓴다.
+static func skill_desc(id: String) -> String:
+	var t := skill_text(id)
+	if t == "":
+		return ""
+	t = t.substr(String(SKILLS[id]["name"]).length() + 3)
+	return t.replace(" (", " · ").replace(") · ", " · ").replace("마다 자동", "마다")
+
+
 ## 스킬 한 줄 ("꿰뚫는 창 - 앞으로 길게 꿰뚫는다 (공격 ×2.6) · 9초마다 자동").
 static func skill_text(id: String) -> String:
 	if not SKILLS.has(id):
