@@ -10,6 +10,11 @@
 `python3 tools/art/gemini_image.py first` (먼저 3장) / `all` (전부). 프롬프트는 `tools/art/lane_prompts.py` -
 이 문서와 같은 내용이다. 받은 원본은 `assets/source/lane/<id>.png`.
 
+**컨테이너 안에서 직접 (키·비용 없음)**: 네트워크에서 `huggingface.co` 를 허용하면 그림 모델(SD-Turbo)을
+여기서 돌린다 - `tools/art/local_sd.py` (설치 방법은 파일 맨 위). 2026-10-25 에 확인한 것: 그림 생성 서비스
+(OpenAI·Stability·Replicate·fal·Together·Pollinations·허깅페이스)는 전부 네트워크 정책에 막혀 있고, 열린 곳은
+GitHub 공개 파일·npm·PyPI·S3·구글 API(키 필요)뿐이다. stable-diffusion.cpp 설치는 된다.
+
 **손으로**: 아래처럼 직접 받아 대화에 올려도 된다.
 
 1. 아래 프롬프트를 **머리말 + 각 장 본문** 순서로 붙여 넣어 그림을 받는다.
