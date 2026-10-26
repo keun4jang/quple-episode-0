@@ -114,6 +114,11 @@ def main() -> None:
         unit_sheet(src, int(sys.argv[4])).save(out)
     else:
         raise SystemExit("모르는 종류: " + kind)
+    if kind in ("unit", "bug"):
+        # 한 장을 비틀어 걷기·공격·맞음 칸을 만든다 (animate_sheets.py) - 안 하면 걸어도 서 있는 것처럼 보인다
+        sys.path.insert(0, HERE)
+        import animate_sheets
+        animate_sheets.animate(out).save(out)
     print("ok", out)
 
 
