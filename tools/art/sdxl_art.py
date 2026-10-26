@@ -66,6 +66,25 @@ JOBS = {
 }
 
 
+## 캐릭터 - 하나씩 따로 그린다 (한 장에 여럿이면 크기·모양이 들쭉날쭉). 앞모습, 서 있는 자세, 마젠타 바탕.
+QUOKKA = ("a cute chibi quokka, small round marsupial, warm caramel brown fur, cream belly and muzzle, small round "
+          "ears with pink insides, shiny black eyes, rosy cheeks, smiling")
+CHARS = {
+    "q_tiny": "little " + QUOKKA + ", a tiny green leaf sprout on its head",
+    "q_shield": QUOKKA + ", wearing a round grey metal helmet, holding a big round golden shield",
+    "q_spear": QUOKKA + ", wearing a red headband, holding a long spear",
+    "q_hammer": QUOKKA + ", wearing a yellow hard hat, holding a big wooden mallet",
+    "q_runner": QUOKKA + ", wearing a blue headband and red sneakers, sporty",
+    "q_sling": QUOKKA + ", wearing a green cap, holding a wooden slingshot",
+    "q_mage": QUOKKA + ", wearing a tall purple wizard hat, holding a staff with a star on top",
+    "q_giant": "big bulky strong " + QUOKKA + ", wearing a brown helmet with two small horns, holding a heavy club",
+}
+for _k, _d in CHARS.items():
+    JOBS[_k] = ("a single game character sprite, " + _d + ", front view, standing, full body, feet visible, "
+                "large in frame, isolated on a plain flat solid magenta background, no shadow, no ground, centered, "
+                + STYLE, 1024, 1024)
+
+
 def load_pipe(img2img: bool):
     import torch
     from diffusers import AutoencoderKL, StableDiffusionXLImg2ImgPipeline, StableDiffusionXLPipeline
@@ -97,7 +116,9 @@ def main() -> None:
         for k in range(a.n):
             seed = a.seed if a.seed >= 0 else int.from_bytes(os.urandom(4), "little")
             g = torch.Generator("cuda").manual_seed(seed + k)
-            kw = dict(prompt=prompt, negative_prompt=NEG, num_inference_steps=a.steps, guidance_scale=6.5,
+            neg = NEG + (", ground, floor, shadow, platform, base, grass, plants, rocks, multiple characters, "
+                         "character sheet, frame, border" if w == h else "")
+            kw = dict(prompt=prompt, negative_prompt=neg, num_inference_steps=a.steps, guidance_scale=6.5,
                       generator=g, cross_attention_kwargs={"scale": a.lora})
             if a.init:
                 path = os.path.join(OUT, "%s_layout.png" % jid) if a.init == "layout" else a.init

@@ -186,8 +186,24 @@ static func rarity(id: String) -> String:
 
 ## 그림 시트 - 쿼카는 quokka-, 동물 친구는 animal-, 레벨 10 부터 진화한 모습(-2).
 static func sheet_path(id: String, lv: int) -> String:
+	var evo := "-2" if LaneState.is_evolved(id) else ""
+	# 그림 모델로 그린 새 시트(tools/art/import_lane_art.py)가 있으면 그걸 쓴다 - 픽셀 한 칸 = 화면 2점
+	var hd := "res://assets/sprites/lane-unit-%s%s.png" % [id, evo]
+	if ResourceLoader.exists(hd):
+		return hd
 	var pre := "quokka" if rarity(id) == "base" else "animal"
-	return "res://assets/sprites/%s-%s%s.png" % [pre, id, "-2" if LaneState.is_evolved(id) else ""]
+	return "res://assets/sprites/%s-%s%s.png" % [pre, id, evo]
+
+
+## 벌레 시트 - 새 그림이 있으면 그걸.
+static func bug_sheet(kind: String) -> String:
+	var hd := "res://assets/sprites/lane-bug-%s.png" % kind
+	return hd if ResourceLoader.exists(hd) else "res://assets/sprites/bug-%s.png" % kind
+
+
+## 이 시트의 픽셀 한 칸이 화면 몇 점인가 (새 그림은 2, 옛 코드 그림은 3).
+static func sheet_px(path: String) -> float:
+	return 2.0 if path.get_file().begins_with("lane-") else 3.0
 
 
 ## 이 유닛이 벽(앞에서 막는 역할) 인가 - 자동 소환이 벽부터 깐다.

@@ -38,8 +38,12 @@ def cut_sprite(src: str, w: int, crop=None) -> Image.Image:
     if crop:
         im = im.crop(crop)
     a = np.asarray(im).astype(np.int16)
-    edge = np.concatenate([a[0], a[-1], a[:, 0], a[:, -1]])
-    bg = np.median(edge, axis=0)
+    # 바탕이 그러데이션일 때가 있다 - 줄마다 왼쪽·오른쪽 끝 색을 이어 붙여 바탕을 짐작한다
+    hgt, wid = a.shape[:2]
+    left = a[:, :12].mean(axis=1)
+    right = a[:, -12:].mean(axis=1)
+    t = np.linspace(0.0, 1.0, wid)[None, :, None]
+    bg = left[:, None, :] * (1.0 - t) + right[:, None, :] * t
     near = (np.abs(a - bg).sum(axis=2) < 70)
     # 바깥에서 이어진 '바탕 비슷한 칸' 만 - 마스크 그림에 테두리부터 칠해 본다
     m = Image.fromarray(np.where(near, 128, 0).astype("uint8"))
@@ -48,6 +52,14 @@ def cut_sprite(src: str, w: int, crop=None) -> Image.Image:
     pad.paste(m, (1, 1))
     ImageDraw.floodfill(pad, (0, 0), 255, thresh=0)
     outside = np.asarray(pad)[1:-1, 1:-1] == 255
+    # 팔·무기 사이에 갇힌 바탕 덩어리도 지운다 (바깥에서 칠해서는 안 닿는다) - 바탕색에 아주 가깝고 큰 것만
+    from scipy import ndimage
+    close = np.abs(a - bg).sum(axis=2) < 45
+    lab, n = ndimage.label(close & ~outside)
+    if n:
+        sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
+        big = np.isin(lab, [i + 1 for i, s in enumerate(sizes) if s > a.shape[0] * a.shape[1] * 0.0015])
+        outside |= big
     alpha = Image.fromarray(np.where(outside, 0, 255).astype("uint8")).filter(ImageFilter.MinFilter(3))
     rgba = im.convert("RGBA")
     rgba.putalpha(alpha)
@@ -60,6 +72,29 @@ def cut_sprite(src: str, w: int, crop=None) -> Image.Image:
     return q
 
 
+def unit_sheet(src: str, w: int) -> Image.Image:
+    """서 있는 앞모습 한 장 → 게임 캐릭터 시트 (4칸 x 3줄, 정사각 칸 - IdleActor 가 읽는 모양).
+
+    0줄 앞모습: 서 있음 · 환호(위로 2칸) · 서 있음 · 아파함(아래로 1칸, 납작)
+    1줄 공격:   서 있음 · 덤벼듦(아래로 3칸 = 앞) · 덤벼듦 · 돌아옴
+    2줄 걷기:   들썩들썩 (0 · 위 1 · 0 · 위 1)
+    움직임 대부분(늘림·눌림·덤벼들기)은 게임 코드가 한다 - 여기선 칸마다 살짝만 다르게.
+    """
+    sp = cut_sprite(src, w)
+    side = max(sp.width, sp.height) + 6
+    sheet = Image.new("RGBA", (side * 4, side * 3), (0, 0, 0, 0))
+    base_x = (side - sp.width) // 2
+    base_y = side - sp.height - 1
+    offs = [[0, -2, 0, 1], [0, 3, 3, 1], [0, -1, 0, -1]]
+    for r in range(3):
+        for c in range(4):
+            img = sp
+            if r == 0 and c == 3:
+                img = sp.resize((sp.width, max(1, sp.height - 2)), Image.NEAREST)
+            sheet.alpha_composite(img, (c * side + base_x, r * side + base_y + offs[r][c] + (sp.height - img.height)))
+    return sheet
+
+
 def main() -> None:
     kind, n, src = sys.argv[1], sys.argv[2], sys.argv[3]
     if kind == "bg":
@@ -70,6 +105,13 @@ def main() -> None:
         out = os.path.join(SPR, "lane-%s.png" % n)
         crop = tuple(int(v) for v in sys.argv[5].split(",")) if len(sys.argv) > 5 else None
         cut_sprite(src, int(sys.argv[4]), crop).save(out)
+    elif kind == "unit":
+        # 예: unit tiny <원본> 30  → lane-unit-tiny.png (몸 폭 30칸). 진화는 이름을 tiny-2 로.
+        out = os.path.join(SPR, "lane-unit-%s.png" % n)
+        unit_sheet(src, int(sys.argv[4])).save(out)
+    elif kind == "bug":
+        out = os.path.join(SPR, "lane-bug-%s.png" % n)
+        unit_sheet(src, int(sys.argv[4])).save(out)
     else:
         raise SystemExit("모르는 종류: " + kind)
     print("ok", out)

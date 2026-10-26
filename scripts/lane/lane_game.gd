@@ -1025,7 +1025,7 @@ func _bug_face(kind: String, sz: float) -> TextureRect:
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tex := load("res://assets/sprites/bug-%s.png" % kind) as Texture2D
+	var tex := load(LaneData.bug_sheet(kind)) as Texture2D
 	if tex != null:
 		var a := AtlasTexture.new()
 		a.atlas = tex
@@ -1665,7 +1665,7 @@ func _sync_actors() -> void:
 			p.y -= fwd * 9.0 * (1.0 - hs / 0.12)
 		# 픽셀 격자에 맞춰 놓고, 크기는 원근과 관계없이 한 가지 (도트 규칙: 픽셀 크기는 하나)
 		a.position = (p / float(PIX)).round() * float(PIX)
-		a.px = UNIT_PX if e["side"] == "q" else BUG_PX
+		a.px = LaneData.sheet_px(a.tex.resource_path) if a.tex != null else (UNIT_PX if e["side"] == "q" else BUG_PX)
 		_place_wear(a)
 		a.walking = e["state"] == "walk"
 		if e["side"] == "q":
@@ -1708,7 +1708,7 @@ func _make_actor(e: Dictionary) -> IdleActor:
 		a.set_sheet(unit_sheet(String(e["kind"])))
 		_add_wear(a, String(e["kind"]))
 	else:
-		a.set_sheet("res://assets/sprites/bug-%s.png" % String(e["kind"]))
+		a.set_sheet(LaneData.bug_sheet(String(e["kind"])))
 	_actors.add_child(a)
 	_actor_of[uid] = a
 	return a
