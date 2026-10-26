@@ -28,10 +28,17 @@ $utf8 = New-Object Text.UTF8Encoding $false
 [IO.File]::WriteAllText("project.godot", $proj.Replace("config/version=`"$cur`"", "config/version=`"$Version`""), $utf8)
 
 New-Item -ItemType Directory -Force update | Out-Null
+# 내보내기 설정은 git 에 없다(서명 비밀번호가 들어가서). 팩만 만들 땐 서명이 필요 없어 템플릿을 그대로 쓴다.
+if (-not (Test-Path "export_presets.cfg")) { Copy-Item "export_presets.template.cfg" "export_presets.cfg" }
 Write-Output "→ 리소스 팩 생성"
 $pck = Join-Path (Get-Location) "update\quple.pck"
+$before = if (Test-Path $pck) { (Get-Item $pck).LastWriteTime } else { [datetime]::MinValue }
 & $godot --headless --path . --export-pack "Android arm64" $pck | Out-Null
-if (-not (Test-Path $pck) -or (Get-Item $pck).Length -eq 0) { throw "팩이 만들어지지 않았다" }
+# 옛 팩이 남아 있으면 '만들어졌다' 로 속는다 - 시각이 바뀌었는지 본다 (0.1.251 이 이렇게 옛 팩으로 나갔다)
+if (-not (Test-Path $pck) -or (Get-Item $pck).Length -eq 0 -or (Get-Item $pck).LastWriteTime -le $before) {
+	git checkout -- project.godot
+	throw "팩이 새로 만들어지지 않았다"
+}
 
 $sha = (Get-FileHash $pck -Algorithm SHA256).Hash.ToLower()
 $size = (Get-Item $pck).Length
