@@ -33,6 +33,25 @@ const ROLE_COL := {"벽": "#8FB5FF", "근접": "#FF9F7A", "범위": "#FFB84A", "
 const CHEER_MIN_FIGHT := 60.0
 ## 우리 성 앞(길의 0) 화면 높이 - 위 단추 줄(72) 아래로 작게 그린 망루가 들어가는 자리.
 const FORT_Y := 250.0
+## 배경 그림 위 길의 처음·끝 (그림 높이 비율). tools/art/make_layout.py 의 ROAD_TOP·ROAD_BOT 와 맞춘다.
+const ART_ROAD := Vector2(0.2, 0.8)
+var _art_bg: TextureRect
+var _fort_spr: Sprite2D
+var _nest_spr: Sprite2D
+## 그림 모델로 만든 그림의 픽셀 한 칸 = 화면 2점.
+const ART_PX := 2.0
+
+
+## 성·둥지 그림 자리 - 성은 밑동이 길 시작, 둥지는 밑동이 길 끝. 맞으면 살짝 흔들린다.
+func _place_art_props() -> void:
+	if _fort_spr == null or _field == null:
+		return
+	var fs := _fort_spr.texture.get_size() * ART_PX
+	var fp := _field.fort_pos()
+	_fort_spr.position = (Vector2(fp.x - fs.x * 0.5 + randf_range(-1, 1) * _field.shake_our, fp.y - fs.y + 24.0)).round()
+	var ns := _nest_spr.texture.get_size() * ART_PX
+	var np := _field.nest_pos()
+	_nest_spr.position = (Vector2(np.x - ns.x * 0.5 + randf_range(-1, 1) * _field.shake_nest, np.y - ns.y + 6.0)).round()
 
 
 ## 시트의 앞모습 첫 칸 - 칸 위쪽의 무기 여유(칸 높이 - 칸 폭)는 빼고 몸만.
@@ -243,6 +262,13 @@ func _layout() -> void:
 		# 우리 성이 위(위 단추 줄 밑), 둥지가 아래 - 쿼카가 화면 아래로 걸어와 얼굴이 보인다
 		_field.y_front = FORT_Y
 		_field.y_far = size.y - 500.0
+		if _art_bg != null:
+			# 폭에 맞춰 깐다 (폭 720 = 2배). 길은 그림 높이의 ART_ROAD 구간 - 밑그림(make_layout.py)과 같은 비율
+			var tex := _art_bg.texture
+			var s := size.x / float(tex.get_width())
+			_art_bg.position = Vector2.ZERO
+			_art_bg.size = Vector2(tex.get_width(), tex.get_height()) * s
+			_field.y_front = _art_bg.size.y * ART_ROAD.x
 		_flash_rect.size = size
 		if _danger != null:
 			_danger.size = size
@@ -1198,14 +1224,45 @@ func _build_battle() -> void:
 	_world.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_world)
 	move_child(_world, 0)
+	# 구역 배경 그림이 있으면 그걸 깐다 (그림 모델로 그려 픽셀로 정리한 것 - tools/art/import_lane_art.py).
+	# 픽셀 판(_pix)에 넣으면 1/3 로 줄었다 커져 뭉개지므로, 화면에 바로 정수배로 깐다.
+	_art_bg = null
+	var bgp := "res://assets/sprites/lane-bg-%d.png" % (int(battle.info["zone"]) + 1)
+	if ResourceLoader.exists(bgp):
+		_art_bg = TextureRect.new()
+		_art_bg.texture = load(bgp)
+		_art_bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_art_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_art_bg.stretch_mode = TextureRect.STRETCH_SCALE
+		_art_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_world.add_child(_art_bg)
+	# 성·둥지 그림 (배경 그림이 있을 때만 - 코드 그림 배경과는 화풍이 안 맞는다)
+	_fort_spr = null
+	_nest_spr = null
+	if _art_bg != null and ResourceLoader.exists("res://assets/sprites/lane-fort.png") \
+			and ResourceLoader.exists("res://assets/sprites/lane-nest.png"):
+		for k in ["fort", "nest"]:
+			var sp := Sprite2D.new()
+			sp.texture = load("res://assets/sprites/lane-%s.png" % k)
+			sp.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			sp.centered = false
+			sp.scale = Vector2(ART_PX, ART_PX)
+			_world.add_child(sp)
+			if k == "fort":
+				_fort_spr = sp
+			else:
+				_nest_spr = sp
 	_pix = _pixel_layer()
 	_world.add_child(_pix)
 	var vp := _pix.get_node("VP")
 	_bg = IdleBackdrop.new()
 	_bg.zone = int(battle.info["theme"])
 	_bg.ground = 0.13
+	_bg.visible = _art_bg == null
 	vp.add_child(_bg)
 	_field = LaneField.new()
+	_field.art_bg = _art_bg != null
+	_field.art_props = _fort_spr != null
 	var th: Dictionary = IdleBackdrop.THEMES[_bg.zone]
 	_field.lane_col = Color(th["ground"]).lightened(0.18)
 	vp.add_child(_field)
@@ -1213,6 +1270,8 @@ func _build_battle() -> void:
 		# 2장은 해 질 녘 라벤더빛 - 같은 곳이어도 다른 판인 게 한눈에 보이게
 		_bg.modulate = Color(0.86, 0.78, 1.0)
 		_field.modulate = Color(0.88, 0.8, 1.0)
+		if _art_bg != null:
+			_art_bg.modulate = Color(0.86, 0.78, 1.0)
 	_actors = Node2D.new()
 	_actors.y_sort_enabled = true
 	_world.add_child(_actors)
@@ -1419,6 +1478,14 @@ func _layout_hud() -> void:
 	panel.size = Vector2(w - 16, ph)
 	if _field != null:
 		_field.y_far = h - ph - 8.0 - 120.0
+		if _art_bg != null:
+			# 폭에 맞추되, 버튼 판 위까지 빈틈이 없게 (모자라면 조금 더 키우고 양옆을 같이 자른다)
+			var tex := _art_bg.texture
+			var s := maxf(w / float(tex.get_width()), (panel.position.y + 40.0) / float(tex.get_height()))
+			_art_bg.size = Vector2(tex.get_width(), tex.get_height()) * s
+			_art_bg.position = Vector2((w - _art_bg.size.x) * 0.5, 0.0)
+			_field.y_front = _art_bg.size.y * ART_ROAD.x
+			_field.y_far = minf(_field.y_far, _art_bg.size.y * ART_ROAD.y)
 
 
 func _refresh_hud_toggles() -> void:
@@ -1433,6 +1500,8 @@ func _process(dt: float) -> void:
 	if _save_t > SAVE_EVERY:
 		_save_t = 0.0
 		LaneState.save(int(Time.get_unix_time_from_system()))
+	if mode == "battle" and _world != null:
+		_place_art_props()
 	if mode != "battle" or _world == null:
 		return
 	var rdt := dt / maxf(Engine.time_scale, 0.001)

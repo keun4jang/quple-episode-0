@@ -62,7 +62,21 @@ func _process(dt: float) -> void:
 	queue_redraw()
 
 
+## 배경 그림(`lane-bg-N.png`)이 길까지 그려 주면 참 - 그땐 성·둥지만 그린다.
+var art_bg := false
+## 성·둥지 그림(`lane-fort.png`·`lane-nest.png`)을 LaneGame 이 따로 깔면 참.
+var art_props := false
+
+
 func _draw() -> void:
+	if art_bg:
+		# 성·둥지도 그림이 있으면(art_props) 체력 띠만 - 그림은 LaneGame 이 픽셀 판 밖에 2배로 깐다
+		if art_props:
+			_draw_nest_bar(nest_pos())
+		else:
+			_draw_fort()
+			_draw_nest()
+		return
 	# 길 (사다리꼴) - 가장자리 띠 + 바퀴 자국 + 돌멩이
 	var cx := size.x * 0.5
 	var n := 24
@@ -112,7 +126,11 @@ func _draw_nest() -> void:
 		if blink:
 			draw_circle(h + Vector2(-4, -1), 2.2, Color("#FF5A5A"))
 			draw_circle(h + Vector2(4, -1), 2.2, Color("#FF5A5A"))
-	# 체력 띠 (흙더미 밑, 아래 판 바로 위)
+	_draw_nest_bar(c)
+
+
+## 둥지 체력 띠 (흙더미 밑, 아래 판 바로 위).
+func _draw_nest_bar(c: Vector2) -> void:
 	var bw := 180.0
 	var bp := c + Vector2(-bw * 0.5, 8)
 	draw_rect(Rect2(bp - Vector2(3, 3), Vector2(bw + 6, 16)), Color(0.1, 0.06, 0.1, 0.8))
