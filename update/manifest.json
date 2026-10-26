@@ -1,7 +1,7 @@
 {
-  "version": "0.1.255",
+  "version": "0.1.256",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "0b166affee1db639d7a7b9b95fedb7190c641d59b36e23d0af8b1e113561aec4",
-  "size": 13146560,
-  "notes": "캐릭터 동작: 발·상체를 칸마다 다른 자세로"
+  "sha256": "2409622dd0a711b76778ec58ea66a01b03ffc4593f99937d4384beff836af436",
+  "size": 13822384,
+  "notes": "캐릭터 동작 그림을 칸마다 새로 생성"
 }
