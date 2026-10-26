@@ -137,7 +137,73 @@ def load_pipe(img2img: bool):
     return pipe
 
 
+## 동작 그림 - 서 있는 그림을 밑그림으로 깔고 자세만 바꿔 그린다 (얼굴·옷이 그대로 남게).
+POSES = {
+    "walk1": "walking, left foot stepping forward, right foot back, mid stride",
+    "walk2": "walking, right foot stepping forward, left foot back, mid stride",
+    "atk1": "preparing to attack, leaning back, raising its weapon or paw high above the head",
+    "atk2": "attacking, lunging forward, swinging its weapon or paw down hard, action pose",
+    "atk3": "after attacking, weapon or paw lowered in front, follow-through pose",
+}
+
+
+def make_frames(char: str, src: str, strength: float, seed: int) -> None:
+    """한 캐릭터의 동작 그림 5장 → assets/source/lane/frames/<char>_<pose>.png"""
+    import torch
+    from PIL import Image
+    pipe = make_frames.pipe = getattr(make_frames, "pipe", None) or load_pipe(True)
+    desc = CHARS[char]
+    out = os.path.join(OUT, "frames")
+    os.makedirs(out, exist_ok=True)
+    init = Image.open(src).convert("RGB").resize((1024, 1024))
+    for pose, words in POSES.items():
+        g = torch.Generator("cuda").manual_seed(seed)
+        prompt = ("a single game character sprite, " + desc + ", " + words + ", full body, isolated on a plain flat "
+                  "solid magenta background, no shadow, " + STYLE)
+        img = pipe(prompt=prompt, negative_prompt=NEG + ", multiple characters, ground, shadow, frame, panel",
+                   image=init, strength=strength, num_inference_steps=30, guidance_scale=7.0, generator=g,
+                   cross_attention_kwargs={"scale": 0.6}).images[0]
+        p = os.path.join(out, "%s_%s.png" % (char, pose))
+        img.save(p)
+        print("ok", p)
+        sys.stdout.flush()
+
+
+def make_sheet(char: str, n: int, seed: int) -> None:
+    """한 장에 같은 캐릭터의 동작 여섯 칸 (걷기 셋 + 공격 셋) - 한 번에 그려야 얼굴·옷이 서로 맞는다.
+    → assets/source/lane/sheets/<char>_<k>.png  (자르기는 import_lane_art.py anim)"""
+    import torch
+    pipe = make_sheet.pipe = getattr(make_sheet, "pipe", None) or load_pipe(False)
+    out = os.path.join(OUT, "sheets")
+    os.makedirs(out, exist_ok=True)
+    prompt = ("pixel art game sprite sheet, six animation frames of the same " + CHARS[char] + ", in one horizontal "
+              "row, evenly spaced, all facing the viewer, frames 1 to 3 walking cycle with legs moving, frames 4 to 6 "
+              "attack animation: wind up, strike, follow through, identical character in every frame, isolated on a "
+              "plain flat solid magenta background, " + STYLE)
+    for k in range(n):
+        g = torch.Generator("cuda").manual_seed(seed + k)
+        img = pipe(prompt=prompt, negative_prompt=NEG + ", ground, shadow, frame, panel, border, text",
+                   width=1536, height=640, num_inference_steps=30, guidance_scale=7.0, generator=g,
+                   cross_attention_kwargs={"scale": 0.6}).images[0]
+        p = os.path.join(out, "%s_%d.png" % (char, k))
+        img.save(p)
+        print("ok", p)
+        sys.stdout.flush()
+
+
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "sheet":
+        # sheet <n> <char> ...
+        for c in sys.argv[3:]:
+            make_sheet(c, int(sys.argv[2]), 2000)
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "frames":
+        # frames <strength> <char>=<원본> ...
+        st = float(sys.argv[2])
+        for pair in sys.argv[3:]:
+            c, s = pair.split("=", 1)
+            make_frames(c, s, st, 1234)
+        return
     ap = argparse.ArgumentParser()
     ap.add_argument("ids", nargs="+")
     ap.add_argument("--n", type=int, default=1)
