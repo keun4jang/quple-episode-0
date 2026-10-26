@@ -22,6 +22,24 @@ TOP_W, BOT_W = 0.16, 0.62
 THEMES = {
     "bg1": dict(sky="#BFE3F5", far="#9CC98A", ground="#7DBB55", road="#D9B07A", blobs=["#F2A9C8", "#E890B5"],
                 blob_trunk="#7A5236", fence="#B08A5E"),
+    "bg2": dict(sky="#CFE6EE", far="#86B9A6", ground="#6FAE7E", road="#C9A878", blobs=["#7FC4D8", "#5FA7C4"],
+                blob_trunk="#4E7A5A", fence="#8C7656"),
+    "bg3": dict(sky="#F5DDEB", far="#C8A9D8", ground="#86BE62", road="#E0BC88", blobs=["#F7A8C4", "#C59AE6", "#FFE08A"],
+                blob_trunk="#5E8A3E", fence="#B08A5E"),
+    "bg4": dict(sky="#D7EAC8", far="#5E8F52", ground="#5C9A48", road="#B58C5E", blobs=["#3F7A3A", "#5A9A44"],
+                blob_trunk="#5A3A24", fence="#7A5A3A"),
+    "bg5": dict(sky="#3A3150", far="#4E4468", ground="#6B6380", road="#9A8C7A", blobs=["#B48AE6", "#8A6CC8"],
+                blob_trunk="#3E3650", fence="#5E5470"),
+    "bg6": dict(sky="#F5D2A8", far="#C9A37A", ground="#9AAE6A", road="#C2A07A", blobs=["#B8865A", "#8E9AA6", "#C9B27A"],
+                blob_trunk="#6E5236", fence="#8A6A4A"),
+    "bg7": dict(sky="#1E2450", far="#2E3A6A", ground="#2E5A4A", road="#6E6A8A", blobs=["#3E6A5A", "#FFE58A"],
+                blob_trunk="#2A2A3A", fence="#4A4A6A"),
+    "bg8": dict(sky="#5A4030", far="#7A5A40", ground="#8A6A4A", road="#C2A07A", blobs=["#E89A5A", "#9AD08A"],
+                blob_trunk="#5A3A24", fence="#6E4A30"),
+    "bg9": dict(sky="#F2E6D2", far="#D8C4A8", ground="#EDE3D3", road="#C9B8A0", blobs=["#FFFFFF", "#D8D0C4", "#E8C890"],
+                blob_trunk="#B8A890", fence="#A89880"),
+    "bg10": dict(sky="#2A3A30", far="#3A4A3E", ground="#4A5A4E", road="#6A6A62", blobs=["#6AE08A", "#4A8A6A"],
+                 blob_trunk="#3A3A3A", fence="#5A5A5A"),
 }
 
 

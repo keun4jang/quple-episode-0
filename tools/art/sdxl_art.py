@@ -21,7 +21,7 @@ LORA = "nerijs/pixel-art-xl"
 
 STYLE = ("pixel art, 16-bit cozy farm rpg game art, stardew valley style, richly detailed, soft warm lighting, "
          "crisp pixels, vibrant but gentle colors")
-NEG = ("flat, simple, minimalist, empty, blurry, smooth, painting, photo, 3d render, text, watermark, logo, signature, ugly, deformed, "
+NEG = ("people, person, human, character, animal, flat, simple, minimalist, empty, blurry, smooth, painting, photo, 3d render, text, watermark, logo, signature, ugly, deformed, "
        "dark, horror, jpeg artifacts, noise")
 
 ## id: (prompt, width, height)  - SDXL 이 잘 그리는 크기 (픽셀 수 약 100만)
@@ -29,6 +29,33 @@ JOBS = {
     "bg1": ("top-down view of a straight dirt road going from the bottom to the top through a sunny spring meadow, "
             "green grass with clover and tiny white and pink flowers, cherry blossom trees on both sides, "
             "low wooden fences, hay bales, mushrooms, " + STYLE, 768, 1344),
+    "bg2": ("top-down view of a straight dirt road going from the bottom to the top through a gentle marsh after "
+            "rain, small clear puddles, a pond with lily pads, reeds and cattails, wet stones, a small wooden plank "
+            "bridge at the side, " + STYLE, 768, 1344),
+    "bg3": ("top-down view of a straight dirt road going from the bottom to the top through a huge flower garden, "
+            "rows of tulips, daisies and lavender on both sides, beehive boxes, a watering can, butterflies, "
+            + STYLE, 768, 1344),
+    "bg4": ("top-down view of a straight dirt road going from the bottom to the top through a cozy oak forest, big "
+            "oak trees with round leafy crowns, fallen acorns and leaves, ferns, a mossy log, dappled sunlight, "
+            + STYLE, 768, 1344),
+    "bg5": ("top-down view of a straight stone path going from the bottom to the top through a mossy cave, rocky "
+            "walls with glowing purple crystals, hanging roots, small lanterns, soft cobwebs in corners, cute not "
+            "scary, cool lavender light, " + STYLE, 768, 1344),
+    "bg6": ("top-down view of a straight dirt road going from the bottom to the top over a cute junkyard hill, "
+            "piles of old wooden crates, tin cans, a broken wheelbarrow, bottle caps and buttons, grass growing "
+            "through, warm late afternoon light, charming not dirty, " + STYLE, 768, 1344),
+    "bg7": ("top-down view of a straight dirt road going from the bottom to the top through a meadow at night, "
+            "deep blue and violet starry sky with a big moon, fireflies glowing in tall grass, glowing lanterns "
+            "along the road, silver moonlight, " + STYLE, 768, 1344),
+    "bg8": ("top-down view of a straight dirt path going from the bottom to the top through an underground "
+            "burrow village, earth walls with tiny round doors and windows, roots, glowing mushrooms, small "
+            "ladders, wooden supports, warm lamp light, " + STYLE, 768, 1344),
+    "bg9": ("top-down view of a straight path going from the bottom to the top across a giant kitchen floor seen "
+            "from a tiny animal, huge checkered tiles, a dropped spoon, a sugar cube, crumbs, spilled milk, warm "
+            "indoor light, " + STYLE, 768, 1344),
+    "bg10": ("top-down view of a straight stone walkway going from the bottom to the top through an old sewer "
+             "tunnel, stone brick walls, glowing green water channels on both sides, pipes, little grates, soft "
+             "purple mist, spooky but cute, " + STYLE, 768, 1344),
     # 물건은 단색 마젠타 위에 하나만 - import_lane_art.py 가 마젠타를 빼서 투명하게 만든다
     "fort": ("a single cute small wooden fortress game sprite, front view, a row of wooden palisade logs with "
              "pointed tops, a small wooden watchtower in the middle with a red tiled roof, a round window and a "
