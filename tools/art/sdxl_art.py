@@ -79,6 +79,47 @@ CHARS = {
     "q_mage": QUOKKA + ", wearing a tall purple wizard hat, holding a staff with a star on top",
     "q_giant": "big bulky strong " + QUOKKA + ", wearing a brown helmet with two small horns, holding a heavy club",
 }
+ANIMALS = {
+    "chick": "a tiny round yellow chick with a piece of eggshell on its head",
+    "hedgehog": "a cute brown hedgehog with a crown of spikes and a cream face",
+    "squirrel": "a cute orange squirrel with a big bushy tail, holding an acorn",
+    "frog": "a cute green frog wearing a leaf hat, big friendly eyes",
+    "rabbit": "a cute white rabbit with long ears with pink insides, holding a carrot",
+    "duck": "a cute white duck wearing a little blue sailor hat and collar",
+    "mole": "a cute dark grey mole with big claws, wearing a miner helmet with a lamp",
+    "sheep": "a cute fluffy white wool sheep with a dark face",
+    "turtle": "a cute light green turtle with a dark green shell, standing",
+    "penguin": "a cute navy and white penguin wearing a red scarf",
+    "owl": "a cute brown owl wearing round glasses, wise",
+    "panda": "a cute sturdy panda holding a bamboo stick",
+    "otter": "a cute brown otter holding a pink clam shell",
+    "tiger": "a cute strong orange striped tiger cub with a golden claw gauntlet",
+    "polar": "a cute big white polar bear wearing an icy blue scarf",
+    "eagle": "a cute brown eagle with a white head, large wings and aviator goggles",
+}
+for _k, _d in ANIMALS.items():
+    CHARS["a_" + _k] = "chibi " + _d
+BUGS = {
+    "ant": "red-brown ant", "caterpillar": "green segmented caterpillar", "mosquito": "thin mosquito",
+    "fly": "shiny blue-green fly", "bee": "yellow and black bee with small wings", "ladybug": "red ladybug with black dots",
+    "termite": "pale cream termite", "cricket": "brown cricket with long legs", "moth": "moth with dusty lavender wings",
+    "spider": "purple spider with eight legs", "centipede": "orange centipede with many legs",
+    "stag": "dark stag beetle with big jaws", "wasp": "orange and black wasp with a stinger",
+    "pillbug": "grey armored pill bug", "molecricket": "brown mole cricket with digging claws",
+    "roach": "glossy brown cockroach",
+    "queen_ant": "giant red ant insect boss with six legs and antennae, wearing a tiny crown, an insect not a human",
+    "mosquito_king": "giant mosquito insect boss with thin wings and a long needle nose, wearing a tiny crown, an insect "
+                     "not a human",
+    "hornet": "giant armored hornet boss with angry eyebrows", "rhino": "rhino beetle boss with a huge horn",
+    "tarantula": "fuzzy purple tarantula king boss wearing a crown", "fly_king": "giant shiny green housefly insect boss with big red compound eyes and "
+    "wings, wearing a tiny crown, an insect not a human",
+    "moth_queen": "giant fluffy moth insect boss with big glowing patterned wings and antennae, wearing a tiny tiara, "
+                  "an insect not a human",
+    "cricket_king": "mole cricket king boss with digging claws and a crown",
+    "centipede_king": "armored centipede emperor boss", "roach_king": "cockroach overlord boss wearing a cape and crown",
+}
+for _k, _d in BUGS.items():
+    CHARS["b_" + _k] = "a cute but mischievous chubby cartoon " + _d + ", big eyes, sly grin"
 for _k, _d in CHARS.items():
     JOBS[_k] = ("a single game character sprite, " + _d + ", front view, standing, full body, feet visible, "
                 "large in frame, isolated on a plain flat solid magenta background, no shadow, no ground, centered, "
@@ -117,7 +158,7 @@ def main() -> None:
             seed = a.seed if a.seed >= 0 else int.from_bytes(os.urandom(4), "little")
             g = torch.Generator("cuda").manual_seed(seed + k)
             neg = NEG + (", ground, floor, shadow, platform, base, grass, plants, rocks, multiple characters, "
-                         "character sheet, frame, border" if w == h else "")
+                         "character sheet, frame, border, panel, square, circle, glow, spotlight, vignette, halo" if w == h else "")
             kw = dict(prompt=prompt, negative_prompt=neg, num_inference_steps=a.steps, guidance_scale=6.5,
                       generator=g, cross_attention_kwargs={"scale": a.lora})
             if a.init:
