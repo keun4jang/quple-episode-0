@@ -191,7 +191,51 @@ def make_sheet(char: str, n: int, seed: int) -> None:
         sys.stdout.flush()
 
 
+CONTROLNET = "thibaud/controlnet-openpose-sdxl-1.0"
+POSE_DIR = os.path.join(OUT, "poses")
+
+
+def make_posed(char: str, src: str, strength: float, cscale: float, seed: int, poses: list) -> None:
+    """자세 지정(ControlNet OpenPose) + 서 있는 그림을 밑그림으로 → 같은 캐릭터가 그 자세를 한 그림.
+    → assets/source/lane/posed/<char>_<자세>.png"""
+    import torch
+    from diffusers import AutoencoderKL, ControlNetModel, StableDiffusionXLControlNetImg2ImgPipeline
+    from PIL import Image
+    pipe = getattr(make_posed, "pipe", None)
+    if pipe is None:
+        cn = ControlNetModel.from_pretrained(CONTROLNET, torch_dtype=torch.float16)
+        vae = AutoencoderKL.from_pretrained(VAE, torch_dtype=torch.float16)
+        pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
+            BASE, controlnet=cn, vae=vae, torch_dtype=torch.float16, variant="fp16", use_safetensors=True)
+        pipe.load_lora_weights(LORA)
+        pipe.enable_model_cpu_offload()
+        make_posed.pipe = pipe
+    out = os.path.join(OUT, "posed")
+    os.makedirs(out, exist_ok=True)
+    init = Image.open(src).convert("RGB").resize((1024, 1024))
+    for ps in poses:
+        ctrl = Image.open(os.path.join(POSE_DIR, ps + ".png")).convert("RGB")
+        g = torch.Generator("cuda").manual_seed(seed)
+        prompt = ("a single game character sprite, " + CHARS[char] + ", " + POSES.get(ps, "standing") +
+                  ", full body, isolated on a plain flat solid grey background, no shadow, " + STYLE)
+        img = pipe(prompt=prompt, negative_prompt=NEG + ", multiple characters, ground, shadow, frame, panel",
+                   image=init, control_image=ctrl, strength=strength, controlnet_conditioning_scale=cscale,
+                   num_inference_steps=30, guidance_scale=7.0, generator=g,
+                   cross_attention_kwargs={"scale": 0.6}).images[0]
+        p = os.path.join(out, "%s_%s.png" % (char, ps))
+        img.save(p)
+        print("ok", p)
+        sys.stdout.flush()
+
+
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "pose":
+        # pose <strength> <cn세기> <char>=<원본> ...   (자세 6개 전부)
+        for pair in sys.argv[4:]:
+            c, s = pair.split("=", 1)
+            make_posed(c, s, float(sys.argv[2]), float(sys.argv[3]), 4321,
+                       ["walk1", "walk2", "atk1", "atk2", "atk3"])
+        return
     if len(sys.argv) > 1 and sys.argv[1] == "sheet":
         # sheet <n> <char> ...
         for c in sys.argv[3:]:
