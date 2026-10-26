@@ -81,18 +81,103 @@ def unit_sheet(src: str, w: int) -> Image.Image:
     움직임 대부분(늘림·눌림·덤벼들기)은 게임 코드가 한다 - 여기선 칸마다 살짝만 다르게.
     """
     sp = cut_sprite(src, w)
-    side = max(sp.width, sp.height) + 6
+    side = max(sp.width, sp.height) + 16
     sheet = Image.new("RGBA", (side * 4, side * 3), (0, 0, 0, 0))
-    base_x = (side - sp.width) // 2
-    base_y = side - sp.height - 1
-    offs = [[0, -2, 0, 1], [0, 3, 3, 1], [0, -1, 0, -1]]
+    # 칸 안에 발끝을 맞춰 놓은 그림 (칸 크기 캔버스)
+    base = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    base.alpha_composite(sp, ((side - sp.width) // 2, side - sp.height - 2))
+    frames = [
+        [base, _cheer(base), base, _hurt(base)],
+        [_attack(base, 11, False), _attack(base, -15, True), _attack(base, -7, False), base],
+        [base, _walk(base, "L"), base, _walk(base, "R")],
+    ]
     for r in range(3):
         for c in range(4):
-            img = sp
-            if r == 0 and c == 3:
-                img = sp.resize((sp.width, max(1, sp.height - 2)), Image.NEAREST)
-            sheet.alpha_composite(img, (c * side + base_x, r * side + base_y + offs[r][c] + (sp.height - img.height)))
+            sheet.alpha_composite(frames[r][c], (c * side, r * side))
     return sheet
+
+
+# ── 부위별 동작 ─ 한 장을 통째로 옮기지 않는다: 발·상체를 떼어 칸마다 다른 자세로 다시 놓는다 ──────────
+
+def _rows(img: Image.Image):
+    import numpy as np
+    a = np.asarray(img.getchannel("A")) > 0
+    ys = np.where(a.any(axis=1))[0]
+    xs = np.where(a.any(axis=0))[0]
+    return int(ys[0]), int(ys[-1]), int(xs[0]), int(xs[-1])
+
+
+def _band(img: Image.Image, y0: int, y1: int) -> Image.Image:
+    """y0 <= y < y1 줄만 남긴 그림."""
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    out.paste(img.crop((0, y0, img.width, y1)), (0, y0))
+    return out
+
+
+def _walk(img: Image.Image, foot: str) -> Image.Image:
+    """걷기: 한쪽 발을 들어 올리고(3칸) 몸은 그쪽으로 살짝 기울며 들썩인다."""
+    top, bot, x0, x1 = _rows(img)
+    h = bot - top + 1
+    feet_y = top + int(h * 0.88)
+    cx = (x0 + x1) // 2
+    upper = _band(img, 0, feet_y)
+    feet = _band(img, feet_y, img.height)
+    left = feet.crop((0, 0, cx, img.height))
+    right = feet.crop((cx, 0, img.width, img.height))
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    lift_l, lift_r = (-3, 0) if foot == "L" else (0, -3)
+    out.alpha_composite(left, (-1 if foot == "L" else 0, lift_l))
+    out.alpha_composite(right, (cx + (1 if foot == "R" else 0), lift_r))
+    ang = 2 if foot == "L" else -2
+    body = upper.rotate(ang, resample=Image.NEAREST, center=(cx, feet_y))
+    out.alpha_composite(body)
+    return out
+
+
+def _attack(img: Image.Image, angle: float, swoosh: bool) -> Image.Image:
+    """공격: 다리는 땅에 두고 허리 위 상체만 젖히거나(준비) 휘두른다(내려침). 내려칠 땐 휘두른 궤적을 긋는다."""
+    import math
+    from PIL import ImageDraw
+    top, bot, x0, x1 = _rows(img)
+    h = bot - top + 1
+    waist = top + int(h * 0.64)
+    cx = (x0 + x1) // 2
+    lower = _band(img, waist, img.height)
+    upper = _band(img, 0, waist)
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    out.alpha_composite(lower)
+    # 허리 이음매가 비지 않게 아래 몸을 두 줄 위로 한 번 더 깐다
+    out.alpha_composite(_band(img, waist - 2, waist + 2))
+    body = upper.rotate(angle, resample=Image.NEAREST, center=(cx, waist))
+    out.alpha_composite(body, (0, 2 if angle < 0 else -1))
+    if swoosh:
+        d = ImageDraw.Draw(out)
+        r = h * 0.55
+        for k, col in ((0, (255, 255, 255, 230)), (2, (255, 236, 160, 200))):
+            pts = [(cx + (r - k) * math.cos(math.radians(a)), waist - (r - k) * math.sin(math.radians(a)))
+                   for a in range(150, 20, -6)]
+            d.line(pts, fill=col, width=2)
+    return out
+
+
+def _cheer(img: Image.Image) -> Image.Image:
+    top, bot, x0, x1 = _rows(img)
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    out.alpha_composite(_band(img, 0, img.height), (0, -3))
+    return out
+
+
+def _hurt(img: Image.Image) -> Image.Image:
+    """맞음: 눌리고 붉어진다."""
+    top, bot, x0, x1 = _rows(img)
+    sq = img.resize((img.width + 2, max(1, img.height - 4)), Image.NEAREST)
+    red = Image.new("RGBA", sq.size, (255, 80, 90, 0))
+    a = sq.getchannel("A").point(lambda v: 90 if v else 0)
+    red.putalpha(a)
+    sq.alpha_composite(red)
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    out.alpha_composite(sq.crop((1, 0, img.width + 1, sq.height)), (0, 4))
+    return out
 
 
 def main() -> None:
@@ -114,11 +199,6 @@ def main() -> None:
         unit_sheet(src, int(sys.argv[4])).save(out)
     else:
         raise SystemExit("모르는 종류: " + kind)
-    if kind in ("unit", "bug"):
-        # 한 장을 비틀어 걷기·공격·맞음 칸을 만든다 (animate_sheets.py) - 안 하면 걸어도 서 있는 것처럼 보인다
-        sys.path.insert(0, HERE)
-        import animate_sheets
-        animate_sheets.animate(out).save(out)
     print("ok", out)
 
 
