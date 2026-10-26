@@ -25,7 +25,39 @@ def pixelize(src: str, w: int) -> Image.Image:
     return q.convert("RGB")
 
 
-def cut_sprite(src: str, w: int, crop=None) -> Image.Image:
+def regen_sheet(prefix: str, target_h: int) -> Image.Image:
+    """동작마다 새로 생성한 그림 6장(regen/<prefix>_<자세>_0.png) → 게임 시트 (4칸 x 3줄).
+    0줄: 서기 · 환호(공격 준비 그림) · 서기 · 맞음  1줄 공격: 준비 · 내려침 · 마무리 · 서기  2줄 걷기: 서기 · 왼발 · 서기 · 오른발
+    크기는 몸 높이로 맞춘다 (자세마다 무기 때문에 폭이 달라서)."""
+    d = os.path.join(HERE, "..", "..", "assets", "source", "lane", "regen")
+    fr = {p: cut_sprite(os.path.join(d, "%s_%s_0.png" % (prefix, p)), 0, target_h=target_h)
+          for p in ("stand", "walk1", "walk2", "atk1", "atk2", "atk3")}
+    side = max(max(f.width, f.height) for f in fr.values()) + 8
+    sheet = Image.new("RGBA", (side * 4, side * 3), (0, 0, 0, 0))
+
+    def cell(img):
+        c = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+        c.alpha_composite(img, ((side - img.width) // 2, side - img.height - 2))
+        return c
+    st = cell(fr["stand"])
+    rows = [[st, cell(fr["atk1"]), st, _hurt(st)],
+            [cell(fr["atk1"]), cell(fr["atk2"]), cell(fr["atk3"]), st],
+            [st, cell(fr["walk1"]), st, cell(fr["walk2"])]]
+    for r in range(3):
+        for c in range(4):
+            sheet.alpha_composite(rows[r][c], (c * side, r * side))
+    return sheet
+
+
+def sheet_height(path: str) -> int:
+    """지금 시트의 서 있는 칸 몸 높이 - 새로 만들 때 크기를 맞춘다."""
+    im = Image.open(path).convert("RGBA")
+    c = im.crop((0, 0, im.width // 4, im.height // 3))
+    t, b, _x0, _x1 = _rows(c)
+    return b - t + 1
+
+
+def cut_sprite(src: str, w: int, crop=None, target_h: int = 0) -> Image.Image:
     """바탕을 빼고 물건만 잘라 폭 w 칸 픽셀 그림으로.
 
     바탕색은 모델이 마젠타를 정확히 안 지켜서(탁한 보라가 나온다) 가장자리에서 재고, 바깥에서부터
@@ -64,7 +96,11 @@ def cut_sprite(src: str, w: int, crop=None) -> Image.Image:
     rgba = im.convert("RGBA")
     rgba.putalpha(alpha)
     rgba = rgba.crop(alpha.getbbox())
-    h = round(rgba.height * w / rgba.width)
+    if target_h:
+        h = target_h
+        w = max(1, round(rgba.width * target_h / rgba.height))
+    else:
+        h = round(rgba.height * w / rgba.width)
     rgb = rgba.convert("RGB").resize((w, h), Image.LANCZOS)
     al = rgba.getchannel("A").resize((w, h), Image.BOX).point(lambda v: 255 if v > 140 else 0)
     q = rgb.quantize(colors=COLORS, method=Image.MEDIANCUT, dither=Image.Dither.NONE).convert("RGBA")
@@ -197,6 +233,10 @@ def main() -> None:
     elif kind == "bug":
         out = os.path.join(SPR, "lane-bug-%s.png" % n)
         unit_sheet(src, int(sys.argv[4])).save(out)
+    elif kind == "regen":
+        # 예: regen unit-spear q_spear  → lane-unit-spear.png 를 새로 생성한 동작 6장으로 (키는 지금 시트 그대로)
+        out = os.path.join(SPR, "lane-%s.png" % n)
+        regen_sheet(src, sheet_height(out)).save(out)
     else:
         raise SystemExit("모르는 종류: " + kind)
     print("ok", out)

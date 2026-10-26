@@ -228,7 +228,50 @@ def make_posed(char: str, src: str, strength: float, cscale: float, seed: int, p
         sys.stdout.flush()
 
 
+def make_regen(char: str, ref: str, n: int, seed: int, ip_scale: float, poses: list) -> None:
+    """동작마다 새로 생성한다: 자세 지정(OpenPose) + 모습 고정(IP-Adapter, 서 있는 그림을 참고).
+    픽셀아트 LoRA 는 끈다 - 켜면 자세보다 화풍을 따른다. 픽셀 느낌은 import 가 입힌다.
+    → assets/source/lane/regen/<char>_<자세>_<k>.png"""
+    import torch
+    from diffusers import AutoencoderKL, ControlNetModel, StableDiffusionXLControlNetPipeline
+    from PIL import Image
+    pipe = getattr(make_regen, "pipe", None)
+    if pipe is None:
+        cn = ControlNetModel.from_pretrained(CONTROLNET, torch_dtype=torch.float16)
+        vae = AutoencoderKL.from_pretrained(VAE, torch_dtype=torch.float16)
+        pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+            BASE, controlnet=cn, vae=vae, torch_dtype=torch.float16, variant="fp16", use_safetensors=True)
+        pipe.load_ip_adapter("h94/IP-Adapter", subfolder="sdxl_models", weight_name="ip-adapter_sdxl_vit-h.safetensors",
+                             image_encoder_folder="models/image_encoder")
+        pipe.enable_model_cpu_offload()
+        make_regen.pipe = pipe
+    pipe.set_ip_adapter_scale(ip_scale)
+    out = os.path.join(OUT, "regen")
+    os.makedirs(out, exist_ok=True)
+    refimg = Image.open(ref).convert("RGB").resize((1024, 1024))
+    for ps in poses:
+        ctrl = Image.open(os.path.join(POSE_DIR, ps + ".png")).convert("RGB")
+        for k in range(n):
+            g = torch.Generator("cuda").manual_seed(seed + k)
+            prompt = ("cute chibi game character, " + CHARS[char] + ", " + POSES.get(ps, "standing") +
+                      ", full body, front view, plain flat grey background, pixel art style, clean shapes")
+            img = pipe(prompt=prompt, negative_prompt=NEG + ", multiple characters, ground, shadow, frame, panel",
+                       image=ctrl, ip_adapter_image=refimg, controlnet_conditioning_scale=1.0,
+                       num_inference_steps=30, guidance_scale=6.0, generator=g, width=1024, height=1024).images[0]
+            p = os.path.join(out, "%s_%s_%d.png" % (char, ps, k))
+            img.save(p)
+            print("ok", p)
+            sys.stdout.flush()
+
+
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "regen":
+        # regen <n> <ip세기> <char>=<서 있는 그림> ...
+        for pair in sys.argv[4:]:
+            c, s = pair.split("=", 1)
+            make_regen(c, s, int(sys.argv[2]), 5556, float(sys.argv[3]),
+                       ["stand", "walk1", "walk2", "atk1", "atk2", "atk3"])
+        return
     if len(sys.argv) > 1 and sys.argv[1] == "pose":
         # pose <strength> <cn세기> <char>=<원본> ...   (자세 6개 전부)
         for pair in sys.argv[4:]:
