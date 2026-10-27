@@ -49,6 +49,9 @@ def regen_sheet(prefix: str, target_h: int) -> Image.Image:
     return sheet
 
 
+BODY_H = {"unit-giant": 72, "unit-mage": 50, "unit-shield": 52, "unit-turtle": 50}
+
+
 def sheet_height(path: str) -> int:
     """지금 시트의 서 있는 칸 몸 높이 - 새로 만들 때 크기를 맞춘다."""
     im = Image.open(path).convert("RGBA")
@@ -236,10 +239,11 @@ def main() -> None:
     elif kind == "regen":
         # 예: regen unit-spear q_spear  → lane-unit-spear.png 를 새로 생성한 동작 6장으로 (키는 지금 시트 그대로)
         out = os.path.join(SPR, "lane-%s.png" % n)
-        if n.endswith("-2"):    # 진화한 모습 - 기본 시트보다 15% 크게
-            h = int(round(sheet_height(os.path.join(SPR, "lane-%s.png" % n[:-2])) * 1.15))
-        else:
-            h = sheet_height(out)
+        base = n[:-2] if n.endswith("-2") else n
+        # 몸 키 - 옛 시트에서 물려받은 키가 이름과 안 맞는 것만 정해 둔다 (거대 쿼카가 망치 쿼카보다 작았다)
+        h = BODY_H.get(base) or sheet_height(os.path.join(SPR, "lane-%s.png" % base))
+        if n.endswith("-2"):    # 진화한 모습 - 기본보다 15% 크게
+            h = int(round(h * 1.15))
         regen_sheet(src, h).save(out)
     else:
         raise SystemExit("모르는 종류: " + kind)

@@ -128,9 +128,9 @@ EVOLVED = {
     "q_sling": "a master archer wearing a green hood and cape, holding a golden slingshot",
     "q_mage": "an archmage in a starry dark purple robe and tall hat, holding a staff with a glowing crystal",
     "q_giant": "huge mountain-like, wearing heavy stone armor with moss, holding a giant stone club",
-    "a_chick": "a brave chick captain wearing a red comb crest and a tiny cape",
+    "a_chick": "a brave chick captain with a big red rooster comb on its head and a tiny red cape",
     "a_hedgehog": "with shining steel spikes and a metal armor plate",
-    "a_squirrel": "holding a big shining golden acorn, wearing a golden vest",
+    "a_squirrel": "a squirrel with small round ears and a huge curly bushy tail, holding a big shining golden acorn",
     "a_frog": "a frog prince wearing a small golden crown and a red cape",
     "a_rabbit": "with lightning bolt marks on its fur and yellow sneakers, holding a carrot",
     "a_duck": "a duck sea captain wearing a navy captain hat and coat",
@@ -140,7 +140,7 @@ EVOLVED = {
     "a_penguin": "wearing an icy blue crystal armor and a white scarf",
     "a_owl": "a sage owl wearing a starry blue wizard hat and round glasses, holding a book",
     "a_panda": "a kung fu panda wearing a red martial arts vest and headband",
-    "a_otter": "holding a big glowing pearl, wearing a pearl necklace",
+    "a_otter": "holding a big round shiny white pearl ball with both paws, wearing a white pearl necklace",
     "a_tiger": "a thunder tiger with glowing blue lightning stripes and golden claw gauntlets",
     "a_polar": "wearing a shimmering aurora colored green and purple scarf and ice armor",
     "a_eagle": "a sun eagle with golden glowing wings and a golden crest",
@@ -295,11 +295,12 @@ def make_regen(char: str, ref: str, n: int, seed: int, ip_scale: float, poses: l
 
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "regen":
-        # regen <n> <ip세기> <char>=<서 있는 그림> ...
+        # regen <n> <ip세기> <char>=<서 있는 그림> ...   (환경 변수 REGEN_SEED · REGEN_POSES="atk2,walk1" 로 한 칸만 다시)
+        seed = int(os.environ.get("REGEN_SEED", "5556"))
+        poses = os.environ.get("REGEN_POSES", "stand,walk1,walk2,atk1,atk2,atk3").split(",")
         for pair in sys.argv[4:]:
             c, s = pair.split("=", 1)
-            make_regen(c, s, int(sys.argv[2]), 5556, float(sys.argv[3]),
-                       ["stand", "walk1", "walk2", "atk1", "atk2", "atk3"])
+            make_regen(c, s, int(sys.argv[2]), seed, float(sys.argv[3]), poses)
         return
     if len(sys.argv) > 1 and sys.argv[1] == "pose":
         # pose <strength> <cn세기> <char>=<원본> ...   (자세 6개 전부)

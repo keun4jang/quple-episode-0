@@ -34,5 +34,11 @@
   (거북이만 0.75 · seed 902) ② `regen 1 0.6 e_<char>=EV_e_<char>_0.png` ③ `import_lane_art.py regen unit-<id>-2 e_<char>`
   (진화 시트는 기본 시트보다 15% 크게)
 
+## 손본 것 (0.1.258)
+- 몸 키 표 `import_lane_art.BODY_H` - 거대 72 · 마법 50 · 방패 50→52 · 거북 50 (옛 시트 키가 이름과 안 맞았다)
+- 한 칸만 다시: `REGEN_SEED=8300 REGEN_POSES=atk3 sdxl_art.py regen 3 ...` → 고른 것을 `_0` 으로 복사
+- 진화 병아리(꼬꼬 대장)·수달은 밑그림 없이 새로 그림 (`EVX_` 후보), 다람쥐는 다람쥐 생김새를 앞에 적어 다시
+- 거대 쿼카 내려침 칸은 색만 서 있는 그림에 맞춤 (평균·표준편차)
+
 ## 남은 것
 - 없음. `animate_sheets.py` 는 더 쓰지 않는다
