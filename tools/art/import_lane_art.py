@@ -236,7 +236,11 @@ def main() -> None:
     elif kind == "regen":
         # 예: regen unit-spear q_spear  → lane-unit-spear.png 를 새로 생성한 동작 6장으로 (키는 지금 시트 그대로)
         out = os.path.join(SPR, "lane-%s.png" % n)
-        regen_sheet(src, sheet_height(out)).save(out)
+        if n.endswith("-2"):    # 진화한 모습 - 기본 시트보다 15% 크게
+            h = int(round(sheet_height(os.path.join(SPR, "lane-%s.png" % n[:-2])) * 1.15))
+        else:
+            h = sheet_height(out)
+        regen_sheet(src, h).save(out)
     else:
         raise SystemExit("모르는 종류: " + kind)
     print("ok", out)

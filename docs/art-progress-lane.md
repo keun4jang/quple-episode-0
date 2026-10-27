@@ -28,6 +28,11 @@
 - 자세 6장(stand·walk1·walk2·atk1·atk2·atk3) → `import_lane_art.py regen unit-<id>|bug-<id> <char>` 로 4x3 시트
 - 50종 300장 완료 (`assets/source/lane/regen/`). 작은 장식(병아리 달걀 모자 등)이 빠지기도 한다
 
+## 진화한 모습 24종 (0.1.257)
+- `sdxl_art.py` 의 `EVOLVED` (이름은 `LaneData.EVOLVED_NAME`) → `CHARS["e_<char>"]` (새 차림을 앞에 - 77토큰 뒤는 잘린다)
+- ① 서 있는 그림: `sdxl_art.py e_<char> --init regen/<char>_stand_0.png --strength 0.82 --seed 777 --tag EV_`
+  (거북이만 0.75 · seed 902) ② `regen 1 0.6 e_<char>=EV_e_<char>_0.png` ③ `import_lane_art.py regen unit-<id>-2 e_<char>`
+  (진화 시트는 기본 시트보다 15% 크게)
+
 ## 남은 것
-1. 진화한 모습 24종 (지금은 옛 코드 그림)
-2. `animate_sheets.py` 는 더 쓰지 않는다
+- 없음. `animate_sheets.py` 는 더 쓰지 않는다

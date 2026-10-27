@@ -118,6 +118,35 @@ BUGS = {
     "cricket_king": "mole cricket king boss with digging claws and a crown",
     "centipede_king": "armored centipede emperor boss", "roach_king": "cockroach overlord boss wearing a cape and crown",
 }
+## 진화한 모습 (LaneData.EVOLVED_NAME) - 원래 설명에 더 멋진 차림을 얹는다. 모습은 IP-Adapter 가 원래 그림에서 가져온다.
+EVOLVED = {
+    "q_tiny": "brave, wearing a small red cape and a tiny silver helmet with a leaf",
+    "q_shield": "wearing shining full silver plate armor, holding a huge golden tower shield",
+    "q_spear": "wearing light blue armor, holding a spear crackling with yellow lightning",
+    "q_hammer": "a blacksmith wearing a leather apron, holding a giant glowing orange forge hammer",
+    "q_runner": "wearing a flowing blue scarf and winged sneakers, wind swirls",
+    "q_sling": "a master archer wearing a green hood and cape, holding a golden slingshot",
+    "q_mage": "an archmage in a starry dark purple robe and tall hat, holding a staff with a glowing crystal",
+    "q_giant": "huge mountain-like, wearing heavy stone armor with moss, holding a giant stone club",
+    "a_chick": "a brave chick captain wearing a red comb crest and a tiny cape",
+    "a_hedgehog": "with shining steel spikes and a metal armor plate",
+    "a_squirrel": "holding a big shining golden acorn, wearing a golden vest",
+    "a_frog": "a frog prince wearing a small golden crown and a red cape",
+    "a_rabbit": "with lightning bolt marks on its fur and yellow sneakers, holding a carrot",
+    "a_duck": "a duck sea captain wearing a navy captain hat and coat",
+    "a_mole": "wearing a miner helmet and a vest covered with sparkling gems, holding a gem pickaxe",
+    "a_sheep": "with fluffy cloud-like light blue wool, floating little clouds around",
+    "a_turtle": "with a pink coral and seashell decorated shell",
+    "a_penguin": "wearing an icy blue crystal armor and a white scarf",
+    "a_owl": "a sage owl wearing a starry blue wizard hat and round glasses, holding a book",
+    "a_panda": "a kung fu panda wearing a red martial arts vest and headband",
+    "a_otter": "holding a big glowing pearl, wearing a pearl necklace",
+    "a_tiger": "a thunder tiger with glowing blue lightning stripes and golden claw gauntlets",
+    "a_polar": "wearing a shimmering aurora colored green and purple scarf and ice armor",
+    "a_eagle": "a sun eagle with golden glowing wings and a golden crest",
+}
+for _k, _d in EVOLVED.items():
+    CHARS["e_" + _k] = _d + ", " + CHARS[_k]   # 새 차림을 앞에 - 77토큰 뒤는 잘린다
 for _k, _d in BUGS.items():
     CHARS["b_" + _k] = "a cute but mischievous chubby cartoon " + _d + ", big eyes, sly grin"
 for _k, _d in CHARS.items():
