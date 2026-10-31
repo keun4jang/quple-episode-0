@@ -15,6 +15,8 @@ const FX_PIX := 2
 ## 공격 모양 - 유닛마다 다르게 보여야 누가 무얼 하는지 안다. [모양, 색]
 ## slash 베기 · pierce 찌르기 · smash 내리찍기(충격파) · shot 던지기(날아감) · magic 마법 구슬 · quake 땅울림 ·
 ## claw 세 갈래 할퀴기 · ice 얼음 · tongue 혀 · dive 하늘에서 내리꽂기 · peck 쪼기 · splash 물보라 · bonk 콩 박기
+## 바주카포 포탄이 성에서 둥지까지 날아가는 시간 (초).
+const CANNON_FLY := 0.45
 ## 이 사거리 이하는 근접 - 상대에게 덤벼든다.
 const MELEE_RANGE := 230.0
 ## 쏘거나 던지는 공격 (덤벼들지 않는다).
@@ -1348,7 +1350,7 @@ func _build_hud() -> void:
 			_end_battle("lose"))
 	top.add_child(quit)
 
-	# ── 아래 판: [수입] [꿈빛] [꿈 대포] / 유닛 버튼 (얼굴·이름·역할·비용)
+	# ── 아래 판: [수입] [꿈빛] [바주카포] / 유닛 버튼 (얼굴·이름·역할·비용)
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
 	var psb := IdleUi.panel_style()
@@ -1602,7 +1604,7 @@ func _refresh_hud() -> void:
 	_worker_btn.text = "수입 Lv%d\n%s" % [battle.worker, ("최고" if wc < 0 else "올리기 ✦%d" % wc)]
 	_worker_btn.disabled = not battle.can_worker()
 	var ready := battle.cannon_ready()
-	_cannon_btn.text = "꿈 대포!\n누르면 발사" if ready else "꿈 대포\n충전 %d%%" % int(battle.cannon / LaneData.CANNON_CHARGE * 100.0)
+	_cannon_btn.text = "바주카포!\n누르면 발사" if ready else "바주카포\n충전 %d%%" % int(battle.cannon / LaneData.CANNON_CHARGE * 100.0)
 	_cannon_btn.disabled = not ready
 	if ready:
 		var s := 1.0 + 0.05 * sin(_t * 8.0)
@@ -1901,7 +1903,16 @@ func _on_event(e: Dictionary) -> void:
 		"hit":
 			# 근접은 덤벼들어 닿는 때(0.08초 뒤)에 맞는다 - 휘두르자마자 번쩍이면 허공을 친 것처럼 보였다
 			var src = _ent_of.get(int(e.get("by", -1)))
-			if src != null and String(e.get("eff", "")) != "skill" and _is_melee(src):
+			if bool(e.get("cannon", false)):
+				# 바주카포 포탄이 그 벌레에 닿는 때에
+				var ha = _actor_of.get(int(e["uid"]))
+				var k := 0.0
+				if ha != null and is_instance_valid(ha):
+					var y0 := _field.fort_pos().y
+					var y1 := _field.nest_pos().y - 50.0
+					k = clampf((ha.position.y - y0) / maxf(1.0, y1 - y0), 0.0, 1.0)
+				_later(CANNON_FLY * k, _show_hit.bind(e))
+			elif src != null and String(e.get("eff", "")) != "skill" and _is_melee(src):
 				_later(0.07, _show_hit.bind(e))
 			else:
 				_show_hit(e)
@@ -1970,7 +1981,7 @@ func _on_event(e: Dictionary) -> void:
 			_fx.text(_worker_btn.global_position + Vector2(75, -10) - _world.global_position, "수입 UP!", IdleUi.GOLD, 30, 0.9)
 		"cannon", "cannon_fx":
 			if String(e["k"]) == "cannon":
-				_cannon_fx()
+				_cannon_fx(e)
 		"slow":
 			var a = _actor_of.get(int(e["uid"]))
 			if a != null and is_instance_valid(a):
@@ -2281,24 +2292,34 @@ func _cutin(id: String) -> bool:
 	return true
 
 
-func _cannon_fx() -> void:
+func _cannon_fx(e: Dictionary = {}) -> void:
+	# 바주카포 - 성에서 포탄이 길을 따라 둥지까지 날아가며 지나는 자리마다 터지고, 둥지에서 크게 터진다
 	var base := _field.fort_pos() + Vector2(0, 10)
-	var reach := _field.to_screen(LaneData.CANNON_REACH, 0.0)
-	_flash(0.45)
-	_add_trauma(0.7)
-	_hitstop(0.06)
-	_fx.rays(base, IdleUi.GOLD, 16, 40.0, 320.0, 0.35)
-	_fx.ring(base, 20.0, 360.0, Color.WHITE, 16.0, 0.45)
-	_banner_show("꿈 대포 발사!", IdleUi.GOLD)
-	for i in 12:
-		var t2 := float(i) / 11.0
-		var q := base.lerp(reach, t2)
-		_fx.burst(q, IdleUi.GOLD, 8, 420.0, 8.0, 0.5, 400.0, "star", t2 * 0.2)
+	var nest := _field.nest_pos() + Vector2(0, -50)
+	const FLY := CANNON_FLY
+	_flash(0.3)
+	_add_trauma(0.5)
+	_hitstop(0.05)
+	_fx.ring(base, 20.0, 200.0, Color.WHITE, 14.0, 0.35)
+	_vfx.burst(base, Color("#E8DCC8"), 14, 320.0, 0.5, 0.45, true)
+	_banner_show("바주카포 발사!", IdleUi.GOLD)
+	_fx.meteor(base, nest, IdleUi.GOLD, FLY)
 	for i in 8:
-		var t := float(i) / 7.0
-		var p := base.lerp(reach, t)
-		_fx.ring(p, 10.0, 120.0 * (1.0 - t * 0.5), Color("#BFEFFF"), 10.0, 0.4, t * 0.15)
-		_vfx.burst(p, Color("#BFEFFF"), 6, 300.0, 0.5, 0.45, false, t * 0.15)
+		var t := float(i + 1) / 9.0
+		var p := base.lerp(nest, t)
+		_fx.ring(p, 8.0, 90.0, Color("#FFE7B0"), 9.0, 0.3, t * FLY)
+		_vfx.burst(p, IdleUi.GOLD, 6, 260.0, 0.4, 0.4, false, t * FLY)
+	var nd := int(e.get("nest", 0))
+	_later(FLY, func() -> void:
+		if _field == null:
+			return
+		_field.shake_nest = 14.0
+		_add_trauma(0.6)
+		_flash(0.25)
+		_fx.ring(nest, 20.0, 260.0, Color.WHITE, 16.0, 0.5)
+		_vfx.burst(nest, Color("#C9A27A"), 30, 480.0, 0.8, 0.6, true)
+		if nd > 0:
+			_fx.text(nest + Vector2(0, -60), "-%s" % _num(nd), Color("#FFE7B0"), 40, 1.0, 0.0, 60.0))
 	AudioManager.battle_hit()
 
 
@@ -2467,7 +2488,7 @@ func _tut_battle_guide(i := 0) -> void:
 			_tut.point(_worker_btn, "수입을 올리면 꿈빛이 더 빨리 차요", _tut_run.bind(3.5, 4))
 		4:
 			battle.cannon = LaneData.CANNON_CHARGE
-			_tut.point(_cannon_btn, "꿈 대포가 찼어요! 눌러서 쏴요", _tut_run.bind(2.0, 5))
+			_tut.point(_cannon_btn, "바주카포가 찼어요! 눌러서 쏴요", _tut_run.bind(2.0, 5))
 		5:
 			_tut.point(_auto_btn, "자동 소환을 켜면 알아서 불러 줘요", _tut_battle_guide.bind(6))
 		6:

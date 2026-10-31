@@ -346,10 +346,15 @@ const WALLET_RATE := [40.0, 52.0, 64.0, 76.0, 88.0, 100.0, 112.0, 126.0]
 const WALLET_CAP := [500, 750, 1000, 1300, 1600, 2000, 2400, 3000]
 const WORKER_COST := [80, 160, 240, 320, 400, 480, 560]
 
-## 꿈 대포: 다 차면 쏜다 - 성 앞 넓게 피해 + 넉백.
-const CANNON_CHARGE := 30.0
-const CANNON_REACH := 900.0
+## 바주카포: 다 차면 쏜다 - 포탄이 길 끝 둥지까지 날아가며 길 위 벌레를 모두 맞히고, 둥지도 깎는다.
+## (충전 30→40초·둥지 2% 는 SimLane 으로 맞춘 값 - 예전 꿈 대포와 난이도가 비슷하다)
+const CANNON_CHARGE := 40.0
+const CANNON_REACH := 3000.0
+## 뒤로 밀어내는 것은 성 앞 이만큼까지만 (예전 꿈 대포의 '비상 버튼' 몫). 길 전체를 밀면 너무 쉬워졌다.
+const CANNON_KB_REACH := 900.0
 const CANNON_DMG := 120.0
+## 둥지에 닿으면 둥지 체력의 이만큼.
+const CANNON_NEST := 0.02
 
 const OUR_BASE_HP := 3000.0
 ## 벌레 떼 - 첫 떼(초) · 간격 · 가장 짧은 간격 · 기본 마리 수. 오기 WAVE_WARN 초 전에 알려 준다.
@@ -509,7 +514,7 @@ const TREASURE_DROP := 0.3
 const TREASURE_FIRST := 0.6         ## 처음 깰 때
 const GRADE_ROLL := [0.15, 0.35]
 const GRADE_ROLL_BOSS := [0.3, 0.4]
-const BONUS_NAME := {"atk": "공격", "hp": "체력", "rate": "수입", "cannon": "대포 충전", "xp": "꿈조각",
+const BONUS_NAME := {"atk": "공격", "hp": "체력", "rate": "수입", "cannon": "바주카 충전", "xp": "꿈조각",
 	"wallet": "시작 꿈빛", "speed": "걸음", "guard": "받는 피해", "slow": "느리게 시간"}
 
 

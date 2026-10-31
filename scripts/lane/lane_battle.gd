@@ -154,7 +154,10 @@ func fire_cannon() -> bool:
 		if e["side"] == "b" and float(e["pos"]) <= LaneData.CANNON_REACH and float(e["hp"]) > 0.0:
 			_damage(e, dmg, true)
 			hit += 1
-	events.append({"k": "cannon", "hit": hit})
+	# 포탄은 둥지까지 날아가 둥지도 깎는다
+	var nd := nest_max * LaneData.CANNON_NEST
+	nest_hp = maxf(0.0, nest_hp - nd)
+	events.append({"k": "cannon", "hit": hit, "nest": int(round(nd))})
 	return true
 
 
@@ -435,7 +438,9 @@ func _damage(o: Dictionary, dmg: float, cannon_hit: bool, by: Dictionary = {}, e
 			"boss": bool(o["boss"])})
 		_knockback(o, LaneData.KB_DIST)
 		return
-	if cannon_hit or (float(o["hp"]) <= float(o["kb_next"]) and not bool(o["no_kb"])):
+	# 바주카포는 성 앞(CANNON_KB_REACH)의 벌레만 밀어낸다
+	var cannon_kb := cannon_hit and float(o["pos"]) <= LaneData.CANNON_KB_REACH
+	if cannon_kb or (float(o["hp"]) <= float(o["kb_next"]) and not bool(o["no_kb"])):
 		var steps := maxi(1, int(o["kb"]))
 		while float(o["kb_next"]) >= float(o["hp"]) and float(o["kb_next"]) > 0.0:
 			o["kb_next"] = float(o["kb_next"]) - float(o["max"]) / float(steps)

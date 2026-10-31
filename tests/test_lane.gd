@@ -85,7 +85,9 @@ func _ready() -> void:
 	ck("수입을 올리면 한도도 커진다", b.wallet_cap() > int(LaneData.WALLET_CAP[0]))
 	ck("대포는 처음엔 못 쏜다", not b.fire_cannon())
 	b.cannon = LaneData.CANNON_CHARGE
+	var nest0 := b.nest_hp
 	ck("다 차면 쏜다", b.fire_cannon() and b.cannon == 0.0)
+	ck("바주카포는 둥지까지 깎는다", is_equal_approx(b.nest_hp, nest0 - b.nest_max * LaneData.CANNON_NEST))
 	# 끝까지: 레벨을 많이 올리면 1번은 저절로 이긴다
 	LaneState.reset()
 	LaneState.units["tiny"] = 10
