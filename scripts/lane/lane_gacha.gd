@@ -9,6 +9,8 @@ signal finished
 const COL := {"rare": Color("#7FD0FF"), "super": Color("#C58CFF"), "legend": Color("#FFD15A")}
 const SHAKES := {"rare": 1, "super": 2, "legend": 3}
 const SHOW_PX := 11.0
+## 새 그림(칸 55~116점)은 이 크기 안에 드는 가장 큰 정수 배율로 보여 준다.
+const SHOW_BIG := 380.0
 
 var _results: Array = []
 var _i := 0
@@ -249,7 +251,9 @@ func _show_card(res: Dictionary) -> void:
 		a.region = Rect2(w, pad, w, h - pad)   # 만세 칸 (위쪽 무기 여유는 뺀다)
 		h -= pad
 		pic.texture = a
-		pic.size = Vector2(w, h) * SHOW_PX * (0.8 if w > 30 else 1.0)
+		# 정수 배율로 화면 폭 절반쯤 (8.8배 같은 어중간한 배율은 픽셀이 들쭉날쭉하고 화면을 다 덮었다)
+		var k := SHOW_PX if w <= 30 else maxf(2.0, floorf(SHOW_BIG / maxf(w, h)))
+		pic.size = Vector2(w, h) * k
 	pic.position = c - pic.size * 0.5
 	pic.pivot_offset = pic.size * 0.5
 	pic.scale = Vector2(0.1, 0.1)

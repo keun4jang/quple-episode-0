@@ -255,7 +255,7 @@ func _add_update_row() -> void:
 	_ver_label = Label.new()
 	_ver_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ver_label.add_theme_font_size_override("font_size", 26)
-	_ver_label.add_theme_color_override("font_color", Color(0.78, 0.76, 0.88))
+	_ver_label.add_theme_color_override("font_color", Color("#8A6FB8"))
 	box.add_child(_ver_label)
 
 	_update_btn = Button.new()

@@ -27,7 +27,7 @@ const FX_STYLE := {
 	"eagle": ["dive", "#FFD23F"],
 }
 ## 역할 이름 (버튼·카드에 붙는 작은 딱지)
-const ROLE_COL := {"벽": "#8FB5FF", "근접": "#FF9F7A", "범위": "#FFB84A", "돌격": "#7FE0FF", "원거리": "#9CE07A",
+const ROLE_COL := {"벽": "#8FB5FF", "근접": "#FF9F7A", "범위": "#FF9FB0", "돌격": "#7FE0FF", "원거리": "#9CE07A",
 	"마법": "#C58CFF", "거대": "#E0A060"}
 ## 후퇴해도 이만큼(초) 싸웠으면 다시 도전 응원을 받는다.
 const CHEER_MIN_FIGHT := 60.0
@@ -65,8 +65,13 @@ static func _face_region(tex: Texture2D, col := 0) -> Rect2:
 ## 버튼에 들어갈 짧은 이름 ("도토리 다람쥐" → "다람쥐").
 static func _short_name(id: String) -> String:
 	var n := LaneData.unit_name(id, LaneState.level_of(id))
+	if n.length() <= 6:
+		return n
+	# 진화 쿼카는 꾸밈말이 그 친구다 ("산만한 쿼카" → 산만한). 예전엔 마지막 낱말만 남겨 전부 "쿼카"가 됐다.
+	if n.ends_with(" 쿼카"):
+		return n.trim_suffix(" 쿼카")
 	var parts := n.split(" ")
-	return parts[parts.size() - 1] if n.length() > 5 else n
+	return parts[parts.size() - 1]
 
 
 ## 안에 넣은 그림을 1/PIX 크기로 그려 PIX 배로 키우는 판. 안의 노드는 화면 좌표 그대로 그리면 된다.
@@ -1171,6 +1176,9 @@ func _portrait(id: String, sz: float) -> Control:
 		a.atlas = tex
 		a.region = _face_region(tex)
 		t.texture = a
+		# 2배 아래로 줄이거나 늘리면 픽셀을 그대로 빼면 들쭉날쭉하다 - 그땐 부드럽게
+		if sz / maxf(a.region.size.x, a.region.size.y) < 2.0:
+			t.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if not LaneState.has_unit(id):
 		t.modulate = Color(0.1, 0.08, 0.15, 0.9)
 	return t
@@ -1395,7 +1403,7 @@ func _build_hud() -> void:
 		var uid_s := String(id)
 		var rr := LaneData.rarity(uid_s)
 		var b := IdleUi.button("", 18, "ghost")
-		b.custom_minimum_size = Vector2(0, 134)
+		b.custom_minimum_size = Vector2(0, 150)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.clip_contents = true
 		if rr != "base":
@@ -1419,18 +1427,18 @@ func _build_hud() -> void:
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var cl := Label.new()
 		cl.text = role
-		cl.add_theme_font_size_override("font_size", 15)
+		cl.add_theme_font_size_override("font_size", 16)
 		cl.add_theme_color_override("font_color", Color("#2E1A4A"))
 		chip.add_child(cl)
 		col.add_child(chip)
-		var pic := _portrait(uid_s, 54.0)
+		var pic := _portrait(uid_s, 72.0)
 		pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(pic)
-		var nm := IdleUi.label(_short_name(uid_s), 17, IdleUi.CREAM)
+		var nm := IdleUi.label(_short_name(uid_s), 19, IdleUi.CREAM)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		nm.clip_text = true
 		col.add_child(nm)
-		var cost := IdleUi.label("", 20, IdleUi.GOLD_DK)
+		var cost := IdleUi.label("", 22, IdleUi.GOLD_DK)
 		cost.name = "Cost"
 		cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(cost)
@@ -1446,7 +1454,7 @@ func _build_hud() -> void:
 		cd.color = Color(0.17, 0.1, 0.27, 0.62)
 		cd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(cd)
-		var cdt := IdleUi.label("", 30, Color.WHITE, true)
+		var cdt := IdleUi.label("", 24, Color.WHITE, true)
 		cdt.name = "CdText"
 		cdt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cdt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1491,7 +1499,13 @@ func _layout_hud() -> void:
 func _refresh_hud_toggles() -> void:
 	_speed_btn.text = "%d배 ▶▶▶" % int(FAST) if LaneState.speed2 else "1배 ▶"
 	_auto_btn.text = "자동 켜짐" if LaneState.auto_summon else "자동 소환"
-	_auto_btn.modulate = Color("#B8F0A8") if LaneState.auto_summon else Color.WHITE
+	# 켜지면 분홍 버튼으로 (예전엔 초록을 곱해 라벤더가 회색이 돼, 켜진 게 꺼진 것처럼 보였다)
+	var ref := IdleUi.button("", 22, "gold" if LaneState.auto_summon else "plum")
+	for st in ["normal", "hover", "pressed"]:
+		_auto_btn.add_theme_stylebox_override(st, ref.get_theme_stylebox(st))
+	for st in ["font_color", "font_pressed_color", "font_hover_color", "font_focus_color"]:
+		_auto_btn.add_theme_color_override(st, ref.get_theme_color(st))
+	ref.free()
 
 
 func _process(dt: float) -> void:
@@ -1606,9 +1620,12 @@ func _refresh_hud() -> void:
 		var k := clampf(left / maxf(0.01, float(s2["cd"])), 0.0, 1.0)
 		cd.size = Vector2(b.size.x, b.size.y * k)
 		cd.position = Vector2(0, b.size.y * (1.0 - k))
+		# 남은 초는 값 자리에 - 얼굴과 이름을 덮지 않게
 		var cdt := b.get_node("CdText") as Label
-		cdt.size = b.size
-		cdt.text = ("%.1f" % left) if left > 0.0 else ""
+		cdt.size = Vector2(b.size.x, 30.0)
+		cdt.position = Vector2(0.0, b.size.y - 36.0)
+		cdt.text = ("%.1f초" % left) if left > 0.0 else ""
+		cl.modulate.a = 0.0 if left > 0.0 else 1.0
 		var mb := b.get_node("Money") as ColorRect
 		var mk := clampf(battle.wallet / maxf(1.0, float(cost)), 0.0, 1.0)
 		mb.visible = short and left <= 0.0
@@ -1665,7 +1682,7 @@ func _sync_actors() -> void:
 			p.y -= fwd * 9.0 * (1.0 - hs / 0.12)
 		# 픽셀 격자에 맞춰 놓고, 크기는 원근과 관계없이 한 가지 (도트 규칙: 픽셀 크기는 하나)
 		a.position = (p / float(PIX)).round() * float(PIX)
-		a.px = LaneData.sheet_px(a.tex.resource_path) if a.tex != null else (UNIT_PX if e["side"] == "q" else BUG_PX)
+		a.px = LaneData.sheet_px(a.tex.resource_path, a.tex.get_height() / 3.0) if a.tex != null else (UNIT_PX if e["side"] == "q" else BUG_PX)
 		_place_wear(a)
 		a.walking = e["state"] == "walk"
 		if e["side"] == "q":

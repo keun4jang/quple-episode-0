@@ -127,7 +127,7 @@ EVOLVED = {
     "q_runner": "wearing a flowing blue scarf and winged sneakers, wind swirls",
     "q_sling": "a master archer wearing a green hood and cape, holding a golden slingshot",
     "q_mage": "an archmage in a starry dark purple robe and tall hat, holding a staff with a glowing crystal",
-    "q_giant": "huge mountain-like, wearing heavy stone armor with moss, holding a giant stone club",
+    "q_giant": "a huge chubby quokka with small round ears and a short narrow snout, wearing grey stone armor with green moss, holding a giant stone club",
     "a_chick": "a brave chick captain with a big red rooster comb on its head and a tiny red cape",
     "a_hedgehog": "with shining steel spikes and a metal armor plate",
     "a_squirrel": "a squirrel with small round ears and a huge curly bushy tail, holding a big shining golden acorn",

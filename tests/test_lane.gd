@@ -38,6 +38,12 @@ func _ready() -> void:
 			all_sprites = false
 			print("    그림 없음: ", k)
 	ck("벌레 그림이 전부 있다", all_sprites)
+	# 글 사이 기호는 테마의 기호 폰트(QuokkaSymbols)가 그린다 - 기기 폰트에 기대면 폰에서 네모가 뜬다
+	var tf := (load("res://assets/themes/quple_bold.tres") as Theme).default_font
+	ck("테마 폰트에 ★ ✦ ▶ ✓ ● 가 있다", [0x2605, 0x2726, 0x25B6, 0x2713, 0x25CF].all(func(c): return tf.has_char(c)))
+	ck("작은 벌레는 3배, 우두머리는 2배로 그린다", LaneData.sheet_px("res://assets/sprites/lane-bug-ant.png", 29.0) == 3.0
+		and LaneData.sheet_px("res://assets/sprites/lane-bug-queen_ant.png", 93.0) == 2.0
+		and LaneData.sheet_px("res://assets/sprites/lane-bug-hornet.png", 78.0) == 2.0)
 	for z in LaneData.ZONES:
 		for b in z["bugs"]:
 			if not LaneData.BUGS.has(b):

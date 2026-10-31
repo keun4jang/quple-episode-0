@@ -202,8 +202,15 @@ static func bug_sheet(kind: String) -> String:
 
 
 ## 이 시트의 픽셀 한 칸이 화면 몇 점인가 (새 그림은 2, 옛 코드 그림은 3).
-static func sheet_px(path: String) -> float:
-	return 2.0 if path.get_file().begins_with("lane-") else 3.0
+## 작은 벌레(칸 키 40 이하 - 개미·모기·벌...)는 3 - 2 로는 쿼카의 절반도 안 돼 점처럼 보였다.
+## 그림 크기만 바뀐다 - 싸움 판정은 길 위 자리(pos)와 사거리만 쓴다.
+static func sheet_px(path: String, frame_h := 0.0) -> float:
+	var f := path.get_file()
+	if not f.begins_with("lane-"):
+		return 3.0
+	if f.begins_with("lane-bug-") and not ("_king" in f or "queen" in f) and frame_h > 0.0 and frame_h <= 40.0:
+		return 3.0
+	return 2.0
 
 
 ## 이 유닛이 벽(앞에서 막는 역할) 인가 - 자동 소환이 벽부터 깐다.

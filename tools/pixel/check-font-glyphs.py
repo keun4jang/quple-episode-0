@@ -40,6 +40,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _ttf_cmap import cmap_chars
 
 FONT = "assets/fonts/PoorStory.ttf"
+# 테마의 대체 폰트 - 기본 폰트에 없는 기호(★ ✦ ▶ ✓ ●)만 직접 그려 담았다 (make-symbol-font.py)
+SYMBOLS = "assets/fonts/QuokkaSymbols.ttf"
 
 # 터미널에만 찍히는 글자를 쓰는 파일. 게임 화면이 아니다.
 CONSOLE_ONLY = {
@@ -77,7 +79,7 @@ def strip_comments(src: str) -> str:
 
 
 def main() -> int:
-    have = cmap_chars(FONT)
+    have = cmap_chars(FONT) | cmap_chars(SYMBOLS)
     bad = {}
     files = glob.glob("scripts/**/*.gd", recursive=True)
     files += glob.glob("tools/**/*.gd", recursive=True)
