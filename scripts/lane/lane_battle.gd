@@ -366,7 +366,8 @@ func _act(e: Dictionary, d: float) -> void:
 		return
 	e["t_atk"] = float(e["every"]) * (1.5 if float(e["slow"]) > 0.0 else 1.0)
 	var dmg := float(e["atk"]) * _atk_buff(e)
-	events.append({"k": "swing", "uid": e["uid"], "side": e["side"]})
+	# to = 누구를 치나 (그림이 그쪽으로 덤벼든다, -1 은 성·둥지). 판정에는 안 쓴다.
+	events.append({"k": "swing", "uid": e["uid"], "side": e["side"], "to": int(tg[0]["uid"]) if not tg.is_empty() else -1})
 	if tg.is_empty():
 		_hit_base(e, dmg)
 		return

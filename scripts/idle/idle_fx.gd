@@ -42,7 +42,32 @@ func ring(p: Vector2, r0: float, r1: float, col: Color, w := 10.0, life := 0.38,
 
 
 func text(p: Vector2, t: String, col: Color, fs := 40, life := 0.9, delay := 0.0, rise := 70.0) -> void:
+	# 이미 떠 있는 글자와 겹치면 그 위로 비켜 선다 (숫자·이름이 한 자리에 포개져 안 읽혔다)
+	var mine := _text_rect(p, t, fs)
+	for _i in 8:
+		var hit := false
+		for e in _texts:
+			var r := _text_rect(_text_pos(e), String(e["t"]), int(e["fs"]))
+			if r.intersects(mine):
+				var up := mine.end.y - r.position.y + 2.0
+				p.y -= up
+				mine.position.y -= up
+				hit = true
+		if not hit:
+			break
 	_texts.append({"p": p, "t": t, "col": col, "fs": fs, "life": 0.0, "max": life, "delay": delay, "rise": rise})
+
+
+## 글자가 지금 그려지는 자리 (밑줄 가운데). 솟아오르는 만큼 위로.
+func _text_pos(e: Dictionary) -> Vector2:
+	var k := 0.0 if float(e["delay"]) > 0.0 else _k(e)
+	var y := float(e["rise"]) * (1.0 - pow(1.0 - minf(1.0, k * 1.6), 2.0))
+	return (e["p"] as Vector2) - Vector2(0, y)
+
+
+func _text_rect(p: Vector2, t: String, fs: int) -> Rect2:
+	var w := font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if font != null else fs * t.length() * 0.6
+	return Rect2(p.x - w * 0.5 - 4.0, p.y - fs * 0.9, w + 8.0, fs * 1.1)
 
 
 func arrow(a: Vector2, b: Vector2, col: Color, life := 0.14, delay := 0.0) -> void:

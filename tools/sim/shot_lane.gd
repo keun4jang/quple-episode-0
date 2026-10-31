@@ -95,7 +95,7 @@ func _ready() -> void:
 	if series > 0:
 		for i in series:
 			get_viewport().get_texture().get_image().save_png(out.replace(".png", "_%d.png" % i))
-			await get_tree().create_timer(0.3).timeout
+			await get_tree().create_timer(float(OS.get_environment("SHOT_GAP")) if OS.get_environment("SHOT_GAP") != "" else 0.3).timeout
 	else:
 		get_viewport().get_texture().get_image().save_png(out)
 	LaneState.clear_save()

@@ -15,6 +15,10 @@ const FX_PIX := 2
 ## 공격 모양 - 유닛마다 다르게 보여야 누가 무얼 하는지 안다. [모양, 색]
 ## slash 베기 · pierce 찌르기 · smash 내리찍기(충격파) · shot 던지기(날아감) · magic 마법 구슬 · quake 땅울림 ·
 ## claw 세 갈래 할퀴기 · ice 얼음 · tongue 혀 · dive 하늘에서 내리꽂기 · peck 쪼기 · splash 물보라 · bonk 콩 박기
+## 이 사거리 이하는 근접 - 상대에게 덤벼든다.
+const MELEE_RANGE := 230.0
+## 쏘거나 던지는 공격 (덤벼들지 않는다).
+const RANGED_FX := ["shot", "magic", "ice", "tongue", "splash", "dive"]
 const FX_STYLE := {
 	"tiny": ["slash", "#FFF1C2"], "shield": ["bonk", "#9CC8FF"], "spear": ["pierce", "#E8F4FF"],
 	"hammer": ["smash", "#FFC24A"], "runner": ["slash", "#7FE0FF"], "sling": ["shot", "#C9C2B8"],
@@ -138,6 +142,7 @@ var _bars: Node2D             ## 머리 위 체력 띠
 var _ent_of: Dictionary = {}  ## uid → 판의 몸 (공격한 쪽이 누구인지 효과에 쓴다)
 var _fx_t: Dictionary = {}    ## uid → 마지막으로 공격 효과를 낸 때 (범위 공격이 여러 번 터지지 않게)
 var _swing_at: Dictionary = {}  ## uid → 마지막으로 휘두른 때 (판 시간) - 공격 그림을 실제 타격에 맞춘다
+var _swing_to: Dictionary = {}  ## uid → 그때 노린 상대 uid (-1 = 성·둥지) - 근접은 그 자리까지 덤벼든다
 var _hit_at: Dictionary = {}    ## uid → 마지막으로 맞은 때 - 살짝 밀린다
 var _calm := false            ## 설정: 화면 흔들림·번쩍임 줄이기
 var _toast_box: PanelContainer
@@ -1201,6 +1206,7 @@ func _start_battle(n: int) -> void:
 	_dead = {}
 	_ent_of = {}
 	_swing_at = {}
+	_swing_to = {}
 	_hit_at = {}
 	_fx_t = {}
 	_lunge = {}
@@ -1635,6 +1641,60 @@ func _refresh_hud() -> void:
 
 # ── 그림 맞추기 ───────────────────────────────────────────────────────
 
+## 맞은 그림 - 번쩍임·공격 모양·숫자.
+func _show_hit(e: Dictionary) -> void:
+	_hit_at[int(e["uid"])] = _battle_t
+	var a = _actor_of.get(int(e["uid"]))
+	if a != null and is_instance_valid(a):
+		a.flash = 0.9
+		a.flash_col = Color.WHITE if e["side"] == "b" else Color("#FF8080")
+		var p: Vector2 = a.position + Vector2(0, -a.body_height() * 0.5)
+		if e["side"] == "b":
+			if String(e.get("eff", "")) != "skill":
+				_attack_fx(int(e.get("by", -1)), p, a)
+			_hit_fx(e, p)
+		else:
+			# 우리 편이 맞았다 - 빨간 숫자 + 할퀸 자국
+			_fx.slash(p, randf_range(-0.8, 0.8), 30.0, Color("#FF7A8A"), 8.0, 0.16)
+			_vfx.burst(p, Color("#FF9A9A"), 5, 200.0, 0.3, 0.3)
+			_fx.text(p + Vector2(randf_range(-14, 14), -18), "-%s" % _num(int(e["dmg"])), Color("#FF5A6A"), 22,
+				0.55, 0.0, 34.0)
+	if randf() < 0.35:
+		AudioManager.battle_weak_hit()
+
+
+func _is_melee(src: Dictionary) -> bool:
+	if float(src["range"]) > MELEE_RANGE:
+		return false
+	return not (src["side"] == "q" and String(FX_STYLE.get(String(src["kind"]), ["slash"])[0]) in RANGED_FX)
+
+
+## 근접 공격은 노린 상대 바로 앞까지 덤벼든다 (좌우로 흩어져 서 있어서, 앞으로만 찌르면 허공을 쳤다).
+## 멀리서 쏘는 친구는 제자리에서 앞으로 살짝 - 쏜 것이 날아가 맞는다. 그림만 움직이고 판정은 그대로다.
+func _lunge_vec(e: Dictionary, uid: int, p: Vector2, fwd: float) -> Vector2:
+	var small := Vector2(0, fwd * 27.0)
+	if float(e["range"]) > MELEE_RANGE:
+		return small
+	if e["side"] == "q" and String(FX_STYLE.get(String(e["kind"]), ["slash"])[0]) in RANGED_FX:
+		return small
+	var to := int(_swing_to.get(uid, -2))
+	var tp: Vector2
+	if to >= 0:
+		var ta = _actor_of.get(to)
+		if ta == null or not is_instance_valid(ta):
+			return small
+		tp = ta.position
+	elif to == -1:
+		tp = _field.nest_pos() if e["side"] == "q" else _field.fort_pos()
+	else:
+		return small
+	var d := tp - p
+	var n := d.length()
+	if n < 1.0:
+		return small
+	# 상대 몸에 닿을 만큼만 (겹치지 않게 조금 앞에서 멈춘다)
+	return d / n * clampf(n - 26.0, 27.0, 170.0)
+
 func _sync_actors() -> void:
 	var alive := {}
 	_ent_of = {}
@@ -1660,22 +1720,22 @@ func _sync_actors() -> void:
 			var lunge := 0.0
 			if since < 0.08:
 				atk_f = 1
-				lunge = 27.0 * since / 0.08
+				lunge = since / 0.08
 				a.squash = Vector2(0.84, 1.2)
 			elif since < 0.21:
 				atk_f = 2
-				lunge = 27.0
+				lunge = 1.0
 				a.squash = Vector2(0.9, 1.1)
 			elif since < 0.37:
 				atk_f = 3
-				lunge = 27.0 * (1.0 - (since - 0.21) / 0.16)
+				lunge = 1.0 - (since - 0.21) / 0.16
 			elif until <= 0.22:
 				atk_f = 0
-				lunge = -9.0 * (1.0 - until / 0.22)
+				lunge = -0.33 * (1.0 - until / 0.22)
 				a.squash = Vector2(1.12, 0.88)
 			else:
 				atk_f = 3
-			p.y += fwd * lunge
+			p += _lunge_vec(e, uid, p, fwd) * lunge
 		# 맞으면 뒤로 살짝 밀린다
 		var hs := _battle_t - float(_hit_at.get(uid, -99.0))
 		if hs >= 0.0 and hs < 0.12:
@@ -1806,7 +1866,6 @@ func _on_event(e: Dictionary) -> void:
 							_fx.burst(a.position, Color("#FFE7A0"), 12, 260.0, 7.0, 0.7, -200.0, "star", 0.0, true)
 						if rr == "legend":
 							# 전설이 나오면 판 전체가 알아챈다
-							_fx.pillar(a.position, RARITY_COL["legend"], 0.8)
 							_fx.ring(a.position, 20.0, 260.0, RARITY_COL["legend"], 14.0, 0.6)
 							_vfx.burst(a.position, RARITY_COL["legend"], 24, 380.0, 0.9, 0.5, true)
 							_flash(0.25)
@@ -1838,25 +1897,14 @@ func _on_event(e: Dictionary) -> void:
 			if a != null and is_instance_valid(a):
 				# 휘두른 때를 적어 두면 `_sync_actors` 가 덤벼드는 동작을 그린다
 				_swing_at[int(e["uid"])] = _t
+				_swing_to[int(e["uid"])] = int(e.get("to", -1))
 		"hit":
-			_hit_at[int(e["uid"])] = _battle_t
-			var a = _actor_of.get(int(e["uid"]))
-			if a != null and is_instance_valid(a):
-				a.flash = 0.9
-				a.flash_col = Color.WHITE if e["side"] == "b" else Color("#FF8080")
-				var p: Vector2 = a.position + Vector2(0, -a.body_height() * 0.5)
-				if e["side"] == "b":
-					if String(e.get("eff", "")) != "skill":
-						_attack_fx(int(e.get("by", -1)), p, a)
-					_hit_fx(e, p)
-				else:
-					# 우리 편이 맞았다 - 빨간 숫자 + 할퀸 자국
-					_fx.slash(p, randf_range(-0.8, 0.8), 30.0, Color("#FF7A8A"), 8.0, 0.16)
-					_vfx.burst(p, Color("#FF9A9A"), 5, 200.0, 0.3, 0.3)
-					_fx.text(p + Vector2(randf_range(-14, 14), -18), "-%s" % _num(int(e["dmg"])), Color("#FF5A6A"), 22,
-						0.55, 0.0, 34.0)
-			if randf() < 0.35:
-				AudioManager.battle_weak_hit()
+			# 근접은 덤벼들어 닿는 때(0.08초 뒤)에 맞는다 - 휘두르자마자 번쩍이면 허공을 친 것처럼 보였다
+			var src = _ent_of.get(int(e.get("by", -1)))
+			if src != null and String(e.get("eff", "")) != "skill" and _is_melee(src):
+				_later(0.07, _show_hit.bind(e))
+			else:
+				_show_hit(e)
 		"kb":
 			var a = _actor_of.get(int(e["uid"]))
 			if a != null and is_instance_valid(a):
@@ -1913,7 +1961,6 @@ func _on_event(e: Dictionary) -> void:
 			_add_trauma(0.5)
 			_banner_show("위기! 성의 힘이 깨어나요", IdleUi.GOLD)
 			var cp := _field.fort_pos()
-			_fx.pillar(cp, IdleUi.LAV, 0.9)
 			_fx.ring(cp, 30.0, 420.0, IdleUi.GOLD, 16.0, 0.7)
 			_vfx.burst(cp, IdleUi.GOLD, 30, 500.0, 0.9, 0.5, true)
 			AudioManager.souvenir_get()
@@ -2007,7 +2054,7 @@ func _attack_fx(by: int, p: Vector2, target) -> void:
 			_vfx.burst(p, col, 12, 320.0, 0.45, 0.4, true, 0.14)
 		"dive":
 			if first:
-				_fx.meteor(p + Vector2(randf_range(-60, 60), -320), p, col, 0.24)
+				_fx.meteor(from, p, col, 0.24)   # 독수리 자리에서 벌레에게로 내리꽂는다
 			_vfx.burst(p, col, 8, 300.0, 0.35, 0.4, false, 0.24)
 
 
@@ -2070,17 +2117,16 @@ func _skill_fx(e: Dictionary) -> void:
 		a.flash_col = col.lightened(0.4)
 		a.squash = Vector2(1.25, 0.8)
 	var depth := _field.scale_at(float(e["pos"]))
-	# 공통: 시전 - 빛기둥 + 집중선 + 두 겹 고리 + 위로 솟는 별 + 이름
-	_fx.pillar(p + Vector2(0, 30), col, 0.8)
-	_fx.rays(p, col, 20, 30.0, 230.0, 0.4)
-	_fx.ring(p, 10.0, 170.0, col, 14.0, 0.5)
-	_fx.ring(p, 6.0, 110.0, Color.WHITE, 8.0, 0.35, 0.08)
-	_fx.burst(p, col.lightened(0.3), 18, 420.0, 9.0, 0.9, -200.0, "star", 0.0, true)
-	_vfx.burst(p, col, 26, 420.0, 0.8, 0.6, true)
-	_fx.text(p + Vector2(0, -72), String(k["name"]), col.lightened(0.45), 34, 1.25, 0.0, 70.0)
+	# 공통: 시전 - 친구 둘레 고리 + 이름. (하늘로 솟는 빛기둥·별은 뺐다 - 허공에 힘을 쓰는 것처럼 보였다.
+	# 힘은 맞는 쪽에서 터진다 - 아래 종류별 효과)
+	_fx.ring(p, 10.0, 120.0, col, 12.0, 0.4)
+	_fx.ring(p, 6.0, 80.0, Color.WHITE, 8.0, 0.3, 0.06)
+	_vfx.burst(p, col, 14, 300.0, 0.6, 0.5, true)
+	# 스킬 띠가 뜨면 이름은 띠에 있다 - 머리 위에 또 띄우면 글자가 겹친다
+	if not _cutin(id):
+		_fx.text(p + Vector2(0, -72), String(k["name"]), col.lightened(0.45), 34, 1.25, 0.0, 70.0)
 	_flash(0.12)
 	_add_trauma(0.18)
-	_cutin(id)
 	var hits: Array = []
 	for u in e.get("hits", []):
 		var ha = _actor_of.get(int(u))
@@ -2128,15 +2174,15 @@ func _skill_fx(e: Dictionary) -> void:
 			_fx.rays(p, Color.WHITE, 12, 20.0, 160.0, 0.3, 0.1)
 			AudioManager.battle_hit()
 		"thunder":
+			# 쓴 친구에게서 맞는 벌레에게로 번개가 날아간다 (하늘에서 내리꽂던 것은 뺐다)
 			for q in hits:
-				_fx.meteor(q + Vector2(randf_range(-40, 40), -560), q, col, 0.28)
-				_fx.pillar(q + Vector2(0, 40), Color.WHITE, 0.6)
-				_fx.rays(q, col, 24, 40.0, 380.0, 0.45, 0.28)
-				_fx.ring(q, 20.0, 300.0, Color.WHITE, 18.0, 0.5, 0.28)
-				_vfx.burst(q, col, 40, 600.0, 0.9, 0.7, false, 0.28)
+				_fx.meteor(p, q, col, 0.28)
+				_fx.rays(q, col, 16, 30.0, 200.0, 0.4, 0.28)
+				_fx.ring(q, 20.0, 200.0, Color.WHITE, 16.0, 0.45, 0.28)
+				_vfx.burst(q, col, 30, 500.0, 0.8, 0.6, false, 0.28)
 			if hits.is_empty():
 				var nq := _field.nest_pos() + Vector2(0, -50)
-				_fx.meteor(nq + Vector2(0, -560), nq, col, 0.28)
+				_fx.meteor(p, nq, col, 0.28)
 			_later(0.28, func() -> void:
 				_flash(0.4)
 				_add_trauma(0.6)
@@ -2146,17 +2192,20 @@ func _skill_fx(e: Dictionary) -> void:
 			for i in 2:
 				_fx.ring(p, 20.0, float(k["r"]) * 0.8 * depth + 40.0 * i, col if i == 0 else Color.WHITE, 14.0, 0.6, i * 0.12)
 			_fx.wave(p + Vector2(0, 30), float(k["r"]) * depth, Color("#DFF5FF"), 14.0, 0.7)
+			# 얼음이 쓴 친구에게서 벌레에게로 날아가 얼린다
+			var fi := 0
 			for q in hits:
-				_fx.pillar(q + Vector2(0, 30), col, 0.6)
-				_fx.burst(q, Color.WHITE, 12, 260.0, 7.0, 0.9, -100.0, "star")
-			_fx.burst(p, Color("#DFF5FF"), 30, 520.0, 8.0, 1.1, -80.0, "star")
+				_fx.orb(p, q, col, 0.16, 0.04 * fi)
+				_fx.ring(q, 6.0, 70.0, Color.WHITE, 8.0, 0.35, 0.16 + 0.04 * fi)
+				_fx.burst(q, Color.WHITE, 10, 240.0, 7.0, 0.6, 300.0, "sq", 0.16 + 0.04 * fi)
+				fi += 1
+			_fx.burst(p, Color("#DFF5FF"), 16, 360.0, 8.0, 0.7, 300.0, "star")
 			AudioManager.water_ripple()
 		"heal":
 			for aa in allies:
 				var q: Vector2 = aa.position + Vector2(0, -aa.body_height() * 0.5)
-				_fx.pillar(q + Vector2(0, 30), Color("#9CF0B0"), 0.8)
 				_fx.ring(q, 6.0, 70.0, Color("#B8FFC8"), 8.0, 0.4)
-			_fx.burst(p, Color("#B8FFC8"), 30, 360.0, 9.0, 1.1, -260.0, "star", 0.0, true)
+			_fx.burst(p, Color("#B8FFC8"), 16, 260.0, 8.0, 0.7, 200.0, "star", 0.0, true)
 			AudioManager.battle_heal()
 		"guard", "rally":
 			var word := "방어 UP" if kind == "guard" else "공격 UP"
@@ -2188,19 +2237,20 @@ func _dash_fx(e: Dictionary) -> void:
 
 ## 스킬 컷인: 화면을 가로지르는 띠에 친구 얼굴 + 스킬 이름. 너무 자주 나오면 정신없어서
 ## 하나가 떠 있는 동안은 다음 것을 건너뛴다 (전설은 2초 뒤면 다시, 나머지는 4초).
-func _cutin(id: String) -> void:
+func _cutin(id: String) -> bool:
 	if _calm or _hud == null:
-		return
+		return false
 	var legend := LaneData.rarity(id) == "legend"
 	if _t - _cutin_t < (2.0 if legend else 4.0):
-		return
+		return false
 	_cutin_t = _t
 	var k: Dictionary = LaneData.SKILLS[id]
 	var col := Color(String(k["col"]))
 	var band := Control.new()
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	band.size = Vector2(size.x + 80.0, 118.0)
-	band.position = Vector2(size.x, size.y * 0.28)
+	# 가운데 띠(_banner, 높이 30%)와 겹치지 않게 그 아래에
+	band.position = Vector2(size.x, size.y * 0.4)
 	_hud.add_child(band)
 	var bg := ColorRect.new()
 	bg.color = Color(0.13, 0.07, 0.22, 0.86)
@@ -2228,6 +2278,7 @@ func _cutin(id: String) -> void:
 	tw.tween_property(band, "position:x", -24.0, 0.6)
 	tw.tween_property(band, "position:x", -size.x - 120.0, 0.16).set_ease(Tween.EASE_IN)
 	tw.tween_callback(band.queue_free)
+	return true
 
 
 func _cannon_fx() -> void:
@@ -2236,7 +2287,6 @@ func _cannon_fx() -> void:
 	_flash(0.45)
 	_add_trauma(0.7)
 	_hitstop(0.06)
-	_fx.pillar(base, Color("#9FD8FF"), 0.7)
 	_fx.rays(base, IdleUi.GOLD, 16, 40.0, 320.0, 0.35)
 	_fx.ring(base, 20.0, 360.0, Color.WHITE, 16.0, 0.45)
 	_banner_show("꿈 대포 발사!", IdleUi.GOLD)
