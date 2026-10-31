@@ -1,7 +1,7 @@
 {
-  "version": "0.1.259",
+  "version": "0.1.260",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "82887765ec36b1dd9d9fcb8ccef4f7980894ca99578f45313febc3b92f35f511",
-  "size": 14585696,
-  "notes": "아트 검토: 기호 글자 깨짐 고침, 벌레 크게, 뽑기·카드 다듬기, 진화 거대 쿼카 새 그림"
+  "sha256": "f0a838cfc4c72438927b9e43ab819eaa350cf994dd7fe6749c28f0227ea29887",
+  "size": 14587648,
+  "notes": "공격이 적에게 닿게, 하늘 빛기둥 빼기, 글자 겹침 없애기"
 }
