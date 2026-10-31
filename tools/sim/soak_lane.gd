@@ -22,7 +22,7 @@ func _ready() -> void:
 		LaneState.units[id] = lv
 	LaneState.seen_intro = true
 	LaneState.auto_summon = true
-	LaneState.speed2 = true
+	LaneState.speed_lv = 1
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	g = load("res://scenes/lane/LaneGame.tscn").instantiate()
 	add_child(g)

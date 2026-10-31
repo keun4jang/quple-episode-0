@@ -84,7 +84,7 @@ func _ready() -> void:
 	ck("수입 올리기", b.upgrade_worker() and b.worker == w0 + 1)
 	ck("수입을 올리면 한도도 커진다", b.wallet_cap() > int(LaneData.WALLET_CAP[0]))
 	ck("대포는 처음엔 못 쏜다", not b.fire_cannon())
-	b.cannon = LaneData.CANNON_CHARGE
+	b.cannon = b.cannon_max
 	var nest0 := b.nest_hp
 	ck("다 차면 쏜다", b.fire_cannon() and b.cannon == 0.0)
 	ck("바주카포는 둥지까지 깎는다", is_equal_approx(b.nest_hp, nest0 - b.nest_max * LaneData.CANNON_NEST))
@@ -209,6 +209,29 @@ func _ready() -> void:
 		and not LaneState.is_evolved("shield"))
 	LaneState.from_dict({"units": {"tiny": 14}, "evolved": []})
 	ck("진화 안 한 친구는 레벨 10 까지만", LaneState.level_of("tiny") == LaneData.EVOLVE_LV)
+	LaneState.from_dict({"speed2": true})
+	ck("옛 저장의 빨리 감기(켜짐)는 3배로", LaneState.speed_lv == 1)
+	LaneState.speed_lv = 2
+	var sd := LaneState.to_dict()
+	LaneState.reset()
+	LaneState.from_dict(sd)
+	ck("10배 저장", LaneState.speed_lv == 2)
+	LaneState.reset()
+	ck("바주카포는 Lv1 부터, 꿈조각이 없으면 못 올린다", LaneState.bazooka_lv == 1 and not LaneState.level_bazooka())
+	LaneState.xp = 1000000
+	while LaneState.level_bazooka():
+		pass
+	ck("바주카포는 Lv10 까지", LaneState.bazooka_lv == LaneData.BAZOOKA_LV_MAX)
+	ck("강화하면 세지고 빨리 찬다", LaneData.bazooka_dmg_mult(10) > LaneData.bazooka_dmg_mult(1)
+		and LaneData.bazooka_charge(10) < LaneData.bazooka_charge(1) and LaneData.bazooka_nest(10) > LaneData.bazooka_nest(1))
+	var bs := LaneState.to_dict()
+	LaneState.reset()
+	LaneState.from_dict(bs)
+	ck("바주카포 단계 저장", LaneState.bazooka_lv == LaneData.BAZOOKA_LV_MAX)
+	var bzb := LaneBattle.new()
+	bzb.start(5, 1)
+	ck("판은 강화 단계의 충전량을 쓴다", is_equal_approx(bzb.cannon_max, LaneData.bazooka_charge(LaneData.BAZOOKA_LV_MAX)))
+	LaneState.reset()
 	LaneState.reset()
 
 	print("\n[4] 저장")

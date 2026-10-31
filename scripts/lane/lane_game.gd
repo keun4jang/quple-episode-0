@@ -9,14 +9,18 @@ const BUG_PX := 3.0
 ## 픽셀 한 칸 = 화면 3점. 배경·길도 1/3 크기로 그려 3배로 키운다 - 캐릭터 도트와 픽셀 크기를 하나로 맞춘다.
 ## (예전엔 배경만 매끈한 그림이라 도트 캐릭터와 따로 놀았다.)
 const PIX := 3
-## 빨리 감기 배속 (켜면). 저장 이름은 옛것(speed2) 그대로 - 켜짐/꺼짐만 저장한다.
-const FAST := 3.0
+## 빨리 감기 배속 - 버튼을 누를 때마다 1배 → 3배 → 10배(시험용) → 1배. 단계는 LaneState.speed_lv.
+const SPEEDS := [1.0, 3.0, 10.0]
+
+
+static func _speed() -> float:
+	return float(SPEEDS[clampi(LaneState.speed_lv, 0, SPEEDS.size() - 1)])
 const FX_PIX := 2
 ## 공격 모양 - 유닛마다 다르게 보여야 누가 무얼 하는지 안다. [모양, 색]
 ## slash 베기 · pierce 찌르기 · smash 내리찍기(충격파) · shot 던지기(날아감) · magic 마법 구슬 · quake 땅울림 ·
 ## claw 세 갈래 할퀴기 · ice 얼음 · tongue 혀 · dive 하늘에서 내리꽂기 · peck 쪼기 · splash 물보라 · bonk 콩 박기
 ## 바주카포 포탄이 성에서 둥지까지 날아가는 시간 (초).
-const CANNON_FLY := 0.45
+const CANNON_FLY := 0.55
 ## 이 사거리 이하는 근접 - 상대에게 덤벼든다.
 const MELEE_RANGE := 230.0
 ## 쏘거나 던지는 공격 (덤벼들지 않는다).
@@ -656,9 +660,71 @@ func _fill_map() -> void:
 			gr.add_child(b)
 
 
+## 바주카포 강화 카드 (동물 탭 맨 위).
+func _bazooka_card() -> void:
+	var lv := LaneState.bazooka_lv
+	var card := _card()
+	_home_body.add_child(card)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	card.add_child(row)
+	row.add_child(_bazooka_icon(96.0))
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 2)
+	row.add_child(v)
+	v.add_child(IdleUi.label("바주카포  Lv %d" % lv, 26, IdleUi.GOLD_DK))
+	v.add_child(IdleUi.label("둥지까지 날아가 길 위 벌레를 모두 맞혀요", 19, IdleUi.SUB))
+	v.add_child(IdleUi.label("피해 x%.2f · 충전 %d초 · 둥지 %.1f%%" % [LaneData.bazooka_dmg_mult(lv),
+		int(round(LaneData.bazooka_charge(lv))), LaneData.bazooka_nest(lv) * 100.0], 19, IdleUi.CREAM))
+	if lv < LaneData.BAZOOKA_LV_MAX:
+		v.add_child(IdleUi.label("다음: 피해 x%.2f · 충전 %d초 · 둥지 %.1f%%" % [LaneData.bazooka_dmg_mult(lv + 1),
+			int(round(LaneData.bazooka_charge(lv + 1))), LaneData.bazooka_nest(lv + 1) * 100.0], 18, IdleUi.GREEN))
+	var b := IdleUi.button("", 20, "gold")
+	b.name = "Lv_bazooka"
+	b.custom_minimum_size = Vector2(150, 76)
+	if lv >= LaneData.BAZOOKA_LV_MAX:
+		b.text = "최고 레벨"
+		b.disabled = true
+	else:
+		b.text = "강화
+✦ %s" % _num(LaneData.bazooka_cost(lv))
+		b.disabled = not LaneState.can_level_bazooka()
+	b.pressed.connect(func() -> void:
+		if LaneState.level_bazooka():
+			AudioManager.ui_confirm()
+			LaneState.save()
+			_toast("바주카포 Lv %d!" % LaneState.bazooka_lv)
+			_fill_home())
+	row.add_child(b)
+
+
+## 바주카포 그림 (직접 그린다) - 비스듬한 포신 + 손잡이 + 끝의 포탄.
+func _bazooka_icon(sz: float) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(sz, sz)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func() -> void:
+		var u := sz / 96.0
+		c.draw_set_transform(Vector2(sz * 0.5, sz * 0.55), -0.45, Vector2(u, u))
+		var ink := Color("#4A2E5E")
+		c.draw_rect(Rect2(-40, -12, 70, 24), ink)                       # 테두리
+		c.draw_rect(Rect2(-37, -9, 64, 18), Color("#BF94E4"))           # 포신
+		c.draw_rect(Rect2(-37, -9, 64, 5), Color("#E2CCF5"))            # 빛
+		c.draw_rect(Rect2(26, -15, 12, 30), ink)                        # 포구
+		c.draw_rect(Rect2(28, -12, 8, 24), Color("#F7A8C4"))
+		c.draw_rect(Rect2(-14, 9, 10, 20), ink)                         # 손잡이
+		c.draw_rect(Rect2(-12, 11, 6, 16), Color("#8A6FB8"))
+		c.draw_circle(Vector2(48, 0), 9.0, ink)                        # 포탄
+		c.draw_circle(Vector2(48, 0), 6.5, Color("#F7A8C4"))
+		c.draw_circle(Vector2(46, -2), 2.0, Color.WHITE))
+	return c
+
+
 func _fill_units() -> void:
 	_home_body.add_child(IdleUi.label("도감  %d / %d  -  뽑기에서 새 친구를 만나요" % [LaneState.owned_count(),
 		LaneData.ALL_ORDER.size()], 24, IdleUi.CREAM))
+	_bazooka_card()
 	for id in LaneData.ALL_ORDER:
 		var u: Dictionary = LaneData.UNITS[id]
 		var rr := LaneData.rarity(String(id))
@@ -1329,9 +1395,9 @@ func _build_hud() -> void:
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(gap)
 	_speed_btn = IdleUi.button("", 22)
-	_speed_btn.custom_minimum_size = Vector2(112, 60)
+	_speed_btn.custom_minimum_size = Vector2(132, 60)
 	_speed_btn.pressed.connect(func() -> void:
-		LaneState.speed2 = not LaneState.speed2
+		LaneState.speed_lv = (LaneState.speed_lv + 1) % SPEEDS.size()
 		AudioManager.ui_click()
 		_refresh_hud_toggles())
 	top.add_child(_speed_btn)
@@ -1505,7 +1571,7 @@ func _layout_hud() -> void:
 
 
 func _refresh_hud_toggles() -> void:
-	_speed_btn.text = "%d배 ▶▶▶" % int(FAST) if LaneState.speed2 else "1배 ▶"
+	_speed_btn.text = "%d배 %s" % [int(_speed()), "▶".repeat(LaneState.speed_lv + 1)]
 	_auto_btn.text = "자동 켜짐" if LaneState.auto_summon else "자동 소환"
 	# 켜지면 분홍 버튼으로 (예전엔 초록을 곱해 라벤더가 회색이 돼, 켜진 게 꺼진 것처럼 보였다)
 	var ref := IdleUi.button("", 22, "gold" if LaneState.auto_summon else "plum")
@@ -1533,7 +1599,7 @@ func _process(dt: float) -> void:
 	_world.position = Vector2(14.0 * sh * sin(st * 1.1), 10.0 * sh * sin(st * 1.7 + 2.0))
 	_flash_rect.color.a = maxf(0.0, _flash_rect.color.a - dt * 2.5)
 	if not _ended and not _tut_pause:
-		var sdt := minf(dt, 0.25) * (FAST if LaneState.speed2 else 1.0)
+		var sdt := minf(dt, 0.25) * _speed()
 		_battle_t += sdt
 		for e in battle.tick(sdt):
 			_on_event(e)
@@ -1604,7 +1670,7 @@ func _refresh_hud() -> void:
 	_worker_btn.text = "수입 Lv%d\n%s" % [battle.worker, ("최고" if wc < 0 else "올리기 ✦%d" % wc)]
 	_worker_btn.disabled = not battle.can_worker()
 	var ready := battle.cannon_ready()
-	_cannon_btn.text = "바주카포!\n누르면 발사" if ready else "바주카포\n충전 %d%%" % int(battle.cannon / LaneData.CANNON_CHARGE * 100.0)
+	_cannon_btn.text = "바주카포!\n누르면 발사" if ready else "바주카포\n충전 %d%%" % int(battle.cannon / battle.cannon_max * 100.0)
 	_cannon_btn.disabled = not ready
 	if ready:
 		var s := 1.0 + 0.05 * sin(_t * 8.0)
@@ -1718,7 +1784,7 @@ func _sync_actors() -> void:
 		if e["state"] == "fight":
 			# 실제 시간으로 잰다 - 2배속에서도 휘두르는 게 눈에 보이게
 			var since := _t - float(_swing_at.get(uid, -99.0))
-			var until := float(e["t_atk"]) / (FAST if LaneState.speed2 else 1.0)
+			var until := float(e["t_atk"]) / _speed()
 			var lunge := 0.0
 			if since < 0.08:
 				atk_f = 1
@@ -2293,34 +2359,112 @@ func _cutin(id: String) -> bool:
 
 
 func _cannon_fx(e: Dictionary = {}) -> void:
-	# 바주카포 - 성에서 포탄이 길을 따라 둥지까지 날아가며 지나는 자리마다 터지고, 둥지에서 크게 터진다
-	var base := _field.fort_pos() + Vector2(0, 10)
+	# 바주카포 - 이 게임에서 가장 큰 한 방. 발사(포구 섬광·반동) → 빛 포탄이 길을 가르며 날아감 → 둥지에서 대폭발.
+	# 강화 단계가 높을수록 더 크게. (번쩍임·흔들림은 '줄이기' 설정을 따른다 - _flash·_add_trauma·_hitstop)
+	var lv := int(e.get("lv", LaneState.bazooka_lv))
+	var big := 1.0 + 0.08 * float(lv - 1)
+	var base := _field.fort_pos() + Vector2(0, 30)
 	var nest := _field.nest_pos() + Vector2(0, -50)
-	const FLY := CANNON_FLY
-	_flash(0.3)
-	_add_trauma(0.5)
+	var fly := CANNON_FLY
+	var gold := IdleUi.GOLD
+	var hot := Color("#FFF3D0")
+	# 1) 발사 - 포구 섬광 · 충격파 세 겹 · 빛살 · 연기 · 반동
+	_flash(0.55)
+	_add_trauma(0.6)
 	_hitstop(0.05)
-	_fx.ring(base, 20.0, 200.0, Color.WHITE, 14.0, 0.35)
-	_vfx.burst(base, Color("#E8DCC8"), 14, 320.0, 0.5, 0.45, true)
-	_banner_show("바주카포 발사!", IdleUi.GOLD)
-	_fx.meteor(base, nest, IdleUi.GOLD, FLY)
-	for i in 8:
-		var t := float(i + 1) / 9.0
+	_bazooka_band(lv)
+	_fx.rays(base, hot, int(26 * big), 30.0, 340.0 * big, 0.35)
+	for k in 3:
+		_fx.ring(base, 10.0, (150.0 + 90.0 * k) * big, [Color.WHITE, gold, Color("#BF94E4")][k], 16.0 - 4.0 * k, 0.4, 0.05 * k)
+	_vfx.burst(base, Color("#E8DCC8"), int(24 * big), 380.0, 0.8, 0.7, true)
+	_fx.burst(base, hot, int(20 * big), 520.0, 9.0, 0.5, 300.0, "star")
+	_field.shake_our = 16.0   # 반동
+	# 2) 비행 - 굵은 빛 포탄(겹친 구슬) + 꼬리 + 지나는 길마다 땅이 울린다
+	_fx.meteor(base, nest, gold, fly)
+	for k in 5:
+		_fx.orb(base, nest, [Color.WHITE, hot, gold, Color("#F7A8C4"), Color("#BF94E4")][k], fly, 0.025 * k)
+	var steps := 12
+	for i in steps:
+		var t := float(i + 1) / float(steps + 1)
 		var p := base.lerp(nest, t)
-		_fx.ring(p, 8.0, 90.0, Color("#FFE7B0"), 9.0, 0.3, t * FLY)
-		_vfx.burst(p, IdleUi.GOLD, 6, 260.0, 0.4, 0.4, false, t * FLY)
+		var d := t * fly
+		_fx.wave(p + Vector2(0, 30), 120.0 * big, Color("#FFE7B0"), 10.0, 0.45, d)
+		_fx.ring(p, 8.0, 80.0 * big, hot, 10.0, 0.3, d)
+		_fx.burst(p, [gold, Color("#F7A8C4"), Color.WHITE][i % 3], 6, 300.0, 7.0, 0.6, 500.0, "star", d)
+		_vfx.burst(p, gold, 6, 260.0, 0.45, 0.4, false, d)
+	_later(fly * 0.5, func() -> void: _add_trauma(0.25))
+	# 3) 착탄 - 화면 전체 번쩍 · 잠깐 멈춤 · 고리 네 겹 · 긴 빛살 · 버섯 폭발 · 잔해 · 이어지는 작은 폭발
 	var nd := int(e.get("nest", 0))
-	_later(FLY, func() -> void:
+	_later(fly, func() -> void:
 		if _field == null:
 			return
-		_field.shake_nest = 14.0
-		_add_trauma(0.6)
-		_flash(0.25)
-		_fx.ring(nest, 20.0, 260.0, Color.WHITE, 16.0, 0.5)
-		_vfx.burst(nest, Color("#C9A27A"), 30, 480.0, 0.8, 0.6, true)
+		_field.shake_nest = 22.0
+		_flash(0.85)
+		_add_trauma(1.0)
+		_hitstop(0.1)
+		_fx.rays(nest, hot, int(36 * big), 40.0, 520.0 * big, 0.5)
+		var cols := [Color.WHITE, gold, Color("#F7A8C4"), Color("#BF94E4")]
+		for k in 4:
+			_fx.ring(nest, 20.0, (180.0 + 110.0 * k) * big, cols[k], 22.0 - 4.0 * k, 0.6, 0.06 * k)
+		_fx.wave(nest + Vector2(0, 40), 420.0 * big, Color("#FFE7B0"), 20.0, 0.7)
+		_fx.wave(nest + Vector2(0, 40), 300.0 * big, Color.WHITE, 12.0, 0.55, 0.1)
+		_fx.burst(nest, hot, int(40 * big), 760.0, 12.0, 0.9, 700.0, "star")
+		_fx.burst(nest, gold, int(30 * big), 600.0, 10.0, 1.0, -260.0, "star", 0.05)   # 버섯처럼 솟는 불꽃
+		_fx.burst(nest, Color.WHITE, int(20 * big), 480.0, 8.0, 0.7, 600.0, "sq", 0.03)
+		_vfx.burst(nest, Color("#C9A27A"), int(50 * big), 640.0, 1.0, 0.8, true)          # 흙·잔해
+		_vfx.burst(nest, Color("#8A6F8F"), int(24 * big), 300.0, 1.4, 1.0, true, 0.1)      # 연기
+		for k in int(5 * big):
+			var q := nest + Vector2(randf_range(-150, 150), randf_range(-90, 50)) * big
+			var dl := 0.12 + 0.09 * k
+			_fx.ring(q, 8.0, 110.0, [gold, Color.WHITE, Color("#F7A8C4")][k % 3], 10.0, 0.35, dl)
+			_fx.burst(q, hot, 10, 380.0, 8.0, 0.5, 500.0, "star", dl)
+			_vfx.burst(q, Color("#C9A27A"), 8, 300.0, 0.5, 0.5, true, dl)
+		_later(0.3, func() -> void: _add_trauma(0.4))
 		if nd > 0:
-			_fx.text(nest + Vector2(0, -60), "-%s" % _num(nd), Color("#FFE7B0"), 40, 1.0, 0.0, 60.0))
+			_fx.text(nest + Vector2(0, -80), "-%s" % _num(nd), hot, 56, 1.3, 0.05, 80.0)
+		AudioManager.sky_crack())
 	AudioManager.battle_hit()
+
+
+## 바주카포 띠 - 화면을 가로지르는 띠에 바주카 그림 + "바주카포 발사!" (스킬 띠와 같은 높이·모양).
+func _bazooka_band(lv: int) -> void:
+	if _hud == null:
+		return
+	var band := Control.new()
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.size = Vector2(size.x + 80.0, 118.0)
+	# 스킬 띠(높이 40%)가 아직 떠 있으면 그 아래에 - 띠끼리 겹치지 않게
+	var busy := _t - _cutin_t < 1.2
+	band.position = Vector2(-size.x - 80.0, size.y * 0.4 + (136.0 if busy else 0.0))
+	_hud.add_child(band)
+	var bg := ColorRect.new()
+	bg.color = Color(0.13, 0.07, 0.22, 0.9)
+	bg.size = band.size
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.add_child(bg)
+	for yy in [0.0, band.size.y - 8.0]:
+		var stripe := ColorRect.new()
+		stripe.color = IdleUi.GOLD
+		stripe.size = Vector2(band.size.x, 8.0)
+		stripe.position = Vector2(0, yy)
+		stripe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.add_child(stripe)
+	var ic := _bazooka_icon(100.0)
+	ic.position = Vector2(110, 9)
+	band.add_child(ic)
+	var t := IdleUi.label("바주카포 발사!", 52, IdleUi.GOLD, true)
+	t.position = Vector2(230, 22)
+	band.add_child(t)
+	var l := IdleUi.label("Lv %d" % lv, 24, Color.WHITE, true)
+	l.position = Vector2(230, -2)
+	band.add_child(l)
+	# 왼쪽에서 휙 들어와 머물다 오른쪽으로 빠진다 (스킬 띠와 반대 방향)
+	var tw := create_tween()
+	tw.tween_property(band, "position:x", -80.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(band, "position:x", -56.0, 0.7)
+	tw.tween_property(band, "position:x", size.x + 40.0, 0.16).set_ease(Tween.EASE_IN)
+	tw.tween_callback(band.queue_free)
+	_cutin_t = _t   # 띠가 겹치지 않게 - 이 동안 스킬 띠는 쉰다
 
 
 # ── 끝 ───────────────────────────────────────────────────────────────
@@ -2487,7 +2631,7 @@ func _tut_battle_guide(i := 0) -> void:
 			battle.wallet = maxf(battle.wallet, float(battle.worker_cost()) + 5.0)
 			_tut.point(_worker_btn, "수입을 올리면 꿈빛이 더 빨리 차요", _tut_run.bind(3.5, 4))
 		4:
-			battle.cannon = LaneData.CANNON_CHARGE
+			battle.cannon = battle.cannon_max
 			_tut.point(_cannon_btn, "바주카포가 찼어요! 눌러서 쏴요", _tut_run.bind(2.0, 5))
 		5:
 			_tut.point(_auto_btn, "자동 소환을 켜면 알아서 불러 줘요", _tut_battle_guide.bind(6))

@@ -11,7 +11,7 @@ func _ready() -> void:
 	for id in LaneState.units.keys():
 		LaneState.units[id] = 6
 	LaneState.auto_summon = true
-	LaneState.speed2 = true
+	LaneState.speed_lv = 1
 	LaneState.daily_day = 999999
 	var g = load("res://scenes/lane/LaneGame.tscn").instantiate()
 	add_child(g)

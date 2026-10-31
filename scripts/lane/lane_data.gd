@@ -355,6 +355,25 @@ const CANNON_KB_REACH := 900.0
 const CANNON_DMG := 120.0
 ## 둥지에 닿으면 둥지 체력의 이만큼.
 const CANNON_NEST := 0.02
+## 바주카포 강화 (꿈조각) - 한 단계마다 피해 +15% · 충전 3% 빨리 · 둥지 +0.2%p. Lv10 = 피해 2.35배 · 29초 · 둥지 3.8%
+const BAZOOKA_LV_MAX := 10
+
+
+static func bazooka_dmg_mult(lv: int) -> float:
+	return 1.0 + 0.15 * float(clampi(lv, 1, BAZOOKA_LV_MAX) - 1)
+
+
+static func bazooka_charge(lv: int) -> float:
+	return CANNON_CHARGE * (1.0 - 0.03 * float(clampi(lv, 1, BAZOOKA_LV_MAX) - 1))
+
+
+static func bazooka_nest(lv: int) -> float:
+	return CANNON_NEST + 0.002 * float(clampi(lv, 1, BAZOOKA_LV_MAX) - 1)
+
+
+## lv → lv+1 로 올리는 꿈조각.
+static func bazooka_cost(lv: int) -> int:
+	return int(round(500.0 * pow(float(lv), 1.6)))
 
 const OUR_BASE_HP := 3000.0
 ## 벌레 떼 - 첫 떼(초) · 간격 · 가장 짧은 간격 · 기본 마리 수. 오기 WAVE_WARN 초 전에 알려 준다.

@@ -39,7 +39,7 @@ func _ready() -> void:
 				print("  ! 가리킬 단추가 없다 - 넘김")
 				t._advance()
 		elif g.mode == "battle" and LaneState.tut == 2 and not g._ended:
-			LaneState.speed2 = true
+			LaneState.speed_lv = 1
 			g.battle.auto = true
 		elif g._result != null and g.mode == "battle" and LaneState.tut != 2:
 			pass

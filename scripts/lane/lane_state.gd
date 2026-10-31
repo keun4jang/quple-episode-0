@@ -17,7 +17,10 @@ static var cleared := 0
 static var evolved: Dictionary = {}
 static var clears: Dictionary = {}       ## 스테이지 → 깬 횟수
 static var auto_summon := false
-static var speed2 := false
+## 빨리 감기 단계 (0 = 1배, 1 = 3배, 2 = 10배). 배수는 LaneGame.SPEEDS.
+static var speed_lv := 0
+## 바주카포 강화 단계 (1 부터).
+static var bazooka_lv := 1
 static var seen_intro := false
 static var last_seen := 0
 ## 뽑기: 무료 티켓 · 전설 없이 뽑은 수 · 전체 뽑은 수
@@ -50,7 +53,8 @@ static func reset() -> void:
 	evolved = {}
 	clears = {}
 	auto_summon = false
-	speed2 = false
+	speed_lv = 0
+	bazooka_lv = 1
 	seen_intro = false
 	last_seen = 0
 	tickets = 1          # 처음 하나는 선물
@@ -96,6 +100,18 @@ static func cheer_for(n: int) -> float:
 
 static func on_lose(n: int) -> void:
 	fails[n] = int(fails.get(n, 0)) + 1
+
+
+static func can_level_bazooka() -> bool:
+	return bazooka_lv < LaneData.BAZOOKA_LV_MAX and xp >= LaneData.bazooka_cost(bazooka_lv)
+
+
+static func level_bazooka() -> bool:
+	if not can_level_bazooka():
+		return false
+	xp -= LaneData.bazooka_cost(bazooka_lv)
+	bazooka_lv += 1
+	return true
 
 
 static func can_level(id: String) -> bool:
@@ -459,7 +475,7 @@ static func owned_count() -> int:
 
 static func to_dict() -> Dictionary:
 	return {"v": 1, "xp": xp, "stars": stars, "units": units.duplicate(), "lineup": lineup.duplicate(),
-		"cleared": cleared, "evolved": evolved.keys(), "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed2,
+		"cleared": cleared, "evolved": evolved.keys(), "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed_lv > 0, "speed_lv": speed_lv, "bazooka": bazooka_lv,
 		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
 		"daily_day": daily_day, "daily_streak": daily_streak, "treasures": treasures.duplicate(true),
 		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut}
@@ -501,7 +517,9 @@ static func from_dict(d: Dictionary) -> void:
 		for k in (c as Dictionary).keys():
 			clears[int(k)] = maxi(0, int(c[k]))
 	auto_summon = bool(d.get("auto", false))
-	speed2 = bool(d.get("speed2", false))
+	bazooka_lv = clampi(int(d.get("bazooka", 1)), 1, LaneData.BAZOOKA_LV_MAX)
+	# 옛 저장은 켜짐/꺼짐(speed2)만 있다 - 켜짐이면 3배로
+	speed_lv = clampi(int(d.get("speed_lv", 1 if bool(d.get("speed2", false)) else 0)), 0, 2)
 	seen_intro = bool(d.get("seen_intro", false))
 	last_seen = maxi(0, int(d.get("last_seen", 0)))
 	tickets = clampi(int(d.get("tickets", 1)), 0, 9999)

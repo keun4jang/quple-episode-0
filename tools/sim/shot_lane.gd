@@ -40,7 +40,10 @@ func _ready() -> void:
 			if k < LaneState.lineup.size():
 				LaneState.acc_on[String(LaneState.lineup[k])] = acc
 			k += 1
-	LaneState.speed2 = OS.get_environment("SHOT_FAST") == "1"
+	# SHOT_BAZ=N 바주카포 강화 단계
+	if OS.get_environment("SHOT_BAZ") != "":
+		LaneState.bazooka_lv = int(OS.get_environment("SHOT_BAZ"))
+	LaneState.speed_lv = int(OS.get_environment("SHOT_FAST")) if OS.get_environment("SHOT_FAST") != "" else 0
 	LaneState.auto_summon = true
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	var g = load("res://scenes/lane/LaneGame.tscn").instantiate()
@@ -74,7 +77,7 @@ func _ready() -> void:
 	elif OS.get_environment("SHOT_MODE") == "cannon":
 		g._start_battle(st)
 		await get_tree().create_timer(14.0).timeout
-		g.battle.cannon = LaneData.CANNON_CHARGE
+		g.battle.cannon = g.battle.cannon_max
 		g._cannon_btn.pressed.emit()
 	elif OS.get_environment("SHOT_MODE") == "evolve":
 		# SHOT_EVO_ID 를 진화시키는 연출 (SHOT_WAIT 로 어느 순간을 찍을지)

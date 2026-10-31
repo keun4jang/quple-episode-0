@@ -21,6 +21,9 @@ var events: Array = []
 var wallet := 0.0
 var worker := 1
 var cannon := 0.0
+## 다 차는 양 (바주카포 강화 단계에 따라 줄어든다) · 그 판의 강화 단계.
+var cannon_max := LaneData.CANNON_CHARGE
+var bazooka_lv := 1
 var our_hp := 0.0
 var our_max := 0.0
 var nest_hp := 0.0
@@ -59,6 +62,8 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 	wallet = 0.0
 	worker = 1
 	cannon = 0.0
+	bazooka_lv = LaneState.bazooka_lv
+	cannon_max = LaneData.bazooka_charge(bazooka_lv)
 	our_max = LaneData.OUR_BASE_HP
 	our_hp = our_max
 	nest_max = float(info["base_hp"])
@@ -141,23 +146,23 @@ func summon(id: String) -> bool:
 
 
 func cannon_ready() -> bool:
-	return not done and cannon >= LaneData.CANNON_CHARGE
+	return not done and cannon >= cannon_max
 
 
 func fire_cannon() -> bool:
 	if not cannon_ready():
 		return false
 	cannon = 0.0
-	var dmg := LaneData.CANNON_DMG * (1.0 + 0.08 * float(n - 1))
+	var dmg := LaneData.CANNON_DMG * (1.0 + 0.08 * float(n - 1)) * LaneData.bazooka_dmg_mult(bazooka_lv)
 	var hit := 0
 	for e in ents:
 		if e["side"] == "b" and float(e["pos"]) <= LaneData.CANNON_REACH and float(e["hp"]) > 0.0:
 			_damage(e, dmg, true)
 			hit += 1
 	# 포탄은 둥지까지 날아가 둥지도 깎는다
-	var nd := nest_max * LaneData.CANNON_NEST
+	var nd := nest_max * LaneData.bazooka_nest(bazooka_lv)
 	nest_hp = maxf(0.0, nest_hp - nd)
-	events.append({"k": "cannon", "hit": hit, "nest": int(round(nd))})
+	events.append({"k": "cannon", "hit": hit, "nest": int(round(nd)), "lv": bazooka_lv})
 	return true
 
 
@@ -179,7 +184,7 @@ func tick(dt: float) -> Array:
 func _step(d: float) -> void:
 	time += d
 	wallet = minf(float(wallet_cap()), wallet + float(LaneData.WALLET_RATE[worker - 1]) * rate_mult * d)
-	cannon = minf(LaneData.CANNON_CHARGE, cannon + d * cannon_mult)
+	cannon = minf(cannon_max, cannon + d * cannon_mult)
 	for id in cds.keys():
 		cds[id] = maxf(0.0, float(cds[id]) - d)
 	_spawn_bugs(d)
@@ -198,7 +203,7 @@ func _step(d: float) -> void:
 	ents = keep
 	if not crisis_used and not done and our_hp > 0.0 and our_hp < our_max * LaneData.CRISIS_AT:
 		crisis_used = true
-		cannon = LaneData.CANNON_CHARGE
+		cannon = cannon_max
 		wallet = minf(float(wallet_cap()), wallet + float(wallet_cap()) * 0.5)
 		events.append({"k": "crisis"})
 	if nest_hp <= 0.0 and not done:
