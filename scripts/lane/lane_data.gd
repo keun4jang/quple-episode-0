@@ -352,10 +352,10 @@ const CANNON_CHARGE := 40.0
 const CANNON_REACH := 3000.0
 ## 뒤로 밀어내는 것은 성 앞 이만큼까지만 (예전 꿈 대포의 '비상 버튼' 몫). 길 전체를 밀면 너무 쉬워졌다.
 const CANNON_KB_REACH := 900.0
-const CANNON_DMG := 120.0
+const CANNON_DMG := 240.0
 ## 둥지에 닿으면 둥지 체력의 이만큼.
-const CANNON_NEST := 0.02
-## 바주카포 강화 (꿈조각) - 한 단계마다 피해 +15% · 충전 3% 빨리 · 둥지 +0.2%p. Lv10 = 피해 2.35배 · 29초 · 둥지 3.8%
+const CANNON_NEST := 0.03
+## 바주카포 강화 (꿈조각) - 한 단계마다 피해 +15% · 충전 3% 빨리 · 둥지 +0.2%p. Lv10 = 피해 2.35배 · 29초 · 둥지 4.8%
 const BAZOOKA_LV_MAX := 10
 
 
