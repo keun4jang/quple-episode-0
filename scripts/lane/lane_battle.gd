@@ -68,6 +68,7 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 	our_hp = our_max
 	nest_max = float(info["base_hp"])
 	nest_hp = nest_max
+	LaneState.sort_lineup()
 	lineup = LaneState.lineup.duplicate()
 	stats = {}
 	cds = {}

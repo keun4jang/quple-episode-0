@@ -66,6 +66,11 @@ func _ready() -> void:
 	ck("레벨이 오르면 20% 세진다", is_equal_approx(float(LaneState.unit_stats("tiny")["hp"]), hp1 * 1.2))
 	ck("편성에서 뺀다", LaneState.toggle_lineup("spear") and not LaneState.lineup.has("spear"))
 	ck("다시 넣는다", LaneState.toggle_lineup("spear") and LaneState.lineup.has("spear"))
+	ck("편성은 도감 순서 (뺐다 넣어도)", LaneState.lineup.find("spear") > LaneState.lineup.find("tiny")
+		and LaneState.lineup.find("spear") < LaneState.lineup.size() and LaneState.lineup == LaneState.lineup.duplicate())
+	var lsorted := LaneState.lineup.duplicate()
+	lsorted.sort_custom(func(a, b) -> bool: return LaneData.ALL_ORDER.find(a) < LaneData.ALL_ORDER.find(b))
+	ck("편성 순서 = 도감 순서", LaneState.lineup == lsorted)
 	ck("없는 쿼카는 못 넣는다", not LaneState.toggle_lineup("giant"))
 	LaneState.lineup = ["tiny"]
 	ck("마지막 한 마리는 못 뺀다", not LaneState.toggle_lineup("tiny"))

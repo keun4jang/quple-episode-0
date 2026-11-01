@@ -93,6 +93,7 @@ static func unlock_by_stage() -> Array:
 			got.append(id)
 			if lineup.size() < LaneData.LINEUP_MAX:
 				lineup.append(id)
+	sort_lineup()
 	return got
 
 
@@ -177,7 +178,14 @@ static func toggle_lineup(id: String) -> bool:
 	if not units.has(id) or lineup.size() >= LaneData.LINEUP_MAX:
 		return false
 	lineup.append(id)
+	sort_lineup()
 	return true
+
+
+## 편성은 늘 도감 순서로 (쿼카 여덟 → 동물 친구) - 넣은 순서가 아니라.
+static func sort_lineup() -> void:
+	lineup.sort_custom(func(a, b) -> bool:
+		return LaneData.ALL_ORDER.find(String(a)) < LaneData.ALL_ORDER.find(String(b)))
 
 
 ## 판에서 쓸 몸 `{hp, atk, ...}` - 레벨 배율이 들어간다.
@@ -455,6 +463,7 @@ static func _grant(id: String) -> Dictionary:
 		res["new"] = true
 		if lineup.size() < LaneData.LINEUP_MAX:
 			lineup.append(id)
+			sort_lineup()
 	elif level_of(id) < level_cap(id):
 		units[id] = level_of(id) + 1
 	else:
@@ -527,6 +536,7 @@ static func from_dict(d: Dictionary) -> void:
 				lineup.append(String(id))
 	if lineup.is_empty():
 		lineup = ["tiny"]
+	sort_lineup()
 	var c = d.get("clears", {})
 	if c is Dictionary:
 		for k in (c as Dictionary).keys():
