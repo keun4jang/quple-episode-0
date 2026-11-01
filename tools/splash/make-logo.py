@@ -3,7 +3,7 @@
 
     .sdenv/Scripts/python.exe tools/splash/make-logo.py [A|B|C] [출력.png]
 
-기본은 D (분홍→라벤더 채움 + 쿼카 얼굴 + 통통 튀는 글자) → assets/splash/logo-happy.png (투명 바탕, 폭 1200).
+기본은 D (분홍→라벤더 채움 + 통통 튀는 글자, 얼굴 없음) → assets/splash/logo-happy.png (투명 바탕, 폭 1200).
 색: 키 컬러 라벤더 #BF94E4 · 포인트 벚꽃 분홍 #F7A8C4 (노랑은 쓰지 않는다).
 """
 
@@ -147,8 +147,8 @@ def build(variant="A"):
     out.alpha_composite(fill(gl, WHITE))
     d = ImageDraw.Draw(out)
     b2 = m.getbbox()
-    if variant in ("A", "D"):
-        quokka(out, b2[0] - 58, ya - 4, 62)       # "진" 왼쪽 위 - 글자는 가리지 않고 테두리에만 걸친다       # "진" 왼쪽 위에서 빼꼼
+    if variant == "A":   # D 는 얼굴 없이 (곰처럼 보였다)
+        quokka(out, b2[0] - 58, ya - 4, 62)       # "진" 왼쪽 위에서 빼꼼
     sparkle(d, b2[2] + 34, ya - 6, 34, PINK)
     sparkle(d, b2[2] + 6, ya - 46, 18, LAV)
     sparkle(d, b2[0] + (tw * 0.47), ya - 40, 20, WHITE)
