@@ -151,6 +151,16 @@ func _gui_input(ev: InputEvent) -> void:
 		queue_free()
 
 
+## 뒤로가기 - 남은 연출을 건너뛰고 닫는다. 뽑은 결과는 이미 받아 두었다(LaneState.pull).
+func close() -> void:
+	if is_queued_for_deletion():
+		return
+	if _tw != null:
+		_tw.kill()
+	finished.emit()
+	queue_free()
+
+
 func _next() -> void:
 	if _card != null:
 		_card.queue_free()

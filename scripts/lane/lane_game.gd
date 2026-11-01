@@ -198,6 +198,8 @@ var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 안드로이드 뒤로가기가 close_panel() 을 부른다 (back_handler.gd)
+	add_to_group("idle_game")
 	if not LaneState.load_save():
 		LaneState.reset()
 	AudioManager.play_bgm("home")
@@ -264,6 +266,40 @@ func _notification(what: int) -> void:
 
 func _exit_tree() -> void:
 	Engine.time_scale = 1.0
+
+
+## 뒤로가기 (back_handler 가 부른다). 무엇이든 처리했으면 true - false 면 종료 카운터에 쌓인다.
+## 맨 위 창부터 하나씩 닫고, 싸움 중에는 아무것도 안 하고 누름만 먹는다(앱이 꺼지지 않게),
+## 홈에서는 메인 메뉴로 돌아간다. 앱 종료는 메뉴에서만 일어난다.
+func close_panel() -> bool:
+	for i in range(get_child_count() - 1, -1, -1):
+		var c := get_child(i)
+		if c.is_queued_for_deletion():
+			continue
+		if c == _tut:
+			# 안내 말풍선은 닫지 않는다 - 건너뛰기는 버튼으로만. 누름만 먹는다.
+			if _tut.visible:
+				return true
+		elif c is LaneGacha:
+			(c as LaneGacha).close()
+			return true
+		elif String(c.name).begins_with("Evolve"):
+			var tw: Tween = c.get_meta("tw") if c.has_meta("tw") else null
+			if tw != null and tw.is_valid() and tw.is_running():
+				tw.custom_step(60.0)     # 연출 중이면 끝난 모습으로 - 한 번 더 누르면 닫힌다
+			else:
+				c.queue_free()
+			return true
+		elif String(c.name).begins_with("Popup"):
+			c.queue_free()
+			return true
+	if mode == "battle":
+		if is_instance_valid(_result) and not _result.is_queued_for_deletion() and LaneState.tut != 2:
+			_show_home()
+		return true
+	LaneState.save(int(Time.get_unix_time_from_system()))
+	SceneTransition.go_to(MENU_PATH, "normal")
+	return true
 
 
 ## 위아래 여백 (화면 점) - 폰의 상태 표시줄·노치·아래 제스처 막대 높이를 읽고, 없어도 최소 PAD_MIN 만큼은 띄운다.
@@ -893,6 +929,7 @@ func _fill_units() -> void:
 ## 진화 연출: 어두워지고 → 옛 모습이 떨며 빛에 휩싸이고 → 번쩍 → 커진 새 모습이 튀어나오며 빛살이 돈다.
 func _evolve_show(id: String) -> void:
 	var lay := Control.new()
+	lay.name = "Evolve"
 	lay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	lay.mouse_filter = Control.MOUSE_FILTER_STOP
 	lay.add_to_group("modal")
@@ -964,6 +1001,7 @@ func _evolve_show(id: String) -> void:
 	lay.add_child(hint)
 	AudioManager.warm_swell()
 	var tw := create_tween()
+	lay.set_meta("tw", tw)
 	tw.tween_property(dim, "color:a", 0.86, 0.3)
 	tw.parallel().tween_property(rays, "modulate:a", 0.6, 0.6)
 	# 떨며 빛에 휩싸인다
@@ -1506,6 +1544,8 @@ func _build_hud() -> void:
 	_worker_btn = IdleUi.button("", 20, "plum")
 	_worker_btn.custom_minimum_size = Vector2(136, 92)
 	_worker_btn.pressed.connect(func() -> void:
+		if _ended:
+			return
 		if battle.upgrade_worker():
 			AudioManager.ui_confirm()
 		else:
@@ -1535,6 +1575,8 @@ func _build_hud() -> void:
 	_cannon_btn = IdleUi.button("", 22, "gold")
 	_cannon_btn.custom_minimum_size = Vector2(150, 92)
 	_cannon_btn.pressed.connect(func() -> void:
+		if _ended:
+			return
 		if battle.fire_cannon():
 			AudioManager.ui_confirm()
 		else:
@@ -1608,6 +1650,8 @@ func _build_hud() -> void:
 		cdt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		b.add_child(cdt)
 		b.pressed.connect(func() -> void:
+			if _ended:
+				return
 			if battle.summon(uid_s):
 				AudioManager.pickup()
 			else:
