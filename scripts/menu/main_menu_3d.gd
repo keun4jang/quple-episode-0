@@ -436,17 +436,17 @@ func _show_credits() -> void:
 	dim.add_child(box)
 
 	var lines := [
-		["진짜 행복", 54, Color(1, 0.93, 0.78)],
-		["쿼카와 동물 친구들이 벌레를 막아요", 30, Color(1, 0.86, 0.62)],
+		["진짜 행복", 54, IdleUi.LAV],
+		["쿼카와 동물 친구들이 벌레를 막아요", 30, IdleUi.GOLD],
 		["", 18, Color.WHITE],
-		["1인 개발  김근영", 28, Color(0.96, 0.92, 0.82)],
+		["1인 개발  김근영", 28, Color.WHITE],
 		["기획 · 개발 · 아트", 26, Color(0.82, 0.86, 0.96)],
 		["Godot 4.3 · Blender · Python", 24, Color(0.72, 0.78, 0.90)],
 		["", 18, Color.WHITE],
 		["글꼴  Jua · PoorStory (SIL Open Font License)", 22, Color(0.72, 0.78, 0.90)],
 		["음악  한국 동요 편곡 (저작권 만료)", 22, Color(0.72, 0.78, 0.90)],
 		["", 18, Color.WHITE],
-		["화면을 누르면 닫혀요", 24, Color(1, 0.86, 0.62)],
+		["화면을 누르면 닫혀요", 24, IdleUi.GOLD],
 	]
 	for l in lines:
 		var lb := Label.new()

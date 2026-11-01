@@ -6,7 +6,6 @@ extends Control
 
 signal finished
 
-const COL := {"rare": Color("#7FD0FF"), "super": Color("#C58CFF"), "legend": Color("#FFD15A")}
 const SHAKES := {"rare": 1, "super": 2, "legend": 3}
 const SHOW_PX := 11.0
 ## 새 그림(칸 55~116점)은 이 크기 안에 드는 가장 큰 정수 배율로 보여 준다.
@@ -191,7 +190,8 @@ func _next() -> void:
 		AudioManager.ui_click()
 		_vfx.burst(c + Vector2(0, 100), Color("#F2E2C2"), 8, 200.0, 0.4, 0.35, true))
 	var shakes := int(SHAKES[String(res["rarity"])])
-	var steps := [Color("#FFB6C8"), COL["rare"], COL["super"], COL["legend"]]
+	var rc := LaneData.RARITY_COL
+	var steps := [Color("#FFB6C8"), rc["rare"], rc["super"], rc["legend"]]
 	for k in shakes:
 		_tw.tween_interval(0.25)
 		_tw.tween_callback(func() -> void:
@@ -214,7 +214,7 @@ func _open() -> void:
 		_tw.kill()
 	var res: Dictionary = _results[_i]
 	var r := String(res["rarity"])
-	var col: Color = COL[r]
+	var col: Color = LaneData.RARITY_COL[r]
 	var c := size * Vector2(0.5, 0.42)
 	_cap_pos = c
 	_cap_col = col
@@ -241,7 +241,7 @@ func _open() -> void:
 func _show_card(res: Dictionary) -> void:
 	var id := String(res["id"])
 	var r := String(res["rarity"])
-	var col: Color = COL[r]
+	var col: Color = LaneData.RARITY_COL[r]
 	_card = Control.new()
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.size = size
@@ -295,7 +295,7 @@ func _show_card(res: Dictionary) -> void:
 		l.modulate.a = 0.0
 		create_tween().tween_property(l, "modulate:a", 1.0, 0.25).set_delay(0.25)
 	if r == "legend":
-		var big := IdleUi.label("전설!", 80, COL["legend"], true)
+		var big := IdleUi.label("전설!", 80, LaneData.RARITY_COL["legend"], true)
 		_card.add_child(_at(big, size.y * 0.1))
 		big.pivot_offset = Vector2(size.x * 0.5, 40)
 		big.scale = Vector2(1.6, 1.6)
@@ -303,7 +303,7 @@ func _show_card(res: Dictionary) -> void:
 		# 금빛 가루가 계속 내린다
 		var rain := create_tween().set_loops(6)
 		rain.tween_callback(func() -> void:
-			_vfx.burst(Vector2(randf_range(60, size.x - 60), size.y * 0.15), COL["legend"], 8, 120.0, 1.4, 0.4, false))
+			_vfx.burst(Vector2(randf_range(60, size.x - 60), size.y * 0.15), LaneData.RARITY_COL["legend"], 8, 120.0, 1.4, 0.4, false))
 		rain.tween_interval(0.35)
 	_later(0.6, func() -> void:
 		_phase = "show"
@@ -331,7 +331,7 @@ func _summary() -> void:
 		var id := String(res["id"])
 		var r := String(res["rarity"])
 		var cell := PanelContainer.new()
-		cell.add_theme_stylebox_override("panel", IdleUi.card_style(COL[r]))
+		cell.add_theme_stylebox_override("panel", IdleUi.card_style(LaneData.RARITY_COL[r]))
 		cell.position = Vector2(40.0 + float(k % cols) * cw + 6.0, 200.0 + float(k / cols) * 230.0)
 		cell.custom_minimum_size = Vector2(cw - 12.0, 218.0)
 		cell.size = cell.custom_minimum_size
@@ -358,7 +358,7 @@ func _summary() -> void:
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(nm)
 		var tg := IdleUi.label("NEW!" if bool(res["new"]) else "Lv %d" % int(res["lv"]), 20,
-			IdleUi.GREEN if bool(res["new"]) else COL[r])
+			IdleUi.GREEN if bool(res["new"]) else LaneData.RARITY_TXT[r])
 		tg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(tg)
 		cell.pivot_offset = cell.size * 0.5

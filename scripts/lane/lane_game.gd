@@ -125,8 +125,10 @@ static func unit_sheet(id: String) -> String:
 	return LaneData.sheet_path(id, LaneState.level_of(id))
 
 
-const RARITY_COL := {"base": Color("#F3E7C8"), "rare": Color("#7FD0FF"), "super": Color("#C58CFF"),
-	"legend": Color("#FFD15A")}
+## 흰 카드 위의 맨(테두리 없는) 분홍·파랑 글씨. 밝은 색을 그냥 넘기면 IdleUi.readable() 이
+## 밤색·올리브로 어둡게 바꿔 버려서, 팔레트 안의 진한 색을 정해 둔다.
+const PINK_TXT := Color("#B4507A")
+const STAR_TXT := Color("#2F6CB0")
 
 var battle := LaneBattle.new()
 var mode := "home"
@@ -240,7 +242,7 @@ func _ready() -> void:
 		pass
 	elif not old.is_empty():
 		_later(2.8, func() -> void:
-			_toast("지난 모험에서 온 선물!  ★ %s · 티켓 %d장 · ✦ %s" % [_num(int(old["stars"])), int(old["tickets"]),
+			_toast("지난 모험에서 온 선물!  행운별 %s · 티켓 %d장 · 행복 조각 %s" % [_num(int(old["stars"])), int(old["tickets"]),
 				_num(int(old["xp"]))]))
 	elif not gift.is_empty():
 		_toast("매일 선물 %d일째!  티켓 %d장 · 행운별 %d" % [int(gift["streak"]), int(gift["tickets"]), int(gift["stars"])])
@@ -372,7 +374,7 @@ func _build_home() -> void:
 	top.add_theme_constant_override("separation", 8)
 	_home.add_child(top)
 	_xp_lbl = _res_pill(top, "coin", IdleUi.GOLD_DK)
-	_star_lbl = _res_pill(top, "star", Color("#4A90D9"))
+	_star_lbl = _res_pill(top, "star", LaneData.STAR_COL)
 	_ticket_lbl = _res_pill(top, "chest", IdleUi.LAV_DK)
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -436,7 +438,8 @@ func _build_home() -> void:
 	# 아래 아이콘 탭
 	var bar := PanelContainer.new()
 	bar.name = "TabBar"
-	var bsb := IdleUi.box(Color(IdleUi.LAV.r, IdleUi.LAV.g, IdleUi.LAV.b, 0.97), IdleUi.LAV_DK, 0, 0, 8)
+	# 진한 라벤더 - 고르지 않은 탭의 흰 글씨가 읽히게 (연한 라벤더 위 흰 글씨는 대비가 2.4:1 밖에 안 됐다)
+	var bsb := IdleUi.box(Color(IdleUi.LAV_DK.r, IdleUi.LAV_DK.g, IdleUi.LAV_DK.b, 0.97), IdleUi.LAV, 0, 0, 8)
 	bsb.corner_radius_top_left = 26
 	bsb.corner_radius_top_right = 26
 	bsb.border_width_top = 4
@@ -467,11 +470,16 @@ func _build_home() -> void:
 		l.name = "Label"
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(l)
-		var dot := IdleUi.label("●", 20, IdleUi.GOLD)
+		# 알림 점: 아이콘 오른쪽 위에 흰 테두리 두른 벚꽃 분홍 점 (글자 말고 직접 그린다)
+		var dot := Control.new()
 		dot.name = "Dot"
-		dot.position = Vector2(8, 4)
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dot.position = Vector2(38.0, 0.0)
 		dot.visible = false
-		b.add_child(dot)
+		dot.draw.connect(func() -> void:
+			dot.draw_circle(Vector2.ZERO, 11.0, Color.WHITE)
+			dot.draw_circle(Vector2.ZERO, 8.5, IdleUi.GOLD_DK))
+		ic.add_child(dot)
 		b.pressed.connect(func() -> void:
 			AudioManager.ui_click()
 			_home_tab = String(k[0])
@@ -501,7 +509,7 @@ func _style_tab(b: Button, on: bool) -> void:
 		b.add_theme_stylebox_override(st, sb)
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	var col := IdleUi.LAV_DK if on else Color.WHITE
-	(b.get_node("V/Icon") as Control).modulate = col     # 흰 아이콘에 색을 곱한다
+	(b.get_node("V/Icon") as Control).self_modulate = col     # 흰 아이콘에 색을 곱한다 (알림 점은 그대로)
 	(b.get_node("V/Label") as Label).add_theme_color_override("font_color", col)
 	b.position.y = -6.0 if on else 0.0
 
@@ -592,7 +600,7 @@ func _refresh_home_top() -> void:
 	for k in ["map", "units", "lineup", "gacha"]:
 		var b := _home.get_node("TabBar/Tabs/Tab_" + k) as Button
 		_style_tab(b, _home_tab == k)
-	(_home.get_node("TabBar/Tabs/Tab_gacha/Dot") as Control).visible = LaneState.can_pull(1)
+	(_home.get_node("TabBar/Tabs/Tab_gacha/V/Icon/Dot") as Control).visible = LaneState.can_pull(1)
 	_card_title.text = {"map": "지도 · 판 고르기", "units": "동물 친구들", "lineup": "편성 · 콤보", "gacha": "행복 캡슐 뽑기"}[_home_tab]
 	_fill_parade()
 
@@ -745,7 +753,7 @@ func _fort_card() -> void:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_theme_constant_override("separation", 2)
 	row.add_child(v)
-	v.add_child(IdleUi.label("우리 성  Lv %d" % lv, 26, IdleUi.GOLD_DK))
+	v.add_child(IdleUi.label("우리 성  Lv %d" % lv, 26, PINK_TXT))
 	v.add_child(IdleUi.label("무너지면 져요 - 튼튼할수록 오래 버텨요", 19, IdleUi.SUB))
 	v.add_child(IdleUi.label("체력 %s" % _num(int(round(LaneData.fort_hp(lv)))), 19, IdleUi.CREAM))
 	if lv < LaneData.FORT_LV_MAX:
@@ -782,7 +790,7 @@ func _bazooka_card() -> void:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_theme_constant_override("separation", 2)
 	row.add_child(v)
-	v.add_child(IdleUi.label("바주카포  Lv %d" % lv, 26, IdleUi.GOLD_DK))
+	v.add_child(IdleUi.label("바주카포  Lv %d" % lv, 26, PINK_TXT))
 	v.add_child(IdleUi.label("둥지까지 날아가 길 위 벌레를 모두 맞혀요", 19, IdleUi.SUB))
 	v.add_child(IdleUi.label("피해 x%.2f · 충전 %d초 · 둥지 %.1f%%" % [LaneData.bazooka_dmg_mult(lv),
 		int(round(LaneData.bazooka_charge(lv))), LaneData.bazooka_nest(lv) * 100.0], 19, IdleUi.CREAM))
@@ -854,7 +862,7 @@ func _fill_units() -> void:
 				v.add_child(IdleUi.label("%s 를 깨면 합류해요" % LaneData.stage_label(int(u["unlock"])), 20, IdleUi.MUTED))
 			else:
 				v.add_child(IdleUi.label("???  %s %s" % ["★".repeat(int(LaneData.RARITY_STARS[rr])),
-					String(LaneData.RARITY_NAME[rr])], 26, (RARITY_COL[rr] as Color).darkened(0.35)))
+					String(LaneData.RARITY_NAME[rr])], 26, LaneData.RARITY_TXT[rr]))
 				v.add_child(IdleUi.label("행복 캡슐에서 만나요", 20, IdleUi.MUTED))
 			continue
 		var lv := LaneState.level_of(String(id))
@@ -862,8 +870,8 @@ func _fill_units() -> void:
 		var title := "%s  Lv %d" % [LaneData.unit_name(String(id), lv), lv]
 		if rr != "base":
 			title = "★".repeat(int(LaneData.RARITY_STARS[rr])) + " " + title
-		v.add_child(IdleUi.label(title, 26, RARITY_COL[rr] if rr != "base" else
-			(IdleUi.GOLD if LaneState.is_evolved(String(id)) else IdleUi.CREAM)))
+		v.add_child(IdleUi.label(title, 26, LaneData.RARITY_TXT[rr] if rr != "base" else
+			(PINK_TXT if LaneState.is_evolved(String(id)) else IdleUi.CREAM)))
 		# 줄마다 한 가지만: 역할 / 특성 / 스킬 이름 / 스킬 설명 / 능력치 / 진화
 		v.add_child(IdleUi.label("[%s] %s" % [role_of(String(id)), String(u["role"])], 20, IdleUi.SUB))
 		var tt := LaneData.trait_text(String(id))
@@ -875,9 +883,9 @@ func _fill_units() -> void:
 		v.add_child(IdleUi.label("체력 %s · 공격 %s · 웃음 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
 			int(u["cost"])], 19, IdleUi.CREAM))
 		if LaneState.is_evolved(String(id)):
-			v.add_child(IdleUi.label("진화 완료", 18, IdleUi.GOLD))
+			v.add_child(IdleUi.label("진화 완료", 18, PINK_TXT))
 		elif lv < LaneData.EVOLVE_LV:
-			v.add_child(IdleUi.label("Lv %d 에 진화할 수 있어요" % LaneData.EVOLVE_LV, 18, IdleUi.GOLD))
+			v.add_child(IdleUi.label("Lv %d 에 진화할 수 있어요" % LaneData.EVOLVE_LV, 18, PINK_TXT))
 		var accrow := HBoxContainer.new()
 		accrow.add_theme_constant_override("separation", 6)
 		v.add_child(accrow)
@@ -1093,7 +1101,7 @@ func _fill_lineup() -> void:
 		var v := VBoxContainer.new()
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(v)
-		v.add_child(IdleUi.label(("✓ " if on else "") + String(c["name"]), 22, IdleUi.GOLD if on else IdleUi.CREAM))
+		v.add_child(IdleUi.label(("✓ " if on else "") + String(c["name"]), 22, PINK_TXT if on else IdleUi.CREAM))
 		v.add_child(IdleUi.label(LaneData.bonus_text(String(c["kind"]), float(c["v"])), 18,
 			IdleUi.GREEN if on else IdleUi.SUB))
 
@@ -1142,7 +1150,7 @@ func _fill_gacha() -> void:
 		row.add_child(col)
 		col.add_child(_portrait(id, 120.0))
 		var nm := IdleUi.label(String(LaneData.UNITS[id]["name"]) if LaneState.has_unit(id) else "★★★ ???", 18,
-			RARITY_COL["legend"])
+			LaneData.RARITY_TXT["legend"])
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(nm)
 	v.add_child(_center(IdleUi.label("희귀 72%  ·  특급 24%  ·  전설 4%", 22, IdleUi.CREAM)))
@@ -1153,12 +1161,12 @@ func _fill_gacha() -> void:
 	if LaneState.tickets > 0:
 		one.text = "티켓으로 1번 뽑기  (%d장)" % LaneState.tickets
 	else:
-		one.text = "1번 뽑기   ★ %d" % LaneData.GACHA_COST
+		one.text = "1번 뽑기   행운별 %d" % LaneData.GACHA_COST
 	one.disabled = not LaneState.can_pull(1)
 	one.name = "PullOne"
 	one.pressed.connect(_do_pull.bind(1))
 	v.add_child(one)
-	var ten := IdleUi.button("10번 뽑기   ★ %d\n특급 이상 1마리 확정" % LaneData.GACHA10_COST, 26, "plum")
+	var ten := IdleUi.button("10번 뽑기   행운별 %d\n특급 이상 1마리 확정" % LaneData.GACHA10_COST, 26, "plum")
 	ten.custom_minimum_size = Vector2(0, 110)
 	ten.disabled = not LaneState.can_pull(10)
 	ten.pressed.connect(_do_pull.bind(10))
@@ -1597,7 +1605,7 @@ func _build_hud() -> void:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.clip_contents = true
 		if rr != "base":
-			var bsb := IdleUi.box(Color.WHITE, RARITY_COL[rr], 22, 4, 6)
+			var bsb := IdleUi.box(Color.WHITE, LaneData.RARITY_COL[rr], 22, 4, 6)
 			b.add_theme_stylebox_override("normal", bsb)
 			b.add_theme_stylebox_override("hover", bsb)
 		var col := VBoxContainer.new()
@@ -2047,23 +2055,23 @@ func _on_event(e: Dictionary) -> void:
 						# 누가 나왔는지 머리 위에 이름
 						var kid := String(e["kind"])
 						_fx.text(a.position + Vector2(0, -a.body_height() - 30.0), LaneData.unit_name(kid, LaneState.level_of(kid)),
-							RARITY_COL[rr] if rr != "base" else Color.WHITE, 22, 1.0, 0.0, 30.0)
+							LaneData.RARITY_COL[rr] if rr != "base" else Color.WHITE, 22, 1.0, 0.0, 30.0)
 						if LaneState.is_evolved(kid):
 							# 진화한 친구: 금빛 고리 + 솟는 별
 							_fx.ring(a.position + Vector2(0, -a.body_height() * 0.5), 10.0, 120.0, IdleUi.GOLD, 10.0, 0.45)
 							_fx.burst(a.position, Color("#FFE7A0"), 12, 260.0, 7.0, 0.7, -200.0, "star", 0.0, true)
 						if rr == "legend":
 							# 전설이 나오면 판 전체가 알아챈다
-							_fx.ring(a.position, 20.0, 260.0, RARITY_COL["legend"], 14.0, 0.6)
-							_vfx.burst(a.position, RARITY_COL["legend"], 24, 380.0, 0.9, 0.5, true)
+							_fx.ring(a.position, 20.0, 260.0, LaneData.RARITY_COL["legend"], 14.0, 0.6)
+							_vfx.burst(a.position, LaneData.RARITY_COL["legend"], 24, 380.0, 0.9, 0.5, true)
 							_flash(0.25)
 							_add_trauma(0.35)
 							_banner_show("전설 출전! %s" % LaneData.unit_name(String(e["kind"]),
-								LaneState.level_of(String(e["kind"]))), RARITY_COL["legend"])
+								LaneState.level_of(String(e["kind"]))), LaneData.RARITY_COL["legend"])
 							AudioManager.souvenir_get()
 						elif rr == "super":
-							_fx.ring(a.position, 16.0, 160.0, RARITY_COL["super"], 10.0, 0.45)
-							_vfx.burst(a.position, RARITY_COL["super"], 12, 260.0, 0.6, 0.4, true))
+							_fx.ring(a.position, 16.0, 160.0, LaneData.RARITY_COL["super"], 10.0, 0.45)
+							_vfx.burst(a.position, LaneData.RARITY_COL["super"], 12, 260.0, 0.6, 0.4, true))
 			elif bool(e.get("boss", false)):
 				_banner_show("%s 등장!" % String(LaneData.BUGS[String(e["kind"])]["name"]), Color("#FF8A8A"))
 				_add_trauma(0.8)
@@ -2660,11 +2668,17 @@ func _show_result(win: bool, r: Dictionary) -> void:
 	v.add_child(t)
 	v.add_child(_center(IdleUi.label(LaneData.stage_label(stage_n), 26, IdleUi.CREAM)))
 	if win:
-		v.add_child(_center(IdleUi.label("✦ 행복 조각 +%s" % _num(int(r["xp"])), 30, IdleUi.GOLD)))
+		v.add_child(_center(IdleUi.label("✦ 행복 조각 +%s" % _num(int(r["xp"])), 30, PINK_TXT)))
 		if int(r["stars"]) > 0:
-			v.add_child(_center(IdleUi.label("★ 행운별 +%d" % int(r["stars"]), 28, Color("#9FD8FF"))))
+			# 행운별은 위 알약과 같은 파란 반짝이 (★ 글자는 희귀도에만 쓴다)
+			var srow := HBoxContainer.new()
+			srow.alignment = BoxContainer.ALIGNMENT_CENTER
+			srow.add_theme_constant_override("separation", 6)
+			v.add_child(srow)
+			srow.add_child(IdleUi.icon("star", 34.0, LaneData.STAR_COL))
+			srow.add_child(IdleUi.label("행운별 +%d" % int(r["stars"]), 28, STAR_TXT))
 		if int(r.get("tickets", 0)) > 0:
-			v.add_child(_center(IdleUi.label("뽑기 티켓 +%d장" % int(r["tickets"]), 28, IdleUi.GOLD)))
+			v.add_child(_center(IdleUi.label("뽑기 티켓 +%d장" % int(r["tickets"]), 28, PINK_TXT)))
 		var tr: Dictionary = r.get("treasure", {})
 		if not tr.is_empty():
 			var tre: Dictionary = LaneData.TREASURES[int(tr["zone"])][int(tr["idx"])]
@@ -2685,7 +2699,7 @@ func _show_result(win: bool, r: Dictionary) -> void:
 			arow.add_theme_constant_override("separation", 8)
 			v.add_child(arow)
 			arow.add_child(_icon(String(ad["icon"]), Color(ad["col"]), 56.0))
-			arow.add_child(IdleUi.label("장신구! %s" % String(ad["name"]), 28, IdleUi.GOLD))
+			arow.add_child(IdleUi.label("장신구! %s" % String(ad["name"]), 28, PINK_TXT))
 		for id in r.get("new_units", []):
 			v.add_child(_center(IdleUi.label("새 친구! %s 합류" % String(LaneData.UNITS[id]["name"]), 28, IdleUi.GREEN)))
 		if bool(r.get("first", false)) and stage_n == LaneData.CH_STAGES:

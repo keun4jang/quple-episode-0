@@ -58,7 +58,11 @@ func _restyle_tree(node: Node) -> void:
 			_style_slider(n as HSlider)
 		elif n is Label:
 			if n.name == "Title":
-				(n as Label).add_theme_color_override("font_color", IdleUi.GOLD)
+				# 밝은 판 위 분홍 글씨는 묻힌다 - 다른 창 제목처럼 자두색 테두리를 두른다
+				var tl := n as Label
+				tl.add_theme_color_override("font_color", IdleUi.GOLD)
+				tl.add_theme_color_override("font_outline_color", IdleUi.OUTLINE)
+				tl.add_theme_constant_override("outline_size", maxi(6, tl.get_theme_font_size("font_size") / 5))
 			elif n.get_parent() is HBoxContainer:
 				(n as Label).add_theme_color_override("font_color", IdleUi.CREAM)
 		if n.get_child_count() > 0 and not (n is Button):
@@ -78,7 +82,7 @@ func _copy_style(b: Button, tpl: Button, kind: String) -> void:
 
 func _style_slider(sl: HSlider) -> void:
 	var track := StyleBoxFlat.new()
-	track.bg_color = Color(1, 1, 1, 0.12)
+	track.bg_color = IdleUi.LINE      # 밝은 판 위에서도 끝까지 보이게 (예전 짙은 판의 흰 반투명은 안 보였다)
 	track.set_corner_radius_all(6)
 	track.content_margin_top = 5
 	track.content_margin_bottom = 5
@@ -90,6 +94,25 @@ func _style_slider(sl: HSlider) -> void:
 	sl.add_theme_stylebox_override("slider", track)
 	sl.add_theme_stylebox_override("grabber_area", fill)
 	sl.add_theme_stylebox_override("grabber_area_highlight", fill)
+	# 손잡이: 기본 아이콘은 너무 작다 - 엄지로 잡기 좋은 흰 원 + 진한 라벤더 테두리
+	var knob := _knob_texture(32)
+	sl.add_theme_icon_override("grabber", knob)
+	sl.add_theme_icon_override("grabber_highlight", knob)
+
+
+static func _knob_texture(d: int) -> ImageTexture:
+	var img := Image.create(d, d, false, Image.FORMAT_RGBA8)
+	var c := Vector2(d, d) * 0.5
+	var r := d * 0.5 - 0.5
+	for y in d:
+		for x in d:
+			var dist := Vector2(x + 0.5, y + 0.5).distance_to(c)
+			var a := clampf(r - dist + 0.5, 0.0, 1.0)
+			if a <= 0.0:
+				continue
+			var col := Color.WHITE if dist < r - 3.5 else IdleUi.LAV_DK
+			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
+	return ImageTexture.create_from_image(img)
 
 
 ## 창 **밖**을 누르면 닫는다.

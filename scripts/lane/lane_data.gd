@@ -178,6 +178,14 @@ const ANIMAL_ORDER := ["chick", "hedgehog", "squirrel", "frog", "rabbit", "duck"
 const ALL_ORDER := UNIT_ORDER + ANIMAL_ORDER
 const RARITY_NAME := {"base": "기본", "rare": "희귀", "super": "특급", "legend": "전설"}
 const RARITY_STARS := {"base": 0, "rare": 1, "super": 2, "legend": 3}
+## 희귀도 빛깔 (뽑기·도감·카드가 같이 쓴다). 노랑은 쓰지 않는다 - 전설은 벚꽃 분홍, 특급은 라벤더.
+## RARITY_COL 은 테두리·반짝이·테두리 두른 글씨용(밝은 것), RARITY_TXT 는 흰 카드 위 맨 글씨용(진한 것).
+const RARITY_COL := {"base": Color("#F3E7C8"), "rare": Color("#7FD0FF"), "super": Color("#A97BE0"),
+	"legend": Color("#F7A8C4")}
+const RARITY_TXT := {"base": Color("#7B629B"), "rare": Color("#2F7FB0"), "super": Color("#6E4A9E"),
+	"legend": Color("#B4507A")}
+## 행운별(뽑기 재화) 빛깔 - 위 알약의 파란 반짝이 하나로 쓴다. ★ 글자는 희귀도에만.
+const STAR_COL := Color("#4A90D9")
 
 
 static func rarity(id: String) -> String:
@@ -538,7 +546,7 @@ const ICONS := ["drop", "clover", "fluff", "pebble", "leaf", "orb", "jar", "flow
 	"spool", "lantern", "gem", "coin", "button", "key", "moon", "bottle", "feather", "mushroom", "spoon", "cube",
 	"cup", "crown", "bell", "sun", "star", "vest", "glove", "shoe", "candy", "shield"]
 const GRADE_NAME := ["", "하급", "보통", "상급"]
-const GRADE_COL := ["#6A6080", "#C99466", "#D8DEE8", "#FFD15A"]
+const GRADE_COL := ["#6A6080", "#C99466", "#D8DEE8", "#9A6CC8"]   ## 상급은 라벤더 (노랑은 뺐다)
 ## 보물이 나올 확률 (다시 깰 때) 과 등급 확률 (상급, 보통 - 나머지 하급). 우두머리 판은 상급이 잘 나온다.
 const TREASURE_DROP := 0.3
 const TREASURE_FIRST := 0.6         ## 처음 깰 때
