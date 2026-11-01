@@ -11,6 +11,8 @@ var _texts: Array = []
 var _bolts: Array = []
 var _pillars: Array = []
 var _rays: Array = []
+## 한꺼번에 떠 있는 글자 수 상한 (0 = 제한 없음). 넘으면 오래된 것부터 버린다 - 쿼카 군단 10배속용.
+var max_texts := 0
 
 
 func _ready() -> void:
@@ -42,6 +44,9 @@ func ring(p: Vector2, r0: float, r1: float, col: Color, w := 10.0, life := 0.38,
 
 
 func text(p: Vector2, t: String, col: Color, fs := 40, life := 0.9, delay := 0.0, rise := 70.0) -> void:
+	if max_texts > 0:
+		while _texts.size() >= max_texts:
+			_texts.remove_at(0)
 	# 이미 떠 있는 글자와 겹치면 그 위로 비켜 선다 (숫자·이름이 한 자리에 포개져 안 읽혔다)
 	var mine := _text_rect(p, t, fs)
 	for _i in 8:

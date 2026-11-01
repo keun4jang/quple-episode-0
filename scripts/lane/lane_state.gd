@@ -17,7 +17,7 @@ static var cleared := 0
 static var evolved: Dictionary = {}
 static var clears: Dictionary = {}       ## 스테이지 → 깬 횟수
 static var auto_summon := false
-## 빨리 감기 단계 (0 = 1배, 1 = 3배, 2 = 10배). 배수는 LaneGame.SPEEDS.
+## 빨리 감기 단계 (0 = 1배, 1 = 3배, 2 = 10배). 배수는 LaneData.SPEEDS.
 static var speed_lv := 0
 ## 바주카포 강화 단계 (1 부터).
 static var bazooka_lv := 1
@@ -545,7 +545,7 @@ static func from_dict(d: Dictionary) -> void:
 	bazooka_lv = clampi(int(d.get("bazooka", 1)), 1, LaneData.BAZOOKA_LV_MAX)
 	fort_lv = clampi(int(d.get("fort", 1)), 1, LaneData.FORT_LV_MAX)
 	# 옛 저장은 켜짐/꺼짐(speed2)만 있다 - 켜짐이면 3배로
-	speed_lv = clampi(int(d.get("speed_lv", 1 if bool(d.get("speed2", false)) else 0)), 0, 2)
+	speed_lv = clampi(int(d.get("speed_lv", 1 if bool(d.get("speed2", false)) else 0)), 0, LaneData.SPEEDS.size() - 1)
 	seen_intro = bool(d.get("seen_intro", false))
 	last_seen = maxi(0, int(d.get("last_seen", 0)))
 	tickets = clampi(int(d.get("tickets", 1)), 0, 9999)

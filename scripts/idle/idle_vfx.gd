@@ -5,6 +5,8 @@ extends Node2D
 ## 폰(gl_compatibility)에서도 확실히 돌도록 CPUParticles2D 를 쓴다 - 한 번에 수십 개뿐이라 충분하다.
 
 static var _glow: Texture2D
+## 한꺼번에 떠 있는 버스트 노드 수 상한 (0 = 제한 없음). 넘으면 새 것을 건너뛴다 - 쿼카 군단 10배속용.
+var max_nodes := 0
 static var _add_mat: CanvasItemMaterial
 
 
@@ -55,6 +57,8 @@ func burst(p: Vector2, col: Color, amount := 16, speed := 320.0, life := 0.6, si
 		up := false, delay := 0.0) -> void:
 	if delay > 0.0:
 		create_tween().tween_callback(burst.bind(p, col, amount, speed, life, size, up, 0.0)).set_delay(delay)
+		return
+	if max_nodes > 0 and get_child_count() >= max_nodes:
 		return
 	var e := CPUParticles2D.new()
 	e.position = p

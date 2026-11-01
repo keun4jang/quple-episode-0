@@ -9,8 +9,8 @@ const BUG_PX := 3.0
 ## 픽셀 한 칸 = 화면 3점. 배경·길도 1/3 크기로 그려 3배로 키운다 - 캐릭터 도트와 픽셀 크기를 하나로 맞춘다.
 ## (예전엔 배경만 매끈한 그림이라 도트 캐릭터와 따로 놀았다.)
 const PIX := 3
-## 빨리 감기 배속 - 버튼을 누를 때마다 1배 → 3배 → 10배(시험용) → 1배. 단계는 LaneState.speed_lv.
-const SPEEDS := [1.0, 3.0, 10.0]
+## 빨리 감기 배속 - 표는 LaneData.SPEEDS (불러올 때 단계를 자르는 LaneState 와 같은 표를 본다).
+const SPEEDS := LaneData.SPEEDS
 
 
 static func _speed() -> float:
@@ -151,7 +151,7 @@ var _ent_of: Dictionary = {}  ## uid → 판의 몸 (공격한 쪽이 누구인�
 var _fx_t: Dictionary = {}    ## uid → 마지막으로 공격 효과를 낸 때 (범위 공격이 여러 번 터지지 않게)
 var _swing_at: Dictionary = {}  ## uid → 마지막으로 휘두른 때 (판 시간) - 공격 그림을 실제 타격에 맞춘다
 var _swing_to: Dictionary = {}  ## uid → 그때 노린 상대 uid (-1 = 성·둥지) - 근접은 그 자리까지 덤벼든다
-var _hit_at: Dictionary = {}    ## uid → 마지막으로 맞은 때 - 살짝 밀린다
+var _hit_at: Dictionary = {}    ## uid → 마지막으로 맞은 때 (실제 시간 _t) - 살짝 밀린다
 var _calm := false            ## 설정: 화면 흔들림·번쩍임 줄이기
 var _toast_box: PanelContainer
 var _tut: LaneTutorial
@@ -162,6 +162,13 @@ var _actor_of: Dictionary = {}     ## uid → IdleActor
 var _lat: Dictionary = {}          ## uid → 옆 위치
 var _lunge: Dictionary = {}        ## uid → 덤벼듦 (1 → 0)
 var _dead: Dictionary = {}         ## 녹아 사라지는 중인 uid - 규칙 쪽엔 넉백 동안 몸이 남아 있지만 그림은 다시 만들지 않는다
+## 쓰러진 친구·벌레의 그림 (uid → 액터). 막타의 늦게 그리는 맞음(근접 0.07초·바주카 포탄)과
+## 같은 틱에 뒤따르는 스킬 효과가 _actor_of 에서 지워진 뒤에도 그 자리를 찾게 한다.
+var _dying: Dictionary = {}
+var _hit_due: Dictionary = {}      ## uid → 늦게 그리는 맞음이 뜨는 때 (실제 시간 _t) - 쓰러짐은 그 뒤에 그린다
+var _cannon_land_t := -99.0        ## 마지막 바주카 포탄이 닿는 때 (실제 시간 _t) - 승리 폭발은 그 뒤에
+var _stop_until := 0.0             ## hitstop 이 끝나는 때 (실제 시계, 초) - 겹쳐 걸려도 가장 늦은 것까지
+var _stop_id := 0                  ## 마지막으로 건 hitstop 번호 - 그 타이머만 time_scale 을 되돌린다
 var _hud: Control
 var _wallet_lbl: Label
 var _wallet_bar: ProgressBar
@@ -1404,6 +1411,9 @@ func _start_battle(n: int) -> void:
 	_swing_at = {}
 	_swing_to = {}
 	_hit_at = {}
+	_dying = {}
+	_hit_due = {}
+	_cannon_land_t = -99.0
 	_fx_t = {}
 	_lunge = {}
 	_tut_pause = false
@@ -1495,6 +1505,9 @@ func _build_battle() -> void:
 	_fx_pix.get_node("VP").add_child(_fx)
 	_vfx = IdleVfx.new()
 	_fx_pix.get_node("VP").add_child(_vfx)
+	# 10배속에선 효과가 실제 시간당 10배로 쌓인다 - 한꺼번에 떠 있는 수를 묶어 둔다
+	_fx.max_texts = 40
+	_vfx.max_nodes = 60
 	_flash_rect = ColorRect.new()
 	_flash_rect.color = Color(1, 1, 1, 0)
 	_flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1767,7 +1780,7 @@ func _draw_bars() -> void:
 			continue
 		var r := clampf(float(e["hp"]) / maxf(1.0, float(e["max"])), 0.0, 1.0)
 		# 우리 편은 체력이 깎였거나 방금 맞았을 때만 - 몰리면 가득 찬 초록 띠 수십 개가 얼굴을 가렸다
-		if e["side"] == "q" and r >= 0.999 and _battle_t - float(_hit_at.get(int(uid), -99.0)) > 2.0:
+		if e["side"] == "q" and r >= 0.999 and _t - float(_hit_at.get(int(uid), -99.0)) > 2.0:
 			continue
 		var boss := bool(e.get("boss", false))
 		# 도트 띠: 크기·위치를 픽셀(PIX) 칸에 맞춘다
@@ -1867,9 +1880,11 @@ func _refresh_hud() -> void:
 
 ## 맞은 그림 - 번쩍임·공격 모양·숫자.
 func _show_hit(e: Dictionary) -> void:
-	_hit_at[int(e["uid"])] = _battle_t
-	var a = _actor_of.get(int(e["uid"]))
-	if a != null and is_instance_valid(a):
+	if _fx == null or not is_instance_valid(_fx):
+		return
+	_hit_at[int(e["uid"])] = _t
+	var a = _actor_any(int(e["uid"]))
+	if a != null:
 		a.flash = 0.9
 		a.flash_col = Color.WHITE if e["side"] == "b" else Color("#FF8080")
 		var p: Vector2 = a.position + Vector2(0, -a.body_height() * 0.5)
@@ -1941,18 +1956,20 @@ func _sync_actors() -> void:
 			# 실제 시간으로 잰다 - 2배속에서도 휘두르는 게 눈에 보이게
 			var since := _t - float(_swing_at.get(uid, -99.0))
 			var until := float(e["t_atk"]) / _speed()
+			# 덤벼듦 한 번(0.37초)이 다음 휘두름 전에 끝나게 - 10배속에선 줄여서 세 동작을 다 그린다
+			var sw := clampf(float(e["every"]) / _speed() * 0.9 / 0.37, 0.05, 1.0)
 			var lunge := 0.0
-			if since < 0.08:
+			if since < 0.08 * sw:
 				atk_f = 1
-				lunge = since / 0.08
+				lunge = since / (0.08 * sw)
 				a.squash = Vector2(0.84, 1.2)
-			elif since < 0.21:
+			elif since < 0.21 * sw:
 				atk_f = 2
 				lunge = 1.0
 				a.squash = Vector2(0.9, 1.1)
-			elif since < 0.37:
+			elif since < 0.37 * sw:
 				atk_f = 3
-				lunge = 1.0 - (since - 0.21) / 0.16
+				lunge = 1.0 - (since - 0.21 * sw) / (0.16 * sw)
 			elif until <= 0.22:
 				atk_f = 0
 				lunge = -0.33 * (1.0 - until / 0.22)
@@ -1960,8 +1977,8 @@ func _sync_actors() -> void:
 			else:
 				atk_f = 3
 			p += _lunge_vec(e, uid, p, fwd) * lunge
-		# 맞으면 뒤로 살짝 밀린다
-		var hs := _battle_t - float(_hit_at.get(uid, -99.0))
+		# 맞으면 뒤로 살짝 밀린다 (실제 시간 - 10배속에서도 눈에 보이게)
+		var hs := _t - float(_hit_at.get(uid, -99.0))
 		if hs >= 0.0 and hs < 0.12:
 			p.y -= fwd * 9.0 * (1.0 - hs / 0.12)
 		# 픽셀 격자에 맞춰 놓고, 크기는 원근과 관계없이 한 가지 (도트 규칙: 픽셀 크기는 하나)
@@ -1999,6 +2016,9 @@ func _sync_actors() -> void:
 	for uid in _dead.keys():
 		if not alive.has(uid):
 			_dead.erase(uid)
+	for uid in _dying.keys():
+		if not is_instance_valid(_dying[uid]):
+			_dying.erase(uid)
 
 
 func _make_actor(e: Dictionary) -> IdleActor:
@@ -2060,6 +2080,17 @@ func _place_wear(a: IdleActor) -> void:
 	sp.position = (p / px).round() * px
 
 
+## 살아 있는 그림, 없으면 쓰러지는 중인 그림 (막타 맞음·스킬 효과가 그 자리를 찾게).
+func _actor_any(uid: int):
+	var a = _actor_of.get(uid)
+	if a != null and is_instance_valid(a):
+		return a
+	a = _dying.get(uid)
+	if a != null and is_instance_valid(a):
+		return a
+	return null
+
+
 func _actor_pos(uid: int) -> Vector2:
 	var a = _actor_of.get(uid)
 	if a == null or not is_instance_valid(a):
@@ -2068,6 +2099,35 @@ func _actor_pos(uid: int) -> Vector2:
 
 
 # ── 사건 → 연출 ───────────────────────────────────────────────────────
+
+## 쓰러지는 그림 - 녹아 사라짐·보상 글자 (늦게 그리는 막타 맞음이 먼저 뜬 뒤에).
+func _die_fx(e: Dictionary, a) -> void:
+	if a == null or not is_instance_valid(a) or _fx == null or not is_instance_valid(_fx):
+		return
+	var p: Vector2 = a.position + Vector2(0, -a.body_height() * 0.5)
+	a.dissolve = 0.01
+	a.edge_col = Color("#FFE7A0") if e["side"] == "b" else Color("#FFB0C0")
+	var wear = a.get_node_or_null("Wear")
+	if wear != null:
+		wear.queue_free()
+	var tw: Tween = a.create_tween()   # 그림에 붙여 판이 풀리면 같이 멈춘다
+	tw.tween_property(a, "dissolve", 1.0, 0.45)
+	tw.tween_callback(a.queue_free)
+	if e["side"] == "b":
+		_vfx.burst(p, Color("#FFD27A"), 14, 320.0, 0.7, 0.5, true)
+		_fx.text(p + Vector2(0, -30), "+%d" % int(e["reward"]), IdleUi.GOLD, 26, 0.9, 0.05, 40.0)
+		if bool(e.get("boss", false)):
+			_add_trauma(0.9)
+			_hitstop(0.12)
+			_flash(0.4)
+			_fx.ring(p, 20.0, 300.0, IdleUi.GOLD, 16.0, 0.6)
+			_banner_show("우두머리를 물리쳤어요!", IdleUi.GOLD)
+		else:
+			_add_trauma(0.08)
+		AudioManager.battle_hit()
+	else:
+		_vfx.burst(p, Color("#FFC0D0"), 8, 200.0, 0.6, 0.4, true)
+
 
 func _on_event(e: Dictionary) -> void:
 	match String(e["k"]):
@@ -2136,8 +2196,10 @@ func _on_event(e: Dictionary) -> void:
 					var y0 := _field.fort_pos().y
 					var y1 := _field.nest_pos().y - 50.0
 					k = clampf((ha.position.y - y0) / maxf(1.0, y1 - y0), 0.0, 1.0)
+				_hit_due[int(e["uid"])] = _t + CANNON_FLY * k
 				_later(CANNON_FLY * k, _show_hit.bind(e))
 			elif src != null and String(e.get("eff", "")) != "skill" and _is_melee(src):
+				_hit_due[int(e["uid"])] = _t + 0.07
 				_later(0.07, _show_hit.bind(e))
 			else:
 				_show_hit(e)
@@ -2152,29 +2214,13 @@ func _on_event(e: Dictionary) -> void:
 			_actor_of.erase(uid)
 			_dead[uid] = true
 			if a != null and is_instance_valid(a):
-				var p: Vector2 = a.position + Vector2(0, -a.body_height() * 0.5)
-				a.dissolve = 0.01
-				a.edge_col = Color("#FFE7A0") if e["side"] == "b" else Color("#FFB0C0")
-				var wear = a.get_node_or_null("Wear")
-				if wear != null:
-					wear.queue_free()
-				var tw := create_tween()
-				tw.tween_property(a, "dissolve", 1.0, 0.45)
-				tw.tween_callback(a.queue_free)
-				if e["side"] == "b":
-					_vfx.burst(p, Color("#FFD27A"), 14, 320.0, 0.7, 0.5, true)
-					_fx.text(p + Vector2(0, -30), "+%d" % int(e["reward"]), IdleUi.GOLD, 26, 0.9, 0.05, 40.0)
-					if bool(e.get("boss", false)):
-						_add_trauma(0.9)
-						_hitstop(0.12)
-						_flash(0.4)
-						_fx.ring(p, 20.0, 300.0, IdleUi.GOLD, 16.0, 0.6)
-						_banner_show("우두머리를 물리쳤어요!", IdleUi.GOLD)
-					else:
-						_add_trauma(0.08)
-					AudioManager.battle_hit()
+				_dying[uid] = a
+				# 막타가 늦게 그려지면(근접 덤벼듦·바주카 포탄) 그게 닿은 뒤에 쓰러진다
+				var wait := float(_hit_due.get(uid, -99.0)) - _t
+				if wait > 0.0:
+					_later(wait, _die_fx.bind(e, a))
 				else:
-					_vfx.burst(p, Color("#FFC0D0"), 8, 200.0, 0.6, 0.4, true)
+					_die_fx(e, a)
 		"base_hit":
 			if e["side"] == "b":
 				_field.shake_nest = 6.0
@@ -2365,8 +2411,9 @@ func _skill_fx(e: Dictionary) -> void:
 	_add_trauma(0.18)
 	var hits: Array = []
 	for u in e.get("hits", []):
-		var ha = _actor_of.get(int(u))
-		if ha != null and is_instance_valid(ha):
+		# 이 스킬로 쓰러진 벌레도 (같은 틱의 'die' 가 먼저 _actor_of 에서 지운다)
+		var ha = _actor_any(int(u))
+		if ha != null:
 			hits.append(ha.position + Vector2(0, -ha.body_height() * 0.5))
 	var allies: Array = []
 	for u in e.get("allies", []):
@@ -2509,7 +2556,8 @@ func _cutin(id: String) -> bool:
 	var sk := IdleUi.label(String(k["name"]) + "!", 46, col.lightened(0.35), true)
 	sk.position = Vector2(150, 40)
 	band.add_child(sk)
-	var tw := create_tween()
+	# 띠에 붙인 트윈 - 판이 바뀌어 띠가 풀리면 같이 멈춘다
+	var tw := band.create_tween()
 	tw.tween_property(band, "position:x", 0.0, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(band, "position:x", -24.0, 0.6)
 	tw.tween_property(band, "position:x", -size.x - 120.0, 0.16).set_ease(Tween.EASE_IN)
@@ -2525,6 +2573,7 @@ func _cannon_fx(e: Dictionary = {}) -> void:
 	var base := _field.fort_pos() + Vector2(0, 30)
 	var nest := _field.nest_pos() + Vector2(0, -50)
 	var fly := CANNON_FLY
+	_cannon_land_t = maxf(_cannon_land_t, _t + fly)
 	var gold := IdleUi.GOLD
 	var hot := Color("#FFF3D0")
 	# 1) 발사 - 포구 섬광 · 충격파 세 겹 · 빛살 · 연기 · 반동
@@ -2647,7 +2696,7 @@ func _bazooka_band(lv: int) -> void:
 	hb.add_child(pad)
 	# 왼쪽에서 휙 들어와 가운데에 머물다 오른쪽으로 빠진다 (스킬 띠와 반대 방향)
 	var mid := -40.0
-	var tw := create_tween()
+	var tw := band.create_tween()
 	tw.tween_property(band, "position:x", mid - 8.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(band, "position:x", mid + 8.0, 0.7)
 	tw.tween_property(band, "position:x", size.x + 40.0, 0.16).set_ease(Tween.EASE_IN)
@@ -2665,19 +2714,23 @@ func _end_battle(res: String) -> void:
 	var r := {}
 	if win:
 		r = LaneState.on_win(stage_n)
-		_flash(0.5)
-		_add_trauma(1.0)
-		var np := _field.nest_pos() + Vector2(0, -40)
-		_vfx.burst(np, Color("#FFD27A"), 40, 600.0, 1.2, 0.8)
-		_fx.ring(np, 20.0, 400.0, IdleUi.GOLD, 20.0, 0.8)
-		AudioManager.souvenir_get()
+		# 바주카포가 마지막 한 방이면 포탄이 둥지에 닿은 뒤에 터진다 (누르는 순간 피해가 들어가 승리가 먼저 났다)
+		_later(maxf(0.0, _cannon_land_t - _t), func() -> void:
+			if _field == null or not is_instance_valid(_field) or not is_instance_valid(_fx):
+				return
+			_flash(0.5)
+			_add_trauma(1.0)
+			var np := _field.nest_pos() + Vector2(0, -40)
+			_vfx.burst(np, Color("#FFD27A"), 40, 600.0, 1.2, 0.8)
+			_fx.ring(np, 20.0, 400.0, IdleUi.GOLD, 20.0, 0.8)
+			AudioManager.souvenir_get())
 	else:
 		# 응원은 진짜로 싸우다 진 판에만 - 바로 후퇴를 눌러 쌓지 못하게
 		if battle.result == "lose" or _battle_t >= CHEER_MIN_FIGHT:
 			LaneState.on_lose(stage_n)
 		AudioManager.battle_defeat()
 	LaneState.save(int(Time.get_unix_time_from_system()))
-	_later(1.0 if win else 0.6, func() -> void: _show_result(win, r))
+	_later((1.0 + maxf(0.0, _cannon_land_t - _t)) if win else 0.6, func() -> void: _show_result(win, r))
 
 
 func _show_result(win: bool, r: Dictionary) -> void:
@@ -2764,7 +2817,7 @@ func _show_result(win: bool, r: Dictionary) -> void:
 	card.position = (size - cs) * 0.5
 	card.scale = Vector2(0.8, 0.8)
 	card.pivot_offset = cs * 0.5
-	create_tween().tween_property(card, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	card.create_tween().tween_property(card, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	if LaneState.tut == 2 and win:
 		_later(0.6, func() -> void:
 			_tut.point(_result_home, "이겼어요! 홈으로 가서 친구들을 키워 봐요", _tut_to_home))
@@ -2881,10 +2934,24 @@ func _add_trauma(a: float) -> void:
 
 
 func _hitstop(d: float) -> void:
-	if _calm:
+	if _calm or _ended:
 		return
+	# 치명타·스킬은 판 시간으로 일어난다 - 배속만큼 짧게 해야 실제 시간당 멈춤이 늘지 않는다
+	d /= _speed()
+	if d < 0.01:
+		return
+	# 겹쳐 걸리면 가장 늦게 끝나는 때까지 (먼저 끝난 짧은 것이 긴 멈춤을 잘라 내지 않게)
+	var now := Time.get_ticks_msec() / 1000.0
+	if now + d <= _stop_until:
+		return
+	_stop_until = now + d
+	_stop_id += 1
+	var id := _stop_id
 	Engine.time_scale = 0.06
-	get_tree().create_timer(d, true, false, true).timeout.connect(func() -> void: Engine.time_scale = 1.0)
+	# 마지막에 건 것만 되돌린다 (가장 늦게 끝나는 것)
+	get_tree().create_timer(d, true, false, true).timeout.connect(func() -> void:
+		if id == _stop_id:
+			Engine.time_scale = 1.0)
 
 
 func _flash(a: float) -> void:
