@@ -298,13 +298,29 @@ func _on_quit() -> void:
 ## 왔으니 그림을 쓰되, 못 읽는 경우를 대비해 글자 쪽을 남겨 둔다 —
 ## 첫 화면이 비는 것보다 폰트로라도 제목이 있는 편이 낫다.
 const TITLE_PATH := "res://assets/splash/logo-title.png"
+const LOGO_PATH := "res://assets/splash/logo-happy.png"
 
 func _add_title() -> void:
 	var logo := get_node_or_null("UILayer/Control/LogoImage") as TextureRect
 	if logo == null:
 		return
-	# 2026-10: 로고 그림(흰 글씨 + 초록 테두리)은 라벤더·벚꽃 색과 따로 놀아서 쓰지 않고 글자로 그린다.
-	# 그림 파일은 그대로 둔다.
+	# 2026-11: 새 로고 (tools/splash/make-logo.py - 분홍→라벤더 글자 + 쿼카 얼굴, 무료 글꼴과 직접 그린 도형).
+	# 화면 폭에 맞춰 가운데에. 부제(_add_subtitle)는 이 자리 바로 아래에 붙는다.
+	var tex := load(LOGO_PATH) as Texture2D
+	if tex != null:
+		var w := 620.0   # 세로 화면에서는 _fit_orientation 이 폭 700 으로 다시 잡는다
+		var h := w * float(tex.get_height()) / float(tex.get_width())
+		logo.texture = tex
+		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		logo.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		logo.offset_left = -w * 0.5
+		logo.offset_right = w * 0.5
+		logo.offset_top = 40.0
+		logo.offset_bottom = 40.0 + h
+		logo.visible = true
+		return
+	# 그림을 못 읽으면 글자로 (2026-10 까지의 모양)
 	logo.visible = false
 	var t := Label.new()
 	t.name = "TitleText"
@@ -599,14 +615,24 @@ func _fit_orientation() -> void:
 			t.offset_bottom = 290.0
 	if title != null:
 		(title as Label).add_theme_font_size_override("font_size", 116)
+	# 로고 그림이면 칸을 그림 비율대로 (폭 600 - 양옆 여유) - 140 높이 칸에서는 비율을 지키느라 작게 줄었다
+	var sub_top := 300.0
+	if logo != null and logo.visible and logo is TextureRect and (logo as TextureRect).texture != null:
+		var lt := (logo as TextureRect).texture
+		var lh := 600.0 * float(lt.get_height()) / float(lt.get_width())
+		logo.offset_left = -300.0
+		logo.offset_right = 300.0
+		logo.offset_top = 110.0
+		logo.offset_bottom = 110.0 + lh
+		sub_top = logo.offset_bottom + 6.0
 	if sub != null:
 		var sl := sub as Label
 		sub.anchor_left = 0.5
 		sub.anchor_right = 0.5
 		sub.offset_left = -350.0
 		sub.offset_right = 350.0
-		sub.offset_top = 300.0      # 제목과 살짝 띄운다
-		sub.offset_bottom = 346.0
+		sub.offset_top = sub_top      # 제목과 살짝 띄운다
+		sub.offset_bottom = sub_top + 46.0
 		# 부제는 검은 글씨 (제목은 라벤더 테두리 - 위아래 색을 다르게). 테두리·그림자 없이 깔끔하게.
 		sl.add_theme_color_override("font_color", Color("#1E1A22"))
 		sl.add_theme_constant_override("outline_size", 0)
