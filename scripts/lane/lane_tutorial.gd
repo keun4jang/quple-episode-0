@@ -15,6 +15,8 @@ var _bubble: PanelContainer
 var _text: Label
 var _hint: Label
 var _skip: Button
+## 위쪽 안전 영역(노치·상태 표시줄) - `LaneGame._layout` 이 넣어 준다
+var top_inset := 0.0
 
 
 func _ready() -> void:
@@ -102,7 +104,14 @@ func _process(dt: float) -> void:
 		else:
 			by = _rect.end.y + 120.0
 	_bubble.position = Vector2((size.x - w) * 0.5, clampf(by, 90.0, size.y - bh - 20.0))
-	_skip.position = Vector2(size.x - 140.0, 16.0)
+	# 위 단추 줄(12 + 안전 영역, 높이 60) 아래 - 예전엔 y 16 에 고정이라 '후퇴'·'자동' 단추를 덮었고,
+	# 겹친 자리를 누르면 자동 켜기 대신 튜토리얼이 통째로 건너뛰어졌다. 누를 곳과 겹치면 위로 비킨다
+	var sk := Rect2(size.x - 140.0, top_inset + 84.0, 120.0, 52.0)
+	if _rect.size.x > 0.0 and _rect.grow(8.0).intersects(sk):
+		sk.position.y = top_inset + 16.0
+		if _rect.grow(8.0).intersects(sk):
+			sk.position.y = _rect.end.y + 16.0
+	_skip.position = sk.position
 	queue_redraw()
 
 

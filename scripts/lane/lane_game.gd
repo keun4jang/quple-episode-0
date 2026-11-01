@@ -345,6 +345,8 @@ func _layout() -> void:
 			_danger.size = size
 		_hud.size = size
 		_layout_hud()
+	if _tut != null:
+		_tut.top_inset = _insets().x
 	_toast_box.position = Vector2(10, 6 + _insets().x)
 	_banner.position = Vector2(0, size.y * 0.3)
 	_banner.size = Vector2(size.x, 80)
@@ -760,6 +762,8 @@ func _fort_card() -> void:
 		v.add_child(IdleUi.label("다음: 체력 %s" % _num(int(round(LaneData.fort_hp(lv + 1)))), 18, IdleUi.GREEN))
 	var b := IdleUi.button("", 20, "gold")
 	b.name = "Lv_fort"
+	# 줄 높이만큼 늘어나지 않게 - 설명이 길어도 버튼은 제 크기로
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	b.custom_minimum_size = Vector2(150, 76)
 	if lv >= LaneData.FORT_LV_MAX:
 		b.text = "최고 레벨"
@@ -799,6 +803,8 @@ func _bazooka_card() -> void:
 			int(round(LaneData.bazooka_charge(lv + 1))), LaneData.bazooka_nest(lv + 1) * 100.0], 18, IdleUi.GREEN))
 	var b := IdleUi.button("", 20, "gold")
 	b.name = "Lv_bazooka"
+	# 줄 높이만큼 늘어나지 않게 - 설명이 길어도 버튼은 제 크기로
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	b.custom_minimum_size = Vector2(150, 76)
 	if lv >= LaneData.BAZOOKA_LV_MAX:
 		b.text = "최고 레벨"
@@ -902,6 +908,8 @@ func _fill_units() -> void:
 		accrow.add_child(ab)
 		var b := IdleUi.button("", 20, "gold")
 		b.name = "Lv_" + String(id)
+		# 줄 높이만큼 늘어나지 않게 - 설명이 길어도 버튼은 제 크기로
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		b.custom_minimum_size = Vector2(150, 76)
 		if LaneState.evolve_ready(String(id)):
 			b.text = "진화!\n✦ %s" % _num(LaneData.evolve_cost(String(id)))
@@ -1614,6 +1622,8 @@ func _build_hud() -> void:
 		col.alignment = BoxContainer.ALIGNMENT_CENTER
 		col.add_theme_constant_override("separation", 0)
 		col.set_anchors_preset(Control.PRESET_FULL_RECT)
+		# 아래 띠 자리(10)는 비워 둔다 - 비용 글자가 카드 밑에서 잘리고 띠가 숫자를 덮었다
+		col.offset_bottom = -10.0
 		b.add_child(col)
 		var role := role_of(uid_s)
 		var chip := PanelContainer.new()
@@ -1629,7 +1639,7 @@ func _build_hud() -> void:
 		cl.add_theme_color_override("font_color", Color("#2E1A4A"))
 		chip.add_child(cl)
 		col.add_child(chip)
-		var pic := _portrait(uid_s, 72.0)
+		var pic := _portrait(uid_s, 60.0)
 		pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(pic)
 		var nm := IdleUi.label(_short_name(uid_s), 19, IdleUi.CREAM)
@@ -1647,9 +1657,13 @@ func _build_hud() -> void:
 		money.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(money)
 		# 쿨타임은 그 친구 버튼에만: 어두운 막 + 남은 초
-		var cd := ColorRect.new()
+		# 둥근 카드 밖으로 네모 모서리가 삐져나오지 않게 같은 반지름의 둥근 막
+		var cd := Panel.new()
 		cd.name = "Cd"
-		cd.color = Color(0.17, 0.1, 0.27, 0.62)
+		var cdsb := StyleBoxFlat.new()
+		cdsb.bg_color = Color(0.17, 0.1, 0.27, 0.62)
+		cdsb.set_corner_radius_all(22)
+		cd.add_theme_stylebox_override("panel", cdsb)
 		cd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(cd)
 		var cdt := IdleUi.label("", 24, Color.WHITE, true)
@@ -1686,6 +1700,9 @@ func _layout_hud() -> void:
 	var ph := 28.0 + 92.0 + 10.0 + float(rows) * 150.0 + float(rows - 1) * 8.0 + 14.0
 	panel.position = Vector2(8, h - ph - 8.0 - ins.y)
 	panel.size = Vector2(w - 16, ph)
+	# 효과 층은 판 윗부분까지만 - 큰 고리(바주카·스킬)가 판 아래 여백으로 새어 나왔다
+	if _fx_pix != null:
+		_fx_pix.size = Vector2(w, panel.position.y + 40.0)
 	if _field != null:
 		_field.y_far = panel.position.y - 120.0
 		if _art_bg != null:
@@ -1725,6 +1742,8 @@ func _process(dt: float) -> void:
 	var sh := _trauma * _trauma
 	var st := Time.get_ticks_msec() / 1000.0 * 30.0
 	_world.position = Vector2(14.0 * sh * sin(st * 1.1), 10.0 * sh * sin(st * 1.7 + 2.0))
+	# 흔들림은 싸움터만 - 단추 판(HUD)은 _world 안에 있어 같이 떨렸다(누르려는 손가락 밑에서 움직임)
+	_hud.position = -_world.position
 	_flash_rect.color.a = maxf(0.0, _flash_rect.color.a - dt * 2.5)
 	if not _ended and not _tut_pause:
 		var sdt := minf(dt, 0.25) * _speed()
@@ -1747,6 +1766,9 @@ func _draw_bars() -> void:
 		if a == null or not is_instance_valid(a) or e == null or a.dissolve > 0.0:
 			continue
 		var r := clampf(float(e["hp"]) / maxf(1.0, float(e["max"])), 0.0, 1.0)
+		# 우리 편은 체력이 깎였거나 방금 맞았을 때만 - 몰리면 가득 찬 초록 띠 수십 개가 얼굴을 가렸다
+		if e["side"] == "q" and r >= 0.999 and _battle_t - float(_hit_at.get(int(uid), -99.0)) > 2.0:
+			continue
 		var boss := bool(e.get("boss", false))
 		# 도트 띠: 크기·위치를 픽셀(PIX) 칸에 맞춘다
 		var px := float(PIX)
@@ -1818,8 +1840,13 @@ func _refresh_hud() -> void:
 		cl.add_theme_color_override("font_color", IdleUi.RED if short else IdleUi.GOLD_DK)
 		b.disabled = false
 		b.modulate = Color.WHITE
-		var cd := b.get_node("Cd") as ColorRect
+		var cd := b.get_node("Cd") as Panel
 		var k := clampf(left / maxf(0.01, float(s2["cd"])), 0.0, 1.0)
+		# 막이 아래에서부터 차므로 위 모서리는 가득 찼을 때만 둥글게
+		var csb := cd.get_theme_stylebox("panel") as StyleBoxFlat
+		var tr := 22 if k > 0.97 else 0
+		csb.corner_radius_top_left = tr
+		csb.corner_radius_top_right = tr
 		cd.size = Vector2(b.size.x, b.size.y * k)
 		cd.position = Vector2(0, b.size.y * (1.0 - k))
 		# 남은 초는 값 자리에 - 얼굴과 이름을 덮지 않게
@@ -1831,8 +1858,9 @@ func _refresh_hud() -> void:
 		var mb := b.get_node("Money") as ColorRect
 		var mk := clampf(battle.wallet / maxf(1.0, float(cost)), 0.0, 1.0)
 		mb.visible = short and left <= 0.0
-		mb.size = Vector2((b.size.x - 16.0) * mk, 6.0)
-		mb.position = Vector2(8.0, b.size.y - 14.0)
+		# 카드 맨 아래, 둥근 모서리 안쪽으로 들여서 (비용 글자와 겹치지 않게)
+		mb.size = Vector2((b.size.x - 36.0) * mk, 4.0)
+		mb.position = Vector2(18.0, b.size.y - 9.0)
 
 
 # ── 그림 맞추기 ───────────────────────────────────────────────────────
@@ -2054,7 +2082,10 @@ func _on_event(e: Dictionary) -> void:
 						_vfx.burst(a.position, Color("#F2E2C2"), 6, 140.0, 0.4, 0.35, true)
 						# 누가 나왔는지 머리 위에 이름
 						var kid := String(e["kind"])
-						_fx.text(a.position + Vector2(0, -a.body_height() - 30.0), LaneData.unit_name(kid, LaneState.level_of(kid)),
+						# 성 앞은 화면 위쪽이라 머리 위 이름이 위 단추 줄(1배·자동) 뒤에 깔렸다 - 그 아래로 막는다
+						var np: Vector2 = a.position + Vector2(0, -a.body_height() - 30.0)
+						np.y = maxf(np.y, 12.0 + _insets().x + 60.0 + 60.0)
+						_fx.text(np, LaneData.unit_name(kid, LaneState.level_of(kid)),
 							LaneData.RARITY_COL[rr] if rr != "base" else Color.WHITE, 22, 1.0, 0.0, 30.0)
 						if LaneState.is_evolved(kid):
 							# 진화한 친구: 금빛 고리 + 솟는 별
