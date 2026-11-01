@@ -230,6 +230,17 @@ func _ready() -> void:
 	ck("바주카포 단계 저장", LaneState.bazooka_lv == LaneData.BAZOOKA_LV_MAX)
 	var bzb := LaneBattle.new()
 	bzb.start(5, 1)
+	LaneState.fort_lv = 4
+	var fb := LaneBattle.new()
+	fb.start(5, 1)
+	ck("우리 성 강화하면 성 체력이 는다", is_equal_approx(fb.our_max, LaneData.OUR_BASE_HP * 1.45) and fb.our_hp == fb.our_max)
+	LaneState.xp = 1000000
+	while LaneState.level_fort():
+		pass
+	var fs2 := LaneState.to_dict()
+	LaneState.reset()
+	LaneState.from_dict(fs2)
+	ck("우리 성은 Lv10 까지, 저장된다", LaneState.fort_lv == LaneData.FORT_LV_MAX and is_equal_approx(LaneData.fort_hp(10), 7050.0))
 	ck("판은 강화 단계의 충전량을 쓴다", is_equal_approx(bzb.cannon_max, LaneData.bazooka_charge(LaneData.BAZOOKA_LV_MAX)))
 	LaneState.reset()
 	LaneState.reset()

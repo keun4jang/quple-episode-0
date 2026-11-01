@@ -660,6 +660,50 @@ func _fill_map() -> void:
 			gr.add_child(b)
 
 
+## 우리 성 강화 카드 (바주카포 카드 아래).
+func _fort_card() -> void:
+	var lv := LaneState.fort_lv
+	var card := _card()
+	_home_body.add_child(card)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	card.add_child(row)
+	var pic := TextureRect.new()
+	pic.custom_minimum_size = Vector2(96, 96)
+	pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pic.texture = load("res://assets/sprites/lane-fort.png") as Texture2D
+	row.add_child(pic)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 2)
+	row.add_child(v)
+	v.add_child(IdleUi.label("우리 성  Lv %d" % lv, 26, IdleUi.GOLD_DK))
+	v.add_child(IdleUi.label("무너지면 져요 - 튼튼할수록 오래 버텨요", 19, IdleUi.SUB))
+	v.add_child(IdleUi.label("체력 %s" % _num(int(round(LaneData.fort_hp(lv)))), 19, IdleUi.CREAM))
+	if lv < LaneData.FORT_LV_MAX:
+		v.add_child(IdleUi.label("다음: 체력 %s" % _num(int(round(LaneData.fort_hp(lv + 1)))), 18, IdleUi.GREEN))
+	var b := IdleUi.button("", 20, "gold")
+	b.name = "Lv_fort"
+	b.custom_minimum_size = Vector2(150, 76)
+	if lv >= LaneData.FORT_LV_MAX:
+		b.text = "최고 레벨"
+		b.disabled = true
+	else:
+		b.text = "강화
+✦ %s" % _num(LaneData.fort_cost(lv))
+		b.disabled = not LaneState.can_level_fort()
+	b.pressed.connect(func() -> void:
+		if LaneState.level_fort():
+			AudioManager.ui_confirm()
+			LaneState.save()
+			_toast("우리 성 Lv %d!  체력 %s" % [LaneState.fort_lv, _num(int(round(LaneData.fort_hp(LaneState.fort_lv))))])
+			_fill_home())
+	row.add_child(b)
+
+
 ## 바주카포 강화 카드 (동물 탭 맨 위).
 func _bazooka_card() -> void:
 	var lv := LaneState.bazooka_lv
@@ -725,6 +769,7 @@ func _fill_units() -> void:
 	_home_body.add_child(IdleUi.label("도감  %d / %d  -  뽑기에서 새 친구를 만나요" % [LaneState.owned_count(),
 		LaneData.ALL_ORDER.size()], 24, IdleUi.CREAM))
 	_bazooka_card()
+	_fort_card()
 	for id in LaneData.ALL_ORDER:
 		var u: Dictionary = LaneData.UNITS[id]
 		var rr := LaneData.rarity(String(id))

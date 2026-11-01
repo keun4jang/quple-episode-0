@@ -376,6 +376,17 @@ static func bazooka_cost(lv: int) -> int:
 	return int(round(500.0 * pow(float(lv), 1.6)))
 
 const OUR_BASE_HP := 3000.0
+## 우리 성 강화 (꿈조각) - 한 단계마다 체력 +15%. Lv10 = 7,050.
+const FORT_LV_MAX := 10
+
+
+static func fort_hp(lv: int) -> float:
+	return roundf(OUR_BASE_HP * (1.0 + 0.15 * float(clampi(lv, 1, FORT_LV_MAX) - 1)))
+
+
+## lv → lv+1 로 올리는 꿈조각.
+static func fort_cost(lv: int) -> int:
+	return int(round(400.0 * pow(float(lv), 1.6)))
 ## 벌레 떼 - 첫 떼(초) · 간격 · 가장 짧은 간격 · 기본 마리 수. 오기 WAVE_WARN 초 전에 알려 준다.
 const WAVE_FIRST := 28.0
 const WAVE_EVERY := 32.0

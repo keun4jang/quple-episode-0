@@ -21,6 +21,8 @@ static var auto_summon := false
 static var speed_lv := 0
 ## 바주카포 강화 단계 (1 부터).
 static var bazooka_lv := 1
+## 우리 성 강화 단계 (1 부터).
+static var fort_lv := 1
 static var seen_intro := false
 static var last_seen := 0
 ## 뽑기: 무료 티켓 · 전설 없이 뽑은 수 · 전체 뽑은 수
@@ -55,6 +57,7 @@ static func reset() -> void:
 	auto_summon = false
 	speed_lv = 0
 	bazooka_lv = 1
+	fort_lv = 1
 	seen_intro = false
 	last_seen = 0
 	tickets = 1          # 처음 하나는 선물
@@ -100,6 +103,18 @@ static func cheer_for(n: int) -> float:
 
 static func on_lose(n: int) -> void:
 	fails[n] = int(fails.get(n, 0)) + 1
+
+
+static func can_level_fort() -> bool:
+	return fort_lv < LaneData.FORT_LV_MAX and xp >= LaneData.fort_cost(fort_lv)
+
+
+static func level_fort() -> bool:
+	if not can_level_fort():
+		return false
+	xp -= LaneData.fort_cost(fort_lv)
+	fort_lv += 1
+	return true
 
 
 static func can_level_bazooka() -> bool:
@@ -475,7 +490,7 @@ static func owned_count() -> int:
 
 static func to_dict() -> Dictionary:
 	return {"v": 1, "xp": xp, "stars": stars, "units": units.duplicate(), "lineup": lineup.duplicate(),
-		"cleared": cleared, "evolved": evolved.keys(), "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed_lv > 0, "speed_lv": speed_lv, "bazooka": bazooka_lv,
+		"cleared": cleared, "evolved": evolved.keys(), "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed_lv > 0, "speed_lv": speed_lv, "bazooka": bazooka_lv, "fort": fort_lv,
 		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
 		"daily_day": daily_day, "daily_streak": daily_streak, "treasures": treasures.duplicate(true),
 		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut}
@@ -518,6 +533,7 @@ static func from_dict(d: Dictionary) -> void:
 			clears[int(k)] = maxi(0, int(c[k]))
 	auto_summon = bool(d.get("auto", false))
 	bazooka_lv = clampi(int(d.get("bazooka", 1)), 1, LaneData.BAZOOKA_LV_MAX)
+	fort_lv = clampi(int(d.get("fort", 1)), 1, LaneData.FORT_LV_MAX)
 	# 옛 저장은 켜짐/꺼짐(speed2)만 있다 - 켜짐이면 3배로
 	speed_lv = clampi(int(d.get("speed_lv", 1 if bool(d.get("speed2", false)) else 0)), 0, 2)
 	seen_intro = bool(d.get("seen_intro", false))
