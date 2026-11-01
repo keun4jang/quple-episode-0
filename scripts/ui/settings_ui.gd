@@ -345,7 +345,7 @@ func _on_up_to_date(v: String) -> void:
 ## 받아 놓기만 하고 다음 실행에 적용한다. 돌아가는 중에 갈아끼우면
 ## 이미 올라간 씬과 새 코드가 섞여 재현도 안 되는 버그가 난다.
 func _on_update_ready(v: String) -> void:
-	_set_update_state(false, "새 이야기를 받았어요 (v%s)\n앱을 껐다 켜면 적용돼요" % v,
+	_set_update_state(false, "새 내용을 받았어요 (v%s)\n앱을 껐다 켜면 적용돼요" % v,
 		HINT_NEW)
 	_refresh_version()
 	if _update_btn != null:
@@ -385,7 +385,7 @@ func open() -> void:
 		Wrap.put(_update_hint, "")
 	if _update_btn != null and not _update_btn.disabled:
 		_update_btn.text = "업데이트 확인"
-	reset_btn.text = "기록 초기화"
+	reset_btn.text = "처음부터 하기"
 	visible = true
 	_fit_panel()
 	panel.scale = Vector2(0.9, 0.9)
@@ -407,7 +407,7 @@ func _on_reset() -> void:
 	if not _reset_armed:
 		_reset_armed = true
 		reset_btn.text = "정말 지울까요? (한 번 더)"
-		reset_hint.text = "키운 기록이 모두 사라져요"
+		reset_hint.text = "모은 것이 모두 사라져요\n되돌릴 수 없어요"
 		return
 	SaveManager.clear_save()
 	# 지금 게임(쿼카 군단) 기록도 지운다. 옛 게임 선물은 이미 받았으니 다시 주지 않는다.
@@ -415,8 +415,8 @@ func _on_reset() -> void:
 	LaneState.migrated = true
 	LaneState.save()
 	_reset_armed = false
-	reset_btn.text = "기록 초기화"
-	reset_hint.text = "초기화했어요"
+	reset_btn.text = "처음부터 하기"
+	reset_hint.text = "모두 지웠어요"
 
 func _apply(bus_name: String, v: float) -> void:
 	var idx := AudioServer.get_bus_index(bus_name)

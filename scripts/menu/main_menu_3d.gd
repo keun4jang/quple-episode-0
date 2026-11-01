@@ -361,10 +361,7 @@ func _add_subtitle() -> void:
 	l.name = "Subtitle"
 	l.text = "쿼카와 동물 친구들이 벌레를 막아요"
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# 얇고 둥근 글꼴(주아) + 흰 글씨 + 얇은 라벤더 테두리 - 굵은 갈색 글씨는 무겁고 키 컬러와 안 맞았다
-	var jua := load("res://assets/fonts/Jua.ttf") as Font
-	if jua != null:
-		l.add_theme_font_override("font", jua)
+	# 흰 글씨 + 얇은 라벤더 테두리. 글꼴은 전역 테마(주아 + 대체 글꼴)를 그대로 쓴다 - 크기만 정한다
 	l.add_theme_font_size_override("font_size", 28)
 	l.add_theme_color_override("font_color", Color.WHITE)
 	l.add_theme_color_override("font_outline_color", IdleUi.LAV_DK)

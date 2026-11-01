@@ -145,7 +145,7 @@ value = 0.9
 [node name="ResetBtn" type="Button" parent="Root/Panel/Margin/Body"]
 custom_minimum_size = Vector2(0, 74)
 layout_mode = 2
-text = "기록 초기화"
+text = "처음부터 하기"
 theme_override_font_sizes/font_size = 34
 theme_override_colors/font_color = Color(0.992, 0.984, 0.831, 1)
 theme_override_styles/normal = SubResource("SetBtnDanger")

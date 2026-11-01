@@ -238,7 +238,7 @@ static func trait_text(id: String) -> String:
 		out.append("%s에 굉장히 강함" % String(TRAIT_NAME[t]))
 	if u.has("slow"):
 		var tr := String(u["slow"]["trait"])
-		out.append("%s 느리게" % ("모두" if tr == "all" else String(TRAIT_NAME[tr])))
+		out.append("%s 느려짐" % ("모든 벌레" if tr == "all" else String(TRAIT_NAME[tr])))
 	if u.has("crit"):
 		out.append("치명타 %d%%" % int(round(float(u["crit"]) * 100.0)))
 	if u.has("kb_hit"):
@@ -555,7 +555,7 @@ const TREASURE_FIRST := 0.6         ## 처음 깰 때
 const GRADE_ROLL := [0.15, 0.35]
 const GRADE_ROLL_BOSS := [0.3, 0.4]
 const BONUS_NAME := {"atk": "공격", "hp": "체력", "rate": "수입", "cannon": "바주카 충전", "xp": "행복 조각",
-	"wallet": "시작 웃음", "speed": "걸음", "guard": "받는 피해", "slow": "느리게 시간"}
+	"wallet": "시작 웃음", "speed": "걸음", "guard": "받는 피해", "slow": "느려짐 시간"}
 
 
 static func bonus_text(kind: String, v: float) -> String:
@@ -568,8 +568,8 @@ static func bonus_text(kind: String, v: float) -> String:
 
 
 # ── 장신구 (우두머리를 처음 잡으면 하나씩, 유닛 하나에 하나 단다) ───────────────
-## eff: 그 유닛에만. 레벨(1~5)마다 per 만큼 더. 레벨업은 행복 조각.
-## atk·hp·speed % · every 공격 간격 -% · cd 다시 내기 -% · cost 비용 -% · guard 받는 피해 -% · crit 치명타 +%p · slow 느리게 확률 %p
+## eff: 그 유닛에만. 레벨(1~5)마다 per 만큼 더. 레벨 업은 행복 조각.
+## atk·hp·speed % · every 공격 간격 -% · cd 소환 대기 -% · cost 비용 -% · guard 받는 피해 -% · crit 치명타 +%p · slow 느려짐 확률 %p
 const ACCESSORIES := {
 	"feather_hat":  {"name": "깃털 모자", "wear": "head", "eff": {"speed": [15.0, 4.0]}, "icon": "feather", "col": "#FF8FB8", "zone": 0},
 	"star_necklace":{"name": "별 목걸이", "wear": "neck", "eff": {"atk": [6.0, 3.0]}, "icon": "star", "col": "#FFD15A", "zone": 1},
@@ -587,8 +587,8 @@ const ACC_ORDER := ["feather_hat", "star_necklace", "fluffy_vest", "clover_pin",
 const ACC_LV_MAX := 5
 ## 싸움 그림에서 장신구가 붙는 자리 ("wear"): head 머리 위 · neck 목 · hand 오른손 · feet 발 · side 몸 옆.
 ## 그림은 `lane-wear.png` (ACC_ORDER 순서, 12x12) - `tools/pixel/make-lane-wear.py`.
-const ACC_EFF_NAME := {"atk": "공격", "hp": "체력", "speed": "걸음", "every": "공격 간격", "cd": "다시 내기",
-	"cost": "비용", "guard": "받는 피해", "crit": "치명타", "slow": "느리게 확률"}
+const ACC_EFF_NAME := {"atk": "공격", "hp": "체력", "speed": "걸음", "every": "공격 간격", "cd": "소환 대기",
+	"cost": "비용", "guard": "받는 피해", "crit": "치명타", "slow": "느려짐 확률"}
 
 
 static func acc_value(id: String, key: String, lv: int) -> float:

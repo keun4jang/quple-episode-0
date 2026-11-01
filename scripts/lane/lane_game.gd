@@ -721,7 +721,7 @@ func _fill_map() -> void:
 			tn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			cv.add_child(tn)
 			var te := IdleUi.label("%s %s" % [String(LaneData.GRADE_NAME[g]), LaneData.bonus_text(String(t["kind"]),
-				float(t["per"]) * float(maxi(1, g)))] if g > 0 else LaneData.bonus_text(String(t["kind"]), float(t["per"]) * 3.0) + " 까지",
+				float(t["per"]) * float(maxi(1, g)))] if g > 0 else LaneData.bonus_text(String(t["kind"]), float(t["per"]) * 3.0) + "까지",
 				16, Color(LaneData.GRADE_COL[g]) if g > 0 else IdleUi.MUTED)
 			te.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			cv.add_child(te)
@@ -872,7 +872,7 @@ func _fill_units() -> void:
 		if not LaneState.has_unit(String(id)):
 			if rr == "base":
 				v.add_child(IdleUi.label("??? 쿼카", 26, IdleUi.MUTED))
-				v.add_child(IdleUi.label("%s 를 깨면 합류해요" % LaneData.stage_label(int(u["unlock"])), 20, IdleUi.MUTED))
+				v.add_child(IdleUi.label("%s까지 깨면 합류해요" % LaneData.stage_label(int(u["unlock"])), 20, IdleUi.MUTED))
 			else:
 				v.add_child(IdleUi.label("???  %s %s" % ["★".repeat(int(LaneData.RARITY_STARS[rr])),
 					String(LaneData.RARITY_NAME[rr])], 26, LaneData.RARITY_TXT[rr]))
@@ -898,7 +898,7 @@ func _fill_units() -> void:
 		if LaneState.is_evolved(String(id)):
 			v.add_child(IdleUi.label("진화 완료", 18, PINK_TXT))
 		elif lv < LaneData.EVOLVE_LV:
-			v.add_child(IdleUi.label("Lv %d 에 진화할 수 있어요" % LaneData.EVOLVE_LV, 18, PINK_TXT))
+			v.add_child(IdleUi.label("Lv %d에 진화할 수 있어요" % LaneData.EVOLVE_LV, 18, PINK_TXT))
 		var accrow := HBoxContainer.new()
 		accrow.add_theme_constant_override("separation", 6)
 		v.add_child(accrow)
@@ -939,7 +939,7 @@ func _fill_units() -> void:
 				AudioManager.ui_confirm()
 				LaneState.save()
 				if LaneState.evolve_ready(String(id)):
-					_toast("%s 진화할 수 있어요!" % LaneData.unit_name(String(id), 0))
+					_toast("%s, 이제 진화할 수 있어요!" % LaneData.unit_name(String(id), 0))
 				_fill_home())
 		row.add_child(b)
 		# 긴 설명은 줄을 바꿔 버튼을 밀어내지 않게
@@ -1009,7 +1009,7 @@ func _evolve_show(id: String) -> void:
 	nm.position = Vector2(0, c.y + 170)
 	nm.modulate.a = 0.0
 	lay.add_child(nm)
-	var info := IdleUi.label("체력·공격 ×%s · 스킬이 더 자주 나와요\n레벨을 %d 까지 올릴 수 있어요" % [str(LaneData.EVOLVE_ATK),
+	var info := IdleUi.label("체력·공격 ×%s · 스킬이 더 자주 나와요\n레벨을 %d까지 올릴 수 있어요" % [str(LaneData.EVOLVE_ATK),
 		LaneData.UNIT_LV_MAX], 24, IdleUi.INK, true)
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.size = Vector2(size.x, 80)
@@ -1312,7 +1312,7 @@ func _close_popup() -> void:
 ## 이 유닛에 달 장신구 고르기.
 func _open_acc_picker(unit: String) -> void:
 	_close_popup()
-	var body := _popup("%s 의 장신구" % LaneData.unit_name(unit, LaneState.level_of(unit)))
+	var body := _popup("%s의 장신구" % LaneData.unit_name(unit, LaneState.level_of(unit)))
 	if LaneState.accs.is_empty():
 		body.add_child(IdleUi.label("아직 장신구가 없어요.\n구역 우두머리를 처음 잡으면 하나씩 얻어요.", 24, IdleUi.SUB))
 		return
@@ -2795,7 +2795,7 @@ func _show_result(win: bool, r: Dictionary) -> void:
 		if LaneState.cheer_for(stage_n) > 0.0:
 			v.add_child(_center(IdleUi.label("다시 도전하면 응원을 받아 +%d%% 강해져요" % int(LaneState.cheer_for(stage_n)), 24,
 				IdleUi.LAV_DK)))
-		v.add_child(_center(IdleUi.label("레벨업 · 장신구 · 편성을 바꿔 봐도 좋아요", 20, IdleUi.SUB)))
+		v.add_child(_center(IdleUi.label("레벨 업 · 장신구 · 편성을 바꿔 봐도 좋아요", 20, IdleUi.SUB)))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	v.add_child(row)
@@ -2919,7 +2919,7 @@ func _tut_home_guide(i := 0) -> void:
 			_tut.point(_home.get_node("Go") as Control, "준비 끝! 출전해서 다음 판으로 가요", func() -> void:
 				LaneState.tut = 99
 				LaneState.save()
-				_toast("이제 혼자서도 할 수 있어요! 화이팅"))
+				_toast("이제 혼자서도 할 수 있어요! 파이팅"))
 
 
 ## 탭을 바꾼 뒤 화면이 다시 그려질 때까지 잠깐 기다렸다가 다음 단계.
