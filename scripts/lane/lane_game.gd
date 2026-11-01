@@ -623,10 +623,17 @@ func _fill_map() -> void:
 			_home_body.add_child(note)
 	var in_ch := LaneState.cleared - ch * LaneData.CH_STAGES
 	var last_zone := clampi(in_ch / LaneData.STAGES_PER_ZONE, 0, LaneData.ZONES.size() - 1)
-	for zi in range(last_zone, -1, -1):
+	# 1번 구역이 맨 위, 지금 도전 중인 구역이 맨 아래 - 열면 그 구역까지 내려 준다
+	for zi in range(0, last_zone + 1):
 		var z: Dictionary = LaneData.ZONES[zi]
 		var card := _card()
 		_home_body.add_child(card)
+		if zi == last_zone and last_zone > 0:
+			_later(0.05, func() -> void:
+				if is_instance_valid(card):
+					var sc := _home.find_child("Scroll", true, false) as ScrollContainer
+					if sc != null:
+						sc.ensure_control_visible(card))
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 6)
 		card.add_child(v)
