@@ -34,6 +34,7 @@ func _drag(a: Vector2, b: Vector2) -> void:
 	await process_frame
 
 func _init() -> void:
+	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	await process_frame
 	LaneState.reset()
 	LaneState.tut = 99

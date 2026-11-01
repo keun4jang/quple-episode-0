@@ -2,6 +2,7 @@ extends Node
 ## 화면 점검: 판을 여러 번 이어 하며 "살아 있는 쿼카·벌레는 모두 그려지는가" 를 본다.
 ## (지난 판 기록이 남아 새 친구가 안 보이던 버그를 다시 잡으려고)
 func _ready() -> void:
+	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	LaneState.clear_save()
 	LaneState.reset()
 	LaneState.tut = 99

@@ -13,6 +13,7 @@ func ck(n: String, c: bool, e := "") -> void:
 
 
 func _ready() -> void:
+	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	print("=== 쿼카 군단 테스트 ===")
 	print("\n[1] 표")
 	ck("1번은 풀밭 1-1", LaneData.stage_label(1) == "풀밭 1-1")

@@ -4,6 +4,10 @@ extends RefCounted
 ## 저장 파일은 따로 `user://lane.cfg`.
 
 const SAVE_PATH := "user://lane.cfg"
+## 실제로 읽고 쓰는 곳. 테스트·검사 도구는 시작할 때 `TEST_SAVE_PATH` 로 바꿔
+## 이 PC 의 진짜 저장을 건드리지 않는다. 게임은 그대로 `SAVE_PATH` 를 쓴다.
+const TEST_SAVE_PATH := "user://lane_test.cfg"
+static var save_path := SAVE_PATH
 
 ## 행복 조각 = 레벨업 재화 (냥코의 XP). 행운별 = 뽑기 재화.
 static var xp := 0
@@ -581,7 +585,7 @@ static func from_dict(d: Dictionary) -> void:
 
 static func has_save() -> bool:
 	var c := ConfigFile.new()
-	return c.load(SAVE_PATH) == OK and c.has_section_key("lane", "data")
+	return c.load(save_path) == OK and c.has_section_key("lane", "data")
 
 
 static func save(now_unix: int = -1) -> void:
@@ -589,12 +593,12 @@ static func save(now_unix: int = -1) -> void:
 		last_seen = now_unix
 	var c := ConfigFile.new()
 	c.set_value("lane", "data", to_dict())
-	c.save(SAVE_PATH)
+	c.save(save_path)
 
 
 static func load_save() -> bool:
 	var c := ConfigFile.new()
-	if c.load(SAVE_PATH) != OK or not c.has_section_key("lane", "data"):
+	if c.load(save_path) != OK or not c.has_section_key("lane", "data"):
 		return false
 	var d = c.get_value("lane", "data")
 	if not (d is Dictionary):
@@ -604,6 +608,6 @@ static func load_save() -> bool:
 
 
 static func clear_save() -> void:
-	if FileAccess.file_exists(SAVE_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	if FileAccess.file_exists(save_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	reset()

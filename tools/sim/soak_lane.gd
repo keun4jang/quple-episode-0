@@ -11,6 +11,7 @@ var last_mode := ""
 var maxn := 0
 
 func _ready() -> void:
+	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	rng.seed = 11
 	LaneState.clear_save()
 	LaneState.reset()
