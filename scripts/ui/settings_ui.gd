@@ -207,6 +207,11 @@ func _add_home_button() -> void:
 var _ver_label: Label
 var _update_btn: Button
 var _update_hint: Label
+## 안내 글자 색 - 설정 판이 흰색이라 진하게 (예전 연노랑·연두는 흰 판 위에서 안 보였다. 노랑은 쓰지 않는다)
+const HINT_INFO := Color("#6E5A92")
+const HINT_OK := Color("#2E8049")
+const HINT_NEW := Color("#C2477A")
+const HINT_FAIL := Color("#8E3A5E")
 
 
 ## "화면 흔들림·번쩍임 줄이기" - 흔들림·번쩍임에 어지러운 사람을 위한 끄개 (`game-feel` 스킬의 접근성 항목).
@@ -275,7 +280,7 @@ func _add_update_row() -> void:
 	_update_hint = Label.new()
 	_update_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_update_hint.add_theme_font_size_override("font_size", 26)
-	_update_hint.add_theme_color_override("font_color", Color(0.86, 0.83, 0.96))
+	_update_hint.add_theme_color_override("font_color", HINT_INFO)
 	box.add_child(_update_hint)
 
 	var au := get_node_or_null("/root/AutoUpdate")
@@ -307,18 +312,18 @@ func _on_check_update() -> void:
 
 
 func _on_check_started() -> void:
-	_set_update_state(true, "확인하는 중…", Color(0.86, 0.83, 0.96))
+	_set_update_state(true, "확인하는 중…", HINT_INFO)
 
 
 func _on_up_to_date(v: String) -> void:
-	_set_update_state(false, "최신 버전이에요 (v%s)" % v, Color(0.72, 0.90, 0.76))
+	_set_update_state(false, "최신 버전이에요 (v%s)" % v, HINT_OK)
 
 
 ## 받아 놓기만 하고 다음 실행에 적용한다. 돌아가는 중에 갈아끼우면
 ## 이미 올라간 씬과 새 코드가 섞여 재현도 안 되는 버그가 난다.
 func _on_update_ready(v: String) -> void:
 	_set_update_state(false, "새 이야기를 받았어요 (v%s)\n앱을 껐다 켜면 적용돼요" % v,
-		Color(1.0, 0.88, 0.52))
+		HINT_NEW)
 	_refresh_version()
 	if _update_btn != null:
 		_update_btn.text = "받기 완료"
@@ -330,7 +335,7 @@ func _on_update_failed(reason: String) -> void:
 		return
 	# 실패 색으로 산호를 쓰면 안 된다 — 쿼카 스카프 색이라 UI 에서는 금지다.
 	_set_update_state(false, reason + "\n인터넷 연결을 확인해 주세요",
-		Color(1.0, 0.86, 0.62))
+		HINT_FAIL)
 
 
 func _set_update_state(busy: bool, msg: String, col: Color) -> void:
