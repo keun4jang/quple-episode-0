@@ -598,7 +598,7 @@ func _try_skill(e: Dictionary, tg: Array, base_in: bool) -> bool:
 
 
 # ── 자동 소환 ─────────────────────────────────────────────────────────
-## 사람처럼: 벽이 모자라면 벽부터, 꿈빛이 남으면 일꾼, 그다음 가장 센 것. 벌레가 성 앞에 몰리면 대포.
+## 사람처럼: 벽이 모자라면 벽부터, 웃음이 남으면 일꾼, 그다음 가장 센 것. 벌레가 성 앞에 몰리면 대포.
 
 func _auto_play() -> void:
 	var near := 0
@@ -635,7 +635,7 @@ func _auto_play() -> void:
 	if can_worker() and wallet >= float(wallet_cap()) * 0.9:
 		upgrade_worker()
 		return
-	# 꿈빛이 넘치면 벽을 더
+	# 웃음이 넘치면 벽을 더
 	if wallet >= float(wallet_cap()) * 0.8:
 		for id in _walls_by_cost(false):
 			if can_summon(id):

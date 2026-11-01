@@ -5,7 +5,7 @@ extends RefCounted
 
 const SAVE_PATH := "user://lane.cfg"
 
-## 꿈조각 = 레벨업 재화 (냥코의 XP). 꿈별 = 뽑기 재화.
+## 행복 조각 = 레벨업 재화 (냥코의 XP). 행운별 = 뽑기 재화.
 static var xp := 0
 static var stars := 0
 ## 쿼카 → 레벨 (가진 것만 들어 있다).
@@ -13,7 +13,7 @@ static var units: Dictionary = {}
 static var lineup: Array = []
 ## 가장 멀리 깬 스테이지 (0 = 아직 없음).
 static var cleared := 0
-## 진화한 친구 (id → true). 레벨 10 에서 꿈조각을 내고 진화해야 그 위로 올릴 수 있다.
+## 진화한 친구 (id → true). 레벨 10 에서 행복 조각을 내고 진화해야 그 위로 올릴 수 있다.
 static var evolved: Dictionary = {}
 static var clears: Dictionary = {}       ## 스테이지 → 깬 횟수
 static var auto_summon := false
@@ -142,7 +142,7 @@ static func is_evolved(id: String) -> bool:
 	return evolved.has(id)
 
 
-## 진화할 차례인가 (레벨이 다 찼다) - 꿈조각이 모자라도 참.
+## 진화할 차례인가 (레벨이 다 찼다) - 행복 조각이 모자라도 참.
 static func evolve_ready(id: String) -> bool:
 	return units.has(id) and not is_evolved(id) and level_of(id) >= LaneData.EVOLVE_LV
 
@@ -368,7 +368,7 @@ static func migrate_from_idle() -> Dictionary:
 	return g
 
 
-## 자는 동안: 가장 멀리 깬 곳 기준 꿈조각 (최대 8시간).
+## 자는 동안: 가장 멀리 깬 곳 기준 행복 조각 (최대 8시간).
 static func offline_reward(now_unix: int) -> Dictionary:
 	if last_seen <= 0 or now_unix <= last_seen:
 		return {}
@@ -396,7 +396,7 @@ static func can_pull(count: int) -> bool:
 
 
 ## 1번 또는 10번 뽑는다. 티켓이 있으면 1번은 티켓부터 쓴다.
-## 돌려주는 것: [{id, rarity, new, lv, xp}] - new 처음 만남, lv 지금 레벨, xp 중복이라 받은 꿈조각.
+## 돌려주는 것: [{id, rarity, new, lv, xp}] - new 처음 만남, lv 지금 레벨, xp 중복이라 받은 행복 조각.
 static func pull(count: int, rng: RandomNumberGenerator) -> Array:
 	if not can_pull(count):
 		return []

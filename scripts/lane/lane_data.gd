@@ -8,7 +8,7 @@ extends RefCounted
 const LEN := 3000.0
 
 # ── 쿼카 군단 ────────────────────────────────────────────────────────
-## cost 꿈빛 · cd 다시 낼 때까지(초) · hp · atk · every 공격 간격 · range 사거리 · speed 걸음(길/초)
+## cost 웃음 · cd 다시 낼 때까지(초) · hp · atk · every 공격 간격 · range 사거리 · speed 걸음(길/초)
 ## kb 넉백 횟수(체력이 이만큼 나뉘어 깎일 때마다 튕긴다) · area 범위 공격 · role 화면 설명
 ## unlock: 이 스테이지를 깨면 생긴다 (0 = 처음부터)
 const UNITS := {
@@ -145,7 +145,7 @@ static func skill_text(id: String) -> String:
 	return "%s - %s (%s) · %d초마다 자동" % [String(k["name"]), String(SKILL_KIND_TEXT[kind]), num, int(k["cd"])]
 
 
-## 진화: 이 레벨에 닿으면 꿈조각을 내고 진화할 수 있다 (진화 전엔 여기서 레벨이 멈춘다).
+## 진화: 이 레벨에 닿으면 행복 조각을 내고 진화할 수 있다 (진화 전엔 여기서 레벨이 멈춘다).
 ## 진화하면 몸집이 커지고(왕관·갑옷·망토) 체력·공격 ×1.2, 스킬이 더 자주 나온다.
 const EVOLVE_LV := 10
 const EVOLVE_HP := 1.2
@@ -238,7 +238,7 @@ static func trait_text(id: String) -> String:
 	return " · ".join(out)
 
 
-# ── 뽑기 (꿈 캡슐) ─ 꿈별·무료 티켓만 쓴다. 진짜 돈은 없다.
+# ── 뽑기 (행복 캡슐) ─ 행운별·무료 티켓만 쓴다. 진짜 돈은 없다.
 const GACHA_COST := 100
 const GACHA10_COST := 900          ## 10번 - 마지막 하나는 특급 이상
 const GACHA_RATES := {"rare": 0.72, "super": 0.24, "legend": 0.04}
@@ -249,7 +249,7 @@ const MASSIVE_MULT := 2.5
 const CRIT_MULT := 2.0
 
 
-## 이미 가진 동물이 또 나오면: 레벨 +1 (최고면 꿈조각으로).
+## 이미 가진 동물이 또 나오면: 레벨 +1 (최고면 행복 조각으로).
 static func dupe_xp(id: String) -> int:
 	return 1500 + 1500 * int(RARITY_STARS[rarity(id)])
 
@@ -261,7 +261,7 @@ static func daily_gift(streak: int) -> Dictionary:
 	return {"tickets": 1, "stars": 30}
 const LINEUP_MAX := 10
 
-## 레벨 (꿈조각으로 올린다). 한 레벨마다 기본값의 20% 씩 (냥코와 같다).
+## 레벨 (행복 조각으로 올린다). 한 레벨마다 기본값의 20% 씩 (냥코와 같다).
 const UNIT_LV_MAX := 20
 const UNIT_LV_STEP := 0.2
 
@@ -270,14 +270,14 @@ static func unit_mult(lv: int) -> float:
 	return 1.0 + UNIT_LV_STEP * float(maxi(1, lv) - 1)
 
 
-## 다음 레벨까지 꿈조각.
+## 다음 레벨까지 행복 조각.
 static func level_cost(id: String, lv: int) -> int:
 	var base := float(UNITS[id]["cost"]) * 1.2 + 80.0
 	return int(round(base * pow(float(lv), 1.45)))
 
 
 # ── 벌레 (악당) ──────────────────────────────────────────────────────
-## trait: crawl 기어다님 · fly 날벌레 · shell 껍질 · poison 독. reward = 잡으면 꿈빛.
+## trait: crawl 기어다님 · fly 날벌레 · shell 껍질 · poison 독. reward = 잡으면 웃음.
 const BUGS := {
 	"ant":        {"name": "개미", "trait": "crawl", "hp": 100, "atk": 8, "every": 1.3, "range": 110, "speed": 100, "kb": 3, "area": false, "reward": 30},
 	"caterpillar":{"name": "애벌레", "trait": "crawl", "hp": 320, "atk": 14, "every": 2.0, "range": 110, "speed": 60, "kb": 2, "area": false, "reward": 60},
@@ -340,7 +340,7 @@ const CH2_POW := 1.4
 const CH2_RAMP := 0.6
 
 # ── 판 ───────────────────────────────────────────────────────────────
-## 꿈빛 지갑: 일꾼(꿈 우체부) 레벨마다 초당 들어오는 양과 한도가 커진다.
+## 웃음 지갑: 일꾼(꿈 우체부) 레벨마다 초당 들어오는 양과 한도가 커진다.
 const WORKER_MAX := 8
 const WALLET_RATE := [40.0, 52.0, 64.0, 76.0, 88.0, 100.0, 112.0, 126.0]
 const WALLET_CAP := [500, 750, 1000, 1300, 1600, 2000, 2400, 3000]
@@ -355,7 +355,7 @@ const CANNON_KB_REACH := 900.0
 const CANNON_DMG := 240.0
 ## 둥지에 닿으면 둥지 체력의 이만큼.
 const CANNON_NEST := 0.03
-## 바주카포 강화 (꿈조각) - 한 단계마다 피해 +15% · 충전 3% 빨리 · 둥지 +0.2%p. Lv10 = 피해 2.35배 · 29초 · 둥지 4.8%
+## 바주카포 강화 (행복 조각) - 한 단계마다 피해 +15% · 충전 3% 빨리 · 둥지 +0.2%p. Lv10 = 피해 2.35배 · 29초 · 둥지 4.8%
 const BAZOOKA_LV_MAX := 10
 
 
@@ -371,12 +371,12 @@ static func bazooka_nest(lv: int) -> float:
 	return CANNON_NEST + 0.002 * float(clampi(lv, 1, BAZOOKA_LV_MAX) - 1)
 
 
-## lv → lv+1 로 올리는 꿈조각.
+## lv → lv+1 로 올리는 행복 조각.
 static func bazooka_cost(lv: int) -> int:
 	return int(round(500.0 * pow(float(lv), 1.6)))
 
 const OUR_BASE_HP := 3000.0
-## 우리 성 강화 (꿈조각) - 한 단계마다 체력 +15%. Lv10 = 7,050.
+## 우리 성 강화 (행복 조각) - 한 단계마다 체력 +15%. Lv10 = 7,050.
 const FORT_LV_MAX := 10
 
 
@@ -384,7 +384,7 @@ static func fort_hp(lv: int) -> float:
 	return roundf(OUR_BASE_HP * (1.0 + 0.15 * float(clampi(lv, 1, FORT_LV_MAX) - 1)))
 
 
-## lv → lv+1 로 올리는 꿈조각.
+## lv → lv+1 로 올리는 행복 조각.
 static func fort_cost(lv: int) -> int:
 	return int(round(400.0 * pow(float(lv), 1.6)))
 ## 벌레 떼 - 첫 떼(초) · 간격 · 가장 짧은 간격 · 기본 마리 수. 오기 WAVE_WARN 초 전에 알려 준다.
@@ -393,7 +393,7 @@ const WAVE_EVERY := 32.0
 const WAVE_MIN := 20.0
 const WAVE_BASE := 4
 const WAVE_WARN := 3.0
-## 위기 역전: 성 체력이 이 아래로 처음 떨어지면 대포가 바로 차고 꿈빛이 지갑의 반만큼 들어온다 (판마다 한 번).
+## 위기 역전: 성 체력이 이 아래로 처음 떨어지면 대포가 바로 차고 웃음이 지갑의 반만큼 들어온다 (판마다 한 번).
 const CRISIS_AT := 0.4
 ## 다시 도전 응원: 같은 판에서 질 때마다 공격·체력 +10% (최대 +30%), 이기면 사라진다.
 const CHEER_STEP := 10.0
@@ -485,13 +485,13 @@ static func spawns(n: int) -> Array:
 	return out
 
 
-## 깨면 받는 꿈조각 (처음 깨면 더 많이) 과 꿈별(뽑기 재화).
+## 깨면 받는 행복 조각 (처음 깨면 더 많이) 과 행운별(뽑기 재화).
 static func reward(n: int, first: bool) -> Dictionary:
 	var xp := int(round(300.0 * (1.0 + 0.14 * float(n - 1))))
 	if first:
-		# 뒤 구역일수록 꿈별이 많다 - 새 친구를 만나는 순간이 처음 몇 시간에 몰리지 않게
+		# 뒤 구역일수록 행운별이 많다 - 새 친구를 만나는 순간이 처음 몇 시간에 몰리지 않게
 		var boss := n % STAGES_PER_ZONE == 0
-		var z := (n - 1) / STAGES_PER_ZONE      # 2장은 10~19 - 꿈별이 이어서 많아진다
+		var z := (n - 1) / STAGES_PER_ZONE      # 2장은 10~19 - 행운별이 이어서 많아진다
 		var t := (1 if n <= CH_STAGES else 2) if boss else 0
 		return {"xp": xp * 2, "stars": (20 + 5 * z) if boss else (6 + 2 * z), "tickets": t}
 	return {"xp": xp, "stars": 1, "tickets": 0}
@@ -499,7 +499,7 @@ static func reward(n: int, first: bool) -> Dictionary:
 
 # ── 보물 (구역마다 3개, 하급·보통·상급) ─────────────────────────────────
 ## 그 구역 판을 깨면 가끔 나온다 (처음 깨면 꼭). 더 좋은 등급이 나오면 바뀐다 - "한 번 더" 의 이유.
-## kind: atk 공격% · hp 체력% · rate 수입% · cannon 대포 충전% · xp 꿈조각% · wallet 시작 꿈빛 · stars 꿈별(첫 클리어)
+## kind: atk 공격% · hp 체력% · rate 수입% · cannon 대포 충전% · xp 행복 조각% · wallet 시작 웃음 · stars 행운별(첫 클리어)
 ## per: 등급 하나당 효과 (상급 = ×3). icon: 그림 모양 · col: 색
 const TREASURES := [
 	[{"name": "이슬 방울", "kind": "atk", "per": 0.5, "icon": "drop", "col": "#8FD8FF"},
@@ -529,7 +529,7 @@ const TREASURES := [
 	[{"name": "은 숟가락", "kind": "atk", "per": 0.5, "icon": "spoon", "col": "#E0E6EE"},
 		{"name": "각설탕", "kind": "hp", "per": 0.5, "icon": "cube", "col": "#FFFFFF"},
 		{"name": "찻잔", "kind": "rate", "per": 1.0, "icon": "cup", "col": "#FFB6C8"}],
-	[{"name": "꿈 왕관 조각", "kind": "atk", "per": 0.8, "icon": "crown", "col": "#FFD15A"},
+	[{"name": "행복 왕관 조각", "kind": "atk", "per": 0.8, "icon": "crown", "col": "#FFD15A"},
 		{"name": "새벽 종", "kind": "hp", "per": 0.8, "icon": "bell", "col": "#F2C14E"},
 		{"name": "첫 햇살", "kind": "xp", "per": 3.0, "icon": "sun", "col": "#FFB84A"}],
 ]
@@ -544,8 +544,8 @@ const TREASURE_DROP := 0.3
 const TREASURE_FIRST := 0.6         ## 처음 깰 때
 const GRADE_ROLL := [0.15, 0.35]
 const GRADE_ROLL_BOSS := [0.3, 0.4]
-const BONUS_NAME := {"atk": "공격", "hp": "체력", "rate": "수입", "cannon": "바주카 충전", "xp": "꿈조각",
-	"wallet": "시작 꿈빛", "speed": "걸음", "guard": "받는 피해", "slow": "느리게 시간"}
+const BONUS_NAME := {"atk": "공격", "hp": "체력", "rate": "수입", "cannon": "바주카 충전", "xp": "행복 조각",
+	"wallet": "시작 웃음", "speed": "걸음", "guard": "받는 피해", "slow": "느리게 시간"}
 
 
 static func bonus_text(kind: String, v: float) -> String:
@@ -558,7 +558,7 @@ static func bonus_text(kind: String, v: float) -> String:
 
 
 # ── 장신구 (우두머리를 처음 잡으면 하나씩, 유닛 하나에 하나 단다) ───────────────
-## eff: 그 유닛에만. 레벨(1~5)마다 per 만큼 더. 레벨업은 꿈조각.
+## eff: 그 유닛에만. 레벨(1~5)마다 per 만큼 더. 레벨업은 행복 조각.
 ## atk·hp·speed % · every 공격 간격 -% · cd 다시 내기 -% · cost 비용 -% · guard 받는 피해 -% · crit 치명타 +%p · slow 느리게 확률 %p
 const ACCESSORIES := {
 	"feather_hat":  {"name": "깃털 모자", "wear": "head", "eff": {"speed": [15.0, 4.0]}, "icon": "feather", "col": "#FF8FB8", "zone": 0},
@@ -570,7 +570,7 @@ const ACCESSORIES := {
 	"wind_shoes":   {"name": "바람 신발", "wear": "feet", "eff": {"cd": [8.0, 3.0]}, "icon": "shoe", "col": "#7FD0FF", "zone": 6},
 	"honey_candy":  {"name": "꿀 사탕", "wear": "side", "eff": {"cost": [6.0, 2.0]}, "icon": "candy", "col": "#F2B33C", "zone": 7},
 	"mirror_shield":{"name": "거울 방패", "wear": "hand", "eff": {"guard": [8.0, 3.0]}, "icon": "shield", "col": "#D8DEE8", "zone": 8},
-	"dream_crown":  {"name": "꿈 왕관", "wear": "head", "eff": {"atk": [8.0, 3.0], "hp": [8.0, 3.0]}, "icon": "crown", "col": "#FFD15A", "zone": 9},
+	"dream_crown":  {"name": "행복 왕관", "wear": "head", "eff": {"atk": [8.0, 3.0], "hp": [8.0, 3.0]}, "icon": "crown", "col": "#FFD15A", "zone": 9},
 }
 const ACC_ORDER := ["feather_hat", "star_necklace", "fluffy_vest", "clover_pin", "ice_bell", "bolt_gloves",
 	"wind_shoes", "honey_candy", "mirror_shield", "dream_crown"]

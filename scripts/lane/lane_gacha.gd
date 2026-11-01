@@ -1,6 +1,6 @@
 class_name LaneGacha
 extends Control
-## 꿈 캡슐 여는 연출. 캡슐이 떨어지고 → 등급만큼 흔들리며 색이 바뀌고 → 터지면서 친구가 튀어나온다.
+## 행복 캡슐 여는 연출. 캡슐이 떨어지고 → 등급만큼 흔들리며 색이 바뀌고 → 터지면서 친구가 튀어나온다.
 ## 강한 효과는 여기와 전설 등장에만 몰아 쓴다 - 평소 싸움이 번쩍거리면 정작 이 순간이 안 산다.
 ## play(results) 로 시작, 다 보면 `finished`.
 
@@ -86,7 +86,7 @@ func _draw() -> void:
 
 
 func _draw_capsule() -> void:
-	# 달걀 모양 꿈 캡슐 - 위 반쪽에 색, 아래 반쪽은 우윳빛, 이음매는 톱니. 가운데 별 스티커.
+	# 달걀 모양 행복 캡슐 - 위 반쪽에 색, 아래 반쪽은 우윳빛, 이음매는 톱니. 가운데 별 스티커.
 	var rx := 84.0
 	var ry := 104.0
 	var p := _cap_pos
@@ -277,7 +277,7 @@ func _show_card(res: Dictionary) -> void:
 	if bool(res["new"]):
 		tag = IdleUi.label("NEW! 새 친구가 합류했어요", 32, IdleUi.GREEN, true)
 	elif int(res["xp"]) > 0:
-		tag = IdleUi.label("이미 최고 레벨 - 꿈조각 +%s" % LaneGacha._num(int(res["xp"])), 28, IdleUi.GOLD, true)
+		tag = IdleUi.label("이미 최고 레벨 - 행복 조각 +%s" % LaneGacha._num(int(res["xp"])), 28, IdleUi.GOLD, true)
 	else:
 		tag = IdleUi.label("또 만났어요! 레벨 +1 (Lv %d)" % int(res["lv"]), 28, IdleUi.GOLD, true)
 	_card.add_child(_at(tag, y + 166))

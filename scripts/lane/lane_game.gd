@@ -226,7 +226,7 @@ func _ready() -> void:
 	_layout()
 	var r := LaneState.claim_offline(int(Time.get_unix_time_from_system()))
 	if not r.is_empty():
-		_toast("자는 동안 쿼카들이 꿈조각 %s개를 모았어요" % _num(int(r["xp"])))
+		_toast("쉬는 동안 쿼카들이 행복 조각 %s개를 모았어요" % _num(int(r["xp"])))
 	var old := LaneState.migrate_from_idle()
 	var gift := LaneState.claim_daily(_local_now())
 	if not LaneState.seen_intro:
@@ -238,10 +238,10 @@ func _ready() -> void:
 		pass
 	elif not old.is_empty():
 		_later(2.8, func() -> void:
-			_toast("옛 꿈결에서 온 선물!  ★ %s · 티켓 %d장 · ✦ %s" % [_num(int(old["stars"])), int(old["tickets"]),
+			_toast("지난 모험에서 온 선물!  ★ %s · 티켓 %d장 · ✦ %s" % [_num(int(old["stars"])), int(old["tickets"]),
 				_num(int(old["xp"]))]))
 	elif not gift.is_empty():
-		_toast("매일 선물 %d일째!  티켓 %d장 · 꿈별 %d" % [int(gift["streak"]), int(gift["tickets"]), int(gift["stars"])])
+		_toast("매일 선물 %d일째!  티켓 %d장 · 행운별 %d" % [int(gift["streak"]), int(gift["tickets"]), int(gift["stars"])])
 	_rng.randomize()
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	_tut = LaneTutorial.new()
@@ -351,7 +351,7 @@ func _build_home() -> void:
 	title.name = "Title"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_home.add_child(title)
-	var sub := IdleUi.label("벌레들에게서 꿈결을 지켜요", 22, Color.WHITE, true)
+	var sub := IdleUi.label("벌레들에게서 행복을 지켜요", 22, Color.WHITE, true)
 	sub.name = "Sub"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_home.add_child(sub)
@@ -538,7 +538,7 @@ func _show_home() -> void:
 	if not g.is_empty() and LaneState.tut == 99:
 		LaneState.save()
 		_refresh_home_top()
-		_toast("매일 선물 %d일째!  티켓 %d장 · 꿈별 %d" % [int(g["streak"]), int(g["tickets"]), int(g["stars"])])
+		_toast("매일 선물 %d일째!  티켓 %d장 · 행운별 %d" % [int(g["streak"]), int(g["tickets"]), int(g["stars"])])
 
 
 ## 기기 시간대의 '지금' (매일 선물이 그 나라 자정에 바뀌게).
@@ -557,7 +557,7 @@ func _refresh_home_top() -> void:
 		var b := _home.get_node("TabBar/Tabs/Tab_" + k) as Button
 		_style_tab(b, _home_tab == k)
 	(_home.get_node("TabBar/Tabs/Tab_gacha/Dot") as Control).visible = LaneState.can_pull(1)
-	_card_title.text = {"map": "지도 · 판 고르기", "units": "동물 친구들", "lineup": "편성 · 콤보", "gacha": "꿈 캡슐 뽑기"}[_home_tab]
+	_card_title.text = {"map": "지도 · 판 고르기", "units": "동물 친구들", "lineup": "편성 · 콤보", "gacha": "행복 캡슐 뽑기"}[_home_tab]
 	_fill_parade()
 
 
@@ -812,7 +812,7 @@ func _fill_units() -> void:
 			else:
 				v.add_child(IdleUi.label("???  %s %s" % ["★".repeat(int(LaneData.RARITY_STARS[rr])),
 					String(LaneData.RARITY_NAME[rr])], 26, (RARITY_COL[rr] as Color).darkened(0.35)))
-				v.add_child(IdleUi.label("꿈 캡슐에서 만나요", 20, IdleUi.MUTED))
+				v.add_child(IdleUi.label("행복 캡슐에서 만나요", 20, IdleUi.MUTED))
 			continue
 		var lv := LaneState.level_of(String(id))
 		var s := LaneState.unit_stats(String(id))
@@ -829,7 +829,7 @@ func _fill_units() -> void:
 		v.add_child(IdleUi.label("스킬  " + String(LaneData.SKILLS[id]["name"]), 21,
 			Color(String(LaneData.SKILLS[id]["col"]))))
 		v.add_child(IdleUi.label(LaneData.skill_desc(String(id)), 18, IdleUi.SUB))
-		v.add_child(IdleUi.label("체력 %s · 공격 %s · 꿈빛 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
+		v.add_child(IdleUi.label("체력 %s · 공격 %s · 웃음 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
 			int(u["cost"])], 19, IdleUi.CREAM))
 		if LaneState.is_evolved(String(id)):
 			v.add_child(IdleUi.label("진화 완료", 18, IdleUi.GOLD))
@@ -1085,7 +1085,7 @@ func _fill_gacha() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
 	card.add_child(v)
-	v.add_child(_center(IdleUi.label("꿈 캡슐", 44, IdleUi.GOLD, true)))
+	v.add_child(_center(IdleUi.label("행복 캡슐", 44, IdleUi.GOLD, true)))
 	v.add_child(_center(IdleUi.label("동물 친구들이 캡슐 속에서 기다려요", 22, IdleUi.SUB)))
 	# 전설 친구들 미리 보기 - 아직 없으면 그림자
 	var row := HBoxContainer.new()
@@ -1118,7 +1118,7 @@ func _fill_gacha() -> void:
 	ten.disabled = not LaneState.can_pull(10)
 	ten.pressed.connect(_do_pull.bind(10))
 	v.add_child(ten)
-	var how := IdleUi.label("꿈별은 판을 처음 깨면 받고(뒤 구역일수록 많이, 우두머리는 티켓도), 다시 깨면 1개, 매일 선물로도 받아요.\n진짜 돈은 쓰지 않아요.",
+	var how := IdleUi.label("행운별은 판을 처음 깨면 받고(뒤 구역일수록 많이, 우두머리는 티켓도), 다시 깨면 1개, 매일 선물로도 받아요.\n진짜 돈은 쓰지 않아요.",
 		19, IdleUi.SUB)
 	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(how)
@@ -1483,7 +1483,7 @@ func _build_hud() -> void:
 			_end_battle("lose"))
 	top.add_child(quit)
 
-	# ── 아래 판: [수입] [꿈빛] [바주카포] / 유닛 버튼 (얼굴·이름·역할·비용)
+	# ── 아래 판: [수입] [웃음] [바주카포] / 유닛 버튼 (얼굴·이름·역할·비용)
 	var panel := PanelContainer.new()
 	panel.name = "Panel"
 	var psb := IdleUi.panel_style()
@@ -1583,7 +1583,7 @@ func _build_hud() -> void:
 		cost.name = "Cost"
 		cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(cost)
-		# 꿈빛이 모이는 띠 (모자랄 때만, 버튼 아래쪽) - 쿨타임과 헷갈리지 않게 따로
+		# 웃음이 모이는 띠 (모자랄 때만, 버튼 아래쪽) - 쿨타임과 헷갈리지 않게 따로
 		var money := ColorRect.new()
 		money.name = "Money"
 		money.color = Color(IdleUi.GOLD.r, IdleUi.GOLD.g, IdleUi.GOLD.b, 0.9)
@@ -1607,7 +1607,7 @@ func _build_hud() -> void:
 				_shake_ctrl(b)
 				var need := float(battle.stats[uid_s]["cost"]) - battle.wallet
 				if float(battle.cds.get(uid_s, 0.0)) <= 0.0 and need > 0.0:
-					_toast("꿈빛이 모자라요 (✦%d 더 모이면 불러요)" % int(ceil(need))))
+					_toast("웃음이 모자라요 (✦%d 더 모이면 불러요)" % int(ceil(need))))
 		gr.add_child(b)
 		_unit_btns[id] = b
 	_refresh_hud_toggles()
@@ -1726,7 +1726,7 @@ func _draw_danger() -> void:
 		_danger.draw_rect(Rect2(size.x - o - t, 0, t, size.y), c)
 
 func _refresh_hud() -> void:
-	_wallet_lbl.text = "꿈빛 %d / %d" % [int(battle.wallet), battle.wallet_cap()]
+	_wallet_lbl.text = "웃음 %d / %d" % [int(battle.wallet), battle.wallet_cap()]
 	_wallet_bar.max_value = battle.wallet_cap()
 	_wallet_bar.value = battle.wallet
 	_our_bar.max_value = battle.our_max
@@ -1751,8 +1751,8 @@ func _refresh_hud() -> void:
 		var s2: Dictionary = battle.stats[id]
 		var left := float(battle.cds.get(id, 0.0))
 		var cost := int(s2["cost"])
-		# 친구마다 따로: 쿨타임은 그 버튼에만 막 + 초, 꿈빛이 모자라면 비용만 빨갛게 + 모이는 띠.
-		# (예전엔 꿈빛이 모자란 버튼도 쿨타임처럼 흐려져서, 하나를 부르면 다른 친구도 쿨타임이 도는 것처럼 보였다)
+		# 친구마다 따로: 쿨타임은 그 버튼에만 막 + 초, 웃음이 모자라면 비용만 빨갛게 + 모이는 띠.
+		# (예전엔 웃음이 모자란 버튼도 쿨타임처럼 흐려져서, 하나를 부르면 다른 친구도 쿨타임이 도는 것처럼 보였다)
 		var short := battle.wallet < float(cost)
 		var cl := b.get_node("Col/Cost") as Label
 		cl.text = "✦%d" % cost
@@ -2518,19 +2518,48 @@ func _bazooka_band(lv: int) -> void:
 		stripe.position = Vector2(0, yy)
 		stripe.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		band.add_child(stripe)
-	var ic := _bazooka_icon(100.0)
-	ic.position = Vector2(110, 9)
-	band.add_child(ic)
-	var t := IdleUi.label("바주카포 발사!", 52, IdleUi.GOLD, true)
-	t.position = Vector2(230, 22)
-	band.add_child(t)
-	var l := IdleUi.label("Lv %d" % lv, 24, Color.WHITE, true)
-	l.position = Vector2(230, -2)
-	band.add_child(l)
-	# 왼쪽에서 휙 들어와 머물다 오른쪽으로 빠진다 (스킬 띠와 반대 방향)
+	# 그림 + [Lv 칩 / 제목] 을 한 묶음으로 띠 한가운데에 (띠는 화면 정가운데에 멈춘다)
+	var hb := HBoxContainer.new()
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hb.add_theme_constant_override("separation", 14)
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.position = Vector2(0, 8)
+	hb.size = Vector2(band.size.x, band.size.y - 16.0)
+	band.add_child(hb)
+	var ic := _bazooka_icon(92.0)
+	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hb.add_child(ic)
+	var tv := VBoxContainer.new()
+	tv.alignment = BoxContainer.ALIGNMENT_CENTER
+	tv.add_theme_constant_override("separation", 0)
+	tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.add_child(tv)
+	var chip := PanelContainer.new()
+	var csb := IdleUi.box(IdleUi.GOLD, IdleUi.GOLD_DK, 12, 2, 2, false)
+	csb.content_margin_left = 12
+	csb.content_margin_right = 12
+	chip.add_theme_stylebox_override("panel", csb)
+	chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var cl := Label.new()
+	cl.text = "Lv %d" % lv
+	cl.add_theme_font_size_override("font_size", 20)
+	cl.add_theme_color_override("font_color", Color("#4A1D3A"))
+	chip.add_child(cl)
+	tv.add_child(chip)
+	var t := IdleUi.label("바주카포 발사!", 50, IdleUi.GOLD, true)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tv.add_child(t)
+	# 그림 폭만큼 왼쪽에 무게가 실리지 않게, 오른쪽에 같은 폭의 빈칸
+	var pad := Control.new()
+	pad.custom_minimum_size = Vector2(92, 1)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.add_child(pad)
+	# 왼쪽에서 휙 들어와 가운데에 머물다 오른쪽으로 빠진다 (스킬 띠와 반대 방향)
+	var mid := -40.0
 	var tw := create_tween()
-	tw.tween_property(band, "position:x", -80.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(band, "position:x", -56.0, 0.7)
+	tw.tween_property(band, "position:x", mid - 8.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(band, "position:x", mid + 8.0, 0.7)
 	tw.tween_property(band, "position:x", size.x + 40.0, 0.16).set_ease(Tween.EASE_IN)
 	tw.tween_callback(band.queue_free)
 	_cutin_t = _t   # 띠가 겹치지 않게 - 이 동안 스킬 띠는 쉰다
@@ -2580,9 +2609,9 @@ func _show_result(win: bool, r: Dictionary) -> void:
 	v.add_child(t)
 	v.add_child(_center(IdleUi.label(LaneData.stage_label(stage_n), 26, IdleUi.CREAM)))
 	if win:
-		v.add_child(_center(IdleUi.label("✦ 꿈조각 +%s" % _num(int(r["xp"])), 30, IdleUi.GOLD)))
+		v.add_child(_center(IdleUi.label("✦ 행복 조각 +%s" % _num(int(r["xp"])), 30, IdleUi.GOLD)))
 		if int(r["stars"]) > 0:
-			v.add_child(_center(IdleUi.label("★ 꿈별 +%d" % int(r["stars"]), 28, Color("#9FD8FF"))))
+			v.add_child(_center(IdleUi.label("★ 행운별 +%d" % int(r["stars"]), 28, Color("#9FD8FF"))))
 		if int(r.get("tickets", 0)) > 0:
 			v.add_child(_center(IdleUi.label("뽑기 티켓 +%d장" % int(r["tickets"]), 28, IdleUi.GOLD)))
 		var tr: Dictionary = r.get("treasure", {})
@@ -2674,7 +2703,7 @@ func _tut_home_intro(i := 0) -> void:
 		0:
 			_tut.point(null, "쿼카 군단에 온 걸 환영해요!", _tut_home_intro.bind(1))
 		1:
-			_tut.point(null, "벌레들이 꿈결을 갉아먹고 있어요. 함께 막아 봐요", _tut_home_intro.bind(2))
+			_tut.point(null, "벌레들이 행복을 갉아먹고 있어요. 함께 막아 봐요", _tut_home_intro.bind(2))
 		2:
 			_tut.point(_home.get_node("Go") as Control, "출전을 눌러 첫 싸움을 해 봐요", func() -> void:
 				LaneState.tut = 1
@@ -2698,7 +2727,7 @@ func _tut_battle_guide(i := 0) -> void:
 			_tut.point(_unit_btns.get("shield"), "방패 쿼카도 불러요. 튼튼한 벽이에요", _tut_run.bind(3.0, 3))
 		3:
 			battle.wallet = maxf(battle.wallet, float(battle.worker_cost()) + 5.0)
-			_tut.point(_worker_btn, "수입을 올리면 꿈빛이 더 빨리 차요", _tut_run.bind(3.5, 4))
+			_tut.point(_worker_btn, "수입을 올리면 웃음이 더 빨리 차요", _tut_run.bind(3.5, 4))
 		4:
 			battle.cannon = battle.cannon_max
 			_tut.point(_cannon_btn, "바주카포가 찼어요! 눌러서 쏴요", _tut_run.bind(2.0, 5))
@@ -2725,7 +2754,7 @@ func _tut_home_guide(i := 0) -> void:
 		0:
 			_tut.point(_home.get_node("TabBar/Tabs/Tab_units") as Control, "동물 탭을 눌러 보세요", _tut_later.bind(1))
 		1:
-			_tut.point(_home.find_child("Lv_tiny", true, false) as Control, "꿈조각으로 레벨 업! 더 튼튼해져요",
+			_tut.point(_home.find_child("Lv_tiny", true, false) as Control, "행복 조각으로 레벨 업! 더 튼튼해져요",
 				_tut_later.bind(2))
 		2:
 			_tut.point(_home.get_node("TabBar/Tabs/Tab_gacha") as Control, "이번엔 뽑기 탭이에요", _tut_later.bind(3))

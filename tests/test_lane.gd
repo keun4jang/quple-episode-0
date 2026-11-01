@@ -53,13 +53,13 @@ func _ready() -> void:
 	LaneState.reset()
 	ck("처음엔 꼬마·방패", LaneState.has_unit("tiny") and LaneState.has_unit("shield") and not LaneState.has_unit("spear"))
 	var r := LaneState.on_win(1)
-	ck("1번을 깨면 꿈조각·꿈별", int(r["xp"]) > 0 and int(r["stars"]) > 0 and bool(r["first"]) and LaneState.cleared == 1)
+	ck("1번을 깨면 행복 조각·행운별", int(r["xp"]) > 0 and int(r["stars"]) > 0 and bool(r["first"]) and LaneState.cleared == 1)
 	r = LaneState.on_win(2)
 	ck("2번을 깨면 창 쿼카 합류", (r["new_units"] as Array).has("spear") and LaneState.lineup.has("spear"))
 	var r2 := LaneState.on_win(1)
 	ck("깬 판을 또 깨면 처음 보상은 없다", not bool(r2["first"]) and int(r2["stars"]) == 1 and LaneState.cleared == 2)
 	LaneState.xp = 0
-	ck("꿈조각이 없으면 레벨업 못 한다", not LaneState.level_up("tiny"))
+	ck("행복 조각이 없으면 레벨업 못 한다", not LaneState.level_up("tiny"))
 	LaneState.xp = 999999
 	var hp1 := float(LaneState.unit_stats("tiny")["hp"])
 	ck("레벨업", LaneState.level_up("tiny") and LaneState.level_of("tiny") == 2)
@@ -74,9 +74,9 @@ func _ready() -> void:
 	LaneState.reset()
 	var b := LaneBattle.new()
 	b.start(1, 5)
-	ck("처음엔 꿈빛 0", b.wallet == 0.0 and not b.can_summon("tiny"))
+	ck("처음엔 웃음 0", b.wallet == 0.0 and not b.can_summon("tiny"))
 	b.tick(2.0)
-	ck("꿈빛이 저절로 찬다", b.wallet > 50.0, str(b.wallet))
+	ck("웃음이 저절로 찬다", b.wallet > 50.0, str(b.wallet))
 	ck("소환", b.summon("tiny") and b.ents.size() >= 1)
 	ck("곧바로 또 못 낸다 (대기시간)", not b.summon("tiny"))
 	var w0 := b.worker
@@ -217,7 +217,7 @@ func _ready() -> void:
 	LaneState.from_dict(sd)
 	ck("10배 저장", LaneState.speed_lv == 2)
 	LaneState.reset()
-	ck("바주카포는 Lv1 부터, 꿈조각이 없으면 못 올린다", LaneState.bazooka_lv == 1 and not LaneState.level_bazooka())
+	ck("바주카포는 Lv1 부터, 행복 조각이 없으면 못 올린다", LaneState.bazooka_lv == 1 and not LaneState.level_bazooka())
 	LaneState.xp = 1000000
 	while LaneState.level_bazooka():
 		pass
@@ -277,20 +277,20 @@ func _test_gacha() -> void:
 	ck("처음엔 선물 티켓 1장", LaneState.tickets == 1 and LaneState.can_pull(1))
 	var r := LaneState.pull(1, rng)
 	ck("첫 뽑기는 새 친구", r.size() == 1 and bool(r[0]["new"]))
-	ck("티켓을 썼고 꿈별은 그대로", LaneState.tickets == 0 and LaneState.stars == 0)
+	ck("티켓을 썼고 행운별은 그대로", LaneState.tickets == 0 and LaneState.stars == 0)
 	ck("뽑은 친구가 편성에 들어간다", LaneState.lineup.has(String(r[0]["id"])))
-	ck("꿈별이 없으면 못 뽑는다", not LaneState.can_pull(1) and LaneState.pull(1, rng).is_empty())
+	ck("행운별이 없으면 못 뽑는다", not LaneState.can_pull(1) and LaneState.pull(1, rng).is_empty())
 	LaneState.stars = LaneData.GACHA10_COST
 	var r10 := LaneState.pull(10, rng)
 	var best := 0
 	for x in r10:
 		best = maxi(best, int(LaneData.RARITY_STARS[String(x["rarity"])]))
 	ck("10번 뽑기 = 10마리, 특급 이상 하나", r10.size() == 10 and best >= 2 and LaneState.stars == 0)
-	# 중복은 레벨 +1, 최고 레벨이면 꿈조각
+	# 중복은 레벨 +1, 최고 레벨이면 행복 조각
 	LaneState.units["chick"] = LaneData.UNIT_LV_MAX
 	var xp0 := LaneState.xp
 	var g := LaneState._grant("chick")
-	ck("최고 레벨 중복은 꿈조각", int(g["xp"]) > 0 and LaneState.xp == xp0 + int(g["xp"]))
+	ck("최고 레벨 중복은 행복 조각", int(g["xp"]) > 0 and LaneState.xp == xp0 + int(g["xp"]))
 	LaneState.units["frog"] = 3
 	g = LaneState._grant("frog")
 	ck("중복은 레벨 +1", LaneState.level_of("frog") == 4 and not bool(g["new"]))
@@ -374,7 +374,7 @@ func _test_extras() -> void:
 	ck("보물 효과가 합쳐진다", is_equal_approx(float(tb["atk"]), 1.5) and is_equal_approx(float(tb["wallet"]), 45.0))
 	var b := LaneBattle.new()
 	b.start(1, 1)
-	ck("시작 꿈빛 보너스", is_equal_approx(b.wallet, 45.0))
+	ck("시작 웃음 보너스", is_equal_approx(b.wallet, 45.0))
 	ck("공격 보너스가 판에 들어간다", is_equal_approx(float(b.stats["tiny"]["atk"]), float(LaneState.unit_stats("tiny")["atk"]) * 1.015))
 	# 장신구: 우두머리를 처음 잡으면
 	LaneState.cleared = 9

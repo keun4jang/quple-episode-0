@@ -698,7 +698,7 @@ func _confirm_new_game() -> void:
 	var t := IdleUi.label("처음부터 할까요?", 38, IdleUi.GOLD)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
-	var d := IdleUi.label("모은 친구 · 보물 · 장신구 · 꿈조각이 모두 사라져요.\n되돌릴 수 없어요.", 24, IdleUi.CREAM)
+	var d := IdleUi.label("모은 친구 · 보물 · 장신구 · 행복 조각이 모두 사라져요.\n되돌릴 수 없어요.", 24, IdleUi.CREAM)
 	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(d)
 	var row := HBoxContainer.new()
