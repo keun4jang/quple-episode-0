@@ -266,6 +266,23 @@ func _exit_tree() -> void:
 	Engine.time_scale = 1.0
 
 
+## 위아래 여백 (화면 점) - 폰의 상태 표시줄·노치·아래 제스처 막대 높이를 읽고, 없어도 최소 PAD_MIN 만큼은 띄운다.
+const PAD_TOP_MIN := 28.0
+const PAD_BOT_MIN := 24.0
+
+
+func _insets() -> Vector2:
+	var top := PAD_TOP_MIN
+	var bot := PAD_BOT_MIN
+	var ss := DisplayServer.screen_get_size()
+	var sa := DisplayServer.get_display_safe_area()
+	if ss.y > 0 and sa.size.y > 0 and sa.size.y < ss.y:
+		var k := size.y / float(ss.y)
+		top = maxf(top, float(sa.position.y) * k)
+		bot = maxf(bot, float(ss.y - sa.end.y) * k)
+	return Vector2(top, bot)
+
+
 func _layout() -> void:
 	if _home != null:
 		_home.size = size
@@ -290,7 +307,7 @@ func _layout() -> void:
 			_danger.size = size
 		_hud.size = size
 		_layout_hud()
-	_toast_box.position = Vector2(10, 6)
+	_toast_box.position = Vector2(10, 6 + _insets().x)
 	_banner.position = Vector2(0, size.y * 0.3)
 	_banner.size = Vector2(size.x, 80)
 
@@ -479,24 +496,29 @@ func _layout_home() -> void:
 	var h := size.y
 	_home_pix.size = size
 	(_home_pix.get_node("VP/Back") as Control).size = size
+	var ins := _insets()
 	var top := _home.get_node("Top") as Control
-	top.position = Vector2(14, 14)
+	top.position = Vector2(14, 14 + ins.x)
 	top.size = Vector2(w - 28, 64)
 	var hero_h := clampf(h * 0.24, 230.0, 380.0)
-	(_home.get_node("Title") as Control).position = Vector2(0, 86)
+	(_home.get_node("Title") as Control).position = Vector2(0, 86 + ins.x)
 	(_home.get_node("Title") as Control).size = Vector2(w, 76)
-	(_home.get_node("Sub") as Control).position = Vector2(0, 156)
+	(_home.get_node("Sub") as Control).position = Vector2(0, 156 + ins.x)
 	(_home.get_node("Sub") as Control).size = Vector2(w, 32)
-	(_home.get_node("Parade") as Node2D).position = Vector2(0, 86.0 + hero_h - 6.0)
-	var tabs_h := 112.0
+	(_home.get_node("Parade") as Node2D).position = Vector2(0, 86.0 + ins.x + hero_h - 6.0)
+	# 아래 탭 줄은 화면 끝까지 깔되, 버튼은 아래 여백만큼 올린다
+	var tabs_h := 112.0 + ins.y
 	var bar := _home.get_node("TabBar") as Control
 	bar.position = Vector2(0, h - tabs_h)
 	bar.size = Vector2(w, tabs_h)
+	var bsb := bar.get_theme_stylebox("panel") as StyleBoxFlat
+	if bsb != null:
+		bsb.content_margin_bottom = ins.y
 	var go := _home.get_node("Go") as Control
 	go.position = Vector2(24, h - tabs_h - 16.0 - 108.0)
 	go.size = Vector2(w - 48, 108)
 	var card := _home.get_node("Card") as Control
-	var cy := 86.0 + hero_h + 4.0
+	var cy := 86.0 + ins.x + hero_h + 4.0
 	card.position = Vector2(14, cy)
 	card.size = Vector2(w - 28, go.position.y - 14.0 - cy)
 
@@ -1594,17 +1616,19 @@ func _build_hud() -> void:
 func _layout_hud() -> void:
 	var w := size.x
 	var h := size.y
+	var ins := _insets()
 	var top := _hud.get_node("Top") as Control
-	top.position = Vector2(12, 12)
+	top.position = Vector2(12, 12 + ins.x)
 	top.size = Vector2(w - 24, 60)
 	var panel := _hud.get_node("Panel") as Control
 	# 유닛 줄 수만큼만 - 빈 판이 화면 아래를 먹지 않게
 	var rows := maxi(1, int(ceil(float(battle.lineup.size()) / 5.0)))
-	var ph := 28.0 + 92.0 + 10.0 + float(rows) * 134.0 + float(rows - 1) * 8.0 + 6.0
-	panel.position = Vector2(8, h - ph - 8.0)
+	# 카드 높이(150)와 같게 - 예전 134 로 남아 있어 둘째 줄이 판 밖 화면 끝까지 삐져나왔다
+	var ph := 28.0 + 92.0 + 10.0 + float(rows) * 150.0 + float(rows - 1) * 8.0 + 14.0
+	panel.position = Vector2(8, h - ph - 8.0 - ins.y)
 	panel.size = Vector2(w - 16, ph)
 	if _field != null:
-		_field.y_far = h - ph - 8.0 - 120.0
+		_field.y_far = panel.position.y - 120.0
 		if _art_bg != null:
 			# 폭에 맞추되, 버튼 판 위까지 빈틈이 없게 (모자라면 조금 더 키우고 양옆을 같이 자른다)
 			var tex := _art_bg.texture
@@ -2784,7 +2808,7 @@ func _toast(t: String) -> void:
 	_toast_box.custom_minimum_size = Vector2(w, 80)
 	_toast_box.size = Vector2(w, 80)
 	_toast_box.reset_size()
-	_toast_box.position = Vector2(10, 6)
+	_toast_box.position = Vector2(10, 6 + _insets().x)
 	# 한 프레임 뒤 다시 줄인다 (줄바꿈이 제 폭으로 다시 계산된 뒤)
 	_later(0.0, func() -> void:
 		_toast_box.size = Vector2(w, 80)
