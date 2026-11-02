@@ -1,5 +1,5 @@
 extends Node
-## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES
+## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배)
 func _ready() -> void:
 	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	LaneState.clear_save()
@@ -44,7 +44,8 @@ func _ready() -> void:
 	# SHOT_BAZ=N 바주카포 강화 단계
 	if OS.get_environment("SHOT_BAZ") != "":
 		LaneState.bazooka_lv = int(OS.get_environment("SHOT_BAZ"))
-	LaneState.speed_lv = int(OS.get_environment("SHOT_FAST")) if OS.get_environment("SHOT_FAST") != "" else 0
+	# SHOT_FAST=0|1 빨리 감기 단계 (0 = 1배, 1 = 3배)
+	LaneState.speed_lv = clampi(int(OS.get_environment("SHOT_FAST")), 0, LaneData.SPEEDS.size() - 1) if OS.get_environment("SHOT_FAST") != "" else 0
 	LaneState.auto_summon = true
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	var g = load("res://scenes/lane/LaneGame.tscn").instantiate()

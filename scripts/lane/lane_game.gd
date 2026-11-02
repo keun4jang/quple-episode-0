@@ -1530,7 +1530,7 @@ func _build_battle() -> void:
 	_fx_pix.get_node("VP").add_child(_fx)
 	_vfx = IdleVfx.new()
 	_fx_pix.get_node("VP").add_child(_vfx)
-	# 10배속에선 효과가 실제 시간당 10배로 쌓인다 - 한꺼번에 떠 있는 수를 묶어 둔다
+	# 3배속에선 효과가 실제 시간당 3배로 쌓인다 - 한꺼번에 떠 있는 수를 묶어 둔다 (안전장치)
 	_fx.max_texts = 40
 	_vfx.max_nodes = 60
 	_flash_rect = ColorRect.new()
@@ -1984,10 +1984,10 @@ func _sync_actors() -> void:
 		var fwd := 1.0 if e["side"] == "q" else -1.0
 		var atk_f := -1
 		if e["state"] == "fight":
-			# 실제 시간으로 잰다 - 2배속에서도 휘두르는 게 눈에 보이게
+			# 실제 시간으로 잰다 - 3배속에서도 휘두르는 게 눈에 보이게
 			var since := _t - float(_swing_at.get(uid, -99.0))
 			var until := float(e["t_atk"]) / _speed()
-			# 덤벼듦 한 번(0.37초)이 다음 휘두름 전에 끝나게 - 10배속에선 줄여서 세 동작을 다 그린다
+			# 덤벼듦 한 번(0.37초)이 다음 휘두름 전에 끝나게 - 3배속에서 빠른 친구는 줄여서 세 동작을 다 그린다
 			var sw := clampf(float(e["every"]) / _speed() * 0.9 / 0.37, 0.05, 1.0)
 			var lunge := 0.0
 			if since < 0.08 * sw:
@@ -2008,7 +2008,7 @@ func _sync_actors() -> void:
 			else:
 				atk_f = 3
 			p += _lunge_vec(e, uid, p, fwd) * lunge
-		# 맞으면 뒤로 살짝 밀린다 (실제 시간 - 10배속에서도 눈에 보이게)
+		# 맞으면 뒤로 살짝 밀린다 (실제 시간 - 3배속에서도 눈에 보이게)
 		var hs := _t - float(_hit_at.get(uid, -99.0))
 		if hs >= 0.0 and hs < 0.12:
 			p.y -= fwd * 9.0 * (1.0 - hs / 0.12)

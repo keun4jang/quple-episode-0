@@ -21,7 +21,7 @@ static var cleared := 0
 static var evolved: Dictionary = {}
 static var clears: Dictionary = {}       ## 스테이지 → 깬 횟수
 static var auto_summon := false
-## 빨리 감기 단계 (0 = 1배, 1 = 3배, 2 = 10배). 배수는 LaneData.SPEEDS.
+## 빨리 감기 단계 (0 = 1배, 1 = 3배). 배수는 LaneData.SPEEDS. 옛 저장의 2(10배)는 불러올 때 1(3배)로 잘린다.
 static var speed_lv := 0
 ## 바주카포 강화 단계 (1 부터).
 static var bazooka_lv := 1
