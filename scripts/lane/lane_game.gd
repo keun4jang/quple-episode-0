@@ -158,6 +158,7 @@ var _tut: LaneTutorial
 var _tut_pause := false          ## 안내 말풍선이 떠 있는 동안 싸움을 멈춘다
 var _tut_after_gacha := Callable()
 var _result_home: Button
+var _mission_ups: Array = []      ## 이번 판으로 오른 임무 [{i, prog, goal}] - 결과 창에 보인다
 var _actor_of: Dictionary = {}     ## uid → IdleActor
 var _lat: Dictionary = {}          ## uid → 옆 위치
 var _lunge: Dictionary = {}        ## uid → 덤벼듦 (1 → 0)
@@ -241,6 +242,8 @@ func _ready() -> void:
 		_toast("쉬는 동안 쿼카들이 행복 조각 %s개를 모았어요" % _num(int(r["xp"])))
 	var old := LaneState.migrate_from_idle()
 	var gift := LaneState.claim_daily(_local_now())
+	_roll_today()
+	_refresh_home_top()       # 임무 단추·분홍 점
 	if not LaneState.seen_intro:
 		# 처음 온 사람은 한 걸음씩 안내(`_tut_*`)가 대신 알려 준다
 		LaneState.seen_intro = true
@@ -389,6 +392,22 @@ func _build_home() -> void:
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(sp)
+	# 오늘의 임무 - 받을 것이 있으면 탭과 같은 분홍 점
+	var mis := IdleUi.round_button("chest", 60.0, "plum")
+	mis.name = "Mission"
+	mis.pressed.connect(func() -> void:
+		AudioManager.ui_click()
+		_open_missions())
+	var mdot := Control.new()
+	mdot.name = "Dot"
+	mdot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mdot.position = Vector2(52.0, 8.0)
+	mdot.visible = false
+	mdot.draw.connect(func() -> void:
+		mdot.draw_circle(Vector2.ZERO, 11.0, Color.WHITE)
+		mdot.draw_circle(Vector2.ZERO, 8.5, IdleUi.GOLD_DK))
+	mis.add_child(mdot)
+	top.add_child(mis)
 	var menu := IdleUi.round_button("gear", 60.0, "plum")
 	menu.pressed.connect(func() -> void:
 		LaneState.save(int(Time.get_unix_time_from_system()))
@@ -592,10 +611,20 @@ func _show_home() -> void:
 	_fill_home()
 	# 켜 둔 채로 자정이 지났으면 홈으로 돌아올 때 선물
 	var g := LaneState.claim_daily(_local_now())
+	if _roll_today():
+		LaneState.save()
+		_refresh_home_top()
 	if not g.is_empty() and LaneState.tut == 99:
 		LaneState.save()
 		_refresh_home_top()
 		_toast("매일 선물 %d일째!  티켓 %d장 · 행운별 %d" % [int(g["streak"]), int(g["tickets"]), int(g["stars"])])
+
+
+## 오늘의 임무·이번 주 도장판을 오늘 날짜로 맞춘다 (매일 선물과 같은 로컬 자정). 새로 굴렸으면 참.
+func _roll_today() -> bool:
+	var today := _local_now() / 86400
+	LaneState.check_week(today)
+	return LaneState.roll_missions(today)
 
 
 ## 기기 시간대의 '지금' (매일 선물이 그 나라 자정에 바뀌게).
@@ -617,6 +646,9 @@ func _refresh_home_top() -> void:
 		var b := _home.get_node("TabBar/Tabs/Tab_" + k) as Button
 		_style_tab(b, _home_tab == k)
 	(_home.get_node("TabBar/Tabs/Tab_gacha/V/Icon/Dot") as Control).visible = LaneState.can_pull(1)
+	var mis := _home.get_node("Top/Mission") as Button
+	mis.visible = LaneState.missions_open()
+	(mis.get_node("Dot") as Control).visible = LaneState.missions_ready()
 	_card_title.text = {"map": "지도 · 판 고르기", "units": "동물 친구들", "lineup": "편성 · 콤보", "gacha": "행복 캡슐 뽑기"}[_home_tab]
 	_fill_parade()
 
@@ -1365,6 +1397,190 @@ func _close_popup() -> void:
 	var p := get_node_or_null("Popup")
 	if p != null:
 		p.queue_free()
+
+
+## 오늘의 임무 + 이번 주 도장판. 받기·바꾸기를 누르면 창을 새로 그린다.
+func _open_missions() -> void:
+	var old := get_node_or_null("Popup")
+	if old != null:
+		# 이름이 겹치지 않게 먼저 떼어 낸다 (새 창도 "Popup" 이어야 뒤로가기가 닫는다)
+		remove_child(old)
+		old.queue_free()
+	_roll_today()
+	var body := _popup("오늘의 임무")
+	# 이번 주 도장판
+	var wcard := _card()
+	body.add_child(wcard)
+	var wv := VBoxContainer.new()
+	wv.add_theme_constant_override("separation", 4)
+	wcard.add_child(wv)
+	var wh := HBoxContainer.new()
+	wv.add_child(wh)
+	var wt := IdleUi.label("이번 주 도장판", 24, IdleUi.LAV_DK)
+	wt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wh.add_child(wt)
+	wh.add_child(IdleUi.label("%d / %d" % [LaneState.stamps, LaneData.WEEK_STAMPS], 24, PINK_TXT))
+	var band := Control.new()
+	band.name = "Stamps"
+	band.custom_minimum_size = Vector2(0, 116)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wv.add_child(band)
+	var big := {}         # 칸 번호(0부터) → 보상 칸 k
+	var icons := {}
+	for k in LaneData.WEEK_REWARDS.size():
+		var slot := int(LaneData.WEEK_REWARDS[k][0]) - 1
+		big[slot] = k
+		var g: Dictionary = LaneData.WEEK_REWARDS[k][1]
+		var ic: Control
+		if g.has("stars"):
+			ic = IdleUi.icon("star", 34.0, LaneData.STAR_COL)
+		else:
+			ic = IdleUi.icon("chest", 34.0, PINK_TXT if g.has("capsule") else IdleUi.LAV_DK)
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if bool(LaneState.week_got[k]):
+			ic.modulate.a = 0.35     # 받은 칸
+		band.add_child(ic)
+		icons[slot] = ic
+	band.draw.connect(func() -> void:
+		var step := band.size.x / float(LaneData.WEEK_STAMPS)
+		for i in LaneData.WEEK_STAMPS:
+			var c := Vector2(step * (float(i) + 0.5), 36.0)
+			var r := 21.0 * (1.3 if big.has(i) else 1.0)
+			if i < LaneState.stamps:
+				band.draw_circle(c, r + 3.0, Color.WHITE)
+				band.draw_circle(c, r, Color("#9A6CC8"))
+				band.draw_circle(c, r * 0.36, Color(1, 1, 1, 0.9))   # 도장 자국
+			else:
+				band.draw_circle(c, r, Color(1, 1, 1, 0.9))
+				band.draw_arc(c, r, 0.0, TAU, 40, Color("#BF94E4", 0.7), 3.0))
+	band.resized.connect(func() -> void:
+		var step := band.size.x / float(LaneData.WEEK_STAMPS)
+		for i in icons.keys():
+			var ic := icons[i] as Control
+			ic.position = Vector2(step * (float(i) + 0.5) - 17.0, 74.0)
+		band.queue_redraw())
+	var note := IdleUi.label("월요일에 새 도장판", 18, IdleUi.SUB)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	wv.add_child(note)
+	var can_week := false
+	for k in LaneData.WEEK_REWARDS.size():
+		can_week = can_week or LaneState.week_ready(k)
+	if can_week:
+		var wb := IdleUi.button("도장 보상 받기", 26, "gold")
+		wb.name = "WeekClaim"
+		wb.custom_minimum_size = Vector2(0, 76)
+		wb.pressed.connect(_claim_week_all)
+		wv.add_child(wb)
+	# 임무 셋
+	for i in LaneState.missions.size():
+		var m: Dictionary = LaneState.missions[i]
+		var d: Dictionary = LaneData.MISSIONS[String(m["id"])]
+		var goal := int(d["goal"])
+		var card := _card()
+		card.name = "Mission%d" % i
+		body.add_child(card)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		card.add_child(row)
+		var v := VBoxContainer.new()
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		v.add_theme_constant_override("separation", 4)
+		row.add_child(v)
+		var hrow := HBoxContainer.new()
+		hrow.add_theme_constant_override("separation", 10)
+		v.add_child(hrow)
+		var tier := int(d["tier"])
+		hrow.add_child(IdleUi.label(String(LaneData.MISSION_TIERS[tier]), 20, IdleUi.LAV_DK))
+		var srow := HBoxContainer.new()
+		srow.add_theme_constant_override("separation", 2)
+		hrow.add_child(srow)
+		srow.add_child(IdleUi.icon("star", 24.0, LaneData.STAR_COL))
+		srow.add_child(IdleUi.label(str(int(LaneData.MISSION_STARS[tier])), 20, STAR_TXT))
+		# 줄바꿈은 켜지 않는다 - 폭이 정해지기 전에 재면 글자마다 줄이 바뀌어 창이 화면만큼 길어졌다 (글은 다 한 줄에 든다)
+		var desc := IdleUi.label(LaneData.mission_text(String(m["id"])), 24, IdleUi.CREAM)
+		v.add_child(desc)
+		var prow := HBoxContainer.new()
+		prow.add_theme_constant_override("separation", 8)
+		v.add_child(prow)
+		var bar := IdleUi.bar(Color("#BF94E4"), Vector2(100, 14))
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		bar.max_value = goal
+		bar.value = int(m["prog"])
+		prow.add_child(bar)
+		prow.add_child(IdleUi.label("%d / %d" % [int(m["prog"]), goal], 20, IdleUi.SUB))
+		var b: Button
+		if bool(m["got"]):
+			b = IdleUi.button("✓", 26, "plum")
+			b.disabled = true
+		elif LaneState.mission_done(i):
+			b = IdleUi.button("받기", 24, "gold")
+			b.pressed.connect(func() -> void: _claim_mission(i))
+		elif not LaneState.mission_swap:
+			b = IdleUi.button("바꾸기", 22, "plum")
+			b.pressed.connect(func() -> void:
+				if LaneState.swap_mission(i, _local_now() / 86400):
+					LaneState.save()
+					AudioManager.ui_click()
+					_open_missions())
+		if b != null:
+			b.name = "Btn"
+			b.custom_minimum_size = Vector2(120, 72)
+			b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			row.add_child(b)
+	var today_done := LaneState.stamp_day == LaneState.mission_day and LaneState.mission_day > 0
+	var foot := IdleUi.label("오늘 도장을 찍었어요!" if today_done else "셋 다 하면 도장 하나!", 22, PINK_TXT)
+	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(foot)
+
+
+func _claim_mission(i: int) -> void:
+	var r := LaneState.claim_mission(i)
+	if r.is_empty():
+		return
+	LaneState.save()
+	AudioManager.ui_confirm()
+	_refresh_home_top()
+	if bool(r["stamp"]):
+		_toast("오늘의 도장 쾅!  행운별 +%d · 도장 %d / %d" % [int(r["stars"]), LaneState.stamps, LaneData.WEEK_STAMPS])
+	else:
+		_toast("행운별 +%d" % int(r["stars"]))
+	_open_missions()
+
+
+## 받을 수 있는 도장판 칸을 한꺼번에. 7칸 캡슐은 뽑기 연출(1번)로 보여 준다.
+func _claim_week_all() -> void:
+	var tk := 0
+	var st := 0
+	var caps: Array = []
+	for k in LaneData.WEEK_REWARDS.size():
+		var r := LaneState.claim_week(k, _rng)
+		if r.is_empty():
+			continue
+		tk += int(r["tickets"])
+		st += int(r["stars"])
+		if not (r["capsule"] as Dictionary).is_empty():
+			caps.append(r["capsule"])
+	LaneState.save(int(Time.get_unix_time_from_system()))
+	AudioManager.ui_confirm()
+	var parts: Array = []
+	if tk > 0:
+		parts.append("뽑기 티켓 +%d장" % tk)
+	if st > 0:
+		parts.append("행운별 +%d" % st)
+	_open_missions()
+	_refresh_home_top()
+	if not parts.is_empty():
+		_toast("도장 보상!  " + " · ".join(parts))
+	if not caps.is_empty():
+		var g := LaneGacha.new()
+		g.size = size
+		add_child(g)
+		g.finished.connect(func() -> void:
+			_fill_home()
+			if get_node_or_null("Popup") != null:
+				_open_missions())
+		g.play(caps)
 
 
 ## 이 유닛에 달 장신구 고르기.
@@ -2808,8 +3024,9 @@ func _end_battle(res: String) -> void:
 	var win := res == "win"
 	_won = win
 	var r := {}
+	var hp_ratio := battle.our_hp / maxf(1.0, battle.our_max)
 	if win:
-		r = LaneState.on_win(stage_n, null, battle.tally, battle.our_hp / maxf(1.0, battle.our_max))
+		r = LaneState.on_win(stage_n, null, battle.tally, hp_ratio)
 		# 바주카포가 마지막 한 방이면 포탄이 둥지에 닿은 뒤에 터진다 (누르는 순간 피해가 들어가 승리가 먼저 났다)
 		_later(maxf(0.0, _cannon_land_t - _t), func() -> void:
 			if _field == null or not is_instance_valid(_field) or not is_instance_valid(_fx):
@@ -2825,6 +3042,8 @@ func _end_battle(res: String) -> void:
 		if battle.result == "lose" or _battle_t >= CHEER_MIN_FIGHT:
 			LaneState.on_lose(stage_n)
 		AudioManager.battle_defeat()
+	# 오늘의 임무 - 이기든 지든 그때까지 한 만큼 센다
+	_mission_ups = LaneState.add_tally(battle.tally, win, hp_ratio, int(r.get("new_flowers", 0)), stage_n)
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	_later((1.0 + maxf(0.0, _cannon_land_t - _t)) if win else 0.6, func() -> void: _show_result(win, r))
 
@@ -2901,6 +3120,14 @@ func _show_result(win: bool, r: Dictionary) -> void:
 		var hd := int(battle.tally.get("holds", 0))
 		if m5 > 0 or hd > 0:
 			v.add_child(_center(IdleUi.label("여럿 맞히기 %d번 · 떼 막기 %d번" % [m5, hd], 20, IdleUi.SUB)))
+	# 이번 판으로 오른 오늘의 임무 (최대 3줄)
+	for up in _mission_ups.slice(0, 3):
+		var mi := int(up["i"])
+		if mi >= LaneState.missions.size():
+			continue
+		var done := int(up["prog"]) >= int(up["goal"])
+		var txt := "%s %d/%d" % [LaneData.mission_text(String(LaneState.missions[mi]["id"])), int(up["prog"]), int(up["goal"])]
+		v.add_child(_center(IdleUi.label(("✓ " + txt) if done else txt, 20, PINK_TXT if done else IdleUi.SUB)))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	v.add_child(row)

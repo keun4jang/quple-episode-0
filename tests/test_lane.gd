@@ -279,6 +279,7 @@ func _ready() -> void:
 	_test_extras()
 	_test_tally()
 	_test_flowers()
+	_test_missions()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(1 if fail_n > 0 else 0)
 
@@ -592,3 +593,142 @@ func _test_flowers() -> void:
 	var rb2 := LaneState.on_win(10, null, full, 1.0)
 	ck("다시 이겨도 꽃다발은 한 번", (rb2["bouquet"] as Dictionary).is_empty() and LaneState.tickets == tk
 		and int(LaneState.bouquet[0]) == 2)
+
+
+func _test_missions() -> void:
+	print("
+[오늘의 임무 · 이번 주 도장판]")
+	LaneState.reset()
+	var today := 20401        # 2025-11-09 (일요일)
+	ck("안내 전에는 임무가 안 열린다", not LaneState.roll_missions(today) and LaneState.missions.is_empty())
+	LaneState.tut = 99
+	LaneState.cleared = 3
+	ck("세 판을 깨면 열린다", LaneState.missions_open())
+	# ① 같은 날은 같은 임무, 다음 날은 새로
+	LaneState.roll_missions(today)
+	var ids1: Array = LaneState.missions.map(func(m): return String(m["id"]))
+	var tiers_ok := true
+	for k in 3:
+		tiers_ok = tiers_ok and int(LaneData.MISSIONS[ids1[k]]["tier"]) == k
+	ck("등급마다 하나씩 셋", ids1.size() == 3 and tiers_ok, str(ids1))
+	ck("열리지 않은 임무는 안 나온다", not ids1.has("boss1") and not ids1.has("bosscan"))
+	LaneState.missions[0]["prog"] = 2
+	ck("같은 날은 다시 굴리지 않는다", not LaneState.roll_missions(today) and int(LaneState.missions[0]["prog"]) == 2)
+	var saved := LaneState.missions.duplicate(true)
+	LaneState.mission_day = 0
+	LaneState.roll_missions(today)
+	var ids2: Array = LaneState.missions.map(func(m): return String(m["id"]))
+	ck("같은 today 로 굴리면 같은 임무", ids1 == ids2)
+	LaneState.missions = saved
+	LaneState.mission_day = today
+	LaneState.mission_swap = true
+	ck("다음 날은 새로 굴리고 비운다", LaneState.roll_missions(today + 1)
+		and LaneState.missions.all(func(m): return int(m["prog"]) == 0 and not bool(m["got"]))
+		and not LaneState.mission_swap and LaneState.mission_day == today + 1)
+	# ② 자동 소환은 call30 에 안 들어간다
+	LaneState.missions = [{"id": "call30", "prog": 0, "got": false}, {"id": "kill150", "prog": 0, "got": false},
+		{"id": "multi2", "prog": 0, "got": false}]
+	var b := LaneBattle.new()
+	b.start(1, 3)
+	b.wallet = 99999.0
+	b.summon("tiny", false)
+	b.cds["tiny"] = 0.0
+	b.summon("shield", false)
+	ck("자동 소환은 판 기록에 안 센다", int(b.tally["summons"]) == 0)
+	b.cds["tiny"] = 0.0
+	b.summon("tiny")
+	LaneState.add_tally(b.tally, false, 0.5, 0, 1)
+	ck("손으로 부른 것만 call30 에", int(LaneState.missions[0]["prog"]) == 1, str(LaneState.missions[0]["prog"]))
+	# 진 판도 센다, 이긴 판만 세는 것은 안 센다
+	var ups := LaneState.add_tally({"summons": 40, "kills": 10, "multi5": 1, "auto_used": false}, false, 1.0, 0, 3)
+	ck("져도 그때까지 한 만큼 센다", int(LaneState.missions[0]["prog"]) == 30 and int(LaneState.missions[1]["prog"]) == 10
+		and int(LaneState.missions[2]["prog"]) == 1 and ups.size() == 3)
+	ck("goal 에서 멈춘다", int(LaneState.missions[0]["prog"]) == 30)
+	LaneState.missions = [{"id": "win3", "prog": 0, "got": false}, {"id": "hp70", "prog": 0, "got": false},
+		{"id": "flower", "prog": 0, "got": false}]
+	LaneState.add_tally({"auto_used": true}, true, 0.9, 7, 4)
+	ck("자동을 켠 판은 hp70 에 안 센다", int(LaneState.missions[0]["prog"]) == 1 and int(LaneState.missions[1]["prog"]) == 0
+		and int(LaneState.missions[2]["prog"]) == 2)
+	LaneState.add_tally({"auto_used": false}, false, 0.9, 0, 4)
+	ck("진 판은 wins 에 안 센다", int(LaneState.missions[0]["prog"]) == 1 and int(LaneState.missions[1]["prog"]) == 0)
+	# lvup
+	LaneState.missions[0] = {"id": "lvup", "prog": 0, "got": false}
+	LaneState.xp = 999999
+	LaneState.level_up("tiny")
+	ck("레벨 올리기가 센다", int(LaneState.missions[0]["prog"]) == 1)
+	# 바꾸기 - 하루 한 번, 같은 등급
+	LaneState.mission_swap = false
+	var was := String(LaneState.missions[1]["id"])
+	LaneState.missions[1]["prog"] = 1
+	ck("바꾸기", LaneState.swap_mission(1, today + 1) and String(LaneState.missions[1]["id"]) != was
+		and int(LaneData.MISSIONS[String(LaneState.missions[1]["id"])]["tier"]) == 2 and int(LaneState.missions[1]["prog"]) == 0)
+	ck("바꾸기는 하루 한 번", not LaneState.swap_mission(2, today + 1))
+	# ③ 셋 다 받으면 도장 하나, 같은 날 또 안 찍힌다
+	LaneState.check_week(today + 1)
+	ck("다 하지 않은 임무는 못 받는다", LaneState.claim_mission(1).is_empty())
+	for m in LaneState.missions:
+		m["prog"] = int(LaneData.MISSIONS[String(m["id"])]["goal"])
+		m["got"] = false
+	ck("받을 것이 있으면 점", LaneState.missions_ready())
+	var s0 := LaneState.stars
+	var c0 := LaneState.claim_mission(0)
+	var c1 := LaneState.claim_mission(1)
+	ck("두 개 받으면 아직 도장 없음", LaneState.stamps == 0 and not bool(c1["stamp"]))
+	var c2 := LaneState.claim_mission(2)
+	ck("셋 다 받으면 도장 +1", LaneState.stamps == 1 and bool(c2["stamp"]))
+	var want := 0
+	for m in LaneState.missions:
+		want += int(LaneData.MISSION_STARS[int(LaneData.MISSIONS[String(m["id"])]["tier"])])
+	ck("임무 행운별은 등급대로 (10·15·20)", LaneState.stars - s0 == want and int(c0["stars"]) == 10 and want == 50,
+		str(LaneState.stars - s0))
+	ck("받은 것은 또 못 받는다", LaneState.claim_mission(0).is_empty() and not LaneState.missions_ready())
+	for m in LaneState.missions:
+		m["got"] = false
+	LaneState.claim_mission(0)
+	LaneState.claim_mission(1)
+	LaneState.claim_mission(2)
+	ck("같은 날 도장은 하나까지", LaneState.stamps == 1)
+	# 저장·불러오기
+	var d := LaneState.to_dict()
+	LaneState.from_dict(d)
+	ck("임무·도장이 저장된다", LaneState.mission_day == today + 1 and LaneState.missions.size() == 3
+		and LaneState.stamps == 1 and LaneState.stamp_day == today + 1 and LaneState.week_no == (today + 1 + 3) / 7)
+	# ④ 다음 월요일이면 도장판이 새로
+	var monday := today + 1     # 20402 = 월요일
+	ck("20402 는 월요일 (주가 바뀐다)", (monday + 3) / 7 != (today + 3) / 7 and (monday + 3) / 7 == (monday + 6 + 3) / 7)
+	LaneState.check_week(monday + 6)
+	ck("같은 주 일요일은 그대로", LaneState.stamps == 1)
+	LaneState.check_week(monday + 7)
+	ck("다음 월요일엔 도장 0", LaneState.stamps == 0 and LaneState.week_got == [false, false, false])
+	# 칸 보상
+	LaneState.stamps = 7
+	var tk := LaneState.tickets
+	var st := LaneState.stars
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var w0 := LaneState.claim_week(0, rng)
+	var w1 := LaneState.claim_week(1, rng)
+	ck("3칸 티켓 1 · 5칸 티켓 1 + 행운별 50", int(w0["tickets"]) == 1 and int(w1["tickets"]) == 1 and int(w1["stars"]) == 50
+		and LaneState.tickets - tk == 2 and LaneState.stars - st == 50)
+	ck("칸 보상은 한 번", LaneState.claim_week(0, rng).is_empty())
+	# ⑤ 7칸 캡슐은 특급 이상
+	var p0 := LaneState.pulls
+	var w2 := LaneState.claim_week(2, rng)
+	ck("7칸은 행복 캡슐 한 번 (천장에 센다)", not (w2["capsule"] as Dictionary).is_empty() and LaneState.pulls == p0 + 1)
+	var no_rare := true
+	for i in 300:
+		var id := LaneState.roll(rng, "super")
+		no_rare = no_rare and LaneData.rarity(id) != "rare"
+	ck("특급 캡슐은 희귀가 안 나온다", no_rare and String(w2["capsule"]["rarity"]) != "rare")
+	ck("다 받으면 점 없음", not LaneState.missions_ready())
+	LaneState.stamps = 2
+	LaneState.week_got = [false, false, false]
+	ck("3칸 전에는 칸 보상 없음", not LaneState.week_ready(0) and LaneState.claim_week(0, rng).is_empty())
+	# 열림 조건
+	LaneState.cleared = 10
+	ck("10판을 깨면 우두머리 임무도", LaneState._mission_pool(1).has("boss1") and LaneState._mission_pool(2).has("bosscan"))
+	LaneState.lineup = ["tiny"]
+	ck("편성이 다섯이 안 되면 다섯 종 임무 없음", not LaneState._mission_pool(2).has("kinds5"))
+	ck("임무 글", LaneData.mission_text("hp70") == "성을 70% 넘게 지키고 이기기 1번"
+		and LaneData.mission_text("kinds5") == "한 판에 친구 다섯 종 내보내고 이기기"
+		and LaneData.mission_text("win3") == "판 3번 이기기")

@@ -269,6 +269,37 @@ static func daily_gift(streak: int) -> Dictionary:
 	if streak % 7 == 0:
 		return {"tickets": 3, "stars": 100}
 	return {"tickets": 1, "stars": 30}
+
+
+## 오늘의 임무 - 등급마다 하나씩, 하루 셋. text 의 %d 에 goal 이 들어간다.
+## stat 은 LaneState.add_tally / _bump 가 세는 이름, need 는 열림 조건 ({"cleared": n} · {"lineup": n}).
+## 손으로 한 것만 센다 - 자동 소환·자동 바주카는 판 기록(tally)에 안 들어간다.
+const MISSION_TIERS := ["쉬움", "보통", "손맛"]
+const MISSION_STARS := [10, 15, 20]
+const MISSIONS := {
+	"win3": {"tier": 0, "text": "판 %d번 이기기", "goal": 3, "stat": "wins"},
+	"call30": {"tier": 0, "text": "친구 %d마리 불러 내기", "goal": 30, "stat": "summons"},
+	"lvup": {"tier": 0, "text": "친구 레벨 %d번 올리기", "goal": 1, "stat": "lvup"},
+	"kill150": {"tier": 1, "text": "벌레 %d마리 물리치기", "goal": 150, "stat": "kills"},
+	"boss1": {"tier": 1, "text": "우두머리 판 %d번 이기기", "goal": 1, "stat": "boss_wins", "need": {"cleared": 10}},
+	"hold2": {"tier": 1, "text": "벌레 떼 %d번 막기", "goal": 2, "stat": "holds"},
+	"multi2": {"tier": 2, "text": "바주카 한 방에 다섯 마리, %d번", "goal": 2, "stat": "multi5"},
+	"hp70": {"tier": 2, "text": "성을 70%% 넘게 지키고 이기기 %d번", "goal": 1, "stat": "hp70_wins"},
+	"bosscan": {"tier": 2, "text": "바주카로 우두머리 마무리 %d번", "goal": 1, "stat": "boss_cannon", "need": {"cleared": 10}},
+	"kinds5": {"tier": 2, "text": "한 판에 친구 다섯 종 내보내고 이기기", "goal": 1, "stat": "kinds5_wins", "need": {"lineup": 5}},
+	"flower": {"tier": 2, "text": "새 꽃 %d송이 피우기", "goal": 2, "stat": "new_flowers"},
+}
+## 표 순서 (사전 순서에 기대지 않는다 - 같은 날 같은 임무가 나오게).
+const MISSION_ORDER := ["win3", "call30", "lvup", "kill150", "boss1", "hold2", "multi2", "hp70", "bosscan", "kinds5", "flower"]
+## 이번 주 도장판 - [도장 수, 보상]. capsule 은 특급 이상 행복 캡슐 한 번.
+const WEEK_STAMPS := 7
+const WEEK_REWARDS := [[3, {"tickets": 1}], [5, {"tickets": 1, "stars": 50}], [7, {"capsule": 1}]]
+
+
+static func mission_text(id: String) -> String:
+	var m: Dictionary = MISSIONS[id]
+	var t := String(m["text"])
+	return t % int(m["goal"]) if t.contains("%d") else t
 const LINEUP_MAX := 10
 
 ## 레벨 (행복 조각으로 올린다). 한 레벨마다 기본값의 20% 씩 (냥코와 같다).

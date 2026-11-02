@@ -50,6 +50,15 @@ static var tut := 0
 ## 판 → 받은 꽃 비트 (1 이기기 · 2 성 60% · 4 손맛 과제). 구역 → 받은 꽃다발 단계 (0~2).
 static var flowers: Dictionary = {}
 static var bouquet: Dictionary = {}
+## 오늘의 임무: 굴린 날(로컬 유닉스 일 수) · [{id, prog, got}] x3 · 오늘 바꾸기를 썼나.
+static var mission_day := 0
+static var missions: Array = []
+static var mission_swap := false
+## 이번 주 도장판: 마지막으로 도장을 찍은 날 · 주 번호((일+3)/7, 월요일에 바뀐다) · 찍은 수 · 받은 칸 보상(3·5·7칸).
+static var stamp_day := 0
+static var week_no := 0
+static var stamps := 0
+static var week_got: Array = [false, false, false]
 static var _rng := RandomNumberGenerator.new()
 
 
@@ -82,6 +91,13 @@ static func reset() -> void:
 	tut = 0
 	flowers = {}
 	bouquet = {}
+	mission_day = 0
+	missions = []
+	mission_swap = false
+	stamp_day = 0
+	week_no = 0
+	stamps = 0
+	week_got = [false, false, false]
 
 
 static func has_unit(id: String) -> bool:
@@ -174,6 +190,7 @@ static func level_up(id: String) -> bool:
 		return false
 	xp -= LaneData.level_cost(id, level_of(id))
 	units[id] = level_of(id) + 1
+	_bump("lvup", 1)
 	return true
 
 
@@ -569,6 +586,175 @@ static func claim_daily(now_unix: int) -> Dictionary:
 	return {"tickets": int(g["tickets"]), "stars": int(g["stars"]), "streak": daily_streak}
 
 
+# ── 오늘의 임무 · 이번 주 도장판 ─────────────────────────────────────
+
+## 처음 안내를 마치고 세 판을 깬 뒤부터.
+static func missions_open() -> bool:
+	return tut == 99 and cleared >= 3
+
+
+static func _mission_ok(id: String) -> bool:
+	var need: Dictionary = LaneData.MISSIONS[id].get("need", {})
+	if need.has("cleared") and cleared < int(need["cleared"]):
+		return false
+	if need.has("lineup") and lineup.size() < int(need["lineup"]):
+		return false
+	return true
+
+
+## 등급(tier)에서 열린 임무 id 들 (표 순서).
+static func _mission_pool(tier: int) -> Array:
+	var out: Array = []
+	for id in LaneData.MISSION_ORDER:
+		if int(LaneData.MISSIONS[id]["tier"]) == tier and _mission_ok(String(id)):
+			out.append(String(id))
+	return out
+
+
+## 오늘 임무를 굴린다 - 날이 바뀌었을 때만. 같은 날은 몇 번 켜도 같은 임무 (씨앗 = today * 7919).
+## 못 한 임무는 벌 없이 사라진다. 새로 굴렸으면 참.
+static func roll_missions(today: int) -> bool:
+	if not missions_open() or today == mission_day:
+		return false
+	var rng := RandomNumberGenerator.new()
+	rng.seed = today * 7919
+	missions = []
+	for tier in LaneData.MISSION_TIERS.size():
+		var pool := _mission_pool(tier)
+		missions.append({"id": String(pool[rng.randi() % pool.size()]), "prog": 0, "got": false})
+	mission_day = today
+	mission_swap = false
+	return true
+
+
+## 주가 바뀌었으면(월요일 0시) 도장판을 새로.
+static func check_week(today: int) -> void:
+	var w := (today + 3) / 7
+	if w != week_no:
+		week_no = w
+		stamps = 0
+		week_got = [false, false, false]
+
+
+static func _bump(stat: String, v: int) -> void:
+	if v <= 0:
+		return
+	for m in missions:
+		var d: Dictionary = LaneData.MISSIONS.get(String(m["id"]), {})
+		if d.is_empty() or bool(m["got"]) or String(d["stat"]) != stat:
+			continue
+		m["prog"] = mini(int(d["goal"]), int(m["prog"]) + v)
+
+
+## 판이 끝날 때 (이기든 지든 후퇴하든) 판 기록을 임무에 더한다. 돌려주는 것: 오른 임무 [{i, prog, goal}].
+## 자동 소환·자동 바주카는 tally 에 안 들어가 있으니 여기서 따로 거를 것이 없다.
+static func add_tally(t: Dictionary, win: bool, hp_ratio: float, new_flower_bits: int, n: int = 0) -> Array:
+	var before: Array = []
+	for m in missions:
+		before.append(int(m["prog"]))
+	_bump("summons", int(t.get("summons", 0)))
+	_bump("kills", int(t.get("kills", 0)))
+	_bump("holds", int(t.get("holds", 0)))
+	_bump("multi5", int(t.get("multi5", 0)))
+	if win:
+		_bump("wins", 1)
+		if n > 0 and n % LaneData.STAGES_PER_ZONE == 0:
+			_bump("boss_wins", 1)
+		if hp_ratio >= 0.7 - 0.0001 and not bool(t.get("auto_used", false)):
+			_bump("hp70_wins", 1)
+		if bool(t.get("boss_cannon", false)):
+			_bump("boss_cannon", 1)
+		var kinds = t.get("kinds", {})
+		if kinds is Dictionary and (kinds as Dictionary).size() >= 5:
+			_bump("kinds5_wins", 1)
+		_bump("new_flowers", _bits(new_flower_bits))
+	var out: Array = []
+	for i in missions.size():
+		if int(missions[i]["prog"]) > int(before[i]):
+			out.append({"i": i, "prog": int(missions[i]["prog"]),
+				"goal": int(LaneData.MISSIONS[String(missions[i]["id"])]["goal"])})
+	return out
+
+
+static func mission_done(i: int) -> bool:
+	if i < 0 or i >= missions.size():
+		return false
+	var m: Dictionary = missions[i]
+	return int(m["prog"]) >= int(LaneData.MISSIONS[String(m["id"])]["goal"])
+
+
+## 다 한 임무를 받는다. 받으면 {stars, stamp(오늘 도장이 찍혔나)}, 못 받으면 {}.
+## 셋 다 받으면 그날 도장 하나 (하루에 하나까지).
+static func claim_mission(i: int) -> Dictionary:
+	if not mission_done(i) or bool(missions[i]["got"]):
+		return {}
+	var m: Dictionary = missions[i]
+	m["got"] = true
+	var s := int(LaneData.MISSION_STARS[int(LaneData.MISSIONS[String(m["id"])]["tier"])])
+	stars += s
+	var stamp := false
+	if missions.all(func(x) -> bool: return bool(x["got"])) and stamp_day != mission_day:
+		check_week(mission_day)
+		stamp_day = mission_day
+		stamps = mini(LaneData.WEEK_STAMPS, stamps + 1)
+		stamp = true
+	return {"stars": s, "stamp": stamp}
+
+
+## 오늘 한 번 공짜로 임무 하나를 같은 등급의 다른 것으로 (진행은 0 부터).
+static func swap_mission(i: int, today: int) -> bool:
+	if mission_swap or i < 0 or i >= missions.size() or bool(missions[i]["got"]):
+		return false
+	var m: Dictionary = missions[i]
+	var pool := _mission_pool(int(LaneData.MISSIONS[String(m["id"])]["tier"]))
+	pool.erase(String(m["id"]))
+	if pool.is_empty():
+		return false
+	var rng := RandomNumberGenerator.new()
+	rng.seed = today * 7919 + 101 + i
+	m["id"] = String(pool[rng.randi() % pool.size()])
+	m["prog"] = 0
+	m["got"] = false
+	mission_swap = true
+	return true
+
+
+static func week_ready(k: int) -> bool:
+	return k >= 0 and k < LaneData.WEEK_REWARDS.size() and not bool(week_got[k]) \
+		and stamps >= int(LaneData.WEEK_REWARDS[k][0])
+
+
+## 도장판 칸 보상 (k = 0·1·2 → 3·5·7칸). 받으면 {tickets, stars, capsule(뽑기 결과 또는 {})}, 못 받으면 {}.
+## 7칸 캡슐은 특급 이상 한 번 - 전설 천장(pity)에도 센다.
+static func claim_week(k: int, rng: RandomNumberGenerator) -> Dictionary:
+	if not week_ready(k):
+		return {}
+	week_got[k] = true
+	var g: Dictionary = LaneData.WEEK_REWARDS[k][1]
+	var out := {"tickets": int(g.get("tickets", 0)), "stars": int(g.get("stars", 0)), "capsule": {}}
+	tickets += int(out["tickets"])
+	stars += int(out["stars"])
+	if int(g.get("capsule", 0)) > 0:
+		if rng == null:
+			rng = _rng
+			rng.randomize()
+		out["capsule"] = _grant(roll(rng, "super"))
+	return out
+
+
+## 받을 것이 있나 (홈 단추의 분홍 점).
+static func missions_ready() -> bool:
+	if not missions_open():
+		return false
+	for i in missions.size():
+		if mission_done(i) and not bool(missions[i]["got"]):
+			return true
+	for k in LaneData.WEEK_REWARDS.size():
+		if week_ready(k):
+			return true
+	return false
+
+
 static func owned_count() -> int:
 	return units.size()
 
@@ -579,7 +765,9 @@ static func to_dict() -> Dictionary:
 		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
 		"daily_day": daily_day, "daily_streak": daily_streak, "treasures": treasures.duplicate(true),
 		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut,
-		"flowers": flowers.duplicate(), "bouquet": bouquet.duplicate()}
+		"flowers": flowers.duplicate(), "bouquet": bouquet.duplicate(),
+		"m_day": mission_day, "missions": missions.duplicate(true), "m_swap": mission_swap, "st_day": stamp_day,
+		"week_no": week_no, "stamps": stamps, "week_got": week_got.duplicate()}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -667,6 +855,26 @@ static func from_dict(d: Dictionary) -> void:
 	if bq is Dictionary:
 		for k in (bq as Dictionary).keys():
 			bouquet[int(k)] = clampi(int(bq[k]), 0, LaneData.BOUQUET.size())
+	mission_day = maxi(0, int(d.get("m_day", 0)))
+	var ms = d.get("missions", [])
+	if ms is Array:
+		for m in ms:
+			if m is Dictionary and LaneData.MISSIONS.has(String(m.get("id", ""))) and missions.size() < 3:
+				var goal := int(LaneData.MISSIONS[String(m["id"])]["goal"])
+				missions.append({"id": String(m["id"]), "prog": clampi(int(m.get("prog", 0)), 0, goal),
+					"got": bool(m.get("got", false))})
+	if missions.size() != 3:
+		# 깨졌거나 처음이면 오늘 다시 굴린다
+		missions = []
+		mission_day = 0
+	mission_swap = bool(d.get("m_swap", false))
+	stamp_day = maxi(0, int(d.get("st_day", 0)))
+	week_no = maxi(0, int(d.get("week_no", 0)))
+	stamps = clampi(int(d.get("stamps", 0)), 0, LaneData.WEEK_STAMPS)
+	var wg = d.get("week_got", [])
+	if wg is Array:
+		for k in mini((wg as Array).size(), 3):
+			week_got[k] = bool(wg[k])
 	unlock_by_stage()
 
 

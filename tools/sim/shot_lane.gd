@@ -1,5 +1,5 @@
 extends Node
-## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배), SHOT_MODE=handy (여럿 맞히기·떼 막기 글자), SHOT_TALLY=1 (result 에 판 기록 줄), SHOT_FLOWERS=1|2 (꽃: 1 깬 판마다 섞어서 · 2 깬 판 다 셋 - 꽃다발 보기. 자동은 끈다)
+## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배), SHOT_MODE=handy (여럿 맞히기·떼 막기 글자), SHOT_TALLY=1 (result 에 판 기록 줄), SHOT_FLOWERS=1|2 (꽃: 1 깬 판마다 섞어서 · 2 깬 판 다 셋 - 꽃다발 보기. 자동은 끈다), SHOT_MODE=missions (오늘의 임무 창 · SHOT_HOMEONLY=1 홈 단추만 · SHOT_STAMPS=n · SHOT_CLAIM=1 받기 누르기) | mresult (결과 창의 임무 줄)
 func _ready() -> void:
 	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	LaneState.clear_save()
@@ -104,6 +104,25 @@ func _ready() -> void:
 		LaneState.xp = 9999999
 		LaneState.evolve(eid)
 		g._evolve_show(eid)
+	elif OS.get_environment("SHOT_MODE") == "missions":
+		_fake_missions(g)
+		g._refresh_home_top()
+		if OS.get_environment("SHOT_HOMEONLY") != "1":
+			g._open_missions()
+		if OS.get_environment("SHOT_CLAIM") == "1":
+			# 받기 → 도장 보상 받기 (7칸이면 캡슐 연출)
+			await get_tree().create_timer(0.3).timeout
+			g._claim_mission(0)
+			await get_tree().create_timer(0.3).timeout
+			g._claim_week_all()
+	elif OS.get_environment("SHOT_MODE") == "mresult":
+		g._start_battle(st)
+		await get_tree().create_timer(0.5).timeout
+		_fake_missions(g)
+		g.stage_n = st
+		g.battle.tally.merge({"holds": 2, "kills": 40, "summons": 12}, true)
+		g.battle.done = true
+		g._end_battle("win")
 	elif OS.get_environment("SHOT_MODE") == "acc":
 		g._open_acc_picker("tiny")
 	elif OS.get_environment("SHOT_TAB") != "":
@@ -125,3 +144,15 @@ func _ready() -> void:
 		get_viewport().get_texture().get_image().save_png(out)
 	LaneState.clear_save()
 	get_tree().quit()
+
+
+## 임무 창 사진용: 오늘 날짜로 임무 셋(받기 · 진행 중 · 받음)과 도장 몇 개.
+func _fake_missions(g) -> void:
+	var today: int = g._local_now() / 86400
+	LaneState.check_week(today)
+	LaneState.mission_day = today
+	LaneState.missions = [{"id": "win3", "prog": 3, "got": false}, {"id": "hold2", "prog": 1, "got": false},
+		{"id": "multi2", "prog": 2, "got": true}]
+	LaneState.mission_swap = false
+	LaneState.stamps = int(OS.get_environment("SHOT_STAMPS")) if OS.get_environment("SHOT_STAMPS") != "" else 5
+	LaneState.week_got = [true, false, false]
