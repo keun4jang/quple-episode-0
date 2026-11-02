@@ -321,13 +321,36 @@ func _test_gacha() -> void:
 		str(cnt))
 	# 매일 선물
 	var day := 86400 * 20000
-	var d1 := LaneState.claim_daily(day + 100)
-	ck("매일 선물 받는다", not d1.is_empty() and int(d1["streak"]) == 1)
-	ck("같은 날엔 또 못 받는다", LaneState.claim_daily(day + 5000).is_empty())
-	var d2 := LaneState.claim_daily(day + 86400 + 10)
-	ck("다음 날 이어진다", int(d2["streak"]) == 2)
-	var d3 := LaneState.claim_daily(day + 86400 * 4)
-	ck("하루 빠지면 처음부터", int(d3["streak"]) == 1)
+	# 선물 달력 (28칸, 끊겨도 이어진다)
+	LaneState.cal_day = 0
+	var tk0 := LaneState.tickets
+	var d1 := LaneState.claim_daily(day + 100, rng)
+	ck("선물 달력 1칸째를 받는다", not d1.is_empty() and int(d1["day"]) == 1 and LaneState.cal_day == 1
+		and LaneState.tickets == tk0 + 1 and (d1["unit"] as Dictionary).is_empty())
+	ck("같은 날 두 번 부르면 빈 것", LaneState.claim_daily(day + 5000, rng).is_empty() and LaneState.cal_day == 1)
+	var d2 := LaneState.claim_daily(day + 86400 + 10, rng)
+	ck("다음 날 2칸째", int(d2["day"]) == 2)
+	var d3 := LaneState.claim_daily(day + 86400 * 4, rng)
+	ck("하루 건너 들어와도 칸은 +1 (되돌아가지 않는다)", int(d3["day"]) == 3 and LaneState.cal_day == 3)
+	ck("달력 보상: 보통 날 · 7일째 · 14일째", LaneData.calendar_gift(3) == {"tickets": 1, "stars": 30, "capsule": false}
+		and int(LaneData.calendar_gift(21)["tickets"]) == 3 and bool(LaneData.calendar_gift(28)["capsule"]))
+	LaneState.cal_day = 13
+	var pulls0 := LaneState.pulls
+	var d14 := LaneState.claim_daily(day + 86400 * 5, rng)
+	var u14: Dictionary = d14["unit"]
+	ck("14일째는 특급 이상 캡슐", int(d14["day"]) == 14 and not u14.is_empty()
+		and String(u14["rarity"]) != "rare" and LaneState.units.has(String(u14["id"])) and LaneState.pulls == pulls0 + 1, str(u14))
+	LaneState.cal_day = 28
+	var d29 := LaneState.claim_daily(day + 86400 * 6, rng)
+	ck("28칸 다음은 1칸", int(d29["day"]) == 1 and LaneState.cal_day == 1)
+	var od := LaneState.to_dict()
+	od.erase("cal_day")
+	od["daily_streak"] = 9
+	LaneState.from_dict(od)
+	ck("옛 저장 daily_streak 9 → 달력 9칸", LaneState.cal_day == 9)
+	LaneState.cal_day = 17
+	LaneState.from_dict(LaneState.to_dict())
+	ck("달력 칸 저장", LaneState.cal_day == 17 and not LaneState.to_dict().has("daily_streak"))
 	# 저장
 	LaneState.tickets = 4
 	LaneState.pity = 9

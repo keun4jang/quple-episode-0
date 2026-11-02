@@ -255,8 +255,11 @@ func _ready() -> void:
 		_later(2.8, func() -> void:
 			_toast("지난 모험에서 온 선물!  행운별 %s · 티켓 %d장 · 행복 조각 %s" % [_num(int(old["stars"])), int(old["tickets"]),
 				_num(int(old["xp"]))]))
+		if not gift.is_empty():
+			# 옛 저장 선물 토스트를 다 읽을 틈을 두고 연다
+			_later(5.8, func() -> void: _show_calendar_later(gift))
 	elif not gift.is_empty():
-		_toast("매일 선물 %d일째!  티켓 %d장 · 행운별 %d" % [int(gift["streak"]), int(gift["tickets"]), int(gift["stars"])])
+		_later(0.4, func() -> void: _show_calendar_later(gift))
 	_rng.randomize()
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	_tut = LaneTutorial.new()
@@ -614,10 +617,11 @@ func _show_home() -> void:
 	if _roll_today():
 		LaneState.save()
 		_refresh_home_top()
-	if not g.is_empty() and LaneState.tut == 99:
+	if not g.is_empty():
 		LaneState.save()
 		_refresh_home_top()
-		_toast("매일 선물 %d일째!  티켓 %d장 · 행운별 %d" % [int(g["streak"]), int(g["tickets"]), int(g["stars"])])
+		if LaneState.tut == 99:
+			_show_calendar(g)
 
 
 ## 오늘의 임무·이번 주 도장판을 오늘 날짜로 맞춘다 (매일 선물과 같은 로컬 자정). 새로 굴렸으면 참.
@@ -1532,6 +1536,132 @@ func _open_missions() -> void:
 	var foot := IdleUi.label("오늘 도장을 찍었어요!" if today_done else "셋 다 하면 도장 하나!", 22, PINK_TXT)
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(foot)
+	var cal := IdleUi.button("선물 달력 보기", 24, "plum")
+	cal.name = "CalBtn"
+	cal.custom_minimum_size = Vector2(0, 70)
+	cal.pressed.connect(func() -> void:
+		AudioManager.ui_click()
+		_show_calendar({}))
+	body.add_child(cal)
+
+
+## 늦게 여는 선물 달력 - 그새 다른 창·뽑기·싸움이 떠 있으면 덮지 않고 한 줄로만 알린다.
+func _show_calendar_later(g: Dictionary) -> void:
+	var busy := mode != "home" or get_node_or_null("Popup") != null
+	for c in get_children():
+		busy = busy or c is LaneGacha
+	if not busy:
+		_show_calendar(g)
+		return
+	var gift := LaneData.calendar_gift(int(g["day"]))
+	if bool(gift["capsule"]):
+		_toast("선물 달력 %d일째!  행복 캡슐 · 행운별 %d" % [int(g["day"]), int(g["stars"])])
+	else:
+		_toast("선물 달력 %d일째!  티켓 %d장 · 행운별 %d" % [int(g["day"]), int(g["tickets"]), int(g["stars"])])
+
+
+## 선물 달력 문구 (캡슐 칸은 캡슐로).
+static func _cal_gift_text(day: int) -> String:
+	var gift := LaneData.calendar_gift(day)
+	if bool(gift["capsule"]):
+		return "특급 이상 행복 캡슐 · 행운별 %d" % int(gift["stars"])
+	return "티켓 %d장 · 행운별 %d" % [int(gift["tickets"]), int(gift["stars"])]
+
+
+## 선물 달력 28칸. g 는 claim_daily 결과 - 비어 있으면(임무 창에서 열면) 오늘 칸만 보여 주고 받기 대신 닫기.
+func _show_calendar(g: Dictionary) -> void:
+	var old := get_node_or_null("Popup")
+	if old != null:
+		remove_child(old)
+		old.queue_free()
+	var claimed := not g.is_empty()
+	var today := int(g["day"]) if claimed else LaneState.cal_day
+	var body := _popup("선물 달력")
+	var grid := GridContainer.new()
+	grid.name = "Cal"
+	grid.columns = 7
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	body.add_child(grid)
+	for d in range(1, LaneData.CAL_DAYS + 1):
+		var got := d <= LaneState.cal_day
+		var is_today := d == today
+		var st := IdleUi.card_style()
+		st.set_content_margin_all(4)
+		if got:
+			st.bg_color = Color("#BF94E4")
+			st.border_color = Color("#9A6CC8")
+		if is_today:
+			st.border_color = Color("#F7A8C4")
+			st.set_border_width_all(4)
+		var cell := PanelContainer.new()
+		cell.name = "Day%d" % d
+		cell.add_theme_stylebox_override("panel", st)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.custom_minimum_size = Vector2(0, 84)
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		grid.add_child(cell)
+		var v := VBoxContainer.new()
+		v.alignment = BoxContainer.ALIGNMENT_CENTER
+		v.add_theme_constant_override("separation", 0)
+		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(v)
+		var num := IdleUi.label(str(d), 20, IdleUi.SUB)
+		if got:
+			num.add_theme_color_override("font_color", Color.WHITE)   # label() 이 흰 글씨를 어둡게 바꾸므로 되돌린다
+		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(num)
+		var big := d % 7 == 0
+		if big and (not got or is_today):
+			var cap := d % 14 == 0
+			var ic := IdleUi.icon("chest", 32.0, Color.WHITE if got else (PINK_TXT if cap else IdleUi.LAV_DK))
+			ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			v.add_child(ic)
+		elif got:
+			var ck := IdleUi.label("✓", 26, Color.WHITE)
+			ck.add_theme_color_override("font_color", Color.WHITE)
+			ck.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			v.add_child(ck)
+		else:
+			var dot := Control.new()
+			dot.custom_minimum_size = Vector2(0, 32)
+			dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			v.add_child(dot)
+		if is_today:
+			cell.z_index = 1
+			cell.resized.connect(func() -> void: cell.pivot_offset = cell.size * 0.5)
+			var tw := cell.create_tween().set_loops()
+			tw.tween_property(cell, "scale", Vector2(1.08, 1.08), 0.6).set_trans(Tween.TRANS_SINE)
+			tw.tween_property(cell, "scale", Vector2.ONE, 0.6).set_trans(Tween.TRANS_SINE)
+	var line: String
+	if claimed:
+		line = "%d일째 선물: %s" % [today, _cal_gift_text(today)]
+	else:
+		line = "다음 칸 선물: %s" % _cal_gift_text(today % LaneData.CAL_DAYS + 1)
+	var lbl := IdleUi.label(line, 26, PINK_TXT)
+	lbl.name = "GiftLine"
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(lbl)
+	var unit: Dictionary = g.get("unit", {})
+	var b := IdleUi.button("받기" if claimed else "닫기", 26, "gold" if claimed else "plum")
+	b.name = "Take"
+	b.custom_minimum_size = Vector2(0, 76)
+	b.pressed.connect(func() -> void:
+		_close_popup()
+		if unit.is_empty():
+			AudioManager.ui_click()
+			return
+		AudioManager.ui_confirm()
+		var gg := LaneGacha.new()
+		gg.size = size
+		add_child(gg)
+		gg.finished.connect(_fill_home)
+		gg.play([unit]))
+	body.add_child(b)
+	var note := IdleUi.label("빠진 날이 있어도 칸은 그대로예요", 18, IdleUi.SUB)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(note)
 
 
 func _claim_mission(i: int) -> void:

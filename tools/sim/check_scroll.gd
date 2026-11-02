@@ -44,7 +44,7 @@ func _init() -> void:
 	for id in LaneData.ALL_ORDER:
 		LaneState.units[id] = 3
 	LaneState.unlock_by_stage()
-	LaneState.daily_day = int(Time.get_unix_time_from_system()) / 86400
+	LaneState.daily_day = int(Time.get_unix_time_from_system()) / 86400 + 1   # 시간대가 앞서도 달력이 안 뜨게
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	g = load("res://scenes/lane/LaneGame.tscn").instantiate()
 	root.add_child(g)

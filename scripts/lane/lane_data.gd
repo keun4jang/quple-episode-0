@@ -264,11 +264,17 @@ static func dupe_xp(id: String) -> int:
 	return 1500 + 1500 * int(RARITY_STARS[rarity(id)])
 
 
-## 매일 선물 - 7일째는 크게.
-static func daily_gift(streak: int) -> Dictionary:
-	if streak % 7 == 0:
-		return {"tickets": 3, "stars": 100}
-	return {"tickets": 1, "stars": 30}
+## 선물 달력 - 들어온 날마다 한 칸씩 (빠진 날이 있어도 되돌아가지 않는다). 28칸 다음은 다시 1칸.
+const CAL_DAYS := 28
+
+
+## 달력 칸 보상. 7·21칸은 티켓 셋, 14·28칸은 특급 이상 행복 캡슐 하나.
+static func calendar_gift(day: int) -> Dictionary:
+	if day % 14 == 0:
+		return {"tickets": 0, "stars": 100, "capsule": true}
+	if day % 7 == 0:
+		return {"tickets": 3, "stars": 100, "capsule": false}
+	return {"tickets": 1, "stars": 30, "capsule": false}
 
 
 ## 오늘의 임무 - 등급마다 하나씩, 하루 셋. text 의 %d 에 goal 이 들어간다.

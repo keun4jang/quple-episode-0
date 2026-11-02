@@ -33,9 +33,9 @@ static var last_seen := 0
 static var tickets := 0
 static var pity := 0
 static var pulls := 0
-## 매일 선물: 마지막으로 받은 날(유닉스 일 수) · 이어 받은 날 수
+## 선물 달력: 마지막으로 받은 날(유닉스 일 수) · 받은 칸 (1~28, 0 은 아직)
 static var daily_day := 0
-static var daily_streak := 0
+static var cal_day := 0
 ## 보물: 구역마다 [등급, 등급, 등급] (0 없음 · 1 하급 · 2 보통 · 3 상급)
 static var treasures: Array = []
 ## 장신구 → 레벨, 유닛 → 단 장신구
@@ -80,7 +80,7 @@ static func reset() -> void:
 	pity = 0
 	pulls = 0
 	daily_day = 0
-	daily_streak = 0
+	cal_day = 0
 	treasures = []
 	for z in LaneData.ZONES.size():
 		treasures.append([0, 0, 0])
@@ -573,17 +573,24 @@ static func daily_ready(now_unix: int) -> bool:
 	return now_unix / 86400 > daily_day
 
 
-## 받으면 {tickets, stars, streak}, 오늘 이미 받았으면 {}.
-static func claim_daily(now_unix: int) -> Dictionary:
+## 선물 달력 한 칸. 받으면 {day, tickets, stars, unit}, 오늘 이미 받았으면 {}.
+## 빠진 날이 있어도 칸은 이어진다 (되돌아가지 않는다). unit 은 캡슐 칸이면 _grant 결과, 아니면 {}.
+static func claim_daily(now_unix: int, rng: RandomNumberGenerator = null) -> Dictionary:
 	var today := now_unix / 86400
 	if today <= daily_day:
 		return {}
-	daily_streak = daily_streak + 1 if today == daily_day + 1 else 1
 	daily_day = today
-	var g := LaneData.daily_gift(daily_streak)
+	cal_day = cal_day % LaneData.CAL_DAYS + 1
+	var g := LaneData.calendar_gift(cal_day)
 	tickets += int(g["tickets"])
 	stars += int(g["stars"])
-	return {"tickets": int(g["tickets"]), "stars": int(g["stars"]), "streak": daily_streak}
+	var unit := {}
+	if bool(g["capsule"]):
+		if rng == null:
+			rng = _rng
+			rng.randomize()
+		unit = _grant(roll(rng, "super"))
+	return {"day": cal_day, "tickets": int(g["tickets"]), "stars": int(g["stars"]), "unit": unit}
 
 
 # ── 오늘의 임무 · 이번 주 도장판 ─────────────────────────────────────
@@ -763,7 +770,7 @@ static func to_dict() -> Dictionary:
 	return {"v": 1, "xp": xp, "stars": stars, "units": units.duplicate(), "lineup": lineup.duplicate(),
 		"cleared": cleared, "evolved": evolved.keys(), "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed_lv > 0, "speed_lv": speed_lv, "bazooka": bazooka_lv, "fort": fort_lv,
 		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
-		"daily_day": daily_day, "daily_streak": daily_streak, "treasures": treasures.duplicate(true),
+		"daily_day": daily_day, "cal_day": cal_day, "treasures": treasures.duplicate(true),
 		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut,
 		"flowers": flowers.duplicate(), "bouquet": bouquet.duplicate(),
 		"m_day": mission_day, "missions": missions.duplicate(true), "m_swap": mission_swap, "st_day": stamp_day,
@@ -817,7 +824,11 @@ static func from_dict(d: Dictionary) -> void:
 	pity = clampi(int(d.get("pity", 0)), 0, LaneData.PITY_LEGEND)
 	pulls = maxi(0, int(d.get("pulls", 0)))
 	daily_day = maxi(0, int(d.get("daily_day", 0)))
-	daily_streak = maxi(0, int(d.get("daily_streak", 0)))
+	# 옛 저장은 이어 받은 날 수(daily_streak)만 있다 - 그만큼 달력 칸으로 옮긴다
+	if d.has("cal_day"):
+		cal_day = clampi(int(d.get("cal_day", 0)), 0, LaneData.CAL_DAYS)
+	else:
+		cal_day = maxi(0, int(d.get("daily_streak", 0))) % LaneData.CAL_DAYS
 	var tr = d.get("treasures", [])
 	if tr is Array:
 		for zi in mini((tr as Array).size(), treasures.size()):

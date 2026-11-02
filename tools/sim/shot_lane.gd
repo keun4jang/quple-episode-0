@@ -1,5 +1,5 @@
 extends Node
-## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배), SHOT_MODE=handy (여럿 맞히기·떼 막기 글자), SHOT_TALLY=1 (result 에 판 기록 줄), SHOT_FLOWERS=1|2 (꽃: 1 깬 판마다 섞어서 · 2 깬 판 다 셋 - 꽃다발 보기. 자동은 끈다), SHOT_MODE=missions (오늘의 임무 창 · SHOT_HOMEONLY=1 홈 단추만 · SHOT_STAMPS=n · SHOT_CLAIM=1 받기 누르기) | mresult (결과 창의 임무 줄)
+## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배), SHOT_MODE=handy (여럿 맞히기·떼 막기 글자), SHOT_TALLY=1 (result 에 판 기록 줄), SHOT_FLOWERS=1|2 (꽃: 1 깬 판마다 섞어서 · 2 깬 판 다 셋 - 꽃다발 보기. 자동은 끈다), SHOT_MODE=missions (오늘의 임무 창 · SHOT_HOMEONLY=1 홈 단추만 · SHOT_STAMPS=n · SHOT_CLAIM=1 받기 누르기) | mresult (결과 창의 임무 줄), SHOT_MODE=calendar (선물 달력 · SHOT_CAL=n 오늘 받을 칸 · SHOT_CALVIEW=1 임무 창에서 보기(받기 없이) · SHOT_TAKE=1 받기 누르기)
 func _ready() -> void:
 	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	LaneState.clear_save()
@@ -15,9 +15,17 @@ func _ready() -> void:
 	LaneState.xp = 12345
 	LaneState.stars = 30
 	LaneState.seen_intro = true
-	LaneState.daily_day = int(Time.get_unix_time_from_system()) / 86400
+	LaneState.daily_day = int(Time.get_unix_time_from_system()) / 86400 + 1   # 시간대가 앞서도 달력이 안 뜨게
 	LaneState.migrated = true
 	LaneState.tut = 99 if OS.get_environment("SHOT_TUT") == "" else int(OS.get_environment("SHOT_TUT"))
+	if OS.get_environment("SHOT_MODE") == "calendar":
+		var cn := int(OS.get_environment("SHOT_CAL")) if OS.get_environment("SHOT_CAL") != "" else 9
+		if OS.get_environment("SHOT_CALVIEW") == "1":
+			LaneState.cal_day = cn
+		else:
+			# 어제 받은 것으로 - 켜자마자 진짜 길로 오늘 칸을 받는다 (홈에서 달력이 뜬다)
+			LaneState.cal_day = cn - 1
+			LaneState.daily_day = int(Time.get_unix_time_from_system()) / 86400 - 1
 	if OS.get_environment("SHOT_LOOT") == "1":
 		# 보물 몇 개 + 장신구 둘 (지도·카드에 보이게)
 		LaneState.treasures[0] = [3, 2, 1]
@@ -123,6 +131,19 @@ func _ready() -> void:
 		g.battle.tally.merge({"holds": 2, "kills": 40, "summons": 12}, true)
 		g.battle.done = true
 		g._end_battle("win")
+	elif OS.get_environment("SHOT_MODE") == "calendar":
+		if OS.get_environment("SHOT_CALVIEW") == "1":
+			_fake_missions(g)
+			g._open_missions()
+			await get_tree().create_timer(0.3).timeout
+			var cb = g.find_child("CalBtn", true, false)
+			if cb != null:
+				cb.pressed.emit()
+		if OS.get_environment("SHOT_TAKE") == "1":
+			await get_tree().create_timer(1.0).timeout
+			var tb = g.find_child("Take", true, false)
+			if tb != null:
+				tb.pressed.emit()
 	elif OS.get_environment("SHOT_MODE") == "acc":
 		g._open_acc_picker("tiny")
 	elif OS.get_environment("SHOT_TAB") != "":
