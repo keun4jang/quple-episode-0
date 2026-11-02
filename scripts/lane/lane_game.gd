@@ -491,6 +491,9 @@ func _build_home() -> void:
 		ic.add_child(dot)
 		b.pressed.connect(func() -> void:
 			AudioManager.ui_click()
+			if _home_tab != String(k[0]):
+				# 다른 탭으로 가면 맨 위부터 (앞 탭의 스크롤이 남아 첫 카드가 잘려 보였다)
+				sc.scroll_vertical = 0
 			_home_tab = String(k[0])
 			_fill_home())
 		tabs.add_child(b)

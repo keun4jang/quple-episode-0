@@ -91,8 +91,13 @@ func _ready() -> void:
 	elif OS.get_environment("SHOT_MODE") == "acc":
 		g._open_acc_picker("tiny")
 	elif OS.get_environment("SHOT_TAB") != "":
-		g._home_tab = OS.get_environment("SHOT_TAB")
-		g._fill_home()
+		# 진짜 탭 단추를 누른다 (탭을 옮길 때 하는 일까지 그대로 보이게)
+		var tb = g._home.get_node_or_null("TabBar/Tabs/Tab_" + OS.get_environment("SHOT_TAB"))
+		if tb != null:
+			tb.pressed.emit()
+		else:
+			g._home_tab = OS.get_environment("SHOT_TAB")
+			g._fill_home()
 	var wait := float(OS.get_environment("SHOT_WAIT")) if OS.get_environment("SHOT_WAIT") != "" else 2.0
 	await get_tree().create_timer(wait).timeout
 	var series := int(OS.get_environment("SHOT_SERIES")) if OS.get_environment("SHOT_SERIES") != "" else 0
