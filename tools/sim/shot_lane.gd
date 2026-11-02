@@ -1,5 +1,5 @@
 extends Node
-## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배)
+## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배), SHOT_MODE=handy (여럿 맞히기·떼 막기 글자), SHOT_TALLY=1 (result 에 판 기록 줄)
 func _ready() -> void:
 	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	LaneState.clear_save()
@@ -63,8 +63,16 @@ func _ready() -> void:
 		g._start_battle(st)
 		await get_tree().create_timer(0.5).timeout
 		g.stage_n = st
+		if OS.get_environment("SHOT_TALLY") == "1":
+			g.battle.tally["multi5"] = 2
+			g.battle.tally["holds"] = 1
 		g.battle.done = true
 		g._end_battle("win")
+	elif OS.get_environment("SHOT_MODE") == "handy":
+		g._start_battle(st)
+		await get_tree().create_timer(4.0).timeout
+		g._on_event({"k": "multi", "hit": 7, "gain": 100})
+		g._on_event({"k": "wave_hold", "gain": LaneData.WAVE_HOLD})
 	elif OS.get_environment("SHOT_MODE") == "wear":
 		g._start_battle(st)
 	elif OS.get_environment("SHOT_MODE") == "toast":

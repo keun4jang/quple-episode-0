@@ -45,7 +45,12 @@ var cannon_mult := 1.0
 var slow_mult := 1.0
 var crisis_used := false
 var cheer := 0.0          ## 다시 도전 응원 (%)
-var _queue: Array = []    ## 떼로 줄지어 나올 벌레 [{t, kind}]
+var _queue: Array = []    ## 떼로 줄지어 나올 벌레 [{t, kind, wave}]
+## 판 기록 - 손으로 한 일만 센다(자동은 안 셈). 손맛 보너스·결과 창·뒤 기능들의 바탕
+var tally := {}
+var _cannon_manual := false
+var _waves := {}          ## 떼 번호 → {queued, spawned, left, broke}
+var _wave_id := 0
 
 
 func start(stage_n: int, seed_value: int = -1) -> void:
@@ -98,6 +103,11 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 		e["t"] = float(e["first"])
 		e["count"] = 0
 		_spawns.append(e)
+	_waves = {}
+	_wave_id = 0
+	_cannon_manual = false
+	tally = {"summons": 0, "kinds": {}, "shots": 0, "best_hit": 0, "multi5": 0, "kills": 0,
+		"boss_cannon": false, "holds": 0, "min_hp": 1.0, "cap_t": 0.0, "auto_used": false}
 
 
 # ── 바깥에서 부르는 것 ───────────────────────────────────────────────
@@ -131,9 +141,14 @@ func can_summon(id: String) -> bool:
 	return wallet >= float(stats[id]["cost"])
 
 
-func summon(id: String) -> bool:
+func summon(id: String, manual := true) -> bool:
 	if not can_summon(id):
 		return false
+	if manual:
+		tally["summons"] = int(tally.get("summons", 0)) + 1
+		if not tally.has("kinds"):
+			tally["kinds"] = {}
+		tally["kinds"][id] = true
 	var s: Dictionary = stats[id]
 	wallet -= float(s["cost"])
 	cds[id] = float(s["cd"])
@@ -150,10 +165,11 @@ func cannon_ready() -> bool:
 	return not done and cannon >= cannon_max
 
 
-func fire_cannon() -> bool:
+func fire_cannon(manual := true) -> bool:
 	if not cannon_ready():
 		return false
 	cannon = 0.0
+	_cannon_manual = manual
 	var dmg := LaneData.CANNON_DMG * (1.0 + 0.08 * float(n - 1)) * LaneData.bazooka_dmg_mult(bazooka_lv)
 	var hit := 0
 	for e in ents:
@@ -164,6 +180,20 @@ func fire_cannon() -> bool:
 	var nd := nest_max * LaneData.bazooka_nest(bazooka_lv)
 	nest_hp = maxf(0.0, nest_hp - nd)
 	events.append({"k": "cannon", "hit": hit, "nest": int(round(nd)), "lv": bazooka_lv})
+	if manual:
+		tally["shots"] = int(tally.get("shots", 0)) + 1
+		tally["best_hit"] = maxi(int(tally.get("best_hit", 0)), hit)
+		if hit >= 5:
+			tally["multi5"] = int(tally.get("multi5", 0)) + 1
+		# 여럿 맞히기: 손으로 잘 모아 쏘면 웃음 조금과 충전 조금 (1~4초어치 - 판을 뒤집진 않는다)
+		for row in LaneData.MULTI_HIT:
+			if hit >= int(row[0]):
+				var g := int(row[1])
+				wallet = minf(float(wallet_cap()), wallet + float(g))
+				cannon = cannon_max * LaneData.MULTI_REFUND
+				events.append({"k": "multi", "hit": hit, "gain": g})
+				break
+	_cannon_manual = false
 	return true
 
 
@@ -184,6 +214,8 @@ func tick(dt: float) -> Array:
 
 func _step(d: float) -> void:
 	time += d
+	if auto:
+		tally["auto_used"] = true
 	wallet = minf(float(wallet_cap()), wallet + float(LaneData.WALLET_RATE[worker - 1]) * rate_mult * d)
 	cannon = minf(cannon_max, cannon + d * cannon_mult)
 	for id in cds.keys():
@@ -196,6 +228,17 @@ func _step(d: float) -> void:
 			_auto_play()
 	for e in ents:
 		_act(e, d)
+	# 떼가 길 가운데(WAVE_HOLD_AT)보다 성 쪽으로 넘어오면 '막기'는 깨진다
+	if not _waves.is_empty():
+		for e in ents:
+			if e.has("wave") and float(e["hp"]) > 0.0 and float(e["pos"]) < LaneData.LEN * LaneData.WAVE_HOLD_AT:
+				var wid := int(e["wave"])
+				if _waves.has(wid):
+					_waves[wid]["broke"] = true
+	if our_max > 0.0:
+		tally["min_hp"] = minf(float(tally.get("min_hp", 1.0)), our_hp / our_max)
+	if wallet >= float(wallet_cap()):
+		tally["cap_t"] = float(tally.get("cap_t", 0.0)) + d
 	# 죽은 것 정리
 	var keep: Array = []
 	for e in ents:
@@ -223,7 +266,7 @@ func _spawn_bugs(d: float) -> void:
 		for q in _queue:
 			q["t"] = float(q["t"]) - d
 			if float(q["t"]) <= 0.0:
-				_spawn_bug(String(q["kind"]))
+				_spawn_bug(String(q["kind"]), int(q.get("wave", -1)))
 			else:
 				rest.append(q)
 		_queue = rest
@@ -245,16 +288,19 @@ func _spawn_bugs(d: float) -> void:
 			s["count"] = int(s["count"]) + 1
 			if s.has("burst"):
 				# 떼: 한 덩어리로 줄지어 온다
+				_wave_id += 1
+				_waves[_wave_id] = {"queued": int(s["burst"]) + (1 if s.has("extra") else 0),
+					"spawned": 0, "left": 0, "broke": false}
 				for i in int(s["burst"]):
-					_queue.append({"t": float(i) * 0.35, "kind": String(s["kind"])})
+					_queue.append({"t": float(i) * 0.35, "kind": String(s["kind"]), "wave": _wave_id})
 				if s.has("extra"):
-					_queue.append({"t": float(int(s["burst"])) * 0.35, "kind": String(s["extra"])})
+					_queue.append({"t": float(int(s["burst"])) * 0.35, "kind": String(s["extra"]), "wave": _wave_id})
 				events.append({"k": "wave"})
 			else:
 				_spawn_bug(String(s["kind"]))
 
 
-func _spawn_bug(kind: String) -> void:
+func _spawn_bug(kind: String, wave := -1) -> void:
 	var b: Dictionary = LaneData.BUGS[kind].duplicate()
 	var m := float(info["mag"])
 	var boss_b := bool(b.get("boss", false))
@@ -262,6 +308,10 @@ func _spawn_bug(kind: String) -> void:
 	b["atk"] = float(b["atk"]) * m * (LaneData.BOSS_ATK if boss_b else 1.0)
 	b["id"] = kind
 	var e := _make(b, "b", LaneData.LEN - rng.randf_range(0.0, 20.0))
+	if wave >= 0 and _waves.has(wave):
+		e["wave"] = wave
+		_waves[wave]["spawned"] = int(_waves[wave]["spawned"]) + 1
+		_waves[wave]["left"] = int(_waves[wave]["left"]) + 1
 	ents.append(e)
 	var boss := bool(b.get("boss", false))
 	events.append({"k": "spawn", "side": "b", "uid": e["uid"], "kind": kind, "boss": boss})
@@ -440,9 +490,17 @@ func _damage(o: Dictionary, dmg: float, cannon_hit: bool, by: Dictionary = {}, e
 			wallet = minf(float(wallet_cap()), wallet + float(o["reward"]))
 			if bool(o["boss"]):
 				boss_alive = false
+			tally["kills"] = int(tally.get("kills", 0)) + 1
+			if cannon_hit and bool(o["boss"]) and _cannon_manual:
+				tally["boss_cannon"] = true
 		events.append({"k": "die", "uid": o["uid"], "side": o["side"], "kind": o["kind"], "reward": int(o["reward"]),
 			"boss": bool(o["boss"])})
 		_knockback(o, LaneData.KB_DIST)
+		if o["side"] == "b" and o.has("wave"):
+			var wid := int(o["wave"])
+			if _waves.has(wid):
+				_waves[wid]["left"] = int(_waves[wid]["left"]) - 1
+				_check_hold(wid)
 		return
 	# 바주카포는 성 앞(CANNON_KB_REACH)의 벌레만 밀어낸다
 	var cannon_kb := cannon_hit and float(o["pos"]) <= LaneData.CANNON_KB_REACH
@@ -451,6 +509,21 @@ func _damage(o: Dictionary, dmg: float, cannon_hit: bool, by: Dictionary = {}, e
 		while float(o["kb_next"]) >= float(o["hp"]) and float(o["kb_next"]) > 0.0:
 			o["kb_next"] = float(o["kb_next"]) - float(o["max"]) / float(steps)
 		_knockback(o, LaneData.KB_DIST)
+
+
+## 떼 막기: 떼가 다 나온 뒤 마지막 하나까지 길 가운데 너머에서 쓰러뜨리면 웃음 조금.
+## 떼가 아직 다 안 나왔으면 기다린다(먼저 나온 것만 잡고 끝나지 않게). 다 나오고 다 쓰러지면 결과와 상관없이 지운다.
+func _check_hold(id: int) -> void:
+	if not _waves.has(id):
+		return
+	var w: Dictionary = _waves[id]
+	if int(w["spawned"]) < int(w["queued"]) or int(w["left"]) > 0:
+		return
+	if not bool(w["broke"]) and not auto:
+		wallet = minf(float(wallet_cap()), wallet + float(LaneData.WAVE_HOLD))
+		tally["holds"] = int(tally.get("holds", 0)) + 1
+		events.append({"k": "wave_hold", "gain": LaneData.WAVE_HOLD})
+	_waves.erase(id)
 
 
 func _knockback(o: Dictionary, dist: float) -> void:
@@ -607,7 +680,7 @@ func _auto_play() -> void:
 		if e["side"] == "b" and float(e["hp"]) > 0.0 and float(e["pos"]) < 900.0:
 			near += 1
 	if cannon_ready() and (near >= 3 or (boss_alive and near >= 1)):
-		fire_cannon()
+		fire_cannon(false)
 	var walls := 0
 	for e in ents:
 		if e["side"] == "q" and float(e["hp"]) > 0.0 and LaneData.is_wall(String(e["kind"])):
@@ -620,7 +693,7 @@ func _auto_play() -> void:
 	if walls < 4:
 		for id in wall_ids:
 			if can_summon(id):
-				summon(id)
+				summon(id, false)
 				return
 	var best := ""
 	var best_cost := -1.0
@@ -631,7 +704,7 @@ func _auto_play() -> void:
 			best_cost = float(stats[id]["cost"])
 			best = String(id)
 	if best != "":
-		summon(best)
+		summon(best, false)
 		return
 	if can_worker() and wallet >= float(wallet_cap()) * 0.9:
 		upgrade_worker()
@@ -640,7 +713,7 @@ func _auto_play() -> void:
 	if wallet >= float(wallet_cap()) * 0.8:
 		for id in _walls_by_cost(false):
 			if can_summon(id):
-				summon(id)
+				summon(id, false)
 				return
 
 

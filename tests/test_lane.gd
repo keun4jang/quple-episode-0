@@ -277,6 +277,7 @@ func _ready() -> void:
 	ck("지우면 없다", not LaneState.has_save())
 	_test_gacha()
 	_test_extras()
+	_test_tally()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(1 if fail_n > 0 else 0)
 
@@ -444,3 +445,79 @@ func _test_extras() -> void:
 	LaneState.reset()
 	ck("옛 저장이 없으면 선물 없음", IdleState.has_save() == had and (had or LaneState.migrate_from_idle().is_empty()))
 	LaneState.reset()
+
+
+## 판 기록 + 손맛 보너스 (여럿 맞히기 · 떼 막기)
+func _test_tally() -> void:
+	print("\n[판 기록 · 손맛]")
+	LaneState.reset()
+	# ① 손으로 쏜 바주카가 5마리를 맞히면 웃음 +100, 충전 25% 돌려받기
+	var b := LaneBattle.new()
+	b.start(1, 3)
+	b._spawns = []
+	b.ents = []
+	for i in 5:
+		b._spawn_bug("ant")
+	for e in b.ents:
+		e["hp"] = 1.0e9
+		e["max"] = 1.0e9
+		e["pos"] = 1000.0
+	b.wallet = 0.0
+	b.cannon = b.cannon_max
+	var ok := b.fire_cannon()
+	var ev := b.tick(0.0)
+	ck("여럿 맞히기: 웃음 +100", ok and is_equal_approx(b.wallet, 100.0), str(b.wallet))
+	ck("여럿 맞히기: 충전 25% 돌려받기", is_equal_approx(b.cannon, b.cannon_max * LaneData.MULTI_REFUND), str(b.cannon))
+	ck("여럿 맞히기 기록", int(b.tally["multi5"]) == 1 and int(b.tally["best_hit"]) == 5 and int(b.tally["shots"]) == 1)
+	ck("여럿 맞히기 사건", ev.any(func(x): return x["k"] == "multi" and int(x["gain"]) == 100))
+	# ② 자동이 쏘면 보너스 없음
+	var a := LaneBattle.new()
+	a.start(1, 3)
+	a._spawns = []
+	a.ents = []
+	for i in 5:
+		a._spawn_bug("ant")
+	for e in a.ents:
+		e["hp"] = 1.0e9
+		e["max"] = 1.0e9
+		e["pos"] = 500.0
+	a.auto = true
+	a.wallet = 0.0
+	a.cannon = a.cannon_max
+	a._auto_play()
+	ck("자동 바주카는 보너스가 없다", a.cannon == 0.0 and a.wallet == 0.0 and int(a.tally["multi5"]) == 0
+		and int(a.tally["shots"]) == 0, "%s %s" % [a.cannon, a.wallet])
+	# ③ 떼 막기 - 진짜 떼 줄(_queue)로 내보낸다
+	ck("떼를 다 길 가운데 너머에서 잡으면 떼 막기", _hold_case(false) == 1)
+	ck("하나라도 가운데 아래로 오면 떼 막기 아님", _hold_case(true) == 0)
+	# ④ 자동 소환은 세지 않는다
+	var s := LaneBattle.new()
+	s.start(1, 3)
+	s.wallet = 500.0
+	ck("자동 소환은 세지 않는다", s.summon("tiny", false) and int(s.tally["summons"]) == 0 and (s.tally["kinds"] as Dictionary).is_empty())
+	s.cds["shield"] = 0.0
+	ck("손 소환은 센다", s.summon("shield") and int(s.tally["summons"]) == 1 and s.tally["kinds"].has("shield"))
+	s.auto = true
+	s.tick(0.1)
+	ck("자동을 켜면 기록에 남는다", bool(s.tally["auto_used"]))
+
+
+func _hold_case(cross: bool) -> int:
+	var b := LaneBattle.new()
+	b.start(1, 4)
+	b.ents = []
+	b._spawns = [{"kind": "ant", "burst": 3, "t": 0.01, "every": 999.0, "max": 1, "count": 0, "first": 0.01}]
+	b.tick(1.5)
+	var bugs: Array = b.ents.filter(func(e): return e.has("wave"))
+	if bugs.size() != 3:
+		print("    떼 벌레 수: ", bugs.size())
+		return -1
+	for e in bugs:
+		e["hp"] = 1.0e9
+		e["pos"] = 2000.0
+	if cross:
+		bugs[0]["pos"] = 1400.0
+	b.tick(0.05)
+	for e in bugs:
+		b._damage(e, 2.0e9, false)
+	return int(b.tally["holds"])

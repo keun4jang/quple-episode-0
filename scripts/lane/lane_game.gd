@@ -2284,6 +2284,17 @@ func _on_event(e: Dictionary) -> void:
 		"cannon", "cannon_fx":
 			if String(e["k"]) == "cannon":
 				_cannon_fx(e)
+		"multi":
+			# 여럿 맞히기 - 손으로 잘 모아 쏜 바주카의 손맛
+			var mp := _field.to_screen(LaneData.LEN * 2.0 / 3.0, 0.0)
+			_fx.text(mp, "여럿 맞히기! %d마리" % int(e["hit"]), PINK_TXT, 34, 1.2, 0.15)
+			_fx.text(mp + Vector2(0, 46), "+%d" % int(e["gain"]), IdleUi.GOLD, 30, 1.1, 0.3)
+			_shake_ctrl(_wallet_lbl)
+		"wave_hold":
+			var hp := _field.to_screen(LaneData.LEN * 0.5, 0.0)
+			_fx.ring(hp, 30.0, 300.0, IdleUi.LAV, 14.0, 0.7)
+			_fx.text(hp, "떼를 막았어요! +%d" % int(e.get("gain", LaneData.WAVE_HOLD)), IdleUi.LAV_DK, 32, 1.3)
+			_shake_ctrl(_wallet_lbl)
 		"slow":
 			var a = _actor_of.get(int(e["uid"]))
 			if a != null and is_instance_valid(a):
@@ -2829,6 +2840,12 @@ func _show_result(win: bool, r: Dictionary) -> void:
 			v.add_child(_center(IdleUi.label("다시 도전하면 응원을 받아 +%d%% 강해져요" % int(LaneState.cheer_for(stage_n)), 24,
 				IdleUi.LAV_DK)))
 		v.add_child(_center(IdleUi.label("레벨 업 · 장신구 · 편성을 바꿔 봐도 좋아요", 20, IdleUi.SUB)))
+	# 판 기록 - 손맛 보너스를 받은 횟수 (승패와 상관없이)
+	if battle != null:
+		var m5 := int(battle.tally.get("multi5", 0))
+		var hd := int(battle.tally.get("holds", 0))
+		if m5 > 0 or hd > 0:
+			v.add_child(_center(IdleUi.label("여럿 맞히기 %d번 · 떼 막기 %d번" % [m5, hd], 20, IdleUi.SUB)))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	v.add_child(row)
