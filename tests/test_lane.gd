@@ -280,6 +280,7 @@ func _ready() -> void:
 	_test_tally()
 	_test_flowers()
 	_test_missions()
+	_test_daily()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(1 if fail_n > 0 else 0)
 
@@ -755,3 +756,95 @@ func _test_missions() -> void:
 	ck("임무 글", LaneData.mission_text("hp70") == "성을 70% 넘게 지키고 이기기 1번"
 		and LaneData.mission_text("kinds5") == "한 판에 친구 다섯 종 내보내고 이기기"
 		and LaneData.mission_text("win3") == "판 3번 이기기")
+
+
+func _test_daily() -> void:
+	print("
+[오늘의 도전]")
+	var today := 20401
+	# ① 같은 날은 같은 규칙, 다음 날은 다른 규칙
+	ck("같은 날은 같은 규칙", LaneData.daily_rule(today) == LaneData.daily_rule(today))
+	var differ := true
+	for k in 10:
+		differ = differ and String(LaneData.daily_rule(today + k)["id"]) != String(LaneData.daily_rule(today + k + 1)["id"])
+	ck("이틀 연달아 같은 규칙은 없다", differ)
+	ck("규칙은 다섯", LaneData.DAILY_RULES.size() == 5)
+	ck("모든 규칙에 벌레 체력 0.9 이하 (느긋한 웃음 0.8)", range(5).all(func(k): return float(LaneData.daily_mods(k)["bug_hp"]) <= 0.9 + 0.0001) and is_equal_approx(float(LaneData.daily_mods(2)["bug_hp"]), 0.8))
+	ck("도전 판은 두 판 앞 (이미 깬 판)", LaneData.daily_stage(25) == 23 and LaneData.daily_stage(1) == 1 and LaneData.daily_stage(2) == 1)
+	# 열림
+	LaneState.reset()
+	LaneState.cleared = 9
+	LaneState.tut = 99
+	ck("10판 전에는 닫혀 있다", not LaneState.daily_open() and not LaneState.dch_ready(today))
+	LaneState.cleared = 10
+	LaneState.tut = 3
+	ck("안내 중에도 닫혀 있다", not LaneState.daily_open())
+	LaneState.tut = 99
+	ck("10판 + 안내 끝이면 열린다", LaneState.daily_open() and LaneState.dch_ready(today))
+	# ② 벽 없이 · 희귀까지만 · 작은 군단
+	var nw := LaneData.filter_lineup(["tiny", "shield", "spear", "chick", "frog"], {"no_wall": true})
+	ck("벽 없이: 벽 친구가 빠진다", nw == ["spear", "frog"] and not nw.any(func(id): return LaneData.is_wall(String(id))), str(nw))
+	ck("벽만 있던 편성은 꼬마 하나", LaneData.filter_lineup(["tiny", "shield", "chick"], {"no_wall": true}) == ["tiny"])
+	ck("희귀까지만: 특급·전설이 빠진다", LaneData.filter_lineup(["spear", "chick", "owl", "tiger"], {"max_rarity": "rare"}) == ["spear", "chick"])
+	ck("특급·전설만이면 꼬마 하나", LaneData.filter_lineup(["owl", "tiger"], {"max_rarity": "rare"}) == ["tiny"])
+	LaneState.units = {"tiny": 1, "shield": 1, "spear": 1, "giant": 1, "mage": 1, "chick": 1, "frog": 1, "owl": 1}
+	LaneState.lineup = ["owl", "frog", "tiny", "chick", "spear", "giant", "shield", "mage"]
+	var fb := LaneBattle.new()
+	fb.start(5, 1, LaneData.daily_mods(1))   # 1 = 작은 군단
+	LaneState.sort_lineup()
+	ck("작은 군단: 편성 앞 다섯만", fb.lineup == LaneState.lineup.slice(0, 5), str(fb.lineup))
+	var wb := LaneBattle.new()
+	wb.start(5, 1, LaneData.daily_mods(3))   # 3 = 벽 없이
+	ck("벽 없이 판에 벽이 없다", not wb.lineup.is_empty() and not wb.lineup.any(func(id): return LaneData.is_wall(String(id))))
+	# ⑤ 느긋한 웃음: 친구 값 0.7배 (반올림) · 수입 0.6배
+	var nb := LaneBattle.new()
+	nb.start(5, 1)
+	var sb := LaneBattle.new()
+	sb.start(5, 1, LaneData.daily_mods(2))   # 2 = 느긋한 웃음
+	var cost_ok := true
+	for id in sb.lineup:
+		cost_ok = cost_ok and int(sb.stats[id]["cost"]) == maxi(1, int(round(float(nb.stats[id]["cost"]) * 0.7)))
+	ck("느긋한 웃음: 친구 값 0.7배", cost_ok and int(sb.stats["giant"]["cost"]) < int(nb.stats["giant"]["cost"]))
+	ck("느긋한 웃음: 수입 0.6배", is_equal_approx(sb.rate_mult, nb.rate_mult * 0.6))
+	var cb := LaneBattle.new()
+	cb.start(5, 1, LaneData.daily_mods(0))   # 0 = 바주카 잔치
+	ck("바주카 잔치: 충전 2.5배 · 수입 0.8배", is_equal_approx(cb.cannon_mult, nb.cannon_mult * 2.5) and is_equal_approx(cb.rate_mult, nb.rate_mult * 0.8))
+	ck("보통 판은 규칙 없음", nb.mods.is_empty() and nb.bug_hp_mult == 1.0 and nb.lineup == LaneState.lineup)
+	nb._spawn_bug("ant")
+	cb._spawn_bug("ant")
+	var h0 := float(nb.ents[nb.ents.size() - 1]["hp"])
+	var h1 := float(cb.ents[cb.ents.size() - 1]["hp"])
+	ck("도전 판 벌레 체력 0.9배", is_equal_approx(h1, h0 * 0.9), "%s / %s" % [h1, h0])
+	# ③ ④ 보상은 하루 한 번, 판 기록은 그대로
+	LaneState.reset()
+	LaneState.cleared = 20
+	LaneState.tut = 99
+	for i in range(1, 21):
+		LaneState.flowers[i] = 1
+	var n := LaneData.daily_stage(LaneState.cleared)
+	var fl0 := LaneState.flowers.duplicate()
+	var x0 := LaneState.xp
+	var s0 := LaneState.stars
+	var t0 := LaneState.tickets
+	var r1 := LaneState.on_daily_win(today, n)
+	ck("첫 승리: 행복 조각 x3 · 행운별 30", int(r1["xp"]) == int(LaneData.reward(n, false)["xp"]) * 3 and int(r1["stars"]) == 30
+		and LaneState.xp - x0 == int(r1["xp"]) and LaneState.stars - s0 == 30 and not bool(r1["again"]))
+	ck("꽃 조건이 없으면 티켓 없음", LaneState.tickets == t0)
+	ck("이긴 날은 점이 꺼진다", not LaneState.dch_ready(today) and LaneState.dch_ready(today + 1))
+	var r2 := LaneState.on_daily_win(today, n)
+	ck("두 번째 승리는 보상 0", bool(r2["again"]) and int(r2["xp"]) == 0 and int(r2["stars"]) == 0 and LaneState.xp - x0 == int(r1["xp"]))
+	ck("깬 판·꽃·기록이 그대로", LaneState.cleared == 20 and LaneState.flowers == fl0 and LaneState.clears.is_empty()
+		and LaneState.fails.is_empty())
+	# 꽃 세 송이 조건까지 하면 티켓 하나
+	var tl := {"summons": 5, "kinds": {}, "boss_cannon": true, "best_hit": 99, "holds": 3, "cap_t": 0.0, "auto_used": false}
+	var t1 := LaneState.tickets
+	var r3 := LaneState.on_daily_win(today + 1, n, null, tl, 1.0)
+	ck("꽃 세 송이 조건이면 티켓 +1", int(r3["tickets"]) == 1 and LaneState.tickets == t1 + 1
+		and LaneState.judge_flowers(n, tl, 1.0) == 7)
+	ck("보물 행복 조각 보너스가 붙는다", LaneState.daily_xp(n) >= int(LaneData.reward(n, false)["xp"]) * 3)
+	# 저장
+	var d := LaneState.to_dict()
+	LaneState.from_dict(d)
+	ck("도전한 날이 저장된다", LaneState.dch_day == today + 1)
+	LaneState.from_dict({})
+	ck("옛 저장은 도전 안 함", LaneState.dch_day == 0)

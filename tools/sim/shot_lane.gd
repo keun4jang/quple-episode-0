@@ -1,5 +1,5 @@
 extends Node
-## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배), SHOT_MODE=handy (여럿 맞히기·떼 막기 글자), SHOT_TALLY=1 (result 에 판 기록 줄), SHOT_FLOWERS=1|2 (꽃: 1 깬 판마다 섞어서 · 2 깬 판 다 셋 - 꽃다발 보기. 자동은 끈다), SHOT_MODE=missions (오늘의 임무 창 · SHOT_HOMEONLY=1 홈 단추만 · SHOT_STAMPS=n · SHOT_CLAIM=1 받기 누르기) | mresult (결과 창의 임무 줄), SHOT_MODE=calendar (선물 달력 · SHOT_CAL=n 오늘 받을 칸 · SHOT_CALVIEW=1 임무 창에서 보기(받기 없이) · SHOT_TAKE=1 받기 누르기)
+## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배), SHOT_MODE=handy (여럿 맞히기·떼 막기 글자), SHOT_TALLY=1 (result 에 판 기록 줄), SHOT_FLOWERS=1|2 (꽃: 1 깬 판마다 섞어서 · 2 깬 판 다 셋 - 꽃다발 보기. 자동은 끈다), SHOT_MODE=missions (오늘의 임무 창 · SHOT_HOMEONLY=1 홈 단추만 · SHOT_STAMPS=n · SHOT_CLAIM=1 받기 누르기) | mresult (결과 창의 임무 줄), SHOT_MODE=calendar (선물 달력 · SHOT_CAL=n 오늘 받을 칸 · SHOT_CALVIEW=1 임무 창에서 보기(받기 없이) · SHOT_TAKE=1 받기 누르기), SHOT_MODE=daily (오늘의 도전 · SHOT_DCH=done|battle|win|again|lose)
 func _ready() -> void:
 	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	LaneState.clear_save()
@@ -144,6 +144,27 @@ func _ready() -> void:
 			var tb = g.find_child("Take", true, false)
 			if tb != null:
 				tb.pressed.emit()
+	elif OS.get_environment("SHOT_MODE") == "daily":
+		# 오늘의 도전: SHOT_DCH= (빈칸 지도 카드) | done (오늘 깬 뒤 카드) | battle (판 시작) | win | again | lose (결과 창)
+		var dk := OS.get_environment("SHOT_DCH")
+		var today: int = g._local_now() / 86400
+		if dk == "done" or dk == "again":
+			LaneState.dch_day = today
+		if dk == "" or dk == "done":
+			g._home_tab = "map"
+			g._refresh_home_top()
+			g._fill_home()
+			var sc = g._home.find_child("Scroll", true, false)
+			if sc != null:
+				await get_tree().create_timer(0.2).timeout
+				sc.scroll_vertical = 0
+		else:
+			var dn := LaneData.daily_stage(LaneState.cleared)
+			g._start_battle(dn, LaneData.daily_mods(today))
+			if dk != "battle":
+				await get_tree().create_timer(0.5).timeout
+				g.battle.done = true
+				g._end_battle("lose" if dk == "lose" else "win")
 	elif OS.get_environment("SHOT_MODE") == "acc":
 		g._open_acc_picker("tiny")
 	elif OS.get_environment("SHOT_TAB") != "":

@@ -59,6 +59,8 @@ static var stamp_day := 0
 static var week_no := 0
 static var stamps := 0
 static var week_got: Array = [false, false, false]
+## 마지막으로 오늘의 도전을 이긴 날 (로컬 자정 기준 날 번호)
+static var dch_day := 0
 static var _rng := RandomNumberGenerator.new()
 
 
@@ -98,6 +100,7 @@ static func reset() -> void:
 	week_no = 0
 	stamps = 0
 	week_got = [false, false, false]
+	dch_day = 0
 
 
 static func has_unit(id: String) -> bool:
@@ -750,6 +753,40 @@ static func claim_week(k: int, rng: RandomNumberGenerator) -> Dictionary:
 
 
 ## 받을 것이 있나 (홈 단추의 분홍 점).
+# ── 오늘의 도전 ───────────────────────────────────────────────────────
+
+## 처음 안내를 마치고 열 판을 깬 뒤부터.
+static func daily_open() -> bool:
+	return tut == 99 and cleared >= LaneData.DAILY_OPEN
+
+
+## 오늘 도전 보상을 아직 안 받았나.
+static func dch_ready(today: int) -> bool:
+	return daily_open() and dch_day != today
+
+
+## 오늘의 도전 보상으로 받을 행복 조각 (보물 xp 보너스 반영 - 카드에 미리 보여 준다).
+static func daily_xp(n: int) -> int:
+	var gx := int(LaneData.reward(n, false)["xp"]) * LaneData.DAILY_XP_MULT
+	return int(round(float(gx) * (1.0 + float(bonuses().get("xp", 0.0)) / 100.0)))
+
+
+## 오늘의 도전을 이겼다. 받은 것 {xp, stars, tickets, again}. 하루 한 번만 보상 (again = 이미 받음).
+## 판 기록(cleared·clears·fails·flowers)은 건드리지 않는다 - 규칙이 다른 판이니까.
+## 꽃 세 송이 조건(judge_flowers == 7)까지 다 해내면 티켓 하나를 더 준다.
+static func on_daily_win(today: int, n: int, _rng_in: RandomNumberGenerator = null, tally: Dictionary = {},
+		hp_ratio: float = 1.0) -> Dictionary:
+	if dch_day == today:
+		return {"xp": 0, "stars": 0, "tickets": 0, "again": true}
+	dch_day = today
+	var gx := daily_xp(n)
+	var tk := 1 if not tally.is_empty() and judge_flowers(n, tally, hp_ratio) == 7 else 0
+	xp += gx
+	stars += LaneData.DAILY_STARS
+	tickets += tk
+	return {"xp": gx, "stars": LaneData.DAILY_STARS, "tickets": tk, "again": false}
+
+
 static func missions_ready() -> bool:
 	if not missions_open():
 		return false
@@ -774,7 +811,7 @@ static func to_dict() -> Dictionary:
 		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut,
 		"flowers": flowers.duplicate(), "bouquet": bouquet.duplicate(),
 		"m_day": mission_day, "missions": missions.duplicate(true), "m_swap": mission_swap, "st_day": stamp_day,
-		"week_no": week_no, "stamps": stamps, "week_got": week_got.duplicate()}
+		"week_no": week_no, "stamps": stamps, "week_got": week_got.duplicate(), "dch_day": dch_day}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -886,6 +923,7 @@ static func from_dict(d: Dictionary) -> void:
 	if wg is Array:
 		for k in mini((wg as Array).size(), 3):
 			week_got[k] = bool(wg[k])
+	dch_day = maxi(0, int(d.get("dch_day", 0)))
 	unlock_by_stage()
 
 

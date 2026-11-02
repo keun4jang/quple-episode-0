@@ -158,6 +158,9 @@ var _tut: LaneTutorial
 var _tut_pause := false          ## 안내 말풍선이 떠 있는 동안 싸움을 멈춘다
 var _tut_after_gacha := Callable()
 var _result_home: Button
+var _challenge := false           ## 오늘의 도전 판인가 (규칙을 비튼 판 - 보상·기록이 따로)
+var _dch_mods := {}                ## 그 판의 규칙 (다시 ▶ 가 같은 규칙으로)
+var _dch_rule := {}
 var _mission_ups: Array = []      ## 이번 판으로 오른 임무 [{i, prog, goal}] - 결과 창에 보인다
 var _actor_of: Dictionary = {}     ## uid → IdleActor
 var _lat: Dictionary = {}          ## uid → 옆 위치
@@ -650,6 +653,7 @@ func _refresh_home_top() -> void:
 		var b := _home.get_node("TabBar/Tabs/Tab_" + k) as Button
 		_style_tab(b, _home_tab == k)
 	(_home.get_node("TabBar/Tabs/Tab_gacha/V/Icon/Dot") as Control).visible = LaneState.can_pull(1)
+	(_home.get_node("TabBar/Tabs/Tab_map/V/Icon/Dot") as Control).visible = LaneState.dch_ready(_local_now() / 86400)
 	var mis := _home.get_node("Top/Mission") as Button
 	mis.visible = LaneState.missions_open()
 	(mis.get_node("Dot") as Control).visible = LaneState.missions_ready()
@@ -685,6 +689,8 @@ func _card() -> PanelContainer:
 
 
 func _fill_map() -> void:
+	if LaneState.daily_open():
+		_home_body.add_child(_daily_card())
 	# 보물 효과 모아 보기
 	var tb := LaneState.treasure_bonus()
 	var parts: Array = []
@@ -795,6 +801,43 @@ func _fill_map() -> void:
 					for k in 3:
 						_draw_flower(fl, Vector2(fl.size.x * 0.5 + float(k - 1) * 24.0, fl.size.y - 17.0), (bits & (1 << k)) != 0))
 				b.add_child(fl)
+
+
+## 오늘의 도전 카드 - 우두머리 얼굴 · 규칙 · 보상 · 도전 단추. 오늘 이겼으면 '다시 ▶'(보상 없음).
+func _daily_card() -> PanelContainer:
+	var today := _local_now() / 86400
+	var rule := LaneData.daily_rule(today)
+	var n := LaneData.daily_stage(LaneState.cleared)
+	var done_today := not LaneState.dch_ready(today)
+	var card := _card()
+	card.name = "Daily"
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	card.add_child(row)
+	var zi := int(LaneData.stage_info(n)["zone"])
+	var face := _bug_face(String(LaneData.ZONES[zi]["boss"]), 72.0)
+	face.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(face)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 2)
+	row.add_child(v)
+	v.add_child(IdleUi.label("오늘의 도전", 22, IdleUi.LAV_DK))
+	v.add_child(IdleUi.label(String(rule["name"]), 30, IdleUi.GOLD, true))
+	var d := IdleUi.label(String(rule["desc"]), 19, IdleUi.SUB)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(d)
+	var last := IdleUi.label("오늘 깼어요 ✓" if done_today else "%s · 보상 행운별 %d · 행복 조각 %s" % [
+		LaneData.stage_label(n), LaneData.DAILY_STARS, _num(LaneState.daily_xp(n))], 19, PINK_TXT if done_today else IdleUi.SUB)
+	last.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(last)
+	var b := IdleUi.button("다시 ▶" if done_today else "도전 ▶", 26, "plum" if done_today else "gold")
+	b.custom_minimum_size = Vector2(150, 88)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	b.pressed.connect(func() -> void:
+		_start_battle(n, LaneData.daily_mods(today)))
+	row.add_child(b)
+	return card
 
 
 ## 꽃 한 송이 - 꽃잎 다섯을 둥글게 + 가운데 점. 받은 꽃은 벚꽃 분홍에 흰 점, 못 받은 꽃은 흐린 라벤더.
@@ -1801,8 +1844,11 @@ func _portrait(id: String, sz: float) -> Control:
 
 # ══ 판 ════════════════════════════════════════════════════════════════
 
-func _start_battle(n: int) -> void:
+func _start_battle(n: int, mods := {}) -> void:
 	stage_n = n
+	_challenge = not mods.is_empty()
+	_dch_mods = mods.duplicate()
+	_dch_rule = LaneData.daily_rule(_local_now() / 86400) if _challenge else {}
 	AudioManager.ui_confirm()
 	_home.visible = false
 	mode = "battle"
@@ -1824,7 +1870,7 @@ func _start_battle(n: int) -> void:
 	_fx_t = {}
 	_lunge = {}
 	_tut_pause = false
-	battle.start(n)
+	battle.start(n, -1, mods)
 	battle.auto = LaneState.auto_summon
 	_build_battle()
 	_layout()
@@ -1837,8 +1883,12 @@ func _start_battle(n: int) -> void:
 	else:
 		# 2장은 곡 순서를 둘씩 밀어 같은 구역이라도 1장과 다른 곡이 나온다
 		AudioManager.play_bgm(String(AudioManager.BATTLE_TRACKS[(zi + ch * 2) % AudioManager.BATTLE_TRACKS.size()]))
-	_banner_show(LaneData.stage_label(n), Color.WHITE)
-	if battle.cheer > 0.0:
+	if _challenge:
+		_banner_show("오늘의 도전", Color.WHITE)
+		_toast(String(_dch_rule.get("name", "")) + " - " + String(_dch_rule.get("desc", "")))
+	else:
+		_banner_show(LaneData.stage_label(n), Color.WHITE)
+	if battle.cheer > 0.0 and not _challenge:
 		_toast("다시 도전 응원!  공격·체력 +%d%%" % int(battle.cheer))
 	# 출전 단추를 누른 '뒤에' 안내 단계가 1이 되므로 조금 뒤에 본다
 	_later(0.4, func() -> void:
@@ -1846,7 +1896,8 @@ func _start_battle(n: int) -> void:
 			_tut_battle_guide(0))
 	# 이 판의 꽃 - 처음 안내 중이나 맨 앞 두 판은 쉰다 (배울 게 이미 많다)
 	if LaneState.tut == 99 and n > 2:
-		_later(2.2, func() -> void:
+		# 도전 판은 규칙 안내가 먼저 떠 있으니 조금 더 뒤에
+		_later(3.2 if _challenge else 2.2, func() -> void:
 			if mode == "battle" and stage_n == n and not _ended:
 				_toast("이 판의 꽃: " + String(LaneData.flower_task(n)["text"])))
 
@@ -1944,7 +1995,8 @@ func _build_hud() -> void:
 	var spv := VBoxContainer.new()
 	spv.add_theme_constant_override("separation", -2)
 	sp.add_child(spv)
-	_stage_lbl = IdleUi.label(LaneData.stage_label(stage_n), 24, IdleUi.CREAM)
+	_stage_lbl = IdleUi.label(("도전: " + String(_dch_rule.get("name", ""))) if _challenge else LaneData.stage_label(stage_n),
+		24, IdleUi.CREAM)
 	spv.add_child(_stage_lbl)
 	_task_lbl = IdleUi.label("", 18, PINK_TXT)
 	spv.add_child(_task_lbl)
@@ -3156,7 +3208,11 @@ func _end_battle(res: String) -> void:
 	var r := {}
 	var hp_ratio := battle.our_hp / maxf(1.0, battle.our_max)
 	if win:
-		r = LaneState.on_win(stage_n, null, battle.tally, hp_ratio)
+		if _challenge:
+			# 오늘의 도전 - 하루 한 번 보상만. 판 기록(깬 판·꽃·응원)은 그대로 둔다
+			r = LaneState.on_daily_win(_local_now() / 86400, stage_n, null, battle.tally, hp_ratio)
+		else:
+			r = LaneState.on_win(stage_n, null, battle.tally, hp_ratio)
 		# 바주카포가 마지막 한 방이면 포탄이 둥지에 닿은 뒤에 터진다 (누르는 순간 피해가 들어가 승리가 먼저 났다)
 		_later(maxf(0.0, _cannon_land_t - _t), func() -> void:
 			if _field == null or not is_instance_valid(_field) or not is_instance_valid(_fx):
@@ -3169,7 +3225,8 @@ func _end_battle(res: String) -> void:
 			AudioManager.souvenir_get())
 	else:
 		# 응원은 진짜로 싸우다 진 판에만 - 바로 후퇴를 눌러 쌓지 못하게
-		if battle.result == "lose" or _battle_t >= CHEER_MIN_FIGHT:
+		# 도전 판은 규칙이 다르니 응원을 쌓지 않는다
+		if not _challenge and (battle.result == "lose" or _battle_t >= CHEER_MIN_FIGHT):
 			LaneState.on_lose(stage_n)
 		AudioManager.battle_defeat()
 	# 오늘의 임무 - 이기든 지든 그때까지 한 만큼 센다
@@ -3196,7 +3253,24 @@ func _show_result(win: bool, r: Dictionary) -> void:
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
 	v.add_child(_center(IdleUi.label(LaneData.stage_label(stage_n), 26, IdleUi.CREAM)))
-	if win:
+	if _challenge:
+		v.add_child(_center(IdleUi.label("오늘의 도전 · " + String(_dch_rule.get("name", "")), 24, IdleUi.LAV_DK)))
+	if _challenge and win and bool(r.get("again", false)):
+		v.add_child(_center(IdleUi.label("오늘 보상은 이미 받았어요 - 내일 또 만나요", 22, IdleUi.SUB)))
+	elif _challenge and win:
+		v.add_child(_center(IdleUi.label("✦ 행복 조각 +%s" % _num(int(r["xp"])), 30, PINK_TXT)))
+		var dsr := HBoxContainer.new()
+		dsr.alignment = BoxContainer.ALIGNMENT_CENTER
+		dsr.add_theme_constant_override("separation", 6)
+		v.add_child(dsr)
+		dsr.add_child(IdleUi.icon("star", 34.0, LaneData.STAR_COL))
+		dsr.add_child(IdleUi.label("행운별 +%d" % int(r["stars"]), 28, STAR_TXT))
+		if int(r.get("tickets", 0)) > 0:
+			v.add_child(_center(IdleUi.label("꽃 세 송이 조건까지! 뽑기 티켓 +%d장" % int(r["tickets"]), 24, PINK_TXT)))
+	elif _challenge:
+		v.add_child(_center(IdleUi.label("규칙이 바뀐 판이라 응원은 쌓이지 않아요", 20, IdleUi.SUB)))
+		v.add_child(_center(IdleUi.label("편성을 바꿔 다시 해 봐도 좋아요", 20, IdleUi.SUB)))
+	elif win:
 		_result_flowers(v, r)
 		v.add_child(_center(IdleUi.label("✦ 행복 조각 +%s" % _num(int(r["xp"])), 30, PINK_TXT)))
 		if int(r["stars"]) > 0:
@@ -3268,13 +3342,15 @@ func _show_result(win: bool, r: Dictionary) -> void:
 	row.add_child(home)
 	# 마지막 판 뒤에는 다음 판이 없다 - 같은 판을 '다시'로 부른다
 	var last := win and stage_n >= LaneData.STAGE_MAX
-	var next := IdleUi.button("다음 판 ▶" if win and not last else "다시 ▶", 28, "gold")
+	var again := _challenge
+	var next := IdleUi.button("다음 판 ▶" if win and not last and not again else "다시 ▶", 28, "gold")
 	next.custom_minimum_size = Vector2(240, 90)
-	var nn := mini(stage_n + 1, LaneData.STAGE_MAX) if win else stage_n
+	var nn := mini(stage_n + 1, LaneData.STAGE_MAX) if win and not again else stage_n
+	var nm := _dch_mods.duplicate() if again else {}
 	next.pressed.connect(func() -> void:
 		_world.queue_free()
 		_world = null
-		_start_battle(nn))
+		_start_battle(nn, nm))
 	row.add_child(next)
 	card.reset_size()
 	var cs := card.get_combined_minimum_size()

@@ -306,6 +306,59 @@ static func mission_text(id: String) -> String:
 	var m: Dictionary = MISSIONS[id]
 	var t := String(m["text"])
 	return t % int(m["goal"]) if t.contains("%d") else t
+
+
+## 오늘의 도전 - 매일 규칙 하나를 비튼 판 (이미 깬 판). day % 5 로 고르니 이틀 연달아 같은 규칙은 없다.
+## mods: rate 웃음 수입 배율 · cannon 바주카 충전 배율 · cost 친구 값 배율 · max_slots 편성 앞 몇 칸만 ·
+## no_wall 벽 친구 빼기 · max_rarity 이 희귀도까지만 · bug_hp 벌레 체력 배율 (모든 규칙에 너그럽게).
+const DAILY_OPEN := 10
+const DAILY_STARS := 30
+const DAILY_XP_MULT := 3
+const DAILY_RULES := [
+	{"id": "cannon", "name": "바주카 잔치", "desc": "바주카가 빨리 차요. 대신 웃음은 천천히",
+		"mods": {"cannon": 2.5, "rate": 0.8}},
+	{"id": "few", "name": "작은 군단", "desc": "편성 앞 다섯 친구만 나가요", "mods": {"max_slots": 5}},
+	{"id": "slow", "name": "느긋한 웃음", "desc": "웃음이 천천히 차요. 대신 친구가 싸요",
+		"mods": {"rate": 0.6, "cost": 0.7, "bug_hp": 0.8}},   # 0.9 로는 승률 33% (SIM_DAILY) - 0.8
+	{"id": "nowall", "name": "벽 없이", "desc": "벽 친구 없이 버텨요", "mods": {"no_wall": true}},
+	{"id": "rare", "name": "희귀까지만", "desc": "특급·전설 친구는 쉬어요", "mods": {"max_rarity": "rare"}},
+]
+const DAILY_BUG_HP := 0.9
+
+
+static func daily_rule(day: int) -> Dictionary:
+	return DAILY_RULES[posmod(day, DAILY_RULES.size())]
+
+
+## 그 규칙으로 싸울 때 LaneBattle.start 에 넘길 mods (bug_hp 가 늘 들어 있어 비지 않는다).
+static func daily_mods(day: int) -> Dictionary:
+	var m: Dictionary = (daily_rule(day)["mods"] as Dictionary).duplicate()
+	if not m.has("bug_hp"):
+		m["bug_hp"] = DAILY_BUG_HP
+	return m
+
+
+## 오늘의 도전 판 - 가장 앞에서 두 판 뒤 (이미 깬 판).
+static func daily_stage(cleared: int) -> int:
+	return clampi(cleared - 2, 1, maxi(1, cleared))
+
+
+## 편성을 mods 로 거른다 (순서는 그대로). 남는 게 없으면 ["tiny"].
+static func filter_lineup(l: Array, mods: Dictionary) -> Array:
+	var out: Array = []
+	var cap := int(RARITY_STARS.get(String(mods.get("max_rarity", "legend")), 3))
+	for id in l:
+		var s := String(id)
+		if bool(mods.get("no_wall", false)) and is_wall(s):
+			continue
+		if int(RARITY_STARS[rarity(s)]) > cap:
+			continue
+		out.append(s)
+	if mods.has("max_slots"):
+		out = out.slice(0, int(mods["max_slots"]))
+	if out.is_empty():
+		out = ["tiny"]
+	return out
 const LINEUP_MAX := 10
 
 ## 레벨 (행복 조각으로 올린다). 한 레벨마다 기본값의 20% 씩 (냥코와 같다).

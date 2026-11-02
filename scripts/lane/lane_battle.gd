@@ -51,10 +51,15 @@ var tally := {}
 var _cannon_manual := false
 var _waves := {}          ## 떼 번호 → {queued, spawned, left, broke}
 var _wave_id := 0
+## 오늘의 도전처럼 규칙을 비튼 판 (LaneData.DAILY_RULES 의 mods). 보통 판은 {}.
+var mods := {}
+var bug_hp_mult := 1.0
 
 
-func start(stage_n: int, seed_value: int = -1) -> void:
+func start(stage_n: int, seed_value: int = -1, mods_in := {}) -> void:
 	n = stage_n
+	mods = mods_in.duplicate()
+	bug_hp_mult = float(mods.get("bug_hp", 1.0))
 	info = LaneData.stage_info(n)
 	if seed_value >= 0:
 		rng.seed = seed_value
@@ -75,6 +80,8 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 	nest_hp = nest_max
 	LaneState.sort_lineup()
 	lineup = LaneState.lineup.duplicate()
+	if not mods.is_empty():
+		lineup = LaneData.filter_lineup(lineup, mods)
 	stats = {}
 	cds = {}
 	bonus = LaneState.bonuses()
@@ -84,6 +91,9 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 	rate_mult = 1.0 + float(bonus.get("rate", 0.0)) / 100.0
 	cannon_mult = 1.0 + float(bonus.get("cannon", 0.0)) / 100.0
 	slow_mult = 1.0 + float(bonus.get("slow", 0.0)) / 100.0
+	rate_mult *= float(mods.get("rate", 1.0))
+	cannon_mult *= float(mods.get("cannon", 1.0))
+	var cost_mult := float(mods.get("cost", 1.0))
 	wallet = float(bonus.get("wallet", 0.0))
 	for id in lineup:
 		var st := LaneState.unit_stats(String(id))
@@ -91,6 +101,8 @@ func start(stage_n: int, seed_value: int = -1) -> void:
 		st["hp"] = float(st["hp"]) * (1.0 + (float(bonus.get("hp", 0.0)) + cheer) / 100.0)
 		st["speed"] = float(st["speed"]) * (1.0 + float(bonus.get("speed", 0.0)) / 100.0)
 		st["guard"] = float(st.get("guard", 1.0)) * (1.0 - float(bonus.get("guard", 0.0)) / 100.0)
+		if cost_mult != 1.0:
+			st["cost"] = maxi(1, int(round(float(st["cost"]) * cost_mult)))
 		stats[id] = st
 		cds[id] = 0.0
 	ents = []
@@ -304,7 +316,7 @@ func _spawn_bug(kind: String, wave := -1) -> void:
 	var b: Dictionary = LaneData.BUGS[kind].duplicate()
 	var m := float(info["mag"])
 	var boss_b := bool(b.get("boss", false))
-	b["hp"] = float(b["hp"]) * m * (LaneData.BOSS_HP if boss_b else 1.0)
+	b["hp"] = float(b["hp"]) * m * (LaneData.BOSS_HP if boss_b else 1.0) * bug_hp_mult
 	b["atk"] = float(b["atk"]) * m * (LaneData.BOSS_ATK if boss_b else 1.0)
 	b["id"] = kind
 	var e := _make(b, "b", LaneData.LEN - rng.randf_range(0.0, 20.0))

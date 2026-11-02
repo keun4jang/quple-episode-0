@@ -1,7 +1,7 @@
 extends Node
 ## 쿼카 군단 곡선 시뮬레이션. 봇: 자동 소환으로 싸우고, 판 사이에 꿈조각으로 레벨을 올린다(가장 싼 것부터).
 ## 지면 같은 판을 다시 (진 판도 꿈조각 조금). SIM_GACHA=1 이면 뽑기도 하고(하루 1.5시간 놀아 매일 선물), 센 편성을 고른다.
-## 환경변수: SIM_STAGES, SIM_SEED, SIM_LOG=1, SIM_SPEED(판 시간 배속 표시용)
+## 환경변수: SIM_STAGES, SIM_SEED, SIM_LOG=1, SIM_SPEED(판 시간 배속 표시용), SIM_DAILY=1(오늘의 도전 규칙별 승률)
 var secs := 0.0
 var losses := 0
 var tries := 0
@@ -29,6 +29,11 @@ func _ready() -> void:
 		secs = float(saved["secs"])
 		days = int(saved["days"])
 		pulled = int(saved["pulled"])
+	# SIM_DAILY=1: 지금 저장(보통 SIM_LOAD 로 1장 끝)에서 오늘의 도전 규칙 다섯을 씨앗 셋씩 돌려 승률을 본다
+	if OS.get_environment("SIM_DAILY") == "1":
+		_sim_daily(seed_v)
+		get_tree().quit()
+		return
 	var b := LaneBattle.new()
 	var stuck := 0
 	print("\n==== 쿼카 군단 시뮬레이션 ====")
@@ -109,6 +114,35 @@ func _ready() -> void:
 		print(line)
 	print("끝: %.1f시간 · 깬 곳 %d · 진 판 %d · 꿈조각 %d · 레벨 %s" % [secs / 3600.0, LaneState.cleared, losses, LaneState.xp, _lv()])
 	get_tree().quit()
+
+
+func _sim_daily(seed_v: int) -> void:
+	var n := LaneData.daily_stage(LaneState.cleared)
+	print("오늘의 도전 · %s (깬 판 %d · 편성 %s)" % [LaneData.stage_label(n), LaneState.cleared, str(LaneState.lineup)])
+	var all_w := 0
+	var all_n := 0
+	for k in LaneData.DAILY_RULES.size():
+		var rule: Dictionary = LaneData.DAILY_RULES[k]
+		var w := 0
+		var hp := 0.0
+		var line := ""
+		for sd in 3:
+			var b := LaneBattle.new()
+			b.start(n, seed_v * 31 + sd, LaneData.daily_mods(k))
+			b.auto = true
+			var t := 0.0
+			while not b.done and t < 600.0:
+				b.tick(0.25)
+				t += 0.25
+			if b.result == "win":
+				w += 1
+				hp += b.our_hp / b.our_max
+			line += " %s(%.0f초)" % ["승" if b.result == "win" else "패", t]
+		all_w += w
+		all_n += 3
+		print("  %-10s %d/3 · 남은 성 %d%% ·%s · 편성 %s" % [String(rule["name"]), w, int(100.0 * hp / maxf(1, w)), line,
+			str(LaneData.filter_lineup(LaneState.lineup, LaneData.daily_mods(k)))])
+	print("전체 승률 %d%%" % int(100.0 * all_w / maxf(1, all_n)))
 
 
 func _lv() -> String:
