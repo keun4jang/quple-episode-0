@@ -411,6 +411,14 @@ const MULTI_REFUND := 0.25
 ## 떼 막기: 떼를 마지막 하나까지 길의 이 비율(성에서) 너머에서 쓰러뜨리면 웃음.
 const WAVE_HOLD := 150
 const WAVE_HOLD_AT := 0.5
+## 판마다 꽃 세 송이 - 꽃 1 이기기 · 꽃 2 성 체력을 이만큼 남기고 이기기 · 꽃 3 그 판의 손맛 과제.
+## 판마다 비트(1·2·4)로 모은다. 새로 받은 꽃 2·3 하나마다 행운별 [1장, 2장].
+const FLOWER_HP := 0.6
+const FLOWER_STAR := [2, 3]
+## 손맛 과제 "spend": 웃음을 꽉 채운 채 둔 시간을 모두 합쳐 이 초 이하로.
+const FLOWER_CAP_T := 10.0
+## 구역 꽃다발: 구역 10판의 꽃 수(최대 30)가 [닿을 수, 보상].
+const BOUQUET := [[20, {"stars": 20}], [30, {"tickets": 1}]]
 ## 위기 역전: 성 체력이 이 아래로 처음 떨어지면 대포가 바로 차고 웃음이 지갑의 반만큼 들어온다 (판마다 한 번).
 const CRISIS_AT := 0.4
 ## 다시 도전 응원: 같은 판에서 질 때마다 공격·체력 +10% (최대 +30%), 이기면 사라진다.
@@ -435,6 +443,26 @@ static func stage_info(n: int) -> Dictionary:
 		mag = (1.0 + 0.045 * (eff - 1.0)) * CH2_POW * float(z.get("pow2", z.get("pow", 1.0))) * BUG_POW
 	return {"stage": s, "chapter": ch, "zone": zi, "idx": idx, "boss": idx == STAGES_PER_ZONE, "zone_name": String(z["name"]),
 		"theme": int(z["theme"]), "mag": mag, "base_hp": int(round(1200.0 * (1.0 + 0.05 * float(s - 1))))}
+
+
+## 이 판의 셋째 꽃(손맛 과제) - {id, need, text}. 우두머리 판은 늘 바주카포 마무리, 보통 판은 n%3 으로 고른다.
+static func flower_task(n: int) -> Dictionary:
+	if n % STAGES_PER_ZONE == 0:
+		return {"id": "boss_cannon", "need": 1, "text": "바주카포로 우두머리 마무리"}
+	match n % 3:
+		0:
+			var zi := int(stage_info(n)["zone"])
+			var need := 3 + mini(3, zi / 3)
+			return {"id": "hit", "need": need, "text": "바주카 한 방에 %d마리" % need}
+		1:
+			return {"id": "spend", "need": int(FLOWER_CAP_T), "text": "웃음을 쌓아 두지 않기"}
+		_:
+			return {"id": "hold", "need": 1, "text": "벌레 떼를 한 번 막기"}
+
+
+## 꽃 조건 한 줄씩 (결과 창) - [꽃1, 꽃2, 꽃3].
+static func flower_lines(n: int) -> Array:
+	return ["이기기", "성 %d%% 지키기" % int(round(FLOWER_HP * 100.0)), String(flower_task(n)["text"])]
 
 
 ## 몇 장인가 (0 = 1장).

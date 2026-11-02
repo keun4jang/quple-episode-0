@@ -278,6 +278,7 @@ func _ready() -> void:
 	_test_gacha()
 	_test_extras()
 	_test_tally()
+	_test_flowers()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(1 if fail_n > 0 else 0)
 
@@ -521,3 +522,73 @@ func _hold_case(cross: bool) -> int:
 	for e in bugs:
 		b._damage(e, 2.0e9, false)
 	return int(b.tally["holds"])
+
+
+func _test_flowers() -> void:
+	print("
+[꽃 세 송이 · 구역 꽃다발]")
+	LaneState.reset()
+	var t3 := LaneData.flower_task(3)
+	ck("3번 판 과제는 바주카 한 방에 3마리", String(t3["id"]) == "hit" and int(t3["need"]) == 3)
+	ck("우두머리 판 과제는 바주카포 마무리", String(LaneData.flower_task(10)["id"]) == "boss_cannon"
+		and String(LaneData.flower_task(110)["id"]) == "boss_cannon")
+	ck("뒤 구역은 더 많이 맞혀야", int(LaneData.flower_task(99)["need"]) == 6 and String(LaneData.flower_task(4)["id"]) == "spend"
+		and String(LaneData.flower_task(5)["id"]) == "hold")
+	# ① 판정
+	var tl := {"best_hit": 3, "cap_t": 99.0, "holds": 0, "boss_cannon": false, "auto_used": false}
+	ck("성 70% + 과제 = 꽃 셋", LaneState.judge_flowers(3, tl, 0.7) == 7)
+	ck("성 50% 면 꽃 2 없음", LaneState.judge_flowers(3, tl, 0.5) == 5)
+	ck("과제 못 하면 꽃 3 없음", LaneState.judge_flowers(3, {"best_hit": 2, "auto_used": false}, 0.7) == 3)
+	ck("기록이 없으면 꽃 1·2만", LaneState.judge_flowers(3, {}, 1.0) == 3)
+	ck("웃음 쌓아 두지 않기", LaneState.judge_flowers(4, {"cap_t": 10.0, "auto_used": false}, 0.1) == 5
+		and LaneState.judge_flowers(4, {"cap_t": 10.5, "auto_used": false}, 0.1) == 1)
+	ck("떼 막기", LaneState.judge_flowers(5, {"holds": 1, "auto_used": false}, 0.1) == 5)
+	# ② 자동
+	var ta := tl.duplicate()
+	ta["auto_used"] = true
+	ck("자동을 켠 판은 꽃 3 없음", LaneState.judge_flowers(3, ta, 0.7) == 3)
+	# ③ 같은 판 두 번 - 별은 처음만
+	var s0 := LaneState.stars
+	var r1 := LaneState.on_win(3, null, tl, 0.7)
+	var got1 := LaneState.stars - s0 - int(r1["stars"])
+	ck("새 꽃 2·3 = 행운별 2 x 2", got1 == 4 and int(r1["flower_stars"]) == 4 and int(r1["new_flowers"]) == 7
+		and int(LaneState.flowers[3]) == 7, str(got1))
+	var s1 := LaneState.stars
+	var r2 := LaneState.on_win(3, null, tl, 0.7)
+	ck("두 번째는 꽃 행운별 없음", int(r2["flower_stars"]) == 0 and int(r2["new_flowers"]) == 0
+		and LaneState.stars - s1 == int(r2["stars"]))
+	# 나눠 받기
+	LaneState.on_win(4, null, {"cap_t": 99.0, "auto_used": false}, 0.3)
+	ck("꽃 1만", int(LaneState.flowers[4]) == 1)
+	var r4 := LaneState.on_win(4, null, {"cap_t": 0.0, "auto_used": false}, 0.3)
+	ck("다음 판에 꽃 3 더하기", int(LaneState.flowers[4]) == 5 and int(r4["new_flowers"]) == 4 and int(r4["flower_stars"]) == 2)
+	ck("2장은 꽃 하나에 행운별 3", int(LaneState.on_win(101, null, {}, 1.0)["flower_stars"]) == 3)
+	# 저장·불러오기
+	var d := LaneState.to_dict()
+	LaneState.from_dict(d)
+	ck("꽃이 저장된다", int(LaneState.flowers.get(3, 0)) == 7 and int(LaneState.flowers.get(4, 0)) == 5)
+	# ④ 옛 저장
+	LaneState.from_dict({"cleared": 25, "units": {"tiny": 1}})
+	var ok := true
+	for i in range(1, 26):
+		ok = ok and int(LaneState.flowers.get(i, 0)) == 1
+	ck("옛 저장은 깬 판마다 꽃 1", ok and not LaneState.flowers.has(26) and LaneState.flowers_in_zone(0) == 10
+		and LaneState.flowers_in_zone(2) == 5)
+	# ⑤ 구역 꽃다발
+	LaneState.reset()
+	var full := {"best_hit": 99, "cap_t": 0.0, "holds": 3, "boss_cannon": true, "auto_used": false}
+	var bq20 := {}
+	for i in range(1, 10):
+		var rr := LaneState.on_win(i, null, full, 1.0)
+		if not (rr["bouquet"] as Dictionary).is_empty():
+			bq20 = rr["bouquet"]
+	ck("꽃 20 = 꽃다발 행운별 20", int(bq20.get("stage", 0)) == 1 and int(bq20.get("stars", 0)) == 20
+		and LaneState.flowers_in_zone(0) == 27)
+	var tk := LaneState.tickets
+	var rb := LaneState.on_win(10, null, full, 1.0)
+	ck("꽃 30 = 뽑기 티켓 +1", LaneState.flowers_in_zone(0) == 30 and int(rb["bouquet"]["tickets"]) == 1
+		and LaneState.tickets - tk == int(rb["tickets"]) + 1, str(LaneState.tickets - tk))
+	tk = LaneState.tickets
+	var rb2 := LaneState.on_win(10, null, full, 1.0)
+	ck("다시 이겨도 꽃다발은 한 번", (rb2["bouquet"] as Dictionary).is_empty() and LaneState.tickets == tk
+		and int(LaneState.bouquet[0]) == 2)

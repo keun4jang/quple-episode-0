@@ -47,6 +47,9 @@ static var migrated := false
 static var fails: Dictionary = {}
 ## 처음 안내 단계: 0 아직 · 1 첫 싸움 중 · 2 첫 싸움 끝 · 3 홈 안내 · 99 끝
 static var tut := 0
+## 판 → 받은 꽃 비트 (1 이기기 · 2 성 60% · 4 손맛 과제). 구역 → 받은 꽃다발 단계 (0~2).
+static var flowers: Dictionary = {}
+static var bouquet: Dictionary = {}
 static var _rng := RandomNumberGenerator.new()
 
 
@@ -77,6 +80,8 @@ static func reset() -> void:
 	migrated = false
 	fails = {}
 	tut = 0
+	flowers = {}
+	bouquet = {}
 
 
 static func has_unit(id: String) -> bool:
@@ -228,8 +233,44 @@ static func unit_stats(id: String) -> Dictionary:
 	return u
 
 
-## 판을 이겼다. 받은 것 `{xp, stars, tickets, first, new_units, treasure, acc}`.
-static func on_win(n: int, rng: RandomNumberGenerator = null) -> Dictionary:
+## 이 판에서 받을 꽃을 비트로 (1 이기기 · 2 성 체력 FLOWER_HP 이상 · 4 손맛 과제).
+## tally 가 비었으면(시뮬·옛 호출) 꽃 1·2만 센다. 자동을 한 번이라도 켠 판은 꽃 3이 없다.
+static func judge_flowers(n: int, tally: Dictionary, hp_ratio: float) -> int:
+	var bits := 1
+	if hp_ratio >= LaneData.FLOWER_HP - 0.0001:
+		bits |= 2
+	if tally.is_empty() or bool(tally.get("auto_used", false)):
+		return bits
+	var task := LaneData.flower_task(n)
+	var ok := false
+	match String(task["id"]):
+		"boss_cannon":
+			ok = bool(tally.get("boss_cannon", false))
+		"hit":
+			ok = int(tally.get("best_hit", 0)) >= int(task["need"])
+		"spend":
+			ok = float(tally.get("cap_t", 0.0)) <= LaneData.FLOWER_CAP_T
+		"hold":
+			ok = int(tally.get("holds", 0)) >= 1
+	if ok:
+		bits |= 4
+	return bits
+
+
+static func _bits(v: int) -> int:
+	return (v & 1) + ((v >> 1) & 1) + ((v >> 2) & 1)
+
+
+## 구역(zk = (판-1)/10, 0~19) 10판에서 모은 꽃 수 (최대 30).
+static func flowers_in_zone(zk: int) -> int:
+	var c := 0
+	for i in LaneData.STAGES_PER_ZONE:
+		c += _bits(int(flowers.get(zk * LaneData.STAGES_PER_ZONE + i + 1, 0)))
+	return c
+
+
+## 판을 이겼다. 받은 것 `{xp, stars, tickets, first, new_units, treasure, acc, flowers, new_flowers, flower_stars, bouquet}`.
+static func on_win(n: int, rng: RandomNumberGenerator = null, tally: Dictionary = {}, hp_ratio: float = 1.0) -> Dictionary:
 	if rng == null:
 		rng = _rng
 		rng.randomize()
@@ -254,7 +295,38 @@ static func on_win(n: int, rng: RandomNumberGenerator = null) -> Dictionary:
 			if int(LaneData.ACCESSORIES[id]["zone"]) == zi and not accs.has(id):
 				accs[id] = 1
 				r["acc"] = id
+	_give_flowers(n, r, tally, hp_ratio)
 	return r
+
+
+## 꽃과 구역 꽃다발 - 새로 받은 것만 보상한다.
+static func _give_flowers(n: int, r: Dictionary, tally: Dictionary, hp_ratio: float) -> void:
+	var old := int(flowers.get(n, 0))
+	var bits := judge_flowers(n, tally, hp_ratio)
+	var fresh := bits & ~old
+	flowers[n] = old | bits
+	var per := int(LaneData.FLOWER_STAR[LaneData.chapter_of(n)])
+	var fs := (((fresh >> 1) & 1) + ((fresh >> 2) & 1)) * per
+	stars += fs       # r["stars"] 에는 안 더한다 - 결과 창이 '꽃 행운별' 줄로 따로 보여 준다
+	r["flowers"] = old | bits
+	r["new_flowers"] = fresh
+	r["flower_stars"] = fs
+	r["bouquet"] = {}
+	var zk := (n - 1) / LaneData.STAGES_PER_ZONE
+	var have := flowers_in_zone(zk)
+	var stage := int(bouquet.get(zk, 0))
+	var gs := 0
+	var gt := 0
+	while stage < LaneData.BOUQUET.size() and have >= int(LaneData.BOUQUET[stage][0]):
+		var g: Dictionary = LaneData.BOUQUET[stage][1]
+		gs += int(g.get("stars", 0))
+		gt += int(g.get("tickets", 0))
+		stage += 1
+	if stage > int(bouquet.get(zk, 0)):
+		bouquet[zk] = stage
+		stars += gs
+		tickets += gt
+		r["bouquet"] = {"stage": stage, "stars": gs, "tickets": gt}
 
 
 # ── 보물 ─────────────────────────────────────────────────────────────
@@ -506,7 +578,8 @@ static func to_dict() -> Dictionary:
 		"cleared": cleared, "evolved": evolved.keys(), "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed_lv > 0, "speed_lv": speed_lv, "bazooka": bazooka_lv, "fort": fort_lv,
 		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
 		"daily_day": daily_day, "daily_streak": daily_streak, "treasures": treasures.duplicate(true),
-		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut}
+		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut,
+		"flowers": flowers.duplicate(), "bouquet": bouquet.duplicate()}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -580,6 +653,20 @@ static func from_dict(d: Dictionary) -> void:
 	if fl is Dictionary:
 		for k in (fl as Dictionary).keys():
 			fails[int(k)] = clampi(int(fl[k]), 0, 99)
+	var fw = d.get("flowers", null)
+	if fw is Dictionary:
+		for k in (fw as Dictionary).keys():
+			var v := clampi(int(fw[k]), 0, 7)
+			if v > 0:
+				flowers[int(k)] = v
+	else:
+		# 꽃이 없던 옛 저장: 깬 판은 첫 꽃(이기기)만 핀 것으로 (보상 없음)
+		for i in range(1, cleared + 1):
+			flowers[i] = 1
+	var bq = d.get("bouquet", {})
+	if bq is Dictionary:
+		for k in (bq as Dictionary).keys():
+			bouquet[int(k)] = clampi(int(bq[k]), 0, LaneData.BOUQUET.size())
 	unlock_by_stage()
 
 

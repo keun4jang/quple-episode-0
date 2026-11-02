@@ -1,5 +1,5 @@
 extends Node
-## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배), SHOT_MODE=handy (여럿 맞히기·떼 막기 글자), SHOT_TALLY=1 (result 에 판 기록 줄)
+## 쿼카 군단 화면 찍기. SHOT_MODE=home|battle|gacha|evolve(SHOT_EVO_ID) (SHOT_PULL=1|10, SHOT_LEGEND=1), SHOT_ANIMALS=id,id (편성), SHOT_TAB=map|units|lineup, SHOT_STAGE, SHOT_LV, SHOT_WAIT, SHOT_SERIES, SHOT_FAST=0|1 (1배·3배), SHOT_MODE=handy (여럿 맞히기·떼 막기 글자), SHOT_TALLY=1 (result 에 판 기록 줄), SHOT_FLOWERS=1|2 (꽃: 1 깬 판마다 섞어서 · 2 깬 판 다 셋 - 꽃다발 보기. 자동은 끈다)
 func _ready() -> void:
 	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	LaneState.clear_save()
@@ -47,6 +47,11 @@ func _ready() -> void:
 	# SHOT_FAST=0|1 빨리 감기 단계 (0 = 1배, 1 = 3배)
 	LaneState.speed_lv = clampi(int(OS.get_environment("SHOT_FAST")), 0, LaneData.SPEEDS.size() - 1) if OS.get_environment("SHOT_FAST") != "" else 0
 	LaneState.auto_summon = true
+	var flw := OS.get_environment("SHOT_FLOWERS")
+	if flw != "":
+		LaneState.auto_summon = false
+		for i in range(1, LaneState.cleared + 1):
+			LaneState.flowers[i] = 7 if flw == "2" else [1, 3, 7, 5][i % 4]
 	LaneState.save(int(Time.get_unix_time_from_system()))
 	var g = load("res://scenes/lane/LaneGame.tscn").instantiate()
 	add_child(g)
@@ -63,6 +68,8 @@ func _ready() -> void:
 		g._start_battle(st)
 		await get_tree().create_timer(0.5).timeout
 		g.stage_n = st
+		if OS.get_environment("SHOT_FLOWERS") != "":
+			g.battle.tally.merge({"best_hit": 99, "cap_t": 0.0, "holds": 1, "boss_cannon": true, "auto_used": false}, true)
 		if OS.get_environment("SHOT_TALLY") == "1":
 			g.battle.tally["multi5"] = 2
 			g.battle.tally["holds"] = 1
