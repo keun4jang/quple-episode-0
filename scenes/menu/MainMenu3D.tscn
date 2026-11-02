@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3 uid="uid://bmenu0quple00"]
+[gd_scene load_steps=29 format=3 uid="uid://bmenu0quple00"]
 
 [ext_resource type="Script" path="res://scripts/menu/main_menu_3d.gd" id="s"]
 [ext_resource type="PackedScene" path="res://scenes/ui/SettingsUI.tscn" id="SET"]
@@ -77,6 +77,16 @@ font_size = 34
 font_color = Color(1, 0.95, 0.7, 1)
 outline_size = 0
 
+[sub_resource type="Gradient" id="VignetteBottom_Grad"]
+colors = PackedColorArray(0.04, 0.02, 0.12, 0, 0.04, 0.02, 0.12, 0.5)
+
+[sub_resource type="GradientTexture2D" id="VignetteBottom_Tex"]
+gradient = SubResource("VignetteBottom_Grad")
+width = 8
+height = 128
+fill_from = Vector2(0.5, 0)
+fill_to = Vector2(0.5, 1)
+
 [sub_resource type="StyleBoxFlat" id="FrameGlow1_Style"]
 bg_color = Color(0, 0, 0, 0)
 border_width_top = 44
@@ -138,17 +148,19 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VignetteBottom" type="ColorRect" parent="UILayer/Control"]
+[node name="VignetteBottom" type="TextureRect" parent="UILayer/Control"]
 layout_mode = 1
 anchor_left = 0.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -150.0
+offset_top = -300.0
 grow_horizontal = 2
 grow_vertical = 0
-color = Color(0.04, 0.02, 0.12, 0.50)
 mouse_filter = 2
+texture = SubResource("VignetteBottom_Tex")
+expand_mode = 1
+stretch_mode = 0
 
 [node name="FrameGlow1" type="Panel" parent="UILayer/Control"]
 layout_mode = 1

@@ -605,7 +605,10 @@ func _refresh_home_top() -> void:
 	_star_lbl.text = _num(LaneState.stars)
 	_ticket_lbl.text = str(LaneState.tickets)
 	var nxt := mini(LaneState.cleared + 1, LaneData.STAGE_MAX)
-	(_home.get_node("Go") as Button).text = "▶  출전!   %s" % LaneData.stage_label(nxt)
+	if LaneState.cleared >= LaneData.STAGE_MAX:
+		(_home.get_node("Go") as Button).text = "▶  다시 출전!   %s" % LaneData.stage_label(nxt)
+	else:
+		(_home.get_node("Go") as Button).text = "▶  출전!   %s" % LaneData.stage_label(nxt)
 	for k in ["map", "units", "lineup", "gacha"]:
 		var b := _home.get_node("TabBar/Tabs/Tab_" + k) as Button
 		_style_tab(b, _home_tab == k)
@@ -778,13 +781,15 @@ func _fort_card() -> void:
 	else:
 		b.text = "강화
 ✦ %s" % _num(LaneData.fort_cost(lv))
-		b.disabled = not LaneState.can_level_fort()
+		_set_short(b, not LaneState.can_level_fort())
 	b.pressed.connect(func() -> void:
 		if LaneState.level_fort():
 			AudioManager.ui_confirm()
 			LaneState.save()
 			_toast("우리 성 Lv %d!  체력 %s" % [LaneState.fort_lv, _num(int(round(LaneData.fort_hp(LaneState.fort_lv))))])
-			_fill_home())
+			_fill_home()
+		elif LaneState.fort_lv < LaneData.FORT_LV_MAX:
+			_short_xp(b, LaneData.fort_cost(LaneState.fort_lv)))
 	row.add_child(b)
 
 
@@ -819,13 +824,15 @@ func _bazooka_card() -> void:
 	else:
 		b.text = "강화
 ✦ %s" % _num(LaneData.bazooka_cost(lv))
-		b.disabled = not LaneState.can_level_bazooka()
+		_set_short(b, not LaneState.can_level_bazooka())
 	b.pressed.connect(func() -> void:
 		if LaneState.level_bazooka():
 			AudioManager.ui_confirm()
 			LaneState.save()
 			_toast("바주카포 Lv %d!" % LaneState.bazooka_lv)
-			_fill_home())
+			_fill_home()
+		elif LaneState.bazooka_lv < LaneData.BAZOOKA_LV_MAX:
+			_short_xp(b, LaneData.bazooka_cost(LaneState.bazooka_lv)))
 	row.add_child(b)
 
 
@@ -920,27 +927,31 @@ func _fill_units() -> void:
 		b.custom_minimum_size = Vector2(150, 76)
 		if LaneState.evolve_ready(String(id)):
 			b.text = "진화!\n✦ %s" % _num(LaneData.evolve_cost(String(id)))
-			b.disabled = not LaneState.can_evolve(String(id))
+			_set_short(b, not LaneState.can_evolve(String(id)))
 			b.custom_minimum_size = Vector2(150, 86)
 		elif lv >= LaneData.UNIT_LV_MAX:
 			b.text = "최고 레벨"
 			b.disabled = true
 		else:
 			b.text = "레벨 업\n✦ %s" % _num(LaneData.level_cost(String(id), lv))
-			b.disabled = not LaneState.can_level(String(id))
+			_set_short(b, not LaneState.can_level(String(id)))
 		b.pressed.connect(func() -> void:
 			if LaneState.evolve_ready(String(id)):
 				if LaneState.evolve(String(id)):
 					LaneState.save()
 					_fill_home()
 					_evolve_show(String(id))
+				else:
+					_short_xp(b, LaneData.evolve_cost(String(id)))
 				return
 			if LaneState.level_up(String(id)):
 				AudioManager.ui_confirm()
 				LaneState.save()
 				if LaneState.evolve_ready(String(id)):
 					_toast("%s, 이제 진화할 수 있어요!" % LaneData.unit_name(String(id), 0))
-				_fill_home())
+				_fill_home()
+			elif LaneState.level_of(String(id)) < LaneState.level_cap(String(id)):
+				_short_xp(b, LaneData.level_cost(String(id), LaneState.level_of(String(id)))))
 		row.add_child(b)
 		# 긴 설명은 줄을 바꿔 버튼을 밀어내지 않게
 		for c in v.get_children():
@@ -1177,14 +1188,22 @@ func _fill_gacha() -> void:
 		one.text = "티켓으로 1번 뽑기  (%d장)" % LaneState.tickets
 	else:
 		one.text = "1번 뽑기   행운별 %d" % LaneData.GACHA_COST
-	one.disabled = not LaneState.can_pull(1)
+	_set_short(one, not LaneState.can_pull(1))
 	one.name = "PullOne"
-	one.pressed.connect(_do_pull.bind(1))
+	one.pressed.connect(func() -> void:
+		if LaneState.can_pull(1):
+			_do_pull(1)
+		else:
+			_short_stars(one, LaneData.GACHA_COST))
 	v.add_child(one)
 	var ten := IdleUi.button("10번 뽑기   행운별 %d\n특급 이상 1마리 확정" % LaneData.GACHA10_COST, 26, "plum")
 	ten.custom_minimum_size = Vector2(0, 110)
-	ten.disabled = not LaneState.can_pull(10)
-	ten.pressed.connect(_do_pull.bind(10))
+	_set_short(ten, not LaneState.can_pull(10))
+	ten.pressed.connect(func() -> void:
+		if LaneState.can_pull(10):
+			_do_pull(10)
+		else:
+			_short_stars(ten, LaneData.GACHA10_COST))
 	v.add_child(ten)
 	var how := IdleUi.label("행운별은 판을 처음 깨면 받고(뒤 구역일수록 많이, 우두머리는 티켓도), 다시 깨면 1개, 매일 선물로도 받아요.\n진짜 돈은 쓰지 않아요.",
 		19, IdleUi.SUB)
@@ -1359,13 +1378,16 @@ func _open_acc_picker(unit: String) -> void:
 		bv.add_child(on)
 		var up := IdleUi.button("최고" if lv >= LaneData.ACC_LV_MAX else "강화 ✦%s" % _num(LaneData.acc_level_cost(lv)), 18)
 		up.custom_minimum_size = Vector2(130, 56)
-		up.disabled = not LaneState.can_level_acc(acc)
+		up.disabled = lv >= LaneData.ACC_LV_MAX
+		_set_short(up, lv < LaneData.ACC_LV_MAX and not LaneState.can_level_acc(acc))
 		up.pressed.connect(func() -> void:
 			if LaneState.level_acc(acc):
 				LaneState.save()
 				AudioManager.ui_confirm()
 				_open_acc_picker(unit)
-				_refresh_home_top())
+				_refresh_home_top()
+			else:
+				_short_xp(up, LaneData.acc_level_cost(lv)))
 		bv.add_child(up)
 
 
@@ -1577,8 +1599,11 @@ func _build_hud() -> void:
 			return
 		if battle.upgrade_worker():
 			AudioManager.ui_confirm()
-		else:
-			_shake_ctrl(_worker_btn))
+		elif battle.worker_cost() >= 0:
+			_shake_ctrl(_worker_btn)
+			var need := float(battle.worker_cost()) - battle.wallet
+			if need > 0.0:
+				_toast("웃음이 모자라요 (✦%d 더 모이면 올려요)" % int(ceil(need))))
 	row1.add_child(_worker_btn)
 	var wv := VBoxContainer.new()
 	wv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1609,7 +1634,8 @@ func _build_hud() -> void:
 		if battle.fire_cannon():
 			AudioManager.ui_confirm()
 		else:
-			_shake_ctrl(_cannon_btn))
+			_shake_ctrl(_cannon_btn)
+			_toast("바주카포를 채우는 중이에요 (%d%%)" % int(battle.cannon / battle.cannon_max * 100.0)))
 	row1.add_child(_cannon_btn)
 	var gr := GridContainer.new()
 	gr.name = "Units"
@@ -1831,10 +1857,12 @@ func _refresh_hud() -> void:
 	_field.nest_ratio = battle.nest_hp / maxf(1.0, battle.nest_max)
 	var wc := battle.worker_cost()
 	_worker_btn.text = "수입 Lv%d\n%s" % [battle.worker, ("최고" if wc < 0 else "올리기 ✦%d" % wc)]
-	_worker_btn.disabled = not battle.can_worker()
+	# 최고 단계만 막고, 웃음이 모자랄 땐 흐리게만 - 누르면 얼마나 모자란지 알려 준다
+	_worker_btn.disabled = wc < 0
+	_set_short(_worker_btn, wc >= 0 and not battle.can_worker())
 	var ready := battle.cannon_ready()
 	_cannon_btn.text = "바주카포!\n누르면 발사" if ready else "바주카포\n충전 %d%%" % int(battle.cannon / battle.cannon_max * 100.0)
-	_cannon_btn.disabled = not ready
+	_set_short(_cannon_btn, not ready)
 	if ready:
 		var s := 1.0 + 0.05 * sin(_t * 8.0)
 		_cannon_btn.scale = Vector2(s, s)
@@ -2791,6 +2819,8 @@ func _show_result(win: bool, r: Dictionary) -> void:
 			_map_ch = -1
 		elif bool(r.get("first", false)) and stage_n == LaneData.STAGE_MAX:
 			v.add_child(_center(IdleUi.label("모든 판을 지켜 냈어요! 고마워요", 28, IdleUi.LAV_DK)))
+		elif stage_n >= LaneData.STAGE_MAX:
+			v.add_child(_center(IdleUi.label("모든 판을 깼어요 - 지도에서 판을 골라 다시 해 봐요", 22, IdleUi.SUB)))
 	else:
 		if LaneState.cheer_for(stage_n) > 0.0:
 			v.add_child(_center(IdleUi.label("다시 도전하면 응원을 받아 +%d%% 강해져요" % int(LaneState.cheer_for(stage_n)), 24,
@@ -2804,7 +2834,9 @@ func _show_result(win: bool, r: Dictionary) -> void:
 	home.pressed.connect(_show_home)
 	_result_home = home
 	row.add_child(home)
-	var next := IdleUi.button("다음 판 ▶" if win else "다시 ▶", 28, "gold")
+	# 마지막 판 뒤에는 다음 판이 없다 - 같은 판을 '다시'로 부른다
+	var last := win and stage_n >= LaneData.STAGE_MAX
+	var next := IdleUi.button("다음 판 ▶" if win and not last else "다시 ▶", 28, "gold")
 	next.custom_minimum_size = Vector2(240, 90)
 	var nn := mini(stage_n + 1, LaneData.STAGE_MAX) if win else stage_n
 	next.pressed.connect(func() -> void:
@@ -2903,11 +2935,20 @@ func _tut_home_guide(i := 0) -> void:
 		0:
 			_tut.point(_home.get_node("TabBar/Tabs/Tab_units") as Control, "동물 탭을 눌러 보세요", _tut_later.bind(1))
 		1:
+			# 단계 번호는 저장하지 않는다 - 안내 중간에 껐다 켜면 0 부터 다시 돈다.
+			# 이미 뽑았거나(이 단계를 지난 것) 행복 조각이 모자라면 건너뛴다 (못 누르는 단추를 가리키며 멈추지 않게)
+			if LaneState.pulls > 0 or not LaneState.can_level("tiny"):
+				_tut_home_guide(2)
+				return
 			_tut.point(_home.find_child("Lv_tiny", true, false) as Control, "행복 조각으로 레벨 업! 더 튼튼해져요",
 				_tut_later.bind(2))
 		2:
 			_tut.point(_home.get_node("TabBar/Tabs/Tab_gacha") as Control, "이번엔 뽑기 탭이에요", _tut_later.bind(3))
 		3:
+			# 이미 뽑았거나 티켓·행운별이 없으면 뽑기는 건너뛴다
+			if LaneState.pulls > 0 or not LaneState.can_pull(1):
+				_tut_home_guide(4)
+				return
 			_tut_after_gacha = _tut_home_guide.bind(4)
 			_tut.point(_home.find_child("PullOne", true, false) as Control, "선물 티켓으로 새 친구를 뽑아 봐요!", Callable())
 		4:
@@ -2986,6 +3027,24 @@ func _shake_ctrl(c: Control) -> void:
 			c.remove_meta("shake_tw")
 			if c.get_parent() is Container:
 				(c.get_parent() as Container).queue_sort())
+
+
+## 돈이 모자란 단추: 회색으로 막지(disabled) 않고 흐리게만 둔다 - 누르면 흔들고 무엇이 모자란지 알려 준다.
+## (disabled 단추는 pressed 를 내지 않아 흔들림·안내가 나올 수 없었다)
+func _set_short(b: Button, short: bool) -> void:
+	if short:
+		b.disabled = false
+	b.modulate = Color(1, 1, 1, 0.55) if short else Color.WHITE
+
+
+func _short_xp(b: Control, cost: int) -> void:
+	_shake_ctrl(b)
+	_toast("행복 조각이 ✦%s 모자라요 - 판을 깨면 모여요" % _num(maxi(1, cost - LaneState.xp)))
+
+
+func _short_stars(b: Control, cost: int) -> void:
+	_shake_ctrl(b)
+	_toast("행운별이 %s개 모자라요 - 판을 처음 깨면 받아요" % _num(maxi(1, cost - LaneState.stars)))
 
 
 func _toast(t: String) -> void:

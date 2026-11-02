@@ -567,16 +567,16 @@ func _restyle_menu() -> void:
 	row.add_theme_constant_override("separation", 12)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.add_child(row)
-	var settings := _menu_button("설정", "gear", "plum", 22, 70.0, true)
+	var settings := _menu_button("설정", "gear", "plum", 26, 96.0, true)
 	settings.pressed.connect(func():
 		var sv = get_tree().get_first_node_in_group("settings_ui")
 		if sv:
 			sv.open())
 	row.add_child(settings)
-	var credits := _menu_button("만든 사람", "star", "plum", 22, 70.0, true)
+	var credits := _menu_button("만든 사람", "star", "plum", 26, 96.0, true)
 	credits.pressed.connect(_show_credits)
 	row.add_child(credits)
-	var quit := _menu_button("종료", "close", "plum", 22, 70.0, true)
+	var quit := _menu_button("종료", "close", "plum", 26, 96.0, true)
 	quit.pressed.connect(_on_quit)
 	row.add_child(quit)
 	# 첫 화면 버튼이 살짝 떠오르며 나타난다
