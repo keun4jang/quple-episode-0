@@ -2206,7 +2206,11 @@ func _refresh_hud_toggles() -> void:
 	_auto_btn.text = "자동 켜짐" if LaneState.auto_summon else "자동 소환"
 	if _task_lbl != null and is_instance_valid(_task_lbl) and battle != null:
 		var rest := LaneState.auto_summon or bool(battle.tally.get("auto_used", false))
-		if rest:
+		if _challenge:
+			# 도전 판엔 꽃이 피지 않는다 - 세 조건을 다 하면 티켓 하나 (on_daily_win). 그 판의 꽃 ✓ 도 붙이지 않는다
+			_task_lbl.text = "자동으로 싸우면 티켓은 쉬어요" if rest \
+				else "티켓: " + String(LaneData.flower_task(stage_n)["text"])
+		elif rest:
 			_task_lbl.text = "자동으로 싸우면 셋째 꽃은 쉬어요"
 		else:
 			var got := (int(LaneState.flowers.get(stage_n, 0)) & 4) != 0
