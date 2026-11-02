@@ -1,7 +1,7 @@
 {
-  "version": "0.1.271",
+  "version": "0.1.272",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "307607ad71226419e6e3e05af1ea1522f5d1552dac2a32cb9724db3270b2704d",
-  "size": 14642736,
-  "notes": "로고에서 얼굴 빼기"
+  "sha256": "1d9ea5c6a6991acbfe96b4da1cd0806b827c02099d2d658d3285f9692d15221c",
+  "size": 14649952,
+  "notes": "전체 점검: 뒤로가기, 색, 전투 화면, 10배속, 문구, 흐름"
 }
