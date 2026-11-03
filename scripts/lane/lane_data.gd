@@ -426,6 +426,17 @@ const ZONES := [
 	{"name": "악몽 하수구", "bugs": ["roach", "wasp", "stag", "pillbug"], "boss": "roach_king", "pow": 0.9, "pow2": 0.82, "theme": 9},
 ]
 const STAGES_PER_ZONE := 10
+## 판 빠르기 - 싸움 안의 모든 시간(걸음·웃음·대기·떼·바주카 충전)이 이 배로 흐른다. 1배속 버튼이 곧 이 빠르기.
+## 1장 100판을 1시간 안팎에 깨도록 맞췄다 (0.1.277, 사용자 요청). 예전(빠르기 1 · 둥지 1 · 벌레 1)은 4.1시간.
+## SimLane 씨앗 7: 빠르기 3 만 → 1.5시간, 거기에 1장 벌레 0.5 · 둥지 0.6 → 1.0시간.
+## 시뮬레이션은 SIM_PACE · SIM_NEST · SIM_BUG 로 바꿔 볼 수 있다.
+const PACE := 3.0
+const NEST_MULT := 0.6
+## 1장 벌레 세기 (2장은 그대로 - 1장 끝 레벨에서 맞춘 곡선이다).
+const CH1_BUG := 0.5
+static var pace := PACE
+static var nest_mult := NEST_MULT
+static var bug_mult := CH1_BUG
 ## 우두머리는 표의 몸보다 체력은 이만큼만, 공격은 이만큼만 (표는 '느낌', 이 둘로 판 길이를 맞춘다).
 const BOSS_HP := 0.25
 const BOSS_ATK := 0.5
@@ -527,13 +538,13 @@ static func stage_info(n: int) -> Dictionary:
 	var zi := ((s - 1) % CH_STAGES) / STAGES_PER_ZONE
 	var idx := ((s - 1) % STAGES_PER_ZONE) + 1
 	var z: Dictionary = ZONES[zi]
-	var mag := magnification(s) * zone_pow(zi, idx) * BUG_POW
+	var mag := magnification(s) * zone_pow(zi, idx) * BUG_POW * bug_mult
 	if ch > 0:
 		# 2장은 1장 끝 세기에서 출발해 더 완만하게 오른다 - 레벨이 다 찬 뒤에도 깰 수 있게
 		var eff := float(CH_STAGES) + float(s - CH_STAGES) * CH2_RAMP
 		mag = (1.0 + 0.045 * (eff - 1.0)) * CH2_POW * float(z.get("pow2", z.get("pow", 1.0))) * BUG_POW
 	return {"stage": s, "chapter": ch, "zone": zi, "idx": idx, "boss": idx == STAGES_PER_ZONE, "zone_name": String(z["name"]),
-		"theme": int(z["theme"]), "mag": mag, "base_hp": int(round(1200.0 * (1.0 + 0.05 * float(s - 1))))}
+		"theme": int(z["theme"]), "mag": mag, "base_hp": int(round(1200.0 * (nest_mult if ch == 0 else 1.0) * (1.0 + 0.05 * float(s - 1))))}
 
 
 ## 이 판의 셋째 꽃(손맛 과제) - {id, need, text}. 우두머리 판은 늘 바주카포 마무리, 보통 판은 n%3 으로 고른다.

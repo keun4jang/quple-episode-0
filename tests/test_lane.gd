@@ -149,6 +149,10 @@ func _ready() -> void:
 	for id in LaneData.ALL_ORDER:
 		LaneState.units[id] = 10
 	LaneState.lineup = ["tiny", "shield", "spear", "hammer", "duck", "chick", "owl", "penguin", "rabbit", "turtle"]
+	# 판이 빨리 끝나면 스킬이 다 나오기 전에 이긴다 - 이 검사는 예전 세기(빠르기·둥지·벌레 1)로
+	LaneData.pace = 1.0
+	LaneData.nest_mult = 1.0
+	LaneData.bug_mult = 1.0
 	var sb := LaneBattle.new()
 	sb.start(25, 3)
 	sb.auto = true
@@ -166,6 +170,9 @@ func _ready() -> void:
 		if sb.done:
 			break
 	ck("싸우면 스킬이 저절로 나간다", sk_kinds.size() >= 5, str(sk_kinds.keys()))
+	LaneData.pace = LaneData.PACE
+	LaneData.nest_mult = LaneData.NEST_MULT
+	LaneData.bug_mult = LaneData.CH1_BUG
 	ck("스킬이 벌레에게 피해를 준다", skill_dmg > 0, str(skill_dmg))
 	# 버프: 방어 스킬을 받으면 덜 아프다
 	var gb := LaneBattle.new()

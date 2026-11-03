@@ -2449,9 +2449,9 @@ func _sync_actors() -> void:
 		if e["state"] == "fight":
 			# 실제 시간으로 잰다 - 3배속에서도 휘두르는 게 눈에 보이게
 			var since := _t - float(_swing_at.get(uid, -99.0))
-			var until := float(e["t_atk"]) / _speed()
+			var until := float(e["t_atk"]) / (_speed() * LaneData.pace)
 			# 덤벼듦 한 번(0.37초)이 다음 휘두름 전에 끝나게 - 3배속에서 빠른 친구는 줄여서 세 동작을 다 그린다
-			var sw := clampf(float(e["every"]) / _speed() * 0.9 / 0.37, 0.05, 1.0)
+			var sw := clampf(float(e["every"]) / (_speed() * LaneData.pace) * 0.9 / 0.37, 0.05, 1.0)
 			var lunge := 0.0
 			if since < 0.08 * sw:
 				atk_f = 1

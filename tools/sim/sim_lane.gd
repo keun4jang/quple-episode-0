@@ -20,6 +20,12 @@ func _ready() -> void:
 	var goal := int(OS.get_environment("SIM_STAGES")) if OS.get_environment("SIM_STAGES") != "" else 100
 	var seed_v := int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 7
 	LaneState.reset()
+	if OS.get_environment("SIM_PACE") != "":
+		LaneData.pace = float(OS.get_environment("SIM_PACE"))
+	if OS.get_environment("SIM_NEST") != "":
+		LaneData.nest_mult = float(OS.get_environment("SIM_NEST"))
+	if OS.get_environment("SIM_BUG") != "":
+		LaneData.bug_mult = float(OS.get_environment("SIM_BUG"))
 	gacha = OS.get_environment("SIM_GACHA") == "1"
 	rng.seed = seed_v
 	# SIM_LOAD=파일: 저장해 둔 지점(예: 1장 끝)부터 이어서 - 2장만 여러 번 맞춰 볼 때

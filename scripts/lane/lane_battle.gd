@@ -214,7 +214,7 @@ func fire_cannon(manual := true) -> bool:
 ## 판을 dt 만큼 흘리고 그동안 생긴 사건을 돌려준다. 버튼으로 한 일(소환·대포·일꾼)의 사건도
 ## 다음 tick 에 같이 나간다 - 예전엔 여기서 먼저 비워서 대포를 눌러도 아무 효과가 안 보였다.
 func tick(dt: float) -> Array:
-	var rest := dt
+	var rest := dt * LaneData.pace
 	while rest > 0.0 and not done:
 		var d := minf(STEP, rest)
 		rest -= d
