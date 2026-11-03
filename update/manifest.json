@@ -1,7 +1,7 @@
 {
-  "version": "0.1.275",
+  "version": "0.1.276",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "4a6f36e68197ce7034ad3dbf8ffaef5735e6dc399828331f444a13096077ee9d",
-  "size": 14689200,
-  "notes": "시험용 20배속"
+  "sha256": "b409979daae13e8089a720128d153f3da691736069de2d9d8e61f36fbc6a6988",
+  "size": 14689232,
+  "notes": "후퇴 없애기, 결과 창 짧게, 스킬 띠 가운데"
 }
