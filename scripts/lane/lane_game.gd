@@ -420,9 +420,17 @@ func _build_home() -> void:
 		SceneTransition.go_to(MENU_PATH, "normal"))
 	top.add_child(menu)
 	# 무대: 제목 + 편성한 친구들
-	var title := IdleUi.label("쿼카 군단", 60, IdleUi.GOLD, true)
+	var title := IdleUi.label("쿼카 군단", 76, IdleUi.GOLD, true)
 	title.name = "Title"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 제목 하나만 로고 글꼴(Jua, OFL)로 - 굵게 만든 PoorStory 는 "쿼" 의 ㅓ 획이 짧아 묻혀 "퀴" 처럼 읽혔다.
+	# 테두리도 얇게(글자의 1/5 이면 획 틈이 메워진다) 두르고 그림자로 바탕과 뗀다.
+	title.add_theme_font_override("font", load("res://assets/fonts/Jua.ttf") as Font)
+	title.add_theme_constant_override("outline_size", 7)
+	title.add_theme_color_override("font_shadow_color", Color(IdleUi.OUTLINE, 0.55))
+	title.add_theme_constant_override("shadow_offset_x", 0)
+	title.add_theme_constant_override("shadow_offset_y", 5)
+	title.add_theme_constant_override("shadow_outline_size", 7)
 	_home.add_child(title)
 	var sub := IdleUi.label("벌레들에게서 행복을 지켜요", 22, Color.WHITE, true)
 	sub.name = "Sub"
@@ -584,8 +592,8 @@ func _layout_home() -> void:
 	top.size = Vector2(w - 28, 64)
 	var hero_h := clampf(h * 0.24, 230.0, 380.0)
 	(_home.get_node("Title") as Control).position = Vector2(0, 86 + ins.x)
-	(_home.get_node("Title") as Control).size = Vector2(w, 76)
-	(_home.get_node("Sub") as Control).position = Vector2(0, 156 + ins.x)
+	(_home.get_node("Title") as Control).size = Vector2(w, 92)
+	(_home.get_node("Sub") as Control).position = Vector2(0, 170 + ins.x)
 	(_home.get_node("Sub") as Control).size = Vector2(w, 32)
 	(_home.get_node("Parade") as Node2D).position = Vector2(0, 86.0 + ins.x + hero_h - 6.0)
 	# 아래 탭 줄은 화면 끝까지 깔되, 버튼은 아래 여백만큼 올린다
