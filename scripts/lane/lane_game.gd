@@ -2254,8 +2254,13 @@ func _process(dt: float) -> void:
 	if not _ended and not _tut_pause:
 		var sdt := minf(dt, 0.25) * _speed()
 		_battle_t += sdt
-		for e in battle.tick(sdt):
-			_on_event(e)
+		# 20배면 한 프레임이 싸움 시간 0.3초를 넘는다 - 판정이 건너뛰지 않게 작은 걸음으로 나눠 돌린다
+		var steps := maxi(1, ceili(sdt / 0.05))
+		for _i in steps:
+			if battle.done:
+				break
+			for e in battle.tick(sdt / steps):
+				_on_event(e)
 		if battle.done and not _ended:
 			_end_battle(battle.result)
 	_sync_actors()
