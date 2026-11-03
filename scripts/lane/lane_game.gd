@@ -2027,12 +2027,7 @@ func _build_hud() -> void:
 		AudioManager.ui_click()
 		_refresh_hud_toggles())
 	top.add_child(_auto_btn)
-	var quit := IdleUi.button("후퇴", 22, "danger")
-	quit.custom_minimum_size = Vector2(88, 60)
-	quit.pressed.connect(func() -> void:
-		if not _ended:
-			_end_battle("lose"))
-	top.add_child(quit)
+	# 후퇴 단추는 없앴다 - 판은 이기거나 질 때까지 끝까지 싸운다 (뒤로가기도 싸움 중엔 누름만 먹는다)
 
 	# ── 아래 판: [수입] [웃음] [바주카포] / 유닛 버튼 (얼굴·이름·역할·비용)
 	var panel := PanelContainer.new()
@@ -2218,12 +2213,11 @@ func _refresh_hud_toggles() -> void:
 			# 도전 판엔 꽃이 피지 않는다 - 세 조건을 다 하면 티켓 하나 (on_daily_win). 그 판의 꽃 ✓ 도 붙이지 않는다
 			_task_lbl.text = "자동으로 싸우면 티켓은 쉬어요" if rest \
 				else "티켓: " + String(LaneData.flower_task(stage_n)["text"])
-		elif rest:
-			_task_lbl.text = "자동으로 싸우면 셋째 꽃은 쉬어요"
 		else:
 			var got := (int(LaneState.flowers.get(stage_n, 0)) & 4) != 0
 			_task_lbl.text = ("✓ " if got else "") + String(LaneData.flower_task(stage_n)["text"])
-		_task_lbl.add_theme_color_override("font_color", IdleUi.SUB if rest else PINK_TXT)
+		# 자동을 켰으면 과제 줄을 감춘다 - "자동으로 싸우면 … 쉬어요" 긴 문장이 판 이름 밑을 덮었다
+		_task_lbl.visible = not rest
 	# 켜지면 분홍 버튼으로 (예전엔 초록을 곱해 라벤더가 회색이 돼, 켜진 게 꺼진 것처럼 보였다)
 	var ref := IdleUi.button("", 22, "gold" if LaneState.auto_summon else "plum")
 	for st in ["normal", "hover", "pressed"]:
@@ -3058,15 +3052,28 @@ func _cutin(id: String) -> bool:
 		stripe.position = Vector2(0, yy)
 		stripe.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		band.add_child(stripe)
+	# 얼굴 + 이름·스킬 묶음을 화면 가운데에 (띠는 화면보다 80 넓어 오른쪽으로 삐져나간다 - 가운데는 화면 폭으로 잡는다)
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	row.position = Vector2(0, 8)
+	row.size = Vector2(size.x, band.size.y - 16.0)
+	band.add_child(row)
 	var pic := _portrait(id, 96.0)
-	pic.position = Vector2(36, 11)
-	band.add_child(pic)
+	pic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(pic)
+	var col_v := VBoxContainer.new()
+	col_v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col_v.alignment = BoxContainer.ALIGNMENT_CENTER
+	col_v.add_theme_constant_override("separation", -6)
+	row.add_child(col_v)
 	var nm := IdleUi.label(LaneData.unit_name(id, LaneState.level_of(id)), 22, IdleUi.INK, true)
-	nm.position = Vector2(150, 14)
-	band.add_child(nm)
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col_v.add_child(nm)
 	var sk := IdleUi.label(String(k["name"]) + "!", 46, col.lightened(0.35), true)
-	sk.position = Vector2(150, 40)
-	band.add_child(sk)
+	sk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col_v.add_child(sk)
 	# 띠에 붙인 트윈 - 판이 바뀌어 띠가 풀리면 같이 멈춘다
 	var tw := band.create_tween()
 	tw.tween_property(band, "position:x", 0.0, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -3266,7 +3273,7 @@ func _show_result(win: bool, r: Dictionary) -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
 	card.add_child(v)
-	var t := IdleUi.label("승리!" if win else "후퇴…", 64, IdleUi.GOLD if win else IdleUi.SUB, true)
+	var t := IdleUi.label("승리!" if win else "졌어요…", 64, IdleUi.GOLD if win else IdleUi.SUB, true)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
 	v.add_child(_center(IdleUi.label(LaneData.stage_label(stage_n), 26, IdleUi.CREAM)))
@@ -3289,17 +3296,24 @@ func _show_result(win: bool, r: Dictionary) -> void:
 		v.add_child(_center(IdleUi.label("편성을 바꿔 다시 해 봐도 좋아요", 20, IdleUi.SUB)))
 	elif win:
 		_result_flowers(v, r)
-		v.add_child(_center(IdleUi.label("✦ 행복 조각 +%s" % _num(int(r["xp"])), 30, PINK_TXT)))
-		if int(r["stars"]) > 0:
+		# 받은 것은 한 줄에 - 행복 조각 · 행운별(꽃·꽃다발 몫까지 합쳐서) · 티켓
+		var bq: Dictionary = r.get("bouquet", {})
+		var st_all := int(r["stars"]) + int(r.get("flower_stars", 0)) + int(bq.get("stars", 0))
+		var tk_all := int(r.get("tickets", 0)) + int(bq.get("tickets", 0))
+		var srow := HBoxContainer.new()
+		srow.alignment = BoxContainer.ALIGNMENT_CENTER
+		srow.add_theme_constant_override("separation", 6)
+		v.add_child(srow)
+		srow.add_child(IdleUi.label("✦ +%s" % _num(int(r["xp"])), 30, PINK_TXT))
+		if st_all > 0:
 			# 행운별은 위 알약과 같은 파란 반짝이 (★ 글자는 희귀도에만 쓴다)
-			var srow := HBoxContainer.new()
-			srow.alignment = BoxContainer.ALIGNMENT_CENTER
-			srow.add_theme_constant_override("separation", 6)
-			v.add_child(srow)
-			srow.add_child(IdleUi.icon("star", 34.0, LaneData.STAR_COL))
-			srow.add_child(IdleUi.label("행운별 +%d" % int(r["stars"]), 28, STAR_TXT))
-		if int(r.get("tickets", 0)) > 0:
-			v.add_child(_center(IdleUi.label("뽑기 티켓 +%d장" % int(r["tickets"]), 28, PINK_TXT)))
+			var gap := Control.new()
+			gap.custom_minimum_size = Vector2(18, 0)
+			srow.add_child(gap)
+			srow.add_child(IdleUi.icon("star", 32.0, LaneData.STAR_COL))
+			srow.add_child(IdleUi.label("+%d" % st_all, 30, STAR_TXT))
+		if tk_all > 0:
+			v.add_child(_center(IdleUi.label("뽑기 티켓 +%d장" % tk_all, 26, PINK_TXT)))
 		var tr: Dictionary = r.get("treasure", {})
 		if not tr.is_empty():
 			var tre: Dictionary = LaneData.TREASURES[int(tr["zone"])][int(tr["idx"])]
@@ -3310,8 +3324,6 @@ func _show_result(win: bool, r: Dictionary) -> void:
 			v.add_child(trow)
 			trow.add_child(_icon(String(tre["icon"]), Color(tre["col"]), 56.0))
 			var msg := "보물! %s %s" % [String(LaneData.GRADE_NAME[g]), String(tre["name"])]
-			if not bool(tr["up"]):
-				msg += " (이미 더 좋은 걸 가졌어요)"
 			trow.add_child(IdleUi.label(msg, 26, Color(LaneData.GRADE_COL[g]) if bool(tr["up"]) else IdleUi.SUB))
 		if String(r.get("acc", "")) != "":
 			var ad: Dictionary = LaneData.ACCESSORIES[String(r["acc"])]
@@ -3335,20 +3347,13 @@ func _show_result(win: bool, r: Dictionary) -> void:
 			v.add_child(_center(IdleUi.label("다시 도전하면 응원을 받아 +%d%% 강해져요" % int(LaneState.cheer_for(stage_n)), 24,
 				IdleUi.LAV_DK)))
 		v.add_child(_center(IdleUi.label("레벨 업 · 장신구 · 편성을 바꿔 봐도 좋아요", 20, IdleUi.SUB)))
-	# 판 기록 - 손맛 보너스를 받은 횟수 (승패와 상관없이)
-	if battle != null:
-		var m5 := int(battle.tally.get("multi5", 0))
-		var hd := int(battle.tally.get("holds", 0))
-		if m5 > 0 or hd > 0:
-			v.add_child(_center(IdleUi.label("여럿 맞히기 %d번 · 떼 막기 %d번" % [m5, hd], 20, IdleUi.SUB)))
-	# 이번 판으로 오른 오늘의 임무 (최대 3줄)
-	for up in _mission_ups.slice(0, 3):
-		var mi := int(up["i"])
-		if mi >= LaneState.missions.size():
-			continue
-		var done := int(up["prog"]) >= int(up["goal"])
-		var txt := "%s %d/%d" % [LaneData.mission_text(String(LaneState.missions[mi]["id"])), int(up["prog"]), int(up["goal"])]
-		v.add_child(_center(IdleUi.label(("✓ " + txt) if done else txt, 20, PINK_TXT if done else IdleUi.SUB)))
+	# 오늘의 임무는 이번 판으로 끝낸 것만 한 줄 (진행 중인 것은 임무 창에서 본다)
+	var done_n := 0
+	for up in _mission_ups:
+		if int(up["i"]) < LaneState.missions.size() and int(up["prog"]) >= int(up["goal"]):
+			done_n += 1
+	if done_n > 0:
+		v.add_child(_center(IdleUi.label("✓ 오늘의 임무 %d개 완료" % done_n, 22, PINK_TXT)))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	v.add_child(row)
@@ -3380,7 +3385,7 @@ func _show_result(win: bool, r: Dictionary) -> void:
 			_tut.point(_result_home, "이겼어요! 홈으로 가서 친구들을 키워 봐요", _tut_to_home))
 
 
-## 결과 창의 꽃 세 송이 - 새로 받은 꽃은 하나씩 피어나고 분홍 고리가 퍼진다. 아래에 조건 한 줄씩.
+## 결과 창의 꽃 세 송이 - 새로 받은 꽃은 하나씩 피어나고 분홍 고리가 퍼진다. 아래에 못 받은 꽃의 조건 한 줄.
 func _result_flowers(v: VBoxContainer, r: Dictionary) -> void:
 	var bits := int(r.get("flowers", 1))
 	var fresh := int(r.get("new_flowers", 0))
@@ -3415,24 +3420,18 @@ func _result_flowers(v: VBoxContainer, r: Dictionary) -> void:
 				f.set_meta("ring", x)
 				f.queue_redraw(), 0.0, 1.0, 0.6)
 			k_new += 1
+	# 조건은 못 받은 꽃 하나만 - 다음에 무엇을 하면 되는지 (받은 것·보상 몫은 위 꽃과 아래 보상 줄이 말한다)
 	var lines := LaneData.flower_lines(stage_n)
-	var auto_off := battle != null and bool(battle.tally.get("auto_used", false))
 	for k in 3:
-		var got := (bits & (1 << k)) != 0
-		var txt := String(lines[k])
-		if got:
-			txt = "✓ " + txt
-		elif k == 2 and auto_off:
-			txt += " (자동은 쉬어요)"
-		v.add_child(_center(IdleUi.label(txt, 20, PINK_TXT if got else IdleUi.SUB)))
-	if int(r.get("flower_stars", 0)) > 0:
-		v.add_child(_center(IdleUi.label("꽃 행운별 +%d" % int(r["flower_stars"]), 24, STAR_TXT)))
+		if (bits & (1 << k)) == 0:
+			var txt := "남은 꽃: " + String(lines[k])
+			if k == 2 and battle != null and bool(battle.tally.get("auto_used", false)):
+				txt += " (손으로)"
+			v.add_child(_center(IdleUi.label(txt, 20, IdleUi.SUB)))
+			break
 	var bq: Dictionary = r.get("bouquet", {})
 	if not bq.is_empty():
-		if int(bq.get("stars", 0)) > 0:
-			v.add_child(_center(IdleUi.label("구역 꽃다발! 행운별 +%d" % int(bq["stars"]), 26, PINK_TXT)))
-		if int(bq.get("tickets", 0)) > 0:
-			v.add_child(_center(IdleUi.label("구역 꽃다발! 뽑기 티켓 +%d장" % int(bq["tickets"]), 26, PINK_TXT)))
+		v.add_child(_center(IdleUi.label("구역 꽃다발 완성!", 24, PINK_TXT)))
 
 
 func _tut_to_home() -> void:
