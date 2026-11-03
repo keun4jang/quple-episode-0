@@ -2205,7 +2205,7 @@ func _layout_hud() -> void:
 
 
 func _refresh_hud_toggles() -> void:
-	_speed_btn.text = "%d배 %s" % [int(_speed()), "▶".repeat(LaneState.speed_lv + 1)]
+	_speed_btn.text = "%dx %s" % [int(_speed()), "▶".repeat(LaneState.speed_lv + 1)]
 	_auto_btn.text = "자동 켜짐" if LaneState.auto_summon else "자동 소환"
 	if _task_lbl != null and is_instance_valid(_task_lbl) and battle != null:
 		var rest := LaneState.auto_summon or bool(battle.tally.get("auto_used", false))
