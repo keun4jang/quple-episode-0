@@ -77,11 +77,21 @@ static func label(t: String, fs: int, col := CREAM, outline := false) -> Label:
 	var light := col.get_luminance() > 0.5
 	if outline:
 		l.add_theme_color_override("font_outline_color", OUTLINE if light else Color(1, 1, 1, 0.95))
-		l.add_theme_constant_override("outline_size", maxi(6, fs / 5))
+		l.add_theme_constant_override("outline_size", outline_for(fs))
 	elif light:
 		l.add_theme_color_override("font_color", readable(col))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
+
+
+## 글자 크기에 맞는 테두리 두께 (outline_size 는 양쪽을 합친 폭이다).
+## 예전엔 최소 6 이라 작은 글씨는 테두리가 획 틈을 메워 "쿼"가 "퀴"처럼 뭉쳤다 (2026-11 아트 검토).
+static func outline_for(fs: int) -> int:
+	if fs <= 24:
+		return 3
+	if fs <= 40:
+		return 4
+	return maxi(5, fs / 10)
 
 
 ## 밝은 바탕(흰 카드·연한 라벤더) 위에서 읽히는 같은 빛깔 - 밝기가 0.3 아래가 될 때까지 어둡게.

@@ -424,13 +424,13 @@ func _build_home() -> void:
 	title.name = "Title"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# 제목 하나만 로고 글꼴(Jua, OFL)로 - 굵게 만든 PoorStory 는 "쿼" 의 ㅓ 획이 짧아 묻혀 "퀴" 처럼 읽혔다.
-	# 테두리도 얇게(글자의 1/5 이면 획 틈이 메워진다) 두르고 그림자로 바탕과 뗀다.
+	# 테두리도 얇게(5 - 두꺼우면 ㅓ 와 ㅜ 사이 틈이 메워진다) 두르고 그림자로 바탕과 뗀다.
 	title.add_theme_font_override("font", load("res://assets/fonts/Jua.ttf") as Font)
-	title.add_theme_constant_override("outline_size", 7)
+	title.add_theme_constant_override("outline_size", 5)
 	title.add_theme_color_override("font_shadow_color", Color(IdleUi.OUTLINE, 0.55))
 	title.add_theme_constant_override("shadow_offset_x", 0)
 	title.add_theme_constant_override("shadow_offset_y", 5)
-	title.add_theme_constant_override("shadow_outline_size", 7)
+	title.add_theme_constant_override("shadow_outline_size", 5)
 	_home.add_child(title)
 	var sub := IdleUi.label("벌레들에게서 행복을 지켜요", 22, Color.WHITE, true)
 	sub.name = "Sub"

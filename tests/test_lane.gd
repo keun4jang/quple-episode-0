@@ -16,11 +16,11 @@ func _ready() -> void:
 	LaneState.save_path = LaneState.TEST_SAVE_PATH  # 진짜 저장(user://lane.cfg)을 건드리지 않는다
 	print("=== 쿼카 군단 테스트 ===")
 	print("\n[1] 표")
-	ck("1번은 풀밭 1-1", LaneData.stage_label(1) == "풀밭 1-1")
+	ck("1번은 초원 1-1", LaneData.stage_label(1) == "초원 1-1")
 	ck("100번은 악몽 하수구 우두머리", bool(LaneData.stage_info(100)["boss"]) and LaneData.stage_label(100) == "악몽 하수구 10-10")
 	# 2장
 	var c2: Dictionary = LaneData.stage_info(101)
-	ck("101번은 2장 풀밭 1-1", LaneData.stage_label(101) == "2장 풀밭 1-1" and int(c2["chapter"]) == 1 and int(c2["zone"]) == 0)
+	ck("101번은 2장 초원 1-1", LaneData.stage_label(101) == "2장 초원 1-1" and int(c2["chapter"]) == 1 and int(c2["zone"]) == 0)
 	ck("200번은 2장 마지막 우두머리", LaneData.stage_label(200) == "2장 악몽 하수구 10-10" and bool(LaneData.stage_info(200)["boss"]))
 	ck("2장 첫 판은 1장 마지막 판보다 세다", float(c2["mag"]) > float(LaneData.stage_info(100)["mag"]))
 	ck("2장은 처음부터 벌레가 다 섞인다", LaneData.spawns(101).size() > LaneData.spawns(1).size())

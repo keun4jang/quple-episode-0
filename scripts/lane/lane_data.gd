@@ -414,9 +414,9 @@ const TRAIT_NAME := {"crawl": "기어다님", "fly": "날벌레", "shell": "껍�
 ## 무거운 벌레가 졸개로 끝없이 나오면 구역이 바뀔 때마다 벽이 된다 (시뮬레이션).
 ## 구역 - 벌레 셋 + 우두머리, 풍경은 `IdleBackdrop.THEMES` 번호.
 const ZONES := [
-	{"name": "풀밭", "bugs": ["ant", "caterpillar"], "boss": "queen_ant", "pow": 3.0, "pow2": 2.5, "theme": 1},
+	{"name": "초원", "bugs": ["ant", "caterpillar"], "boss": "queen_ant", "pow": 3.0, "pow2": 2.5, "theme": 1},
 	{"name": "웅덩이", "bugs": ["mosquito", "ant", "caterpillar"], "boss": "mosquito_king", "pow": 3.2, "pow2": 2.9, "theme": 4},
-	{"name": "꽃밭", "bugs": ["bee", "mosquito", "caterpillar"], "boss": "hornet", "pow": 1.85, "pow2": 1.55, "theme": 8},
+	{"name": "꽃동산", "bugs": ["bee", "mosquito", "caterpillar"], "boss": "hornet", "pow": 1.85, "pow2": 1.55, "theme": 8},
 	{"name": "참나무 숲", "bugs": ["bee", "termite", "ladybug"], "boss": "rhino", "pow": 1.5, "theme": 7},
 	{"name": "거미 굴", "bugs": ["termite", "spider", "ladybug"], "boss": "tarantula", "pow": 1.05, "pow2": 0.95, "theme": 2},
 	{"name": "쓰레기 언덕", "bugs": ["fly", "cricket", "spider"], "boss": "fly_king", "pow": 1.5, "pow2": 1.35, "theme": 6},

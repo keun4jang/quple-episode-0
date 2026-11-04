@@ -258,5 +258,5 @@ func _draw() -> void:
 		var y := float(e["rise"]) * (1.0 - pow(1.0 - minf(1.0, k * 1.6), 2.0))
 		var p: Vector2 = (e["p"] as Vector2) + Vector2(-tw * 0.5, -y)
 		var a := 1.0 - clampf((k - 0.65) / 0.35, 0.0, 1.0)
-		draw_string_outline(font, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, maxi(6, fs / 5), Color(0.18, 0.13, 0.2, a))
+		draw_string_outline(font, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, IdleUi.outline_for(fs), Color(0.18, 0.13, 0.2, a))
 		draw_string(font, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(e["col"], a))

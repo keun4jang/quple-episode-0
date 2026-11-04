@@ -113,5 +113,5 @@ func _text(t: String, at: Vector2, fs: int, c: Color) -> void:
 		return
 	var w := font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var p := at + Vector2(-w * 0.5, fs * 0.36)
-	draw_string_outline(font, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, maxi(4, fs / 5), Color("#1E1630"))
+	draw_string_outline(font, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, IdleUi.outline_for(fs), Color("#1E1630"))
 	draw_string(font, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, c)

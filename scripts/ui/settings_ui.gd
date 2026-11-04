@@ -62,7 +62,7 @@ func _restyle_tree(node: Node) -> void:
 				var tl := n as Label
 				tl.add_theme_color_override("font_color", IdleUi.GOLD)
 				tl.add_theme_color_override("font_outline_color", IdleUi.OUTLINE)
-				tl.add_theme_constant_override("outline_size", maxi(6, tl.get_theme_font_size("font_size") / 5))
+				tl.add_theme_constant_override("outline_size", IdleUi.outline_for(tl.get_theme_font_size("font_size")))
 			elif n.get_parent() is HBoxContainer:
 				(n as Label).add_theme_color_override("font_color", IdleUi.CREAM)
 		if n.get_child_count() > 0 and not (n is Button):
