@@ -1,7 +1,7 @@
 {
-  "version": "0.1.279",
+  "version": "0.1.280",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "cd35497cde31ec28bd80c2bd34d3f68f72d7a83181176b664c4570493f7b636c",
-  "size": 14689552,
-  "notes": "글자 다듬기: 풀밭→초원, 꽃밭→꽃동산, 테두리 얇게"
+  "sha256": "08fccc19974dc9dad28a8bd0a27f58ab14ddec2ee8c08714034d21b8ba466ad2",
+  "size": 14690400,
+  "notes": "폰에서도 새 글꼴(Jua)이 보이도록"
 }
