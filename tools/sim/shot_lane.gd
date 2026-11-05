@@ -18,6 +18,8 @@ func _ready() -> void:
 	LaneState.daily_day = int(Time.get_unix_time_from_system()) / 86400 + 1   # 시간대가 앞서도 달력이 안 뜨게
 	LaneState.migrated = true
 	LaneState.tut = 99 if OS.get_environment("SHOT_TUT") == "" else int(OS.get_environment("SHOT_TUT"))
+	if OS.get_environment("SHOT_TICKETS") != "":  # 티켓 수 (뽑기 탭 / SHOT_PULL=-1 모두 뽑기)
+		LaneState.tickets = int(OS.get_environment("SHOT_TICKETS"))
 	if OS.get_environment("SHOT_MODE") == "calendar":
 		var cn := int(OS.get_environment("SHOT_CAL")) if OS.get_environment("SHOT_CAL") != "" else 9
 		if OS.get_environment("SHOT_CALVIEW") == "1":
@@ -72,6 +74,10 @@ func _ready() -> void:
 		if OS.get_environment("SHOT_LEGEND") == "1":
 			LaneState.pity = LaneData.PITY_LEGEND - 1
 		g._do_pull(int(OS.get_environment("SHOT_PULL")) if OS.get_environment("SHOT_PULL") != "" else 1)
+		if OS.get_environment("SHOT_SUMMARY") == "1":  # 연출을 건너뛰고 모아 보기
+			for c in g.get_children():
+				if c is LaneGacha:
+					c._summary()
 	elif OS.get_environment("SHOT_MODE") == "result":
 		g._start_battle(st)
 		await get_tree().create_timer(0.5).timeout

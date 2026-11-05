@@ -11,7 +11,8 @@ const SHOW_PX := 11.0
 ## 새 그림(칸 55~116점)은 이 크기 안에 드는 가장 큰 정수 배율로 보여 준다.
 const SHOW_BIG := 380.0
 
-var _results: Array = []
+var _results: Array = []   # 하나씩 열어 보여 줄 것
+var _all: Array = []       # 모아 보기에 나올 것 (티켓 모두 뽑기는 열어 보이는 건 가장 좋은 하나뿐)
 var _i := 0
 var _phase := "idle"        ## drop · shake · open · show · summary
 var _cap_pos := Vector2.ZERO
@@ -48,8 +49,19 @@ func _ready() -> void:
 	add_child(_hint)
 
 
+## 이보다 많이 뽑으면(티켓 모두 뽑기) 하나씩 열지 않고, 가장 좋은 하나만 연 뒤 친구별로 묶어 보여 준다.
+const MANY := 10
+const RANK := {"rare": 0, "super": 1, "legend": 2}
+
 func play(results: Array) -> void:
+	_all = results
 	_results = results
+	if results.size() > MANY:
+		var best: Dictionary = results[0]
+		for r in results:
+			if RANK[String(r["rarity"])] > RANK[String(best["rarity"])]:
+				best = r
+		_results = [best]
 	_i = 0
 	_next()
 
@@ -142,7 +154,7 @@ func _gui_input(ev: InputEvent) -> void:
 	if _phase == "show" and _tap_ok:
 		_i += 1
 		_next()
-	elif _phase in ["drop", "shake"] and _results.size() > 1:
+	elif _phase in ["drop", "shake"] and _all.size() > 1:
 		# 10번 뽑기는 눌러서 빨리 넘긴다 - 바로 열기
 		_open()
 	elif _phase == "summary" and _tap_ok:
@@ -165,7 +177,7 @@ func _next() -> void:
 		_card.queue_free()
 		_card = null
 	if _i >= _results.size():
-		if _results.size() > 1:
+		if _all.size() > 1:
 			_summary()
 		else:
 			finished.emit()
@@ -308,8 +320,8 @@ func _show_card(res: Dictionary) -> void:
 	_later(0.6, func() -> void:
 		_phase = "show"
 		_tap_ok = true
-		if _results.size() == 1 or _i == _results.size() - 1:
-			_hint.text = "눌러서 닫기" if _results.size() == 1 else "눌러서 모아 보기"
+		if _all.size() == 1 or _i == _results.size() - 1:
+			_hint.text = "눌러서 닫기" if _all.size() == 1 else "눌러서 모아 보기"
 		else:
 			_hint.text = "눌러서 다음  (%d / %d)" % [_i + 1, _results.size()])
 
@@ -324,16 +336,38 @@ func _summary() -> void:
 	add_child(_card)
 	var t := IdleUi.label("이번에 만난 친구들", 40, IdleUi.GOLD, true)
 	_card.add_child(_at(t, 120))
-	var cols := 3
+	# 많이 뽑았으면 같은 친구를 한 칸에 묶는다 (x3). 친구는 스물 남짓이라 화면에 다 들어간다.
+	var cells: Array = []
+	if _all.size() > MANY:
+		var at := {}
+		for r in _all:
+			var rid := String(r["id"])
+			if at.has(rid):
+				var c: Dictionary = cells[int(at[rid])]
+				c["n"] = int(c["n"]) + 1
+				c["new"] = bool(c["new"]) or bool(r["new"])
+				c["lv"] = maxi(int(c["lv"]), int(r["lv"]))
+			else:
+				at[rid] = cells.size()
+				var c2: Dictionary = r.duplicate()
+				c2["n"] = 1
+				cells.append(c2)
+		cells.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return RANK[String(a["rarity"])] > RANK[String(b["rarity"])])
+	else:
+		cells = _all
+	var cols := 3 if cells.size() <= 12 else 4
 	var cw := (size.x - 80.0) / float(cols)
-	for k in _results.size():
-		var res: Dictionary = _results[k]
+	var ch := 230.0 if cols == 3 else 190.0
+	var ps := 110.0 if cols == 3 else 84.0
+	for k in cells.size():
+		var res: Dictionary = cells[k]
 		var id := String(res["id"])
 		var r := String(res["rarity"])
 		var cell := PanelContainer.new()
 		cell.add_theme_stylebox_override("panel", IdleUi.card_style(LaneData.RARITY_COL[r]))
-		cell.position = Vector2(40.0 + float(k % cols) * cw + 6.0, 200.0 + float(k / cols) * 230.0)
-		cell.custom_minimum_size = Vector2(cw - 12.0, 218.0)
+		cell.position = Vector2(40.0 + float(k % cols) * cw + 6.0, 200.0 + float(k / cols) * ch)
+		cell.custom_minimum_size = Vector2(cw - 12.0, ch - 12.0)
 		cell.size = cell.custom_minimum_size
 		_card.add_child(cell)
 		var v := VBoxContainer.new()
@@ -344,7 +378,7 @@ func _summary() -> void:
 		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		pic.custom_minimum_size = Vector2(110, 110)
+		pic.custom_minimum_size = Vector2(ps, ps)
 		if tex != null:
 			var a := AtlasTexture.new()
 			a.atlas = tex
@@ -357,7 +391,10 @@ func _summary() -> void:
 		var nm := IdleUi.label(String(LaneData.UNITS[id]["name"]), 20, IdleUi.CREAM)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(nm)
-		var tg := IdleUi.label("NEW!" if bool(res["new"]) else "Lv %d" % int(res["lv"]), 20,
+		var tag := "NEW!" if bool(res["new"]) else "Lv %d" % int(res["lv"])
+		if int(res.get("n", 1)) > 1:
+			tag += " x%d" % int(res["n"])
+		var tg := IdleUi.label(tag, 20,
 			IdleUi.GREEN if bool(res["new"]) else LaneData.RARITY_TXT[r])
 		tg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(tg)

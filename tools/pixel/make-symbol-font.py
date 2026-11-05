@@ -4,7 +4,7 @@
     .sdenv/Scripts/python.exe tools/pixel/make-symbol-font.py   (fonttools 필요)
 
 → assets/fonts/QuokkaSymbols.ttf. 테마(`quple_bold.tres`)의 대체 폰트 맨 뒤에
-붙어 있어서, 글 사이에 섞인 ★ ✦ ▶ ✓ ● 가 폰에서도 네모 상자 없이 뜬다.
+붙어 있어서, 글 사이에 섞인 ★ ✦ ▶ ✓ ● · … × 가 폰에서도 네모 상자 없이 뜬다.
 모양은 전부 이 파일의 도형이다 - 다른 폰트에서 베껴 온 것이 없다.
 """
 
@@ -43,7 +43,7 @@ def circle(r, cx=500, cy=MID, seg=32):
 
 
 def triangle():
-    return [poly([(170, MID - 330), (850, MID), (170, MID + 330)])]
+    return [poly([(100, MID - 330), (760, MID), (100, MID + 330)])]
 
 
 def check():
@@ -58,7 +58,15 @@ GLYPHS = {
     0x25B6: ("play", triangle()),              # ▶
     0x2713: ("check", check()),                # ✓
     0x25CF: ("dot", circle(300)),              # ●
+    # Jua 에 없어서 PoorStory 로 새던 문장부호. PoorStory 는 셋 다 폭이 0.82em 이라
+    # " · " 가 띄어쓰기의 4.7배로 벌어졌다 (2026-11 아트 검토). 폭을 글자마다 따로 준다.
+    0x00B7: ("middot", circle(62, cx=170)),    # ·
+    0x2026: ("ellipsis", circle(55, cx=130, cy=60) + circle(55, cx=330, cy=60) + circle(55, cx=530, cy=60)),  # …
+    0x00D7: ("multiply", [poly([(100, MID - 190), (160, MID - 250), (310, MID - 100), (460, MID - 250), (520, MID - 190),
+                                (370, MID - 40), (520, MID + 110), (460, MID + 170), (310, MID + 20), (160, MID + 170),
+                                (100, MID + 110), (250, MID - 40)])]),  # ×
 }
+WIDTH = {"middot": 340, "ellipsis": 660, "multiply": 620, "play": 860}
 
 
 def main():
@@ -83,7 +91,7 @@ def main():
                 pen.lineTo(p)
             pen.closePath()
         glyf[name] = pen.glyph()
-        metrics[name] = (UPM if name not in (".notdef", "space") else 700 if name == ".notdef" else 300, 0)
+        metrics[name] = (WIDTH.get(name, UPM) if name not in (".notdef", "space") else 700 if name == ".notdef" else 300, 0)
     fb.setupGlyf(glyf)
     for name in order:  # 왼쪽 여백 = 윤곽의 가장 왼쪽 x
         g = glyf[name]

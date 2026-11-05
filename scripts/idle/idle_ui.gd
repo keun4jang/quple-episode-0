@@ -143,9 +143,11 @@ static func button(t: String, fs: int, kind := "plum", tint := Color(0, 0, 0, 0)
 			border = LAV
 			fc = CREAM
 		"danger":
-			bg = Color("#F07C93")
+			# 되돌릴 수 없는 버튼. 예전엔 진한 분홍이라 주 버튼(GOLD)과 색이 9° 차이뿐이었다 -
+			# 흰 바탕 + 빨간 테두리·글씨로 계열을 뗀다 (2026-11 아트 검토)
+			bg = Color("#FFFFFF")
 			border = Color("#C9445F")
-			fc = Color("#3A0E1C")
+			fc = Color("#B0304A")
 	if tint.a > 0.0:
 		bg = Color.WHITE.lerp(tint, 0.35)
 		border = tint

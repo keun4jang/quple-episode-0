@@ -555,29 +555,31 @@ func _restyle_menu() -> void:
 	start.pressed.connect(_on_start)
 	col.add_child(start)
 	if has:
-		_new_btn = _menu_button("처음부터 하기", "refresh", "plum", 30, 74.0)
+		_new_btn = _menu_button("처음부터 하기", "refresh", "ghost", 26, 64.0)
 		_new_btn.pressed.connect(_confirm_new_game)
 		col.add_child(_new_btn)
 		# 어디까지 왔는지 한 줄 (저장을 읽기만 한다 - 게임 화면이 다시 읽는다)
 		if LaneState.load_save():
-			var info := IdleUi.label("%s  ·  친구 %d / %d" % [LaneData.stage_label(mini(LaneState.cleared + 1,
-				LaneData.STAGE_MAX)), LaneState.owned_count(), LaneData.ALL_ORDER.size()], 22, IdleUi.SUB, true)
+			# 어두운 그늘 위라 밝은 글씨로 (예전 SUB 는 대비 1.5:1 로 안 읽혔다). [이어서 하기] 바로 밑에 붙인다.
+			var info := IdleUi.label("%s · 친구 %d/%d" % [LaneData.stage_label(mini(LaneState.cleared + 1,
+				LaneData.STAGE_MAX)), LaneState.owned_count(), LaneData.ALL_ORDER.size()], 24, IdleUi.INK)
 			info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			col.add_child(info)
+			col.move_child(info, start.get_index() + 1)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.add_child(row)
-	var settings := _menu_button("설정", "gear", "plum", 26, 96.0, true)
+	var settings := _menu_button("설정", "gear", "plum", 26, 72.0, true)
 	settings.pressed.connect(func():
 		var sv = get_tree().get_first_node_in_group("settings_ui")
 		if sv:
 			sv.open())
 	row.add_child(settings)
-	var credits := _menu_button("만든 사람", "star", "plum", 26, 96.0, true)
+	var credits := _menu_button("만든 사람", "star", "plum", 26, 72.0, true)
 	credits.pressed.connect(_show_credits)
 	row.add_child(credits)
-	var quit := _menu_button("종료", "close", "plum", 26, 96.0, true)
+	var quit := _menu_button("종료", "close", "plum", 26, 72.0, true)
 	quit.pressed.connect(_on_quit)
 	row.add_child(quit)
 	# 첫 화면 버튼이 살짝 떠오르며 나타난다
@@ -684,8 +686,9 @@ func _menu_button(t: String, icon_kind: String, style: String, fs: int, h: float
 	box.add_theme_constant_override("separation", 10 if not small else 6)
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var fc := Color("#3A2410") if style == "gold" else IdleUi.CREAM
-	var ic := IdleUi.icon(icon_kind, fs * 1.05, fc if style == "gold" else IdleUi.GOLD)
+	var fc := Color("#4A1D3A") if style == "gold" else IdleUi.CREAM
+	# 아이콘은 글씨와 같은 색 - 라벤더 위 분홍 아이콘은 대비 1.3:1 로 안 보였다
+	var ic := IdleUi.icon(icon_kind, fs * 1.05, fc)
 	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	box.add_child(ic)
 	var l := IdleUi.label(t, fs, fc)
@@ -711,24 +714,31 @@ func _confirm_new_game() -> void:
 	layer.add_child(dim)
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", IdleUi.panel_style())
-	card.custom_minimum_size = Vector2(560, 0)
+	card.custom_minimum_size = Vector2(600, 0)
 	card.set_anchors_preset(Control.PRESET_CENTER)
 	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	card.grow_vertical = Control.GROW_DIRECTION_BOTH
 	layer.add_child(card)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 14)
+	v.add_theme_constant_override("separation", 0)
 	card.add_child(v)
-	var t := IdleUi.label("처음부터 할까요?", 38, IdleUi.GOLD)
+	# 제목이 본문보다 진해야 한다 (예전 분홍 제목은 본문에 졌다). 제목-본문은 붙이고, 본문-버튼은 띄운다.
+	var t := IdleUi.label("처음부터 할까요?", 38, IdleUi.CREAM)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
-	var d := IdleUi.label("모은 친구 · 보물 · 장신구 · 행복 조각이 모두 사라져요.\n되돌릴 수 없어요.", 24, IdleUi.CREAM)
+	var gap1 := Control.new()
+	gap1.custom_minimum_size = Vector2(0, 10)
+	v.add_child(gap1)
+	var d := IdleUi.label("모은 친구, 보물, 장신구, 행복 조각이\n모두 사라져요. 되돌릴 수 없어요.", 24, IdleUi.SUB)
 	d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(d)
+	var gap2 := Control.new()
+	gap2.custom_minimum_size = Vector2(0, 26)
+	v.add_child(gap2)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	v.add_child(row)
-	var no := IdleUi.button("그만두기", 26, "plum")
+	var no := IdleUi.button("그만두기", 26, "ghost")
 	no.custom_minimum_size = Vector2(0, 70)
 	no.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	no.pressed.connect(layer.queue_free)

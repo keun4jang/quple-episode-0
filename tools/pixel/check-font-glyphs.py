@@ -39,7 +39,10 @@ import glob
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _ttf_cmap import cmap_chars
 
-FONT = "assets/fonts/PoorStory.ttf"
+# 테마 순서: Jua → QuokkaSymbols → PoorStory. Jua·기호 폰트에 없고 PoorStory 에만 있는 글자는
+# 네모는 안 뜨지만 **다른 글꼴로 새어** 폭·모양이 튄다 - " · " 가 그렇게 벌어졌다 (2026-11). 경고로 알린다.
+FONT = "assets/fonts/Jua.ttf"
+POOR = "assets/fonts/PoorStory.ttf"
 # 테마의 대체 폰트 - 기본 폰트에 없는 기호(★ ✦ ▶ ✓ ●)만 직접 그려 담았다 (make-symbol-font.py)
 SYMBOLS = "assets/fonts/QuokkaSymbols.ttf"
 
@@ -79,8 +82,10 @@ def strip_comments(src: str) -> str:
 
 
 def main() -> int:
-    have = cmap_chars(FONT) | cmap_chars(SYMBOLS)
+    main_set = cmap_chars(FONT) | cmap_chars(SYMBOLS)
+    have = main_set | cmap_chars(POOR)
     bad = {}
+    leak = {}
     files = glob.glob("scripts/**/*.gd", recursive=True)
     files += glob.glob("tools/**/*.gd", recursive=True)
     for path in files:
@@ -93,12 +98,17 @@ def main() -> int:
                 continue
             for ch in s:
                 o = ord(ch)
-                if o < 0x20 or o in have:
+                if o < 0x20 or o in main_set:
                     continue
                 line = src[: m.start()].count("\n") + 1
+                if o in have:
+                    leak.setdefault((ch, o), []).append("%s:%d" % (path, line))
+                    continue
                 bad.setdefault((ch, o), []).append(
                     "%s:%d  %r" % (path, line, s[:70]))
 
+    for (ch, o), where in sorted(leak.items(), key=lambda kv: -len(kv[1])):
+        print("⚠ U+%04X  %r  Jua 에 없어 PoorStory 로 그려짐 - %d곳 (예: %s)" % (o, ch, len(where), where[0]))
     if not bad:
         print("✔ 폰트에 없는 글자 없음 (%d 파일)" % len(files))
         return 0

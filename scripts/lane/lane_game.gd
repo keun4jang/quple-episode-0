@@ -1306,8 +1306,8 @@ func _fill_gacha() -> void:
 			LaneData.RARITY_TXT["legend"])
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(nm)
-	v.add_child(_center(IdleUi.label("희귀 72%  ·  특급 24%  ·  전설 4%", 22, IdleUi.CREAM)))
-	v.add_child(_center(IdleUi.label("%d번 안에 전설 확정 (남은 %d번)  ·  같은 친구는 레벨 +1" % [LaneData.PITY_LEGEND,
+	v.add_child(_center(IdleUi.label("희귀 72% · 특급 24% · 전설 4%", 22, IdleUi.CREAM)))
+	v.add_child(_center(IdleUi.label("%d번 안에 전설 확정 (남은 %d번) · 같은 친구는 레벨 +1" % [LaneData.PITY_LEGEND,
 		LaneData.PITY_LEGEND - LaneState.pity], 19, IdleUi.SUB)))
 	var one := IdleUi.button("", 30, "gold")
 	one.custom_minimum_size = Vector2(0, 110)
@@ -1322,7 +1322,22 @@ func _fill_gacha() -> void:
 			_do_pull(1)
 		else:
 			_short_stars(one, LaneData.GACHA_COST))
-	v.add_child(one)
+	if LaneState.tickets >= 2:
+		# 티켓이 쌓이면 한 장씩 누르기 번거롭다 - 옆에 "모두 뽑기"
+		one.text = "티켓 1장 뽑기"
+		var pair := HBoxContainer.new()
+		pair.add_theme_constant_override("separation", 12)
+		one.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pair.add_child(one)
+		var all := IdleUi.button("티켓 모두 뽑기\n%d장" % LaneState.tickets, 28, "gold")
+		all.name = "PullAll"
+		all.custom_minimum_size = Vector2(0, 110)
+		all.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		all.pressed.connect(func() -> void: _do_pull(-1))
+		pair.add_child(all)
+		v.add_child(pair)
+	else:
+		v.add_child(one)
 	var ten := IdleUi.button("10번 뽑기   행운별 %d\n특급 이상 1마리 확정" % LaneData.GACHA10_COST, 26, "plum")
 	ten.custom_minimum_size = Vector2(0, 110)
 	_set_short(ten, not LaneState.can_pull(10))
@@ -1338,8 +1353,9 @@ func _fill_gacha() -> void:
 	v.add_child(how)
 
 
+## count -1 = 티켓 모두 뽑기.
 func _do_pull(count: int) -> void:
-	var res := LaneState.pull(count, _rng)
+	var res := LaneState.pull_tickets(_rng) if count < 0 else LaneState.pull(count, _rng)
 	if res.is_empty():
 		return
 	LaneState.save(int(Time.get_unix_time_from_system()))
@@ -3614,7 +3630,31 @@ func _shake_ctrl(c: Control) -> void:
 func _set_short(b: Button, short: bool) -> void:
 	if short:
 		b.disabled = false
-	b.modulate = Color(1, 1, 1, 0.55) if short else Color.WHITE
+	# 예전엔 버튼째 반투명(0.55)으로 흐려서 값("+160", "14%")까지 안 읽혔다 (대비 2.9:1).
+	# 이제는 바탕만 회보라로 바꾸고 글씨는 진하게 둔다 (2026-11 아트 검토).
+	if bool(b.get_meta("short", false)) == short:
+		return
+	if not b.has_meta("orig_normal"):
+		b.set_meta("orig_normal", b.get_theme_stylebox("normal"))
+		b.set_meta("orig_hover", b.get_theme_stylebox("hover"))
+		b.set_meta("orig_fc", b.get_theme_color("font_color"))
+	b.set_meta("short", short)
+	var sb: StyleBox = b.get_meta("orig_normal")
+	var hb: StyleBox = b.get_meta("orig_hover")
+	var fc: Color = b.get_meta("orig_fc")
+	if short:
+		var d := (sb as StyleBoxFlat).duplicate() as StyleBoxFlat if sb is StyleBoxFlat else null
+		if d != null:
+			d.bg_color = Color("#E9E1F1")
+			d.border_color = Color("#CFC2DE")
+			sb = d
+			hb = d
+		fc = IdleUi.SUB
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", hb)
+	for st in ["font_color", "font_hover_color", "font_focus_color"]:
+		b.add_theme_color_override(st, fc)
+	b.modulate = Color.WHITE
 
 
 func _short_xp(b: Control, cost: int) -> void:

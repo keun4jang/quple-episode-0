@@ -31,7 +31,9 @@ W, H = 1200, 520
 
 
 ## 글자마다 기울기(도)와 위아래 튐(점) - 통통 튀는 느낌 (D 시안)
-BOUNCE = {"진": (-5, 6), "짜": (4, -8), "행": (-3, -4), "복": (5, 6)}
+# 기울기는 뺐다 (2026-11 아트 검토) - 진 -5° / 짜 +4° 라 "진" 의 ㅣ 가 비스듬히 짜에 붙어 빗금처럼 읽혔다.
+# 위아래 튐만 남긴다.
+BOUNCE = {"진": (0, 6), "짜": (0, -8), "행": (0, -4), "복": (0, 6)}
 
 
 def text_mask(txt, font, size, xy, spacing=0, bounce=False):
@@ -120,7 +122,7 @@ def build(variant="A"):
     font = FONTS["black"] if variant == "B" else FONTS["jua"]
     bounce = variant == "D"
     size = 210 if variant != "B" else 196
-    spacing = 6 if variant != "B" else 10
+    spacing = 18 if variant == "D" else (6 if variant != "B" else 10)  # D: 글자 사이를 띄워 ㅣ 가 옆 글자에 안 붙게
     # 가운데 맞추기: 먼저 그려 폭을 잰다
     probe = text_mask("진짜 행복", font, size, (60, 60), spacing, bounce)
     b = probe.getbbox()

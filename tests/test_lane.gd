@@ -309,6 +309,11 @@ func _test_gacha() -> void:
 	for x in r10:
 		best = maxi(best, int(LaneData.RARITY_STARS[String(x["rarity"])]))
 	ck("10번 뽑기 = 10마리, 특급 이상 하나", r10.size() == 10 and best >= 2 and LaneState.stars == 0)
+	LaneState.tickets = 13
+	var tk_p0 := LaneState.pulls
+	var ra := LaneState.pull_tickets(rng)
+	ck("티켓 모두 뽑기 = 티켓 수만큼, 티켓 0장", ra.size() == 13 and LaneState.tickets == 0 and LaneState.pulls == tk_p0 + 13)
+	ck("티켓이 없으면 모두 뽑기는 빈손", LaneState.pull_tickets(rng).is_empty())
 	# 중복은 레벨 +1, 최고 레벨이면 행복 조각
 	LaneState.units["chick"] = LaneData.UNIT_LV_MAX
 	var xp0 := LaneState.xp

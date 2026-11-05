@@ -518,6 +518,16 @@ static func pull(count: int, rng: RandomNumberGenerator) -> Array:
 	return out
 
 
+## 티켓을 모두 써서 한 번에 뽑는다 (확정 칸은 없다 - 티켓 한 장 = 1번 뽑기). 돌려주는 것은 `pull` 과 같다.
+static func pull_tickets(rng: RandomNumberGenerator) -> Array:
+	var out: Array = []
+	var n := tickets
+	tickets = 0
+	for i in n:
+		out.append(_grant(roll(rng, "rare")))
+	return out
+
+
 ## 등급을 굴리고 그 등급 안에서 하나 고른다. floor_r 보다 낮은 등급은 안 나온다.
 static func roll(rng: RandomNumberGenerator, floor_r := "rare") -> String:
 	var r := "rare"

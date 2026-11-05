@@ -52,7 +52,7 @@ func _restyle_tree(node: Node) -> void:
 			if n == reset_btn:
 				kind = "danger"
 			elif n == close_btn:
-				kind = "gold"
+				kind = "ghost"   # 닫기는 안전한 길 - 주 버튼처럼 분홍으로 칠하지 않는다
 			_copy_style(n as Button, IdleUi.button("", 10, kind), kind)
 		elif n is HSlider:
 			_style_slider(n as HSlider)
@@ -74,7 +74,7 @@ func _copy_style(b: Button, tpl: Button, kind: String) -> void:
 		var sb := tpl.get_theme_stylebox(st)
 		if sb != null:
 			b.add_theme_stylebox_override(st, sb)
-	var fc := Color("#3A2410") if kind == "gold" else IdleUi.CREAM
+	var fc := Color("#4A1D3A") if kind == "gold" else (Color("#B0304A") if kind == "danger" else IdleUi.CREAM)
 	for c in ["font_color", "font_pressed_color", "font_hover_color", "font_focus_color"]:
 		b.add_theme_color_override(c, fc)
 	tpl.free()

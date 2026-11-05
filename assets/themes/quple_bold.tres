@@ -6,7 +6,7 @@
 
 [sub_resource type="FontVariation" id="BoldVar"]
 base_font = ExtResource("1_jua")
-fallbacks = [ExtResource("2_poor"), ExtResource("3_sym")]
+fallbacks = [ExtResource("3_sym"), ExtResource("2_poor")]
 
 [resource]
 default_font = SubResource("BoldVar")
