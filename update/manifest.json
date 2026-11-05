@@ -1,7 +1,7 @@
 {
-  "version": "0.1.280",
+  "version": "0.1.281",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "08fccc19974dc9dad28a8bd0a27f58ab14ddec2ee8c08714034d21b8ba466ad2",
-  "size": 14690400,
-  "notes": "폰에서도 새 글꼴(Jua)이 보이도록"
+  "sha256": "86aa57c3e4b43b1c6240195f75c42582229cfb700e25cf3261e0441b9f4912d8",
+  "size": 14684544,
+  "notes": "아트 검토 반영(자간·버튼·로고) + 티켓 모두 뽑기"
 }
