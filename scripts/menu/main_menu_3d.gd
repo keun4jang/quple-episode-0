@@ -10,6 +10,7 @@ const POSTER_PATH    := "res://assets/splash/menu-bg-wide.png"
 const HERO_3D_PATH := "res://assets/mascots/quica-hero-diorama.png"
 
 func _ready() -> void:
+	IdleUi.refresh_project_theme()  # 옛 APK 의 테마 대신 팩의 테마 (IdleUi 참고)
 	_inject_poster_background()
 	# 캐릭터+디오라마는 no-text 포스터 에셋에 포함(구조: 포스터 우선 + 코드 UI).
 	# Blender 히어로 런타임 오버레이는 디버그용으로만 유지.

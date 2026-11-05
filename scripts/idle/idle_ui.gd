@@ -84,6 +84,27 @@ static func label(t: String, fs: int, col := CREAM, outline := false) -> Label:
 	return l
 
 
+
+## 전역 테마(`gui/theme/custom`)는 엔진이 **갱신 팩을 얹기 전에** APK 에서 읽어 둔다.
+## 그래서 팩에 새 테마가 있어도 폰은 옛 테마를 썼다 - Jua 로 바꾼 뒤에도 폰만 옛 글꼴(PoorStory)로
+## 그려져 자간이 벌어져 보였다 (2026-11). 오토로드 스크립트도 APK 것이 돌아서, 팩으로 고치려면
+## 팩에서 읽히는 쪽(첫 화면)이 불러야 한다 - 메뉴와 쿼카 군단의 _ready 가 부른다.
+const THEME_PATH := "res://assets/themes/quple_bold.tres"
+static var _theme_fresh := false
+
+static func refresh_project_theme() -> void:
+	if _theme_fresh:
+		return
+	_theme_fresh = true
+	var live := ThemeDB.get_project_theme()
+	var fresh := ResourceLoader.load(THEME_PATH, "Theme", ResourceLoader.CACHE_MODE_REPLACE_DEEP) as Theme
+	if fresh == null or live == null or fresh == live:
+		return
+	live.default_font = fresh.default_font
+	live.default_font_size = fresh.default_font_size
+	live.merge_with(fresh)
+
+
 ## 글자 크기에 맞는 테두리 두께 (outline_size 는 양쪽을 합친 폭이다).
 ## 예전엔 최소 6 이라 작은 글씨는 테두리가 획 틈을 메워 "쿼"가 "퀴"처럼 뭉쳤다 (2026-11 아트 검토).
 static func outline_for(fs: int) -> int:

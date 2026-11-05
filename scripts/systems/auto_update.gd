@@ -185,6 +185,7 @@ func _apply_pending_pack() -> void:
 
 	if ProjectSettings.load_resource_pack(PCK_PATH):
 		print("[AutoUpdate] 내용 버전 ", _state.get("pck_version", "?"), " 적용됨")
+		IdleUi.refresh_project_theme()
 	else:
 		push_warning("[AutoUpdate] 팩을 얹지 못했다. 되돌린다.")
 		_rollback()

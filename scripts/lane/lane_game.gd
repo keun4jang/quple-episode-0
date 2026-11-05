@@ -211,6 +211,7 @@ var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	IdleUi.refresh_project_theme()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	# 안드로이드 뒤로가기가 close_panel() 을 부른다 (back_handler.gd)
 	add_to_group("idle_game")
