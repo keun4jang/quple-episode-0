@@ -5,7 +5,7 @@
 ## 시작할 때
 
 1. `cd /c/Projects/quqle-episode-0/happy-game` 그리고 `git status`, `git log --oneline -5`
-2. 이 파일, `CLAUDE.md`, `docs/redesign-lane.md`(쿼카 군단 설계·바꾼 이력)를 읽는다
+2. 이 파일, `CLAUDE.md`, **`docs/lane-principles.md`(판단 기준 - 왜)**, `docs/redesign-lane.md`(설계·바꾼 이력 - 무엇)를 읽는다
 3. 아래 **현재 상태** 를 사용자에게 2~3줄로 알려 주고, 이어서 할지 새 일을 할지 묻는다
 
 ## 늘 지키는 것
@@ -13,7 +13,8 @@
 - 답은 한국어로 한다
 - 게임 코드는 `scripts/lane/`에 있다. Godot 4.3: `C:\Tools\godot43\`
 - 테스트: `Godot_v4.3-stable_win64_console.exe --headless --path . res://tests/TestLane.tscn`
-- 글자 검사: `.sdenv/Scripts/python.exe tools/pixel/check-font-glyphs.py`
+- 글자 검사: `.sdenv/Scripts/python.exe tools/pixel/check-font-glyphs.py` 와 `check-font-sizes.py`(글 크기 단계, 기준선 래칫)
+- 고치기 전에 `docs/lane-principles.md` 의 세 질문을 거친다. 같은 문제가 두 번 나오면 검사 도구를 하나 더한다
 - 화면 찍기: **무음이고 화면 밖**에서 실행한다 (사용자가 일하는 중이다)
   - `Start-Process -FilePath C:\Tools\godot43\Godot_v4.3-stable_win64.exe -ArgumentList '--path','.','--audio-driver','Dummy','--resolution','720x1560','--position','-6000,-6000','res://tools/sim/ShotLane.tscn'`
   - 환경 변수 `SHOT_MODE`·`SHOT_OUT` 등으로 고른다. 모드 목록은 `tools/sim/shot_lane.gd` 2번 줄에 있다
@@ -27,7 +28,10 @@
   - `assets/source/`는 커밋하지 않는다
   - 돈이 드는 일은 먼저 묻는다
 
-## 현재 상태 (2026-11-06, 0.1.281)
+## 현재 상태 (2026-11-16, 0.1.281 + 판단 기준)
+
+- 2026-11-16 (배포 전): 판단 기준 문서 `docs/lane-principles.md`, 글 크기 검사 `tools/pixel/check-font-sizes.py`
+  (단계 18·22·28·34·44, 단계 밖 76곳이 기준선). 19px → 18, 21px → 22 로 합쳤다
 
 - 최근에 바꾼 것:
   - 1장 100판을 약 1시간에 깨도록 맞췄다 (`LaneData.PACE` 3, `NEST_MULT` 0.6, `CH1_BUG` 0.5)

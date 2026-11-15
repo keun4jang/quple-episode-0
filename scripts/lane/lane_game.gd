@@ -729,7 +729,7 @@ func _fill_map() -> void:
 			chrow.add_child(cb)
 		if ch == 1:
 			var note := IdleUi.label("2장: 같은 곳, 더 센 벌레. 처음부터 벌레가 다 섞여 나오고 떼도 커요. 보물은 좋은 등급이 잘 나와요.",
-				19, IdleUi.LAV_DK)
+				18, IdleUi.LAV_DK)
 			note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			_home_body.add_child(note)
 	var in_ch := LaneState.cleared - ch * LaneData.CH_STAGES
@@ -758,7 +758,7 @@ func _fill_map() -> void:
 		head.add_child(hv)
 		hv.add_child(IdleUi.label("%d. %s" % [zi + 1, String(z["name"])], 28, IdleUi.CREAM))
 		hv.add_child(IdleUi.label("우두머리 %s · 보물 %d / 9 · 꽃 %d / 30" % [boss_name, LaneState.treasure_count(zi),
-			LaneState.flowers_in_zone(ch * LaneData.ZONES.size() + zi)], 19, IdleUi.SUB))
+			LaneState.flowers_in_zone(ch * LaneData.ZONES.size() + zi)], 18, IdleUi.SUB))
 		# 보물 셋 - 등급 색 테두리, 없으면 흐리게
 		var trow := HBoxContainer.new()
 		trow.add_theme_constant_override("separation", 6)
@@ -833,11 +833,11 @@ func _daily_card() -> PanelContainer:
 	row.add_child(v)
 	v.add_child(IdleUi.label("오늘의 도전", 22, IdleUi.LAV_DK))
 	v.add_child(IdleUi.label(String(rule["name"]), 30, IdleUi.GOLD, true))
-	var d := IdleUi.label(String(rule["desc"]), 19, IdleUi.SUB)
+	var d := IdleUi.label(String(rule["desc"]), 18, IdleUi.SUB)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(d)
 	var last := IdleUi.label("오늘 깼어요 ✓" if done_today else "%s · 보상 행운별 %d · 행복 조각 %s" % [
-		LaneData.stage_label(n), LaneData.DAILY_STARS, _num(LaneState.daily_xp(n))], 19, PINK_TXT if done_today else IdleUi.SUB)
+		LaneData.stage_label(n), LaneData.DAILY_STARS, _num(LaneState.daily_xp(n))], 18, PINK_TXT if done_today else IdleUi.SUB)
 	last.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(last)
 	var b := IdleUi.button("다시 ▶" if done_today else "도전 ▶", 26, "plum" if done_today else "gold")
@@ -893,8 +893,8 @@ func _fort_card() -> void:
 	v.add_theme_constant_override("separation", 2)
 	row.add_child(v)
 	v.add_child(IdleUi.label("우리 성  Lv %d" % lv, 26, PINK_TXT))
-	v.add_child(IdleUi.label("무너지면 져요 - 튼튼할수록 오래 버텨요", 19, IdleUi.SUB))
-	v.add_child(IdleUi.label("체력 %s" % _num(int(round(LaneData.fort_hp(lv)))), 19, IdleUi.CREAM))
+	v.add_child(IdleUi.label("무너지면 져요 - 튼튼할수록 오래 버텨요", 18, IdleUi.SUB))
+	v.add_child(IdleUi.label("체력 %s" % _num(int(round(LaneData.fort_hp(lv)))), 18, IdleUi.CREAM))
 	if lv < LaneData.FORT_LV_MAX:
 		v.add_child(IdleUi.label("다음: 체력 %s" % _num(int(round(LaneData.fort_hp(lv + 1)))), 18, IdleUi.GREEN))
 	var b := IdleUi.button("", 20, "gold")
@@ -934,9 +934,9 @@ func _bazooka_card() -> void:
 	v.add_theme_constant_override("separation", 2)
 	row.add_child(v)
 	v.add_child(IdleUi.label("바주카포  Lv %d" % lv, 26, PINK_TXT))
-	v.add_child(IdleUi.label("둥지까지 날아가 길 위 벌레를 모두 맞혀요", 19, IdleUi.SUB))
+	v.add_child(IdleUi.label("둥지까지 날아가 길 위 벌레를 모두 맞혀요", 18, IdleUi.SUB))
 	v.add_child(IdleUi.label("피해 x%.2f · 충전 %d초 · 둥지 %.1f%%" % [LaneData.bazooka_dmg_mult(lv),
-		int(round(LaneData.bazooka_charge(lv))), LaneData.bazooka_nest(lv) * 100.0], 19, IdleUi.CREAM))
+		int(round(LaneData.bazooka_charge(lv))), LaneData.bazooka_nest(lv) * 100.0], 18, IdleUi.CREAM))
 	if lv < LaneData.BAZOOKA_LV_MAX:
 		v.add_child(IdleUi.label("다음: 피해 x%.2f · 충전 %d초 · 둥지 %.1f%%" % [LaneData.bazooka_dmg_mult(lv + 1),
 			int(round(LaneData.bazooka_charge(lv + 1))), LaneData.bazooka_nest(lv + 1) * 100.0], 18, IdleUi.GREEN))
@@ -1024,11 +1024,11 @@ func _fill_units() -> void:
 		var tt := LaneData.trait_text(String(id))
 		if tt != "":
 			v.add_child(IdleUi.label(tt, 20, IdleUi.GREEN))
-		v.add_child(IdleUi.label("스킬  " + String(LaneData.SKILLS[id]["name"]), 21,
+		v.add_child(IdleUi.label("스킬 " + String(LaneData.SKILLS[id]["name"]), 22,
 			Color(String(LaneData.SKILLS[id]["col"]))))
 		v.add_child(IdleUi.label(LaneData.skill_desc(String(id)), 18, IdleUi.SUB))
 		v.add_child(IdleUi.label("체력 %s · 공격 %s · 웃음 %d" % [_num(int(s["hp"])), _num(int(s["atk"])),
-			int(u["cost"])], 19, IdleUi.CREAM))
+			int(u["cost"])], 18, IdleUi.CREAM))
 		if LaneState.is_evolved(String(id)):
 			v.add_child(IdleUi.label("진화 완료", 18, PINK_TXT))
 		elif lv < LaneData.EVOLVE_LV:
@@ -1308,7 +1308,7 @@ func _fill_gacha() -> void:
 		col.add_child(nm)
 	v.add_child(_center(IdleUi.label("희귀 72% · 특급 24% · 전설 4%", 22, IdleUi.CREAM)))
 	v.add_child(_center(IdleUi.label("%d번 안에 전설 확정 (남은 %d번) · 같은 친구는 레벨 +1" % [LaneData.PITY_LEGEND,
-		LaneData.PITY_LEGEND - LaneState.pity], 19, IdleUi.SUB)))
+		LaneData.PITY_LEGEND - LaneState.pity], 18, IdleUi.SUB)))
 	var one := IdleUi.button("", 30, "gold")
 	one.custom_minimum_size = Vector2(0, 110)
 	if LaneState.tickets > 0:
@@ -1348,7 +1348,7 @@ func _fill_gacha() -> void:
 			_short_stars(ten, LaneData.GACHA10_COST))
 	v.add_child(ten)
 	var how := IdleUi.label("행운별은 판을 처음 깨면 받고(뒤 구역일수록 많이, 우두머리는 티켓도), 다시 깨면 1개, 매일 선물로도 받아요.\n진짜 돈은 쓰지 않아요.",
-		19, IdleUi.SUB)
+		18, IdleUi.SUB)
 	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(how)
 
@@ -1813,7 +1813,7 @@ func _open_acc_picker(unit: String) -> void:
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(v)
 		v.add_child(IdleUi.label("%s  Lv %d" % [String(a["name"]), lv], 24, IdleUi.CREAM))
-		v.add_child(IdleUi.label(LaneData.acc_text(acc, lv), 19, IdleUi.GREEN))
+		v.add_child(IdleUi.label(LaneData.acc_text(acc, lv), 18, IdleUi.GREEN))
 		var who := LaneState.wearer(acc)
 		if who != "":
 			v.add_child(IdleUi.label("%s 착용 중" % String(LaneData.UNITS[who]["name"]), 18, IdleUi.SUB))
@@ -2148,7 +2148,7 @@ func _build_hud() -> void:
 		var pic := _portrait(uid_s, 60.0)
 		pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(pic)
-		var nm := IdleUi.label(_short_name(uid_s), 19, IdleUi.CREAM)
+		var nm := IdleUi.label(_short_name(uid_s), 18, IdleUi.CREAM)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		nm.clip_text = true
 		col.add_child(nm)
