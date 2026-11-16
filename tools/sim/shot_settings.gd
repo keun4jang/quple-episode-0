@@ -8,6 +8,12 @@ func _ready() -> void:
 	if sv:
 		sv.open()
 	await get_tree().create_timer(0.8).timeout
+	# SHOT_SCROLL=1 - 아래(저장 코드 · 처음부터 하기)까지 굴려 찍는다
+	if sv and OS.get_environment("SHOT_SCROLL") == "1":
+		var sc := sv.find_child("Scroll", true, false) as ScrollContainer
+		if sc:
+			sc.scroll_vertical = 99999
+		await get_tree().create_timer(0.3).timeout
 	# SHOT_HINT=new|ok|fail|busy - 업데이트 안내 글자를 그 상태로 띄워 찍는다
 	var h := OS.get_environment("SHOT_HINT")
 	if sv and h != "":
@@ -17,6 +23,9 @@ func _ready() -> void:
 			"fail": sv._set_update_state(false, "받지 못했어요
 인터넷 연결을 확인해 주세요", sv.HINT_FAIL)
 			"busy": sv._on_check_started()
+			"code": # 붙여넣기 한 번 누른 모습 (지금 저장을 코드로 만들어 클립보드에 두고 누른다)
+				DisplayServer.clipboard_set(LaneState.export_code())
+				sv._on_import_code()
 		await get_tree().create_timer(0.3).timeout
 	get_viewport().get_texture().get_image().save_png(OS.get_environment("SHOT_OUT"))
 	get_tree().quit()

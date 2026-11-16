@@ -282,6 +282,7 @@ func _ready() -> void:
 		and not LaneState.units.has("nope") and LaneState.lineup.count("tiny") == 1)
 	LaneState.clear_save()
 	ck("지우면 없다", not LaneState.has_save())
+	_test_save_code()
 	_test_gacha()
 	_test_extras()
 	_test_tally()
@@ -290,6 +291,37 @@ func _ready() -> void:
 	_test_daily()
 	print("\n=== 결과: %d 통과 / %d 실패 ===" % [pass_n, fail_n])
 	get_tree().quit(1 if fail_n > 0 else 0)
+
+
+func _test_save_code() -> void:
+	print("\n[저장 코드]")
+	LaneState.reset()
+	LaneState.xp = 1234
+	LaneState.cleared = 42
+	LaneState.unlock_by_stage()
+	LaneState.units["spear"] = 9
+	LaneState.tickets = 5
+	LaneState.flowers[3] = 7
+	var code := LaneState.export_code()
+	ck("코드는 QK1 로 시작하고 한 줄", code.begins_with("QK1") and not code.contains("\n"), "len %d" % code.length())
+	ck("코드는 짧다 (메신저에 붙일 만큼)", code.length() < 4000, "len %d" % code.length())
+	LaneState.reset()
+	LaneState.xp = 1
+	ck("불러오기 성공", LaneState.import_code("  " + code.substr(0, 20) + "\n" + code.substr(20) + " ") == "")
+	ck("전부 돌아온다", LaneState.xp == 1234 and LaneState.cleared == 42 and LaneState.level_of("spear") == 9
+		and LaneState.tickets == 5 and int(LaneState.flowers.get(3, 0)) == 7)
+	ck("불러오면 파일에도 저장", LaneState.has_save())
+	var bk := ConfigFile.new()
+	ck("바꾸기 전 저장을 한 벌 남긴다", bk.load(LaneState.backup_path()) == OK
+		and int((bk.get_value("lane", "data") as Dictionary).get("xp", 0)) == 1)
+	var before := LaneState.xp
+	ck("빈 글자는 거절", LaneState.import_code("") != "" and LaneState.xp == before)
+	ck("다른 글자는 거절", LaneState.import_code("안녕하세요") != "" and LaneState.xp == before)
+	ck("잘린 코드는 거절", LaneState.import_code(code.substr(0, code.length() - 6)) != "" and LaneState.xp == before)
+	var bad := code.substr(0, 20) + ("A" if code[20] != "A" else "B") + code.substr(21)
+	ck("한 글자 바뀐 코드는 거절", LaneState.import_code(bad) != "" and LaneState.xp == before)
+	LaneState.clear_save()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(LaneState.backup_path()))
 
 
 func _test_gacha() -> void:

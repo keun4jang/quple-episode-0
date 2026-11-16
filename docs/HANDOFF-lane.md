@@ -28,7 +28,12 @@
   - `assets/source/`는 커밋하지 않는다
   - 돈이 드는 일은 먼저 묻는다
 
-## 현재 상태 (2026-11-16, 0.1.281 + 판단 기준)
+## 현재 상태 (2026-11-17, 0.1.282)
+
+- 0.1.282: **저장 코드** - 설정 창 "저장 코드 복사 / 붙여넣기" (`LaneState.export_code` · `import_code`, 서버 없음).
+  붙여넣기는 두 번 눌러야 하고 바꾸기 전 저장을 `lane_backup.cfg` 에 남긴다. TestLane 229.
+  설정 창 찍기: `ShotSettings.tscn` + `SHOT_SCROLL=1`, `SHOT_HINT=code`. 19px → 18 크기 정리도 함께 나갔다
+- 다음 추천: 손으로만 1장 10판 시험(사람이 한다, 가설 H1·H2) → SimLane 으로 2장 난이도 곡선
 
 - 2026-11-16 (배포 전): 판단 기준 문서 `docs/lane-principles.md`, 글 크기 검사 `tools/pixel/check-font-sizes.py`
   (단계 18·22·28·34·44, 단계 밖 76곳이 기준선). 19px → 18, 21px → 22 로 합쳤다

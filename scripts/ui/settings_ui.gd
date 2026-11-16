@@ -23,6 +23,7 @@ func _ready() -> void:
 	_add_home_button()
 	_add_update_row()
 	_add_calm_row()
+	_add_code_rows()
 	_make_scrollable()
 	_restyle()
 
@@ -265,6 +266,85 @@ func _add_calm_row() -> void:
 	body.move_child(b, reset_btn.get_index())
 
 
+## 저장 코드 - 앱을 지우거나 폰을 바꿔도 모은 것을 되찾는 길 (`LaneState.export_code`).
+## 서버 없이 클립보드로만 옮긴다. 불러오기는 지금 저장을 덮으니 한 번 더 눌러야 한다.
+var _code_hint: Label
+var _import_btn: Button
+var _import_armed := false
+
+
+func _add_code_rows() -> void:
+	var body := close_btn.get_parent()
+	if body == null or body.has_node("CodeBox"):
+		return
+	var box := VBoxContainer.new()
+	box.name = "CodeBox"
+	box.add_theme_constant_override("separation", 6)
+	body.add_child(box)
+	body.move_child(box, reset_btn.get_index())
+
+	var ex_btn := _plain_button("ExportBtn", "저장 코드 복사")
+	ex_btn.pressed.connect(_on_export_code)
+	box.add_child(ex_btn)
+	_import_btn = _plain_button("ImportBtn", "저장 코드 붙여넣기")
+	_import_btn.pressed.connect(_on_import_code)
+	box.add_child(_import_btn)
+
+	_code_hint = Label.new()
+	_code_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_code_hint.autowrap_mode = TextServer.AUTOWRAP_OFF   # 자동 줄바꿈은 창 높이를 한 글자 폭 기준으로 크게 잡았다 - 줄은 문장에서 나눈다
+	_code_hint.add_theme_font_size_override("font_size", 22)
+	_code_hint.add_theme_color_override("font_color", HINT_INFO)
+	_code_hint.text = _CODE_INFO
+	box.add_child(_code_hint)
+
+
+const _CODE_INFO := "앱을 지우거나 폰을 바꾸기 전에 코드를 복사해 메모에 넣어 두세요"
+
+
+func _plain_button(n: String, t: String) -> Button:
+	var b := Button.new()
+	b.name = n
+	b.text = t
+	b.custom_minimum_size = close_btn.custom_minimum_size
+	b.add_theme_font_size_override("font_size", close_btn.get_theme_font_size("font_size"))
+	return b
+
+
+func _on_export_code() -> void:
+	LaneState.save()                 # 지금 것까지 담는다
+	DisplayServer.clipboard_set(LaneState.export_code())
+	_set_code_hint("복사했어요\n메모나 메신저에 붙여 넣어 두세요", HINT_OK)
+
+
+func _on_import_code() -> void:
+	var code := DisplayServer.clipboard_get()
+	if not _import_armed:
+		var d = LaneState.decode_code(code)
+		if not (d is Dictionary):
+			_set_code_hint(String(d) + "\n먼저 저장 코드를 복사해 오세요", HINT_FAIL)
+			return
+		_import_armed = true
+		_import_btn.text = "정말 바꿀까요? (한 번 더)"
+		_set_code_hint("지금 기록이 코드 속 기록으로 바뀌어요\n친구 %d · 깬 판 %d" % [
+			(d.get("units", {}) as Dictionary).size(), int(d.get("cleared", 0))], HINT_NEW)
+		return
+	_import_armed = false
+	_import_btn.text = "저장 코드 붙여넣기"
+	var err := LaneState.import_code(code)
+	if err != "":
+		_set_code_hint(err, HINT_FAIL)
+	else:
+		_set_code_hint("불러왔어요\n첫 화면으로 돌아가면 보여요", HINT_OK)
+
+
+func _set_code_hint(msg: String, col: Color) -> void:
+	if _code_hint == null:
+		return
+	_code_hint.text = msg
+	_code_hint.add_theme_color_override("font_color", col)
+
+
 func _calm_text(on: bool) -> String:
 	return "화면 흔들림·번쩍임 줄이기: %s" % ("켜짐" if on else "꺼짐")
 
@@ -386,8 +466,13 @@ func open() -> void:
 	if _update_btn != null and not _update_btn.disabled:
 		_update_btn.text = "업데이트 확인"
 	reset_btn.text = "처음부터 하기"
+	_import_armed = false
+	if _import_btn != null:
+		_import_btn.text = "저장 코드 붙여넣기"
+	_set_code_hint(_CODE_INFO, HINT_INFO)
 	visible = true
 	_fit_panel()
+	_fit_panel.call_deferred()   # 줄바꿈 글(저장 코드 안내)은 한 박자 뒤에야 높이가 정해진다
 	panel.scale = Vector2(0.9, 0.9)
 	panel.pivot_offset = panel.size / 2.0
 	var tw := create_tween()

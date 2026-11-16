@@ -965,3 +965,69 @@ static func clear_save() -> void:
 	if FileAccess.file_exists(save_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	reset()
+
+
+# ── 저장 코드 ─────────────────────────────────────────────────────────
+#
+# 저장은 폰 안 파일 하나뿐이라 앱을 지우면 다 사라진다 (같은 장르 리뷰의 큰 불만 -
+# `docs/lane-premortem.md`, 판단 기준 11). 서버·계정 없이 글자 한 줄로 옮긴다:
+# 복사해서 메모·메신저에 두었다가 새 폰에서 붙여 넣는다. 개인정보는 들어가지 않는다.
+#
+# 모양: "QK1" + 확인 글자 8 + base64(deflate(var_to_bytes(to_dict())))
+# 확인 글자는 잘린 코드·오타를 잡는다 (속임을 막는 것은 아니다 - 혼자 하는 게임이다).
+
+const CODE_HEAD := "QK1"
+## 바꾸기 전 저장 한 벌 (테스트는 save_path 를 바꾸니 그 옆에 둔다)
+static func backup_path() -> String:
+	return save_path.get_basename() + "_backup.cfg"
+
+
+static func export_code() -> String:
+	var raw := var_to_bytes(to_dict())
+	var packed := raw.compress(FileAccess.COMPRESSION_DEFLATE)
+	return CODE_HEAD + _code_check(packed) + Marshalls.raw_to_base64(packed)
+
+
+## 코드를 읽어 지금 저장을 바꾼다. 성공하면 "", 아니면 사람이 읽을 까닭.
+## 바꾸기 전 저장은 `backup_path()` 에 한 벌 남긴다 (잘못 붙여 넣어도 되돌릴 길).
+static func import_code(code: String) -> String:
+	var d = decode_code(code)
+	if not (d is Dictionary):
+		return String(d)
+	var c := ConfigFile.new()
+	c.set_value("lane", "data", to_dict())
+	c.save(backup_path())
+	from_dict(d)
+	migrated = true      # 옛 게임 선물은 이미 받은 것으로 (코드에 없던 옛 저장이어도 두 번 주지 않는다)
+	save()
+	return ""
+
+
+## 코드 → 저장 사전. 틀리면 까닭(String)을 돌려준다. 저장은 건드리지 않는다.
+static func decode_code(code: String):
+	var s := ""
+	for ch in code:
+		if ch != " " and ch != "\n" and ch != "\r" and ch != "\t":
+			s += ch
+	if s.is_empty():
+		return "붙여 넣은 글자가 없어요"
+	if not s.begins_with(CODE_HEAD) or s.length() < CODE_HEAD.length() + 9:
+		return "저장 코드가 아니에요"
+	var check := s.substr(CODE_HEAD.length(), 8)
+	var packed := Marshalls.base64_to_raw(s.substr(CODE_HEAD.length() + 8))
+	if packed.is_empty() or _code_check(packed) != check:
+		return "코드가 잘렸거나 바뀌었어요"
+	var raw := packed.decompress_dynamic(1 << 20, FileAccess.COMPRESSION_DEFLATE)
+	if raw.is_empty():
+		return "코드를 풀 수 없어요"
+	var d = bytes_to_var(raw)          # 물체(Object)는 풀지 않는다 - 기본값
+	if not (d is Dictionary) or not (d as Dictionary).has("units"):
+		return "코드 안에 저장이 없어요"
+	return d
+
+
+static func _code_check(packed: PackedByteArray) -> String:
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update(packed)
+	return ctx.finish().hex_encode().substr(0, 8)
