@@ -26,28 +26,28 @@ const STUCK_MS := 4000
 func _ready() -> void:
 	overlay.color = Color(0, 0, 0, 0)
 	layer = 10
-	_go_portrait()
+	_go_landscape()
 
 
-## 세로 화면 (720x1280 기준, 긴 폰은 위아래로 늘어난다).
+## 가로 화면 (1280x720 기준, 긴 폰은 좌우로 늘어난다). 2026-11: 세로 → 가로로 바꿨다 (한 줄 싸움이 넓게 보인다).
 ## project.godot 의 방향·크기는 이미 깔린 앱(APK)에선 업데이트로 안 바뀐다. 그래서 켜질 때마다 코드로 바꾼다 -
 ## 이 노드는 자동 로드 씬이라 업데이트 팩으로 전달된다 (`back_handler.gd` 와 같은 이유).
-const PORTRAIT := Vector2i(720, 1280)
+const LANDSCAPE := Vector2i(1280, 720)
 
 
-func _go_portrait() -> void:
+func _go_landscape() -> void:
 	var win := get_tree().root
-	win.content_scale_size = PORTRAIT
+	win.content_scale_size = LANDSCAPE
 	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	if OS.has_feature("mobile"):
-		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_PORTRAIT)
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 	elif DisplayServer.get_name() != "headless":
-		# PC: 가로로 긴 창이면 세로 창으로 바꿔 가운데 둔다
+		# PC: 세로로 긴 창이면 가로 창으로 바꿔 가운데 둔다
 		var ws := DisplayServer.window_get_size()
-		if ws.x > ws.y:
+		if ws.y > ws.x:
 			var scr := DisplayServer.screen_get_usable_rect()
-			var hh := mini(960, int(scr.size.y * 0.9))
-			var nw := Vector2i(int(hh * 9.0 / 16.0), hh)
+			var ww := mini(1600, int(scr.size.x * 0.85))
+			var nw := Vector2i(ww, int(ww * 9.0 / 16.0))
 			DisplayServer.window_set_size(nw)
 			DisplayServer.window_set_position(scr.position + (scr.size - nw) / 2)
 

@@ -339,6 +339,24 @@ func _insets() -> Vector2:
 	return Vector2(top, bot)
 
 
+## 가로 화면인가 (2026-11 부터 앱 전체가 가로다 - 세로 배치는 옛 창 크기에서만 쓰인다).
+func _wide() -> bool:
+	return size.x > size.y
+
+
+## 가로 화면의 왼쪽·오른쪽 안전 여백 (노치·둥근 모서리).
+func _side_insets() -> Vector2:
+	var l := 0.0
+	var r := 0.0
+	var ss := DisplayServer.screen_get_size()
+	var sa := DisplayServer.get_display_safe_area()
+	if ss.x > 0 and sa.size.x > 0 and sa.size.x < ss.x:
+		var k := size.x / float(ss.x)
+		l = float(sa.position.x) * k
+		r = float(ss.x - sa.end.x) * k
+	return Vector2(l, r)
+
+
 func _layout() -> void:
 	if _home != null:
 		_home.size = size
@@ -351,7 +369,8 @@ func _layout() -> void:
 		# 우리 성이 위(위 단추 줄 밑), 둥지가 아래 - 쿼카가 화면 아래로 걸어와 얼굴이 보인다
 		_field.y_front = FORT_Y
 		_field.y_far = size.y - 500.0
-		if _art_bg != null:
+		_field.horizontal = _wide()
+		if _art_bg != null and not _wide():
 			# 폭에 맞춰 깐다 (폭 720 = 2배). 길은 그림 높이의 ART_ROAD 구간 - 밑그림(make_layout.py)과 같은 비율
 			var tex := _art_bg.texture
 			var s := size.x / float(tex.get_width())
@@ -568,18 +587,24 @@ func _fill_parade() -> void:
 		c.queue_free()
 	var ids: Array = LaneState.lineup.slice(0, 5)
 	var n := ids.size()
-	var gap := minf(120.0, (size.x - 80.0) / maxf(1.0, float(n)))
+	var stage_w := _stage_w() if _wide() else size.x
+	var gap := minf(120.0, (stage_w - 80.0) / maxf(1.0, float(n)))
 	for i in n:
 		var a := IdleActor.new()
 		a.set_sheet(unit_sheet(String(ids[i])))
 		a.row = 0
 		a.px = 3.0
 		a.walking = false
-		a.position = Vector2(size.x * 0.5 + (float(i) - float(n - 1) * 0.5) * gap, 0)
+		a.position = Vector2(stage_w * 0.5 + (float(i) - float(n - 1) * 0.5) * gap, 0)
 		a.position = (a.position / 3.0).round() * 3.0
 		stage.add_child(a)
 		_add_wear(a, String(ids[i]))
 		_place_wear(a)
+
+
+## 가로 홈의 왼쪽 무대 폭 (제목 · 친구들 · 출전). 나머지 오른쪽은 내용 카드와 탭.
+func _stage_w() -> float:
+	return clampf(size.x * 0.36, 400.0, 560.0) + _side_insets().x
 
 
 func _layout_home() -> void:
@@ -588,6 +613,9 @@ func _layout_home() -> void:
 	_home_pix.size = size
 	(_home_pix.get_node("VP/Back") as Control).size = size
 	var ins := _insets()
+	if _wide():
+		_layout_home_wide(w, h, ins)
+		return
 	var top := _home.get_node("Top") as Control
 	top.position = Vector2(14, 14 + ins.x)
 	top.size = Vector2(w - 28, 64)
@@ -612,6 +640,40 @@ func _layout_home() -> void:
 	var cy := 86.0 + ins.x + hero_h + 4.0
 	card.position = Vector2(14, cy)
 	card.size = Vector2(w - 28, go.position.y - 14.0 - cy)
+
+
+## 가로 홈: 위 재화 줄 / 왼쪽 무대(제목 · 친구들 · 출전) / 오른쪽 내용 카드 + 아래 탭.
+func _layout_home_wide(w: float, h: float, ins: Vector2) -> void:
+	var si := _side_insets()
+	var sw := _stage_w()
+	(_home_pix.get_node("VP/Back") as IdleBackdrop).ground = 0.62
+	var top := _home.get_node("Top") as Control
+	top.position = Vector2(14 + si.x, 12 + ins.x)
+	top.size = Vector2(w - 28 - si.x - si.y, 64)
+	var title := _home.get_node("Title") as Control
+	title.position = Vector2(si.x, 84 + ins.x)
+	title.size = Vector2(sw - si.x, 92)
+	var sub := _home.get_node("Sub") as Control
+	sub.position = Vector2(si.x, 168 + ins.x)
+	sub.size = Vector2(sw - si.x, 32)
+	var go := _home.get_node("Go") as Control
+	go.position = Vector2(18 + si.x, h - 112.0 - 14.0 - ins.y)
+	go.size = Vector2(sw - 36 - si.x, 112)
+	# 친구들은 출전 단추 위 땅에 선다
+	(_home.get_node("Parade") as Node2D).position = Vector2(si.x * 0.5, go.position.y - 24.0)
+	var cx := sw + 4.0
+	var cw := w - cx - 14.0 - si.y
+	var tabs_h := 112.0 + ins.y
+	var bar := _home.get_node("TabBar") as Control
+	bar.position = Vector2(cx, h - tabs_h)
+	bar.size = Vector2(cw, tabs_h)
+	var bsb := bar.get_theme_stylebox("panel") as StyleBoxFlat
+	if bsb != null:
+		bsb.content_margin_bottom = ins.y
+	var card := _home.get_node("Card") as Control
+	var cy := 84.0 + ins.x
+	card.position = Vector2(cx, cy)
+	card.size = Vector2(cw, h - tabs_h - 10.0 - cy)
 
 
 func _show_home() -> void:
@@ -1137,7 +1199,7 @@ func _evolve_show(id: String) -> void:
 	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rays.modulate.a = 0.0
 	lay.add_child(rays)
-	var c := size * Vector2(0.5, 0.42)
+	var c := size * Vector2(0.5, 0.45) if _wide() else size * Vector2(0.5, 0.42)
 	rays.center = c
 	# 옛 모습 (진화 전 그림)
 	var old := TextureRect.new()
@@ -1169,26 +1231,26 @@ func _evolve_show(id: String) -> void:
 	var title := IdleUi.label("진화!", 84, IdleUi.GOLD, true)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.size = Vector2(size.x, 110)
-	title.position = Vector2(0, c.y - 300)
+	title.position = Vector2(0, 14.0 if _wide() else c.y - 300)
 	title.modulate.a = 0.0
 	lay.add_child(title)
 	var nm := IdleUi.label(LaneData.unit_name(id, 0), 40, Color.WHITE, true)
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.size = Vector2(size.x, 60)
-	nm.position = Vector2(0, c.y + 170)
+	nm.position = Vector2(0, c.y + (150.0 if _wide() else 170.0))
 	nm.modulate.a = 0.0
 	lay.add_child(nm)
 	var info := IdleUi.label("체력·공격 ×%s · 스킬이 더 자주 나와요\n레벨을 %d까지 올릴 수 있어요" % [str(LaneData.EVOLVE_ATK),
 		LaneData.UNIT_LV_MAX], 24, IdleUi.INK, true)
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.size = Vector2(size.x, 80)
-	info.position = Vector2(0, c.y + 236)
+	info.position = Vector2(0, c.y + (206.0 if _wide() else 236.0))
 	info.modulate.a = 0.0
 	lay.add_child(info)
 	var hint := IdleUi.label("화면을 눌러 닫아요", 22, IdleUi.LAV_LT, true)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.size = Vector2(size.x, 40)
-	hint.position = Vector2(0, size.y - 160)
+	hint.position = Vector2(0, size.y - (56.0 if _wide() else 160.0))
 	hint.modulate.a = 0.0
 	lay.add_child(hint)
 	AudioManager.warm_swell()
@@ -1321,16 +1383,28 @@ func _fill_gacha() -> void:
 	_home_body.add_child(card)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
-	card.add_child(v)
+	# 가로 화면: 왼쪽 룰렛 / 오른쪽 글·단추 (위아래로 쌓으면 카드 높이를 넘는다)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	if _wide():
+		card.add_child(row)
+	else:
+		card.add_child(v)
 	v.add_child(_center(IdleUi.label("행운 룰렛", 44, IdleUi.GOLD, true)))
 	v.add_child(_center(IdleUi.label("바늘이 멈춘 칸의 친구를 만나요", 22, IdleUi.SUB)))
 	# 칸 크기 = 나올 확률. 친구 탭에서 '칸 넓히기'로 키운다.
 	var wh := LaneWheel.new()
 	wh.name = "Wheel"
-	wh.custom_minimum_size = Vector2(440, 440)
+	wh.custom_minimum_size = Vector2(360, 360) if _wide() else Vector2(440, 440)
 	wh.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	wh.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	wh.idle_spin = 0.15
-	v.add_child(wh)
+	if _wide():
+		row.add_child(wh)
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(v)
+	else:
+		v.add_child(wh)
 	v.add_child(_center(IdleUi.label("희귀 72% · 특급 24% · 전설 4%", 22, IdleUi.CREAM)))
 	v.add_child(_center(IdleUi.label("친구 탭에서 '칸 넓히기'로 원하는 친구 칸을 키워요", 18, IdleUi.SUB)))
 	v.add_child(_center(IdleUi.label("%d번 안에 전설 확정 (남은 %d번) · 같은 친구는 레벨 +1" % [LaneData.PITY_LEGEND,
@@ -1453,17 +1527,20 @@ func _popup(title: String) -> VBoxContainer:
 	var card := PanelContainer.new()
 	card.name = "Card"
 	card.add_theme_stylebox_override("panel", IdleUi.panel_style())
-	card.position = Vector2(24, 140)
-	card.size = Vector2(size.x - 48, size.y - 280)
+	# 가로 화면: 폭은 알맞게(너무 넓으면 줄이 길어 못 읽는다), 높이는 화면 거의 다
+	var cw := minf(980.0, size.x - 48.0) if _wide() else size.x - 48.0
+	var vpad := 40.0 if _wide() else 140.0
+	card.position = Vector2((size.x - cw) * 0.5, vpad)
+	card.size = Vector2(cw, size.y - vpad * 2.0)
 	layer.add_child(card)
 	# 내용만큼만 - 텅 빈 창이 화면을 다 먹지 않게 (내용을 채운 뒤에 잰다)
 	_later(0.0, func() -> void:
 		if not is_instance_valid(card):
 			return
 		var want: float = (card.get_node("V/Scroll/Body") as Control).get_combined_minimum_size().y + 130.0
-		var hh := clampf(want, 260.0, size.y - 280.0)
-		card.size = Vector2(size.x - 48, hh)
-		card.position = Vector2(24, (size.y - hh) * 0.5))
+		var hh := clampf(want, 260.0, size.y - vpad * 2.0)
+		card.size = Vector2(cw, hh)
+		card.position = Vector2((size.x - cw) * 0.5, (size.y - hh) * 0.5))
 	var outer := VBoxContainer.new()
 	outer.name = "V"
 	outer.add_theme_constant_override("separation", 10)
@@ -1963,7 +2040,8 @@ func _build_battle() -> void:
 	# 픽셀 판(_pix)에 넣으면 1/3 로 줄었다 커져 뭉개지므로, 화면에 바로 정수배로 깐다.
 	_art_bg = null
 	var bgp := "res://assets/sprites/lane-bg-%d.png" % (int(battle.info["zone"]) + 1)
-	if ResourceLoader.exists(bgp):
+	# 가로 화면은 세로 길 그림을 쓰지 않는다 - 옆에서 본 풍경(IdleBackdrop)이 길까지 그린다
+	if ResourceLoader.exists(bgp) and not _wide():
 		_art_bg = TextureRect.new()
 		_art_bg.texture = load(bgp)
 		_art_bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -1974,7 +2052,7 @@ func _build_battle() -> void:
 	# 성·둥지 그림 (배경 그림이 있을 때만 - 코드 그림 배경과는 화풍이 안 맞는다)
 	_fort_spr = null
 	_nest_spr = null
-	if _art_bg != null and ResourceLoader.exists("res://assets/sprites/lane-fort.png") \
+	if (_art_bg != null or _wide()) and ResourceLoader.exists("res://assets/sprites/lane-fort.png") \
 			and ResourceLoader.exists("res://assets/sprites/lane-nest.png"):
 		for k in ["fort", "nest"]:
 			var sp := Sprite2D.new()
@@ -1989,6 +2067,10 @@ func _build_battle() -> void:
 				_nest_spr = sp
 	_pix = _pixel_layer()
 	_world.add_child(_pix)
+	if _wide() and _fort_spr != null:
+		# 가로 화면은 풍경(_pix)이 바닥이라 성·둥지 그림을 그 위로 올린다
+		_world.move_child(_fort_spr, -1)
+		_world.move_child(_nest_spr, -1)
 	var vp := _pix.get_node("VP")
 	_bg = IdleBackdrop.new()
 	_bg.zone = int(battle.info["theme"])
@@ -1996,6 +2078,7 @@ func _build_battle() -> void:
 	_bg.visible = _art_bg == null
 	vp.add_child(_bg)
 	_field = LaneField.new()
+	_field.horizontal = _wide()
 	_field.art_bg = _art_bg != null
 	_field.art_props = _fort_spr != null
 	var th: Dictionary = IdleBackdrop.THEMES[_bg.zone]
@@ -2216,13 +2299,42 @@ func _build_hud() -> void:
 					_toast("웃음이 모자라요 (✦%d 더 모이면 불러요)" % int(ceil(need))))
 		gr.add_child(b)
 		_unit_btns[id] = b
+	if _wide():
+		# 가로 화면: [수입] [웃음·성 띠 / 친구 한 줄] [바주카포] - 판을 낮게 해서 싸움터를 넓힌다
+		pv.remove_child(row1)
+		pv.remove_child(gr)
+		for c in [_worker_btn, wv, _cannon_btn]:
+			row1.remove_child(c)
+		row1.queue_free()
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 12)
+		pv.add_child(hb)
+		_worker_btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		hb.add_child(_worker_btn)
+		var mid := VBoxContainer.new()
+		mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		mid.add_theme_constant_override("separation", 6)
+		hb.add_child(mid)
+		mid.add_child(wv)
+		mid.add_child(gr)
+		_cannon_btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		hb.add_child(_cannon_btn)
+		gr.columns = maxi(5, battle.lineup.size())
+		for id in _unit_btns.keys():
+			(_unit_btns[id] as Control).custom_minimum_size = Vector2(0, WIDE_CARD_H)
 	_refresh_hud_toggles()
+
+
+const WIDE_CARD_H := 132.0
 
 
 func _layout_hud() -> void:
 	var w := size.x
 	var h := size.y
 	var ins := _insets()
+	if _wide():
+		_layout_hud_wide(w, h, ins)
+		return
 	var top := _hud.get_node("Top") as Control
 	top.position = Vector2(12, 12 + ins.x)
 	top.size = Vector2(w - 24, 60)
@@ -2246,6 +2358,30 @@ func _layout_hud() -> void:
 			_art_bg.position = Vector2((w - _art_bg.size.x) * 0.5, 0.0)
 			_field.y_front = _art_bg.size.y * ART_ROAD.x
 			_field.y_far = minf(_field.y_far, _art_bg.size.y * ART_ROAD.y)
+
+
+## 가로 화면 싸움: 위 단추 줄 · 가운데 가로 길 · 아래 낮은 판.
+func _layout_hud_wide(w: float, h: float, ins: Vector2) -> void:
+	var si := _side_insets()
+	var top := _hud.get_node("Top") as Control
+	top.position = Vector2(12 + si.x, 12 + ins.x)
+	top.size = Vector2(w - 24 - si.x - si.y, 60)
+	var panel := _hud.get_node("Panel") as Control
+	var ph := 28.0 + 74.0 + 6.0 + WIDE_CARD_H
+	panel.position = Vector2(8 + si.x, h - ph - 8.0 - ins.y)
+	panel.size = Vector2(w - 16 - si.x - si.y, ph)
+	if _fx_pix != null:
+		_fx_pix.size = Vector2(w, panel.position.y + 40.0)
+	if _field == null:
+		return
+	# 길은 판 바로 위 - 친구 발이 판에 닿지 않게(±39 흩어짐)
+	_field.y_ground = panel.position.y - 70.0
+	_field.x_front = 230.0 + si.x
+	_field.x_far = w - 300.0 - si.y
+	if _bg != null:
+		# 풍경의 길 띠(땅 + 34~80)가 친구들 발밑에 오게
+		_bg.size = Vector2(w, panel.position.y + 60.0)
+		_bg.ground = clampf((_field.y_ground - 57.0) / _bg.size.y, 0.3, 0.9)
 
 
 func _refresh_hud_toggles() -> void:
@@ -2449,7 +2585,7 @@ func _is_melee(src: Dictionary) -> bool:
 ## 근접 공격은 노린 상대 바로 앞까지 덤벼든다 (좌우로 흩어져 서 있어서, 앞으로만 찌르면 허공을 쳤다).
 ## 멀리서 쏘는 친구는 제자리에서 앞으로 살짝 - 쏜 것이 날아가 맞는다. 그림만 움직이고 판정은 그대로다.
 func _lunge_vec(e: Dictionary, uid: int, p: Vector2, fwd: float) -> Vector2:
-	var small := Vector2(0, fwd * 27.0)
+	var small := Vector2(fwd * 27.0, 0) if _field.horizontal else Vector2(0, fwd * 27.0)
 	if float(e["range"]) > MELEE_RANGE:
 		return small
 	if e["side"] == "q" and String(FX_STYLE.get(String(e["kind"]), ["slash"])[0]) in RANGED_FX:
@@ -2518,7 +2654,10 @@ func _sync_actors() -> void:
 		# 맞으면 뒤로 살짝 밀린다 (실제 시간 - 3배속에서도 눈에 보이게)
 		var hs := _t - float(_hit_at.get(uid, -99.0))
 		if hs >= 0.0 and hs < 0.12:
-			p.y -= fwd * 9.0 * (1.0 - hs / 0.12)
+			if _field.horizontal:
+				p.x -= fwd * 9.0 * (1.0 - hs / 0.12)
+			else:
+				p.y -= fwd * 9.0 * (1.0 - hs / 0.12)
 		# 픽셀 격자에 맞춰 놓고, 크기는 원근과 관계없이 한 가지 (도트 규칙: 픽셀 크기는 하나)
 		a.position = (p / float(PIX)).round() * float(PIX)
 		a.px = LaneData.sheet_px(a.tex.resource_path, a.tex.get_height() / 3.0) if a.tex != null else (UNIT_PX if e["side"] == "q" else BUG_PX)
@@ -2731,9 +2870,14 @@ func _on_event(e: Dictionary) -> void:
 				var ha = _actor_of.get(int(e["uid"]))
 				var k := 0.0
 				if ha != null and is_instance_valid(ha):
-					var y0 := _field.fort_pos().y
-					var y1 := _field.nest_pos().y - 50.0
-					k = clampf((ha.position.y - y0) / maxf(1.0, y1 - y0), 0.0, 1.0)
+					if _field.horizontal:
+						var x0 := _field.fort_pos().x
+						var x1 := _field.nest_pos().x
+						k = clampf((ha.position.x - x0) / maxf(1.0, x1 - x0), 0.0, 1.0)
+					else:
+						var y0 := _field.fort_pos().y
+						var y1 := _field.nest_pos().y - 50.0
+						k = clampf((ha.position.y - y0) / maxf(1.0, y1 - y0), 0.0, 1.0)
 				_hit_due[int(e["uid"])] = _t + CANNON_FLY * k
 				_later(CANNON_FLY * k, _show_hit.bind(e))
 			elif src != null and String(e.get("eff", "")) != "skill" and _is_melee(src):
@@ -3702,11 +3846,13 @@ func _toast(t: String) -> void:
 	# 폭 0 으로 줄바꿈을 계산해 판이 화면 절반만큼 길어졌다.
 	# 위 재화 줄(높이 64)을 통째로 덮는 자리 - 제목 위에 걸치면 뒤 글자가 위아래로 삐져나와 겹쳐 보였다
 	var w := maxf(320.0, (size.x if size.x > 0.0 else 720.0) - 20.0)
+	if _wide():
+		w = minf(860.0, size.x * 0.56)   # 가로 화면: 가운데에 알맞은 폭 (화면 끝까지 늘이면 위 단추들을 다 덮는다)
 	_toast_lbl.custom_minimum_size = Vector2(w - 40.0, 0)
 	_toast_box.custom_minimum_size = Vector2(w, 80)
 	_toast_box.size = Vector2(w, 80)
 	_toast_box.reset_size()
-	_toast_box.position = Vector2(10, 6 + _insets().x)
+	_toast_box.position = Vector2((size.x - w) * 0.5 if _wide() else 10.0, 6 + _insets().x)
 	# 한 프레임 뒤 다시 줄인다 (줄바꿈이 제 폭으로 다시 계산된 뒤)
 	_later(0.0, func() -> void:
 		_toast_box.size = Vector2(w, 80)

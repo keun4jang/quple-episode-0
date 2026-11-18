@@ -7,6 +7,12 @@ extends Node2D
 var size := Vector2(720, 1280)
 var y_front := 250.0           ## 쿼카 성 바로 앞 (길의 0, 화면 위쪽)
 var y_far := 880.0             ## 둥지 앞 (길의 끝, 화면 아래쪽)
+## 가로 길 (2026-11 가로 화면): 왼쪽 우리 성 → 오른쪽 둥지. 옆에서 본 길이라 원근이 없다.
+var horizontal := false
+var x_front := 220.0           ## 우리 성 바로 앞 (길의 0)
+var x_far := 1200.0            ## 둥지 앞 (길의 끝)
+var y_ground := 500.0          ## 길 한가운데 높이 - 좌우로 흩어진 자리(lateral)는 위아래로 조금씩
+const H_SPREAD := 0.26         ## lateral(±150) → 위아래 ±39
 ## 성은 먼 쪽이라 작게 그린다.
 const FORT_SCALE := 0.7
 var theme_col := Color("#9CC76A")
@@ -32,12 +38,16 @@ func ease_depth(t: float) -> float:
 
 func to_screen(pos: float, lateral: float) -> Vector2:
 	var t := t_of(pos)
+	if horizontal:
+		return Vector2(lerpf(x_front, x_far, t), y_ground + lateral * H_SPREAD)
 	var y := lerpf(y_front, y_far, ease_depth(t))
 	return Vector2(size.x * 0.5 + lateral * scale_at(pos), y)
 
 
 ## 원근: 먼 위쪽(우리 성)이 작고, 가까운 아래쪽(둥지)이 크다.
 func scale_at(pos: float) -> float:
+	if horizontal:
+		return 1.0
 	return lerpf(0.62, 1.0, t_of(pos))
 
 
@@ -47,11 +57,15 @@ func half_width(t: float) -> float:
 
 ## 우리 성 망루 발치 (효과·대포가 나가는 곳).
 func fort_pos() -> Vector2:
+	if horizontal:
+		return Vector2(x_front - 100.0, y_ground + 18.0)
 	return Vector2(size.x * 0.5, y_front - 10.0)
 
 
 ## 둥지 가운데 (흙더미 밑동).
 func nest_pos() -> Vector2:
+	if horizontal:
+		return Vector2(x_far + 140.0, y_ground + 18.0)
 	return Vector2(size.x * 0.5, y_far + 60.0)
 
 
@@ -69,7 +83,8 @@ var art_props := false
 
 
 func _draw() -> void:
-	if art_bg:
+	if art_bg or horizontal:
+		# 가로 길은 뒤 풍경(IdleBackdrop)이 길까지 그린다
 		# 성·둥지도 그림이 있으면(art_props) 체력 띠만 - 그림은 LaneGame 이 픽셀 판 밖에 2배로 깐다
 		if art_props:
 			_draw_nest_bar(nest_pos())

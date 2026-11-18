@@ -16,7 +16,8 @@
 - 글자 검사: `.sdenv/Scripts/python.exe tools/pixel/check-font-glyphs.py` 와 `check-font-sizes.py`(글 크기 단계, 기준선 래칫)
 - 고치기 전에 `docs/lane-principles.md` 의 세 질문을 거친다. 같은 문제가 두 번 나오면 검사 도구를 하나 더한다
 - 화면 찍기: **무음이고 화면 밖**에서 실행한다 (사용자가 일하는 중이다)
-  - `Start-Process -FilePath C:\Tools\godot43\Godot_v4.3-stable_win64.exe -ArgumentList '--path','.','--audio-driver','Dummy','--resolution','720x1560','--position','-6000,-6000','res://tools/sim/ShotLane.tscn'`
+  - `Start-Process -FilePath C:\Tools\godot43\Godot_v4.3-stable_win64.exe -ArgumentList '--path','.','--audio-driver','Dummy','--resolution','1560x720','--position','-6000,-6000','res://tools/sim/ShotLane.tscn'`
+  - **가로 해상도로 찍는다** (1560x720 폰 · 1280x720 PC). 세로 해상도를 주면 `_go_landscape` 가 창을 가로로 바꿔 화면 가운데로 옮긴다
   - 환경 변수 `SHOT_MODE`·`SHOT_OUT` 등으로 고른다. 모드 목록은 `tools/sim/shot_lane.gd` 2번 줄에 있다
 - 밸런스 시뮬레이션: `tools/sim/SimLane.tscn`. 판 빠르기·둥지·벌레는 `SIM_PACE`·`SIM_NEST`·`SIM_BUG`로 조절한다
 - 커밋 메시지는 Bash로 파일에 쓰고 `git commit -F`로 넘긴다
@@ -28,7 +29,16 @@
   - `assets/source/`는 커밋하지 않는다
   - 돈이 드는 일은 먼저 묻는다
 
-## 현재 상태 (2026-11-17, 0.1.282)
+## 현재 상태 (2026-11-18, 0.1.283)
+
+- 0.1.283: **앱 전체 가로 화면** + **행운 룰렛 뽑기**
+  - 가로: `SceneTransition._go_landscape` (1280x720 기준, 폰은 SENSOR_LANDSCAPE - 깔린 APK 도 팩으로 바뀐다).
+    project.godot 도 1280x720 · orientation 4. 화면마다 `_wide()` 갈래: 홈은 왼쪽 무대(제목·친구·출전) + 오른쪽 카드·탭,
+    싸움은 **가로 길**(왼쪽 성 → 오른쪽 둥지, `LaneField.horizontal`, 뒤 풍경은 IdleBackdrop) + 낮은 아래 판(친구 한 줄).
+    세로 길 그림 `lane-bg-N.png` 은 가로에선 안 쓴다. 창(`_popup`)은 폭 980 가운데
+  - 룰렛: `LaneWheel` (한 칸 = 친구 한 명, 칸 크기 = 확률). 친구 탭 '룰렛 칸 넓히기' 0~4단계 (행복 조각,
+    무게 1 + 0.5 x 단계, **같은 등급 안에서만** - 등급 확률 72·24·4 그대로). 못 만난 친구도 넓힐 수 있다. TestLane 240
+  - 폰에서 아직 못 본 것: 방향 전환, 노치 쪽 여백(`_side_insets`), 처음 안내(손가락·말풍선) 자리
 
 - 0.1.282: **저장 코드** - 설정 창 "저장 코드 복사 / 붙여넣기" (`LaneState.export_code` · `import_code`, 서버 없음).
   붙여넣기는 두 번 눌러야 하고 바꾸기 전 저장을 `lane_backup.cfg` 에 남긴다. TestLane 229.

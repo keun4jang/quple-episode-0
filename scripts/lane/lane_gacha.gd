@@ -84,6 +84,15 @@ func play(results: Array, slices: Array = []) -> void:
 	_next()
 
 
+## 그림 자리. 가로 화면은 왼쪽에 그림, 오른쪽에 글 (아래로 쌓으면 높이가 모자란다).
+func _wide() -> bool:
+	return size.x > size.y
+
+
+func _center() -> Vector2:
+	return size * Vector2(0.32, 0.5) if _wide() else size * Vector2(0.5, 0.42)
+
+
 func _process(dt: float) -> void:
 	_t += dt
 	_flash.color.a = maxf(0.0, _flash.color.a - dt * 2.5)
@@ -95,7 +104,7 @@ func _process(dt: float) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.17, 0.11, 0.27, 0.96))
-	var c := size * Vector2(0.5, 0.42)
+	var c := _center()
 	if _rays > 0.0:
 		# 뒤에서 천천히 도는 빛 줄기
 		var n := 14
@@ -222,7 +231,7 @@ func _next() -> void:
 	_cap_rot = 0.0
 	_cap_col = Color("#FFB6C8")
 	_hint.text = "%d / %d" % [_i + 1, _results.size()] if _results.size() > 1 else ""
-	var c := size * Vector2(0.5, 0.42)
+	var c := _center()
 	_cap_pos = Vector2(c.x, -160.0)
 	if _tw != null:
 		_tw.kill()
@@ -257,7 +266,7 @@ func _open() -> void:
 	var res: Dictionary = _results[_i]
 	var r := String(res["rarity"])
 	var col: Color = LaneData.RARITY_COL[r]
-	var c := size * Vector2(0.5, 0.42)
+	var c := _center()
 	_cap_pos = c
 	_cap_col = col
 	_phase = "open"
@@ -295,7 +304,7 @@ func _show_card(res: Dictionary) -> void:
 	_card.size = size
 	add_child(_card)
 	move_child(_card, _flash.get_index())
-	var c := size * Vector2(0.5, 0.42)
+	var c := _center()
 	var tex := load(LaneData.sheet_path(id, int(res["lv"]))) as Texture2D
 	var pic := TextureRect.new()
 	pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -323,7 +332,7 @@ func _show_card(res: Dictionary) -> void:
 		var bob := pic.create_tween().set_loops()
 		bob.tween_property(pic, "scale", Vector2(1.04, 0.97), 0.5).set_trans(Tween.TRANS_SINE)
 		bob.tween_property(pic, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_SINE))
-	var y := c.y + pic.size.y * 0.5 + 20.0
+	var y := size.y * 0.24 if _wide() else c.y + pic.size.y * 0.5 + 20.0
 	var stars := IdleUi.label("★".repeat(int(LaneData.RARITY_STARS[r])) + "  " + String(LaneData.RARITY_NAME[r]), 34, col, true)
 	_card.add_child(_at(stars, y))
 	var name := IdleUi.label(LaneData.unit_name(id, int(res["lv"])), 50, Color.WHITE, true)
@@ -344,8 +353,8 @@ func _show_card(res: Dictionary) -> void:
 		create_tween().tween_property(l, "modulate:a", 1.0, 0.25).set_delay(0.25)
 	if r == "legend":
 		var big := IdleUi.label("전설!", 80, LaneData.RARITY_COL["legend"], true)
-		_card.add_child(_at(big, size.y * 0.1))
-		big.pivot_offset = Vector2(size.x * 0.5, 40)
+		_card.add_child(_at(big, size.y * 0.06 if _wide() else size.y * 0.1))
+		big.pivot_offset = Vector2(big.size.x * 0.5, 40)
 		big.scale = Vector2(1.6, 1.6)
 		create_tween().tween_property(big, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		# 금빛 가루가 계속 내린다
@@ -365,13 +374,15 @@ func _show_card(res: Dictionary) -> void:
 func _summary() -> void:
 	_phase = "summary"
 	_rays = 0.0
+	if _wheel != null:
+		_wheel.visible = false
 	_tap_ok = false
 	_card = Control.new()
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.size = size
 	add_child(_card)
 	var t := IdleUi.label("이번에 만난 친구들", 40, IdleUi.GOLD, true)
-	_card.add_child(_at(t, 120))
+	_card.add_child(_at(t, 40.0 if _wide() else 120.0))
 	# 많이 뽑았으면 같은 친구를 한 칸에 묶는다 (x3). 친구는 스물 남짓이라 화면에 다 들어간다.
 	var cells: Array = []
 	if _all.size() > MANY:
@@ -396,13 +407,21 @@ func _summary() -> void:
 	var cw := (size.x - 80.0) / float(cols)
 	var ch := 230.0 if cols == 3 else 190.0
 	var ps := 110.0 if cols == 3 else 84.0
+	var y0 := 200.0
+	if _wide():
+		cols = 5 if cells.size() <= 10 else 8
+		cw = (size.x - 80.0) / float(cols)
+		var rows := ceili(float(cells.size()) / float(cols))
+		y0 = 110.0
+		ch = minf(230.0, (size.y - y0 - 110.0) / float(maxi(1, rows)))
+		ps = clampf(ch - 90.0, 48.0, 110.0)
 	for k in cells.size():
 		var res: Dictionary = cells[k]
 		var id := String(res["id"])
 		var r := String(res["rarity"])
 		var cell := PanelContainer.new()
 		cell.add_theme_stylebox_override("panel", IdleUi.card_style(LaneData.RARITY_COL[r]))
-		cell.position = Vector2(40.0 + float(k % cols) * cw + 6.0, 200.0 + float(k / cols) * ch)
+		cell.position = Vector2(40.0 + float(k % cols) * cw + 6.0, y0 + float(k / cols) * ch)
 		cell.custom_minimum_size = Vector2(cw - 12.0, ch - 12.0)
 		cell.size = cell.custom_minimum_size
 		_card.add_child(cell)
@@ -445,8 +464,12 @@ func _summary() -> void:
 func _at(l: Label, y: float) -> Label:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.position = Vector2(20, y)
-	l.size = Vector2(size.x - 40, 60)
+	if _wide() and _phase != "summary":
+		l.position = Vector2(size.x * 0.52, y)
+		l.size = Vector2(size.x * 0.44, 60)
+	else:
+		l.position = Vector2(20, y)
+		l.size = Vector2(size.x - 40, 60)
 	return l
 
 
