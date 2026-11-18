@@ -666,7 +666,7 @@ func _refresh_home_top() -> void:
 	var mis := _home.get_node("Top/Mission") as Button
 	mis.visible = LaneState.missions_open()
 	(mis.get_node("Dot") as Control).visible = LaneState.missions_ready()
-	_card_title.text = {"map": "지도 · 판 고르기", "units": "동물 친구들", "lineup": "편성 · 콤보", "gacha": "행복 캡슐 뽑기"}[_home_tab]
+	_card_title.text = {"map": "지도 · 판 고르기", "units": "동물 친구들", "lineup": "편성 · 콤보", "gacha": "행운 룰렛 뽑기"}[_home_tab]
 	_fill_parade()
 
 
@@ -1010,7 +1010,9 @@ func _fill_units() -> void:
 			else:
 				v.add_child(IdleUi.label("???  %s %s" % ["★".repeat(int(LaneData.RARITY_STARS[rr])),
 					String(LaneData.RARITY_NAME[rr])], 26, LaneData.RARITY_TXT[rr]))
-				v.add_child(IdleUi.label("행복 캡슐에서 만나요", 20, IdleUi.MUTED))
+				v.add_child(IdleUi.label("행운 룰렛에서 만나요", 20, IdleUi.MUTED))
+				# 아직 못 만난 친구도 칸을 넓혀 만날 확률을 올릴 수 있다
+				v.add_child(_widen_button(String(id)))
 			continue
 		var lv := LaneState.level_of(String(id))
 		var s := LaneState.unit_stats(String(id))
@@ -1047,6 +1049,8 @@ func _fill_units() -> void:
 			ab.add_child(ic)
 		ab.pressed.connect(_open_acc_picker.bind(String(id)))
 		accrow.add_child(ab)
+		if rr != "base":
+			v.add_child(_widen_button(String(id)))
 		var b := IdleUi.button("", 20, "gold")
 		b.name = "Lv_" + String(id)
 		# 줄 높이만큼 늘어나지 않게 - 설명이 길어도 버튼은 제 크기로
@@ -1085,6 +1089,33 @@ func _fill_units() -> void:
 			if c is Label:
 				(c as Label).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				(c as Label).custom_minimum_size.x = 10
+
+
+## 룰렛 칸 넓히기 단추 - 지금 확률과 단계를 같이 보여 준다 (같은 등급 안에서만 나눠 가진다).
+func _widen_button(id: String) -> Button:
+	var wl := LaneState.wheel_level(id)
+	var pct := LaneState.wheel_share(id) * 100.0
+	var b := IdleUi.button("", 18, "ghost")
+	b.name = "Widen_" + id
+	b.custom_minimum_size = Vector2(0, 52)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	if wl >= LaneData.WHEEL_MAX:
+		b.text = "룰렛 칸 %d / %d  (%.1f%%)  최고" % [wl, LaneData.WHEEL_MAX, pct]
+		b.disabled = true
+		return b
+	var cost := LaneData.wheel_cost(id, wl)
+	b.text = "룰렛 칸 넓히기 %d / %d  (%.1f%%)  ✦ %s" % [wl, LaneData.WHEEL_MAX, pct, _num(cost)]
+	_set_short(b, not LaneState.can_widen(id))
+	b.pressed.connect(func() -> void:
+		if LaneState.widen(id):
+			AudioManager.ui_confirm()
+			LaneState.save()
+			_toast("%s 칸이 넓어졌어요  %.1f%%에서 %.1f%%로" % [String(LaneData.UNITS[id]["name"]), pct,
+				LaneState.wheel_share(id) * 100.0])
+			_fill_home()
+		else:
+			_short_xp(b, cost))
+	return b
 
 
 ## 진화 연출: 어두워지고 → 옛 모습이 떨며 빛에 휩싸이고 → 번쩍 → 커진 새 모습이 튀어나오며 빛살이 돈다.
@@ -1291,22 +1322,17 @@ func _fill_gacha() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
 	card.add_child(v)
-	v.add_child(_center(IdleUi.label("행복 캡슐", 44, IdleUi.GOLD, true)))
-	v.add_child(_center(IdleUi.label("동물 친구들이 캡슐 속에서 기다려요", 22, IdleUi.SUB)))
-	# 전설 친구들 미리 보기 - 아직 없으면 그림자
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 18)
-	v.add_child(row)
-	for id in ["tiger", "polar", "eagle"]:
-		var col := VBoxContainer.new()
-		row.add_child(col)
-		col.add_child(_portrait(id, 120.0))
-		var nm := IdleUi.label(String(LaneData.UNITS[id]["name"]) if LaneState.has_unit(id) else "★★★ ???", 18,
-			LaneData.RARITY_TXT["legend"])
-		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(nm)
+	v.add_child(_center(IdleUi.label("행운 룰렛", 44, IdleUi.GOLD, true)))
+	v.add_child(_center(IdleUi.label("바늘이 멈춘 칸의 친구를 만나요", 22, IdleUi.SUB)))
+	# 칸 크기 = 나올 확률. 친구 탭에서 '칸 넓히기'로 키운다.
+	var wh := LaneWheel.new()
+	wh.name = "Wheel"
+	wh.custom_minimum_size = Vector2(440, 440)
+	wh.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	wh.idle_spin = 0.15
+	v.add_child(wh)
 	v.add_child(_center(IdleUi.label("희귀 72% · 특급 24% · 전설 4%", 22, IdleUi.CREAM)))
+	v.add_child(_center(IdleUi.label("친구 탭에서 '칸 넓히기'로 원하는 친구 칸을 키워요", 18, IdleUi.SUB)))
 	v.add_child(_center(IdleUi.label("%d번 안에 전설 확정 (남은 %d번) · 같은 친구는 레벨 +1" % [LaneData.PITY_LEGEND,
 		LaneData.PITY_LEGEND - LaneState.pity], 18, IdleUi.SUB)))
 	var one := IdleUi.button("", 30, "gold")
@@ -1355,6 +1381,7 @@ func _fill_gacha() -> void:
 
 ## count -1 = 티켓 모두 뽑기.
 func _do_pull(count: int) -> void:
+	var slices := LaneState.wheel_slices()     # 돌리기 전 칸 (뽑으면 "새 친구" 무게가 바뀐다)
 	var res := LaneState.pull_tickets(_rng) if count < 0 else LaneState.pull(count, _rng)
 	if res.is_empty():
 		return
@@ -1369,7 +1396,7 @@ func _do_pull(count: int) -> void:
 			var f := _tut_after_gacha
 			_tut_after_gacha = Callable()
 			_later(0.3, f))
-	g.play(res)
+	g.play(res, slices)
 
 
 ## 보물·장신구 아이콘 (회색 그림에 색을 곱한다).

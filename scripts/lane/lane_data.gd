@@ -254,6 +254,15 @@ const GACHA_COST := 100
 const GACHA10_COST := 900          ## 10번 - 마지막 하나는 특급 이상
 const GACHA_RATES := {"rare": 0.72, "super": 0.24, "legend": 0.04}
 const PITY_LEGEND := 60            ## 이만큼 뽑는 동안 전설이 없으면 다음은 전설
+## 룰렛 칸 넓히기 - 친구마다 0~WHEEL_MAX 단계. 칸 무게 = 1 + WHEEL_STEP x 단계 (최고 3배).
+## 같은 등급 안에서만 나눠 가진다 - 등급 확률(희귀 72 · 특급 24 · 전설 4)은 그대로다.
+const WHEEL_MAX := 4
+const WHEEL_STEP := 0.5
+const WHEEL_BASE_COST := {"rare": 800, "super": 1500, "legend": 3000}   ## [가정] 다음 단계 = 기본 x (단계+1)
+
+
+static func wheel_cost(id: String, lv: int) -> int:
+	return int(WHEEL_BASE_COST.get(rarity(id), 800)) * (lv + 1)
 const STRONG_MULT := 1.5
 const STRONG_TAKEN := 0.5
 const MASSIVE_MULT := 2.5

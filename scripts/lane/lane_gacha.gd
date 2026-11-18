@@ -53,7 +53,25 @@ func _ready() -> void:
 const MANY := 10
 const RANK := {"rare": 0, "super": 1, "legend": 2}
 
-func play(results: Array) -> void:
+var _wheel: LaneWheel          ## 룰렛 (slices 를 받았을 때). 없으면 옛 캡슐 연출
+var _wrng := RandomNumberGenerator.new()
+
+
+## slices: 뽑기 **전** 룰렛 칸 (`LaneState.wheel_slices`) - 주면 캡슐 대신 룰렛을 돌린다.
+func play(results: Array, slices: Array = []) -> void:
+	if not slices.is_empty():
+		_wheel = LaneWheel.new()
+		_wheel.slices = slices
+		var d := minf(size.x * 0.86, size.y * 0.62)
+		_wheel.size = Vector2(d, d)
+		_wheel.position = size * Vector2(0.5, 0.45) - _wheel.size * 0.5
+		_wheel.pivot_offset = _wheel.size * 0.5
+		add_child(_wheel)
+		move_child(_wheel, _fx.get_index())
+		_wheel.stopped.connect(func() -> void:
+			if _phase == "spin":
+				_open())
+		_wrng.randomize()
 	_all = results
 	_results = results
 	if results.size() > MANY:
@@ -154,6 +172,8 @@ func _gui_input(ev: InputEvent) -> void:
 	if _phase == "show" and _tap_ok:
 		_i += 1
 		_next()
+	elif _phase == "spin" and _wheel != null:
+		_wheel.finish_now()     # 눌러서 바로 멈춘다 (결과는 이미 정해져 있다)
 	elif _phase in ["drop", "shake"] and _all.size() > 1:
 		# 10번 뽑기는 눌러서 빨리 넘긴다 - 바로 열기
 		_open()
@@ -184,6 +204,16 @@ func _next() -> void:
 			queue_free()
 		return
 	var res: Dictionary = _results[_i]
+	if _wheel != null:
+		_phase = "spin"
+		_tap_ok = false
+		_rays = 0.0
+		_hint.text = "눌러서 바로 멈추기" if _results.size() == 1 else "%d / %d  -  눌러서 바로 멈추기" % [_i + 1, _results.size()]
+		_wheel.visible = true
+		_wheel.modulate.a = 1.0
+		_wheel.scale = Vector2.ONE
+		_wheel.spin_to(String(res["id"]), _wrng, 2.4 if _results.size() == 1 else 1.4)
+		return
 	_phase = "drop"
 	_tap_ok = false
 	_rays = 0.0
@@ -232,6 +262,12 @@ func _open() -> void:
 	_cap_col = col
 	_phase = "open"
 	_ray_col = col
+	if _wheel != null:
+		# 바늘이 선 칸에서 친구가 튀어나온다 - 바퀴는 커지며 사라진다
+		_cap_alpha = 0.0
+		var wt := create_tween().set_parallel(true)
+		wt.tween_property(_wheel, "modulate:a", 0.0, 0.35)
+		wt.tween_property(_wheel, "scale", Vector2(1.25, 1.25), 0.35).set_ease(Tween.EASE_OUT)
 	_flash.color = Color(1, 1, 1, 0.9 if r == "legend" else 0.6)
 	_fx.rays(c, col, 18 if r == "legend" else 12, 80.0, size.x * 0.8, 0.5)
 	_fx.ring(c, 40.0, size.x * 0.7, col, 18.0, 0.6)

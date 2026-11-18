@@ -283,6 +283,7 @@ func _ready() -> void:
 	LaneState.clear_save()
 	ck("지우면 없다", not LaneState.has_save())
 	_test_save_code()
+	_test_wheel()
 	_test_gacha()
 	_test_extras()
 	_test_tally()
@@ -322,6 +323,50 @@ func _test_save_code() -> void:
 	ck("한 글자 바뀐 코드는 거절", LaneState.import_code(bad) != "" and LaneState.xp == before)
 	LaneState.clear_save()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(LaneState.backup_path()))
+
+
+func _test_wheel() -> void:
+	print("\n[룰렛 칸 넓히기]")
+	LaneState.reset()
+	var sl := LaneState.wheel_slices()
+	var sum := 0.0
+	var by_r := {"rare": 0.0, "super": 0.0, "legend": 0.0}
+	for s in sl:
+		sum += float(s["share"])
+		by_r[String(s["rarity"])] = float(by_r[String(s["rarity"])]) + float(s["share"])
+	ck("칸은 친구 16명, 다 더하면 1", sl.size() == LaneData.ANIMAL_ORDER.size() and is_equal_approx(sum, 1.0), "n %d sum %f" % [sl.size(), sum])
+	ck("처음엔 등급 안에서 똑같다", is_equal_approx(LaneState.wheel_share("tiger"), 0.04 / 3.0))
+	LaneState.xp = 0
+	ck("행복 조각이 없으면 못 넓힌다", not LaneState.widen("tiger") and LaneState.wheel_level("tiger") == 0)
+	ck("기본 쿼카는 칸이 없다", not LaneState.can_widen("tiny"))
+	LaneState.xp = 999999
+	var before := LaneState.xp
+	ck("넓히면 단계 +1, 행복 조각을 쓴다", LaneState.widen("tiger") and LaneState.wheel_level("tiger") == 1
+		and LaneState.xp == before - LaneData.wheel_cost("tiger", 0))
+	while LaneState.widen("tiger"):
+		pass
+	ck("최고 단계에서 멈춘다", LaneState.wheel_level("tiger") == LaneData.WHEEL_MAX)
+	var t := LaneState.wheel_share("tiger")
+	var legend := LaneState.wheel_share("tiger") + LaneState.wheel_share("polar") + LaneState.wheel_share("eagle")
+	ck("넓힌 칸은 3배 (전설 안에서 3:1:1)", is_equal_approx(t, 0.04 * 3.0 / 5.0), "%f" % t)
+	ck("전설 전체는 그대로 4%", is_equal_approx(legend, 0.04), "%f" % legend)
+	# 실제로 더 잘 나오나 - 전설만 골라 굴린다 (pity 를 채워 전설 확정)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var n := {"tiger": 0, "polar": 0, "eagle": 0}
+	for i in 600:
+		LaneState.pity = LaneData.PITY_LEGEND
+		var id := LaneState.roll(rng)
+		n[id] = int(n[id]) + 1
+	ck("넓힌 친구가 더 자주 나온다", int(n["tiger"]) > int(n["polar"]) * 2 and int(n["tiger"]) > int(n["eagle"]) * 2, str(n))
+	LaneState.save(1)
+	LaneState.reset()
+	LaneState.load_save()
+	ck("넓힌 단계는 저장된다", LaneState.wheel_level("tiger") == LaneData.WHEEL_MAX)
+	LaneState.from_dict({"units": {"tiny": 1}, "wheel": {"tiger": 99, "tiny": 2, "nope": 1}})
+	ck("망가진 단계는 범위 안으로", LaneState.wheel_level("tiger") == LaneData.WHEEL_MAX and LaneState.wheel_level("tiny") == 0
+		and not LaneState.wheel.has("nope"))
+	LaneState.clear_save()
 
 
 func _test_gacha() -> void:

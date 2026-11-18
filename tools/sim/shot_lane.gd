@@ -70,6 +70,7 @@ func _ready() -> void:
 	if OS.get_environment("SHOT_MODE") == "battle":
 		g._start_battle(st)
 	elif OS.get_environment("SHOT_MODE") == "gacha":
+		_shot_widen()
 		LaneState.stars = 2000
 		if OS.get_environment("SHOT_LEGEND") == "1":
 			LaneState.pity = LaneData.PITY_LEGEND - 1
@@ -180,6 +181,7 @@ func _ready() -> void:
 	elif OS.get_environment("SHOT_MODE") == "acc":
 		g._open_acc_picker("tiny")
 	elif OS.get_environment("SHOT_TAB") != "":
+		_shot_widen()
 		# 진짜 탭 단추를 누른다 (탭을 옮길 때 하는 일까지 그대로 보이게)
 		var tb = g._home.get_node_or_null("TabBar/Tabs/Tab_" + OS.get_environment("SHOT_TAB"))
 		if tb != null:
@@ -210,3 +212,10 @@ func _fake_missions(g) -> void:
 	LaneState.mission_swap = false
 	LaneState.stamps = int(OS.get_environment("SHOT_STAMPS")) if OS.get_environment("SHOT_STAMPS") != "" else 5
 	LaneState.week_got = [true, false, false]
+
+
+## SHOT_WIDEN=tiger - 그 친구 룰렛 칸을 끝까지 넓혀 둔다 (룰렛 그림 확인용)
+func _shot_widen() -> void:
+	var w := OS.get_environment("SHOT_WIDEN")
+	if w != "":
+		LaneState.wheel[w] = LaneData.WHEEL_MAX

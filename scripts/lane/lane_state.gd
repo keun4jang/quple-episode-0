@@ -33,6 +33,7 @@ static var last_seen := 0
 static var tickets := 0
 static var pity := 0
 static var pulls := 0
+static var wheel: Dictionary = {}      ## 친구 id → 룰렛 칸 넓히기 단계 (없으면 0)
 ## 선물 달력: 마지막으로 받은 날(유닉스 일 수) · 받은 칸 (1~28, 0 은 아직)
 static var daily_day := 0
 static var cal_day := 0
@@ -81,6 +82,7 @@ static func reset() -> void:
 	tickets = 1          # 처음 하나는 선물
 	pity = 0
 	pulls = 0
+	wheel = {}
 	daily_day = 0
 	cal_day = 0
 	treasures = []
@@ -547,11 +549,10 @@ static func roll(rng: RandomNumberGenerator, floor_r := "rare") -> String:
 	for id in LaneData.ANIMAL_ORDER:
 		if LaneData.rarity(String(id)) == r:
 			pool.append(String(id))
-	# 아직 없는 친구가 조금 더 잘 나온다 (같은 것만 계속 나오면 김이 샌다)
 	var weights: Array = []
 	var total := 0.0
 	for id in pool:
-		var w := 1.5 if not units.has(id) else 1.0
+		var w := wheel_weight(String(id))
 		weights.append(w)
 		total += w
 	var pick := rng.randf() * total
@@ -560,6 +561,57 @@ static func roll(rng: RandomNumberGenerator, floor_r := "rare") -> String:
 		if pick <= 0.0:
 			return String(pool[k])
 	return String(pool[pool.size() - 1])
+
+
+# ── 룰렛 칸 ───────────────────────────────────────────────────────────
+#
+# 룰렛 한 칸 = 친구 한 명. 칸 크기가 곧 나올 확률이다 (화면에 거짓말하지 않는다).
+# 등급 몫은 GACHA_RATES 그대로, 그 안을 친구 무게대로 나눈다.
+
+## 같은 등급 안에서의 무게. 아직 없는 친구는 1.5배 (같은 것만 계속 나오면 김이 샌다), 넓히기 단계마다 +WHEEL_STEP.
+static func wheel_weight(id: String) -> float:
+	var w := 1.0 + LaneData.WHEEL_STEP * float(wheel_level(id))
+	return w * (1.5 if not units.has(id) else 1.0)
+
+
+static func wheel_level(id: String) -> int:
+	return int(wheel.get(id, 0))
+
+
+## 지금 룰렛의 칸들 [{id, rarity, share}] - share 를 다 더하면 1. 순서는 등급끼리 모아 둔다.
+static func wheel_slices() -> Array:
+	var out: Array = []
+	for r in ["rare", "super", "legend"]:
+		var ids: Array = []
+		var tot := 0.0
+		for id in LaneData.ANIMAL_ORDER:
+			if LaneData.rarity(String(id)) == r:
+				ids.append(String(id))
+				tot += wheel_weight(String(id))
+		for id in ids:
+			out.append({"id": id, "rarity": r, "share": float(LaneData.GACHA_RATES[r]) * wheel_weight(id) / tot})
+	return out
+
+
+static func wheel_share(id: String) -> float:
+	for s in wheel_slices():
+		if String(s["id"]) == id:
+			return float(s["share"])
+	return 0.0
+
+
+static func can_widen(id: String) -> bool:
+	return LaneData.UNITS.has(id) and LaneData.rarity(id) != "base" and wheel_level(id) < LaneData.WHEEL_MAX \
+		and xp >= LaneData.wheel_cost(id, wheel_level(id))
+
+
+## 룰렛 칸 넓히기 (행복 조각). 아직 못 만난 친구도 넓힐 수 있다 - 그 친구를 만나고 싶을 때 쓰는 것이다.
+static func widen(id: String) -> bool:
+	if not can_widen(id):
+		return false
+	xp -= LaneData.wheel_cost(id, wheel_level(id))
+	wheel[id] = wheel_level(id) + 1
+	return true
 
 
 static func _grant(id: String) -> Dictionary:
@@ -816,7 +868,7 @@ static func owned_count() -> int:
 static func to_dict() -> Dictionary:
 	return {"v": 1, "xp": xp, "stars": stars, "units": units.duplicate(), "lineup": lineup.duplicate(),
 		"cleared": cleared, "evolved": evolved.keys(), "clears": clears.duplicate(), "auto": auto_summon, "speed2": speed_lv > 0, "speed_lv": speed_lv, "bazooka": bazooka_lv, "fort": fort_lv,
-		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls,
+		"seen_intro": seen_intro, "last_seen": last_seen, "tickets": tickets, "pity": pity, "pulls": pulls, "wheel": wheel.duplicate(),
 		"daily_day": daily_day, "cal_day": cal_day, "treasures": treasures.duplicate(true),
 		"accs": accs.duplicate(), "acc_on": acc_on.duplicate(), "migrated": migrated, "fails": fails.duplicate(), "tut": tut,
 		"flowers": flowers.duplicate(), "bouquet": bouquet.duplicate(),
@@ -870,6 +922,13 @@ static func from_dict(d: Dictionary) -> void:
 	tickets = clampi(int(d.get("tickets", 1)), 0, 9999)
 	pity = clampi(int(d.get("pity", 0)), 0, LaneData.PITY_LEGEND)
 	pulls = maxi(0, int(d.get("pulls", 0)))
+	var wh = d.get("wheel", {})
+	if wh is Dictionary:
+		for id in (wh as Dictionary).keys():
+			if LaneData.UNITS.has(String(id)) and LaneData.rarity(String(id)) != "base":
+				var wl := clampi(int(wh[id]), 0, LaneData.WHEEL_MAX)
+				if wl > 0:
+					wheel[String(id)] = wl
 	daily_day = maxi(0, int(d.get("daily_day", 0)))
 	# 옛 저장은 이어 받은 날 수(daily_streak)만 있다 - 그만큼 달력 칸으로 옮긴다
 	if d.has("cal_day"):
