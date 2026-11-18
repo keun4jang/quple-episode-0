@@ -1,7 +1,7 @@
 {
-  "version": "0.1.282",
+  "version": "0.1.283",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "0c2a35c13a73896d28bb0c4bc895dd11dc61ac7e31ebca94936a78834450ce59",
-  "size": 14689040,
-  "notes": "저장 코드 복사·붙여넣기, 글 크기 정리"
+  "sha256": "510e8ec227982a51fd5bceb8d7273b40995315f52eed67fb99d9748d8568d63c",
+  "size": 14702832,
+  "notes": "가로 화면, 행운 룰렛 뽑기, 룰렛 칸 넓히기"
 }
