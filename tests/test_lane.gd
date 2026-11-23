@@ -115,6 +115,7 @@ func _ready() -> void:
 	LaneState.reset()
 	var l := LaneBattle.new()
 	l.start(1, 2)
+	l.wheel_on = false
 	var tl := 0.0
 	while not l.done and tl < 900.0:
 		l.tick(0.5)
@@ -155,6 +156,7 @@ func _ready() -> void:
 	LaneData.bug_mult = 1.0
 	var sb := LaneBattle.new()
 	sb.start(25, 3)
+	sb.wheel_on = false     # 친구를 골라 내야 스킬 종류가 고루 나온다
 	sb.auto = true
 	var sk_kinds := {}
 	var skill_dmg := 0
@@ -326,45 +328,60 @@ func _test_save_code() -> void:
 
 
 func _test_wheel() -> void:
-	print("\n[룰렛 칸 넓히기]")
+	print("
+[싸움 룰렛 · 칸 넓히기]")
 	LaneState.reset()
 	var sl := LaneState.wheel_slices()
 	var sum := 0.0
-	var by_r := {"rare": 0.0, "super": 0.0, "legend": 0.0}
 	for s in sl:
 		sum += float(s["share"])
-		by_r[String(s["rarity"])] = float(by_r[String(s["rarity"])]) + float(s["share"])
-	ck("칸은 친구 16명, 다 더하면 1", sl.size() == LaneData.ANIMAL_ORDER.size() and is_equal_approx(sum, 1.0), "n %d sum %f" % [sl.size(), sum])
-	ck("처음엔 등급 안에서 똑같다", is_equal_approx(LaneState.wheel_share("tiger"), 0.04 / 3.0))
+	ck("칸은 편성 친구 수, 다 더하면 1", sl.size() == LaneState.lineup.size() and is_equal_approx(sum, 1.0), "n %d sum %f" % [sl.size(), sum])
+	ck("처음엔 칸이 똑같다", is_equal_approx(LaneState.wheel_share("tiny"), 0.5))
+	ck("편성에 없으면 0", LaneState.wheel_share("tiger") == 0.0)
 	LaneState.xp = 0
-	ck("행복 조각이 없으면 못 넓힌다", not LaneState.widen("tiger") and LaneState.wheel_level("tiger") == 0)
-	ck("기본 쿼카는 칸이 없다", not LaneState.can_widen("tiny"))
+	ck("행복 조각이 없으면 못 넓힌다", not LaneState.widen("tiny") and LaneState.wheel_level("tiny") == 0)
 	LaneState.xp = 999999
+	ck("못 만난 친구는 못 넓힌다", not LaneState.can_widen("tiger"))
 	var before := LaneState.xp
-	ck("넓히면 단계 +1, 행복 조각을 쓴다", LaneState.widen("tiger") and LaneState.wheel_level("tiger") == 1
-		and LaneState.xp == before - LaneData.wheel_cost("tiger", 0))
-	while LaneState.widen("tiger"):
+	ck("넓히면 단계 +1, 행복 조각을 쓴다", LaneState.widen("tiny") and LaneState.wheel_level("tiny") == 1
+		and LaneState.xp == before - LaneData.wheel_cost("tiny", 0))
+	while LaneState.widen("tiny"):
 		pass
-	ck("최고 단계에서 멈춘다", LaneState.wheel_level("tiger") == LaneData.WHEEL_MAX)
-	var t := LaneState.wheel_share("tiger")
-	var legend := LaneState.wheel_share("tiger") + LaneState.wheel_share("polar") + LaneState.wheel_share("eagle")
-	ck("넓힌 칸은 3배 (전설 안에서 3:1:1)", is_equal_approx(t, 0.04 * 3.0 / 5.0), "%f" % t)
-	ck("전설 전체는 그대로 4%", is_equal_approx(legend, 0.04), "%f" % legend)
-	# 실제로 더 잘 나오나 - 전설만 골라 굴린다 (pity 를 채워 전설 확정)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 3
-	var n := {"tiger": 0, "polar": 0, "eagle": 0}
-	for i in 600:
-		LaneState.pity = LaneData.PITY_LEGEND
-		var id := LaneState.roll(rng)
-		n[id] = int(n[id]) + 1
-	ck("넓힌 친구가 더 자주 나온다", int(n["tiger"]) > int(n["polar"]) * 2 and int(n["tiger"]) > int(n["eagle"]) * 2, str(n))
+	ck("최고 단계에서 멈춘다 (3배)", LaneState.wheel_level("tiny") == LaneData.WHEEL_MAX and is_equal_approx(LaneState.wheel_weight("tiny"), 3.0))
+	ck("넓힌 칸 3:1", is_equal_approx(LaneState.wheel_share("tiny"), 0.75), "%f" % LaneState.wheel_share("tiny"))
+	# 싸움에서
+	var b := LaneBattle.new()
+	b.start(1, 5)
+	var mean := (float(LaneData.UNITS["tiny"]["cost"]) + float(LaneData.UNITS["shield"]["cost"])) / 2.0
+	ck("한 번 값 = 편성 값의 평균", b.spin_cost == maxi(10, int(round(mean / 10.0)) * 10), str(b.spin_cost))
+	var picks := {"tiny": 0, "shield": 0}
+	for i in 800:
+		var id := b._pick_wheel()
+		picks[id] = int(picks[id]) + 1
+	ck("넓힌 친구가 더 자주 나온다", int(picks["tiny"]) > int(picks["shield"]) * 2, str(picks))
+	b.wallet = float(b.spin_cost)
+	var spun := ""
+	var came := ""
+	var t := 0.0
+	while t < 5.0 and came == "":
+		for e in b.tick(0.05):
+			if e["k"] == "spin" and spun == "":
+				spun = String(e["id"])
+			elif e["k"] == "spawn" and e["side"] == "q" and came == "":
+				came = String(e["kind"])
+		t += 0.05
+	ck("웃음이 모이면 저절로 돌고, 바늘이 선 친구가 나온다", spun != "" and came == spun, "%s %s" % [spun, came])
+	ck("룰렛으로 나온 친구는 판 기록에 센다", int(b.tally["summons"]) == 1)
+	b.saving = true
+	b.wallet = 400.0
+	ck("수입을 모으는 동안은 안 돈다", not b.can_spin())
+	ck("수입을 올리면 다시 돈다", b.upgrade_worker() and not b.saving)
 	LaneState.save(1)
 	LaneState.reset()
 	LaneState.load_save()
-	ck("넓힌 단계는 저장된다", LaneState.wheel_level("tiger") == LaneData.WHEEL_MAX)
+	ck("넓힌 단계는 저장된다", LaneState.wheel_level("tiny") == LaneData.WHEEL_MAX)
 	LaneState.from_dict({"units": {"tiny": 1}, "wheel": {"tiger": 99, "tiny": 2, "nope": 1}})
-	ck("망가진 단계는 범위 안으로", LaneState.wheel_level("tiger") == LaneData.WHEEL_MAX and LaneState.wheel_level("tiny") == 0
+	ck("망가진 단계는 범위 안으로", LaneState.wheel_level("tiger") == LaneData.WHEEL_MAX and LaneState.wheel_level("tiny") == 2
 		and not LaneState.wheel.has("nope"))
 	LaneState.clear_save()
 

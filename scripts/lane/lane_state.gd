@@ -549,10 +549,11 @@ static func roll(rng: RandomNumberGenerator, floor_r := "rare") -> String:
 	for id in LaneData.ANIMAL_ORDER:
 		if LaneData.rarity(String(id)) == r:
 			pool.append(String(id))
+	# 아직 없는 친구가 조금 더 잘 나온다 (같은 것만 계속 나오면 김이 샌다)
 	var weights: Array = []
 	var total := 0.0
 	for id in pool:
-		var w := wheel_weight(String(id))
+		var w := 1.5 if not units.has(id) else 1.0
 		weights.append(w)
 		total += w
 	var pick := rng.randf() * total
@@ -565,34 +566,32 @@ static func roll(rng: RandomNumberGenerator, floor_r := "rare") -> String:
 
 # ── 룰렛 칸 ───────────────────────────────────────────────────────────
 #
-# 룰렛 한 칸 = 친구 한 명. 칸 크기가 곧 나올 확률이다 (화면에 거짓말하지 않는다).
-# 등급 몫은 GACHA_RATES 그대로, 그 안을 친구 무게대로 나눈다.
+# 싸움 룰렛: 웃음이 모이면 저절로 돌아 편성한 친구 하나를 부른다 (`LaneBattle`).
+# 한 칸 = 편성 친구 한 명, 칸 크기가 곧 나올 확률이다 (화면에 거짓말하지 않는다).
 
-## 같은 등급 안에서의 무게. 아직 없는 친구는 1.5배 (같은 것만 계속 나오면 김이 샌다), 넓히기 단계마다 +WHEEL_STEP.
+## 칸 무게 = 1 + WHEEL_STEP x 넓히기 단계 (최고 3배).
 static func wheel_weight(id: String) -> float:
-	var w := 1.0 + LaneData.WHEEL_STEP * float(wheel_level(id))
-	return w * (1.5 if not units.has(id) else 1.0)
+	return 1.0 + LaneData.WHEEL_STEP * float(wheel_level(id))
 
 
 static func wheel_level(id: String) -> int:
 	return int(wheel.get(id, 0))
 
 
-## 지금 룰렛의 칸들 [{id, rarity, share}] - share 를 다 더하면 1. 순서는 등급끼리 모아 둔다.
-static func wheel_slices() -> Array:
+## 룰렛 칸들 [{id, rarity, share}] - share 를 다 더하면 1. ids 를 안 주면 지금 편성.
+static func wheel_slices(ids: Array = []) -> Array:
+	if ids.is_empty():
+		ids = lineup
+	var tot := 0.0
+	for id in ids:
+		tot += wheel_weight(String(id))
 	var out: Array = []
-	for r in ["rare", "super", "legend"]:
-		var ids: Array = []
-		var tot := 0.0
-		for id in LaneData.ANIMAL_ORDER:
-			if LaneData.rarity(String(id)) == r:
-				ids.append(String(id))
-				tot += wheel_weight(String(id))
-		for id in ids:
-			out.append({"id": id, "rarity": r, "share": float(LaneData.GACHA_RATES[r]) * wheel_weight(id) / tot})
+	for id in ids:
+		out.append({"id": String(id), "rarity": LaneData.rarity(String(id)), "share": wheel_weight(String(id)) / maxf(tot, 0.001)})
 	return out
 
 
+## 지금 편성에서 그 친구가 나올 확률 (편성에 없으면 0).
 static func wheel_share(id: String) -> float:
 	for s in wheel_slices():
 		if String(s["id"]) == id:
@@ -601,11 +600,10 @@ static func wheel_share(id: String) -> float:
 
 
 static func can_widen(id: String) -> bool:
-	return LaneData.UNITS.has(id) and LaneData.rarity(id) != "base" and wheel_level(id) < LaneData.WHEEL_MAX \
-		and xp >= LaneData.wheel_cost(id, wheel_level(id))
+	return units.has(id) and wheel_level(id) < LaneData.WHEEL_MAX and xp >= LaneData.wheel_cost(id, wheel_level(id))
 
 
-## 룰렛 칸 넓히기 (행복 조각). 아직 못 만난 친구도 넓힐 수 있다 - 그 친구를 만나고 싶을 때 쓰는 것이다.
+## 룰렛 칸 넓히기 (행복 조각). 만난 친구만 - 싸움에 나가는 친구여야 뜻이 있다.
 static func widen(id: String) -> bool:
 	if not can_widen(id):
 		return false
@@ -925,7 +923,7 @@ static func from_dict(d: Dictionary) -> void:
 	var wh = d.get("wheel", {})
 	if wh is Dictionary:
 		for id in (wh as Dictionary).keys():
-			if LaneData.UNITS.has(String(id)) and LaneData.rarity(String(id)) != "base":
+			if LaneData.UNITS.has(String(id)):
 				var wl := clampi(int(wh[id]), 0, LaneData.WHEEL_MAX)
 				if wl > 0:
 					wheel[String(id)] = wl

@@ -177,6 +177,7 @@ var _hud: Control
 var _wallet_lbl: Label
 var _wallet_bar: ProgressBar
 var _worker_btn: Button
+var _wheel: LaneWheel        ## 싸움 룰렛 (아래 판)
 var _cannon_btn: Button
 var _unit_btns: Dictionary = {}
 var _speed_btn: Button
@@ -728,7 +729,7 @@ func _refresh_home_top() -> void:
 	var mis := _home.get_node("Top/Mission") as Button
 	mis.visible = LaneState.missions_open()
 	(mis.get_node("Dot") as Control).visible = LaneState.missions_ready()
-	_card_title.text = {"map": "지도 · 판 고르기", "units": "동물 친구들", "lineup": "편성 · 콤보", "gacha": "행운 룰렛 뽑기"}[_home_tab]
+	_card_title.text = {"map": "지도 · 판 고르기", "units": "동물 친구들", "lineup": "편성 · 콤보", "gacha": "행복 캡슐 뽑기"}[_home_tab]
 	_fill_parade()
 
 
@@ -1072,9 +1073,7 @@ func _fill_units() -> void:
 			else:
 				v.add_child(IdleUi.label("???  %s %s" % ["★".repeat(int(LaneData.RARITY_STARS[rr])),
 					String(LaneData.RARITY_NAME[rr])], 26, LaneData.RARITY_TXT[rr]))
-				v.add_child(IdleUi.label("행운 룰렛에서 만나요", 20, IdleUi.MUTED))
-				# 아직 못 만난 친구도 칸을 넓혀 만날 확률을 올릴 수 있다
-				v.add_child(_widen_button(String(id)))
+				v.add_child(IdleUi.label("행복 캡슐에서 만나요", 20, IdleUi.MUTED))
 			continue
 		var lv := LaneState.level_of(String(id))
 		var s := LaneState.unit_stats(String(id))
@@ -1111,8 +1110,7 @@ func _fill_units() -> void:
 			ab.add_child(ic)
 		ab.pressed.connect(_open_acc_picker.bind(String(id)))
 		accrow.add_child(ab)
-		if rr != "base":
-			v.add_child(_widen_button(String(id)))
+		v.add_child(_widen_button(String(id)))
 		var b := IdleUi.button("", 20, "gold")
 		b.name = "Lv_" + String(id)
 		# 줄 높이만큼 늘어나지 않게 - 설명이 길어도 버튼은 제 크기로
@@ -1153,31 +1151,37 @@ func _fill_units() -> void:
 				(c as Label).custom_minimum_size.x = 10
 
 
-## 룰렛 칸 넓히기 단추 - 지금 확률과 단계를 같이 보여 준다 (같은 등급 안에서만 나눠 가진다).
+## 싸움 룰렛 칸 넓히기 단추 - 단계와 칸 크기(배)를, 편성에 있으면 지금 나올 확률도 같이 보여 준다.
 func _widen_button(id: String) -> Button:
 	var wl := LaneState.wheel_level(id)
 	var pct := LaneState.wheel_share(id) * 100.0
+	var now := ("  지금 %.0f%%" % pct) if pct > 0.0 else ""
 	var b := IdleUi.button("", 18, "ghost")
 	b.name = "Widen_" + id
 	b.custom_minimum_size = Vector2(0, 52)
 	b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	if wl >= LaneData.WHEEL_MAX:
-		b.text = "룰렛 칸 %d / %d  (%.1f%%)  최고" % [wl, LaneData.WHEEL_MAX, pct]
+		b.text = "룰렛 칸 %d / %d  %s배%s  최고" % [wl, LaneData.WHEEL_MAX, _num_f(LaneState.wheel_weight(id)), now]
 		b.disabled = true
 		return b
 	var cost := LaneData.wheel_cost(id, wl)
-	b.text = "룰렛 칸 넓히기 %d / %d  (%.1f%%)  ✦ %s" % [wl, LaneData.WHEEL_MAX, pct, _num(cost)]
+	b.text = "룰렛 칸 넓히기 %d / %d  %s배%s  ✦ %s" % [wl, LaneData.WHEEL_MAX, _num_f(LaneState.wheel_weight(id)), now, _num(cost)]
 	_set_short(b, not LaneState.can_widen(id))
 	b.pressed.connect(func() -> void:
 		if LaneState.widen(id):
 			AudioManager.ui_confirm()
 			LaneState.save()
-			_toast("%s 칸이 넓어졌어요  %.1f%%에서 %.1f%%로" % [String(LaneData.UNITS[id]["name"]), pct,
-				LaneState.wheel_share(id) * 100.0])
+			_toast("%s 룰렛 칸이 %s배로 넓어졌어요" % [LaneData.unit_name(id, LaneState.level_of(id)),
+				_num_f(LaneState.wheel_weight(id))])
 			_fill_home()
 		else:
 			_short_xp(b, cost))
 	return b
+
+
+## 1 · 1.5 · 2 처럼 (끝의 .0 은 뺀다).
+func _num_f(x: float) -> String:
+	return str(int(x)) if is_equal_approx(x, roundf(x)) else "%.1f" % x
 
 
 ## 진화 연출: 어두워지고 → 옛 모습이 떨며 빛에 휩싸이고 → 번쩍 → 커진 새 모습이 튀어나오며 빛살이 돈다.
@@ -1383,30 +1387,36 @@ func _fill_gacha() -> void:
 	_home_body.add_child(card)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
-	# 가로 화면: 왼쪽 룰렛 / 오른쪽 글·단추 (위아래로 쌓으면 카드 높이를 넘는다)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
+	# 가로 화면: 왼쪽 캡슐 소개 / 오른쪽 확률·단추 (위아래로 쌓으면 카드 높이를 넘는다)
+	var head := VBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
 	if _wide():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 16)
 		card.add_child(row)
-	else:
-		card.add_child(v)
-	v.add_child(_center(IdleUi.label("행운 룰렛", 44, IdleUi.GOLD, true)))
-	v.add_child(_center(IdleUi.label("바늘이 멈춘 칸의 친구를 만나요", 22, IdleUi.SUB)))
-	# 칸 크기 = 나올 확률. 친구 탭에서 '칸 넓히기'로 키운다.
-	var wh := LaneWheel.new()
-	wh.name = "Wheel"
-	wh.custom_minimum_size = Vector2(360, 360) if _wide() else Vector2(440, 440)
-	wh.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	wh.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	wh.idle_spin = 0.15
-	if _wide():
-		row.add_child(wh)
+		head.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(head)
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(v)
 	else:
-		v.add_child(wh)
+		card.add_child(v)
+		v.add_child(head)
+	head.add_child(_center(IdleUi.label("행복 캡슐", 44, IdleUi.GOLD, true)))
+	head.add_child(_center(IdleUi.label("동물 친구들이 캡슐 속에서 기다려요", 22, IdleUi.SUB)))
+	# 전설 친구들 미리 보기 - 아직 없으면 그림자
+	var lrow := HBoxContainer.new()
+	lrow.alignment = BoxContainer.ALIGNMENT_CENTER
+	lrow.add_theme_constant_override("separation", 18)
+	head.add_child(lrow)
+	for id in ["tiger", "polar", "eagle"]:
+		var col := VBoxContainer.new()
+		lrow.add_child(col)
+		col.add_child(_portrait(id, 120.0))
+		var nm := IdleUi.label(String(LaneData.UNITS[id]["name"]) if LaneState.has_unit(id) else "★★★ ???", 18,
+			LaneData.RARITY_TXT["legend"])
+		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(nm)
 	v.add_child(_center(IdleUi.label("희귀 72% · 특급 24% · 전설 4%", 22, IdleUi.CREAM)))
-	v.add_child(_center(IdleUi.label("친구 탭에서 '칸 넓히기'로 원하는 친구 칸을 키워요", 18, IdleUi.SUB)))
 	v.add_child(_center(IdleUi.label("%d번 안에 전설 확정 (남은 %d번) · 같은 친구는 레벨 +1" % [LaneData.PITY_LEGEND,
 		LaneData.PITY_LEGEND - LaneState.pity], 18, IdleUi.SUB)))
 	var one := IdleUi.button("", 30, "gold")
@@ -1455,7 +1465,6 @@ func _fill_gacha() -> void:
 
 ## count -1 = 티켓 모두 뽑기.
 func _do_pull(count: int) -> void:
-	var slices := LaneState.wheel_slices()     # 돌리기 전 칸 (뽑으면 "새 친구" 무게가 바뀐다)
 	var res := LaneState.pull_tickets(_rng) if count < 0 else LaneState.pull(count, _rng)
 	if res.is_empty():
 		return
@@ -1470,7 +1479,7 @@ func _do_pull(count: int) -> void:
 			var f := _tut_after_gacha
 			_tut_after_gacha = Callable()
 			_later(0.3, f))
-	g.play(res, slices)
+	g.play(res)
 
 
 ## 보물·장신구 아이콘 (회색 그림에 색을 곱한다).
@@ -2177,9 +2186,14 @@ func _build_hud() -> void:
 		if battle.upgrade_worker():
 			AudioManager.ui_confirm()
 		elif battle.worker_cost() >= 0:
-			_shake_ctrl(_worker_btn)
 			var need := float(battle.worker_cost()) - battle.wallet
-			if need > 0.0:
+			if need > 0.0 and battle.wheel_on and not battle.saving:
+				# 룰렛이 웃음을 다 써 버리면 수입을 영영 못 올린다 - 잠깐 세우고 모은다
+				battle.saving = true
+				AudioManager.ui_click()
+				_toast("룰렛을 잠깐 멈추고 웃음을 모아요 (✦%d 더 모이면 올려요)" % int(ceil(need)))
+			elif need > 0.0:
+				_shake_ctrl(_worker_btn)
 				_toast("웃음이 모자라요 (✦%d 더 모이면 올려요)" % int(ceil(need))))
 	row1.add_child(_worker_btn)
 	var wv := VBoxContainer.new()
@@ -2290,6 +2304,10 @@ func _build_hud() -> void:
 		b.pressed.connect(func() -> void:
 			if _ended:
 				return
+			if battle.wheel_on:
+				_shake_ctrl(b)
+				_toast("친구는 룰렛이 골라 불러요. 칸 넓히기는 친구 탭에서")
+				return
 			if battle.summon(uid_s):
 				AudioManager.pickup()
 			else:
@@ -2299,11 +2317,19 @@ func _build_hud() -> void:
 					_toast("웃음이 모자라요 (✦%d 더 모이면 불러요)" % int(ceil(need))))
 		gr.add_child(b)
 		_unit_btns[id] = b
+	# 싸움 룰렛: 웃음이 모이면 저절로 돌아 편성 친구 하나를 부른다
+	_wheel = LaneWheel.new()
+	_wheel.name = "Wheel"
+	_wheel.slices = battle.wheel_slices()
+	_wheel.custom_minimum_size = Vector2(150, 150)
+	_wheel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row1.add_child(_wheel)
+	row1.move_child(_wheel, 1)
 	if _wide():
 		# 가로 화면: [수입] [웃음·성 띠 / 친구 한 줄] [바주카포] - 판을 낮게 해서 싸움터를 넓힌다
 		pv.remove_child(row1)
 		pv.remove_child(gr)
-		for c in [_worker_btn, wv, _cannon_btn]:
+		for c in [_worker_btn, _wheel, wv, _cannon_btn]:
 			row1.remove_child(c)
 		row1.queue_free()
 		var hb := HBoxContainer.new()
@@ -2311,6 +2337,8 @@ func _build_hud() -> void:
 		pv.add_child(hb)
 		_worker_btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		hb.add_child(_worker_btn)
+		_wheel.custom_minimum_size = Vector2(WIDE_CARD_H + 80.0, WIDE_CARD_H + 80.0)
+		hb.add_child(_wheel)
 		var mid := VBoxContainer.new()
 		mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		mid.add_theme_constant_override("separation", 6)
@@ -2386,7 +2414,7 @@ func _layout_hud_wide(w: float, h: float, ins: Vector2) -> void:
 
 func _refresh_hud_toggles() -> void:
 	_speed_btn.text = "%dx %s" % [int(_speed()), "▶".repeat(LaneState.speed_lv + 1)]
-	_auto_btn.text = "자동 켜짐" if LaneState.auto_summon else "자동 소환"
+	_auto_btn.text = "자동 켜짐" if LaneState.auto_summon else "자동"
 	if _task_lbl != null and is_instance_valid(_task_lbl) and battle != null:
 		var rest := LaneState.auto_summon or bool(battle.tally.get("auto_used", false))
 		if _challenge:
@@ -2493,6 +2521,8 @@ func _draw_danger() -> void:
 
 func _refresh_hud() -> void:
 	_wallet_lbl.text = "웃음 %d / %d" % [int(battle.wallet), battle.wallet_cap()]
+	if battle.wheel_on:
+		_wallet_lbl.text += ("   수입 올리려고 모으는 중" if battle.saving else "   룰렛 한 번 ✦%d" % battle.spin_cost)
 	_wallet_bar.max_value = battle.wallet_cap()
 	_wallet_bar.value = battle.wallet
 	_our_bar.max_value = battle.our_max
@@ -2514,6 +2544,9 @@ func _refresh_hud() -> void:
 		_cannon_btn.scale = Vector2(s, s)
 	else:
 		_cannon_btn.scale = Vector2.ONE
+	if battle.wheel_on:
+		_refresh_wheel_cards()
+		return
 	for id in _unit_btns.keys():
 		var b: Button = _unit_btns[id]
 		var s2: Dictionary = battle.stats[id]
@@ -2548,6 +2581,34 @@ func _refresh_hud() -> void:
 		# 카드 맨 아래, 둥근 모서리 안쪽으로 들여서 (비용 글자와 겹치지 않게)
 		mb.size = Vector2((b.size.x - 36.0) * mk, 4.0)
 		mb.position = Vector2(18.0, b.size.y - 9.0)
+
+
+## 룰렛 판의 친구 카드 - 값 자리에 나올 확률. 쿨타임 막·웃음 띠는 없다 (룰렛이 부른다).
+func _refresh_wheel_cards() -> void:
+	var share := {}
+	for sl in _wheel.slices:
+		share[String(sl["id"])] = float(sl["share"])
+	for id in _unit_btns.keys():
+		var b: Button = _unit_btns[id]
+		var cl := b.get_node("Col/Cost") as Label
+		cl.text = "%d%%" % int(round(float(share.get(String(id), 0.0)) * 100.0))
+		cl.add_theme_color_override("font_color", IdleUi.GOLD_DK)
+		cl.modulate.a = 1.0
+		(b.get_node("Cd") as Control).visible = false
+		(b.get_node("CdText") as Label).text = ""
+		(b.get_node("Money") as Control).visible = false
+
+
+## 룰렛이 고른 친구 카드가 톡 튄다.
+func _pop_card(id: String) -> void:
+	var b = _unit_btns.get(id)
+	if b == null or not is_instance_valid(b):
+		return
+	var c := b as Control
+	c.pivot_offset = c.size * 0.5
+	var tw := c.create_tween()
+	tw.tween_property(c, "scale", Vector2(1.12, 1.12), 0.08)
+	tw.tween_property(c, "scale", Vector2.ONE, 0.18)
 
 
 # ── 그림 맞추기 ───────────────────────────────────────────────────────
@@ -2808,9 +2869,14 @@ func _die_fx(e: Dictionary, a) -> void:
 
 func _on_event(e: Dictionary) -> void:
 	match String(e["k"]):
+		"spin":
+			if _wheel != null and is_instance_valid(_wheel):
+				# 싸움 시간 t 를 화면 시간으로 (pace · 배속)
+				_wheel.spin_to(String(e["id"]), _rng, maxf(0.05, float(e["t"]) / (LaneData.pace * _speed())))
 		"spawn":
 			var uid := int(e["uid"])
 			if e["side"] == "q":
+				_pop_card(String(e["kind"]))
 				var rr := LaneData.rarity(String(e["kind"]))
 				_later(0.0, func() -> void:
 					var a = _actor_of.get(uid)
@@ -3666,13 +3732,13 @@ func _tut_battle_guide(i := 0) -> void:
 	_tut_pause = true
 	match i:
 		0:
-			_tut.point(null, "벌레는 아래 둥지에서 와요. 위 우리 성을 지켜요!", _tut_battle_guide.bind(1))
+			_tut.point(null, "벌레는 오른쪽 둥지에서 와요. 왼쪽 우리 성을 지켜요!" if _wide()
+				else "벌레는 아래 둥지에서 와요. 위 우리 성을 지켜요!", _tut_battle_guide.bind(1))
 		1:
-			battle.wallet = maxf(battle.wallet, 60.0)
-			_tut.point(_unit_btns.get("tiny"), "꼬마 쿼카를 눌러 불러 보세요", _tut_run.bind(2.5, 2))
+			battle.wallet = maxf(battle.wallet, float(battle.spin_cost))
+			_tut.point(_wheel, "웃음이 모이면 룰렛이 저절로 돌아 친구를 불러요", _tut_run.bind(2.5, 2))
 		2:
-			battle.wallet = maxf(battle.wallet, 110.0)
-			_tut.point(_unit_btns.get("shield"), "방패 쿼카도 불러요. 튼튼한 벽이에요", _tut_run.bind(3.0, 3))
+			_tut.point(_unit_btns.get("tiny"), "칸이 넓을수록 잘 나와요. 친구 탭에서 칸을 넓힐 수 있어요", _tut_run.bind(3.0, 3))
 		3:
 			battle.wallet = maxf(battle.wallet, float(battle.worker_cost()) + 5.0)
 			_tut.point(_worker_btn, "수입을 올리면 웃음이 더 빨리 차요", _tut_run.bind(3.5, 4))
@@ -3680,7 +3746,7 @@ func _tut_battle_guide(i := 0) -> void:
 			battle.cannon = battle.cannon_max
 			_tut.point(_cannon_btn, "바주카포가 찼어요! 눌러서 쏴요", _tut_run.bind(2.0, 5))
 		5:
-			_tut.point(_auto_btn, "자동 소환을 켜면 알아서 불러 줘요", _tut_battle_guide.bind(6))
+			_tut.point(_auto_btn, "자동을 켜면 수입과 바주카포를 알아서 해 줘요", _tut_battle_guide.bind(6))
 		6:
 			_tut.point(null, "이제 직접 해 봐요. 벌레 둥지를 부수면 이겨요!", func() -> void:
 				LaneState.tut = 2

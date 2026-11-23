@@ -54,6 +54,14 @@ var _wave_id := 0
 ## 오늘의 도전처럼 규칙을 비튼 판 (LaneData.DAILY_RULES 의 mods). 보통 판은 {}.
 var mods := {}
 var bug_hp_mult := 1.0
+## 싸움 룰렛 - 웃음이 spin_cost 만큼 모이면 저절로 돌고, 다 돌면 바늘이 선 친구가 나온다.
+## 사람은 수입·바주카포만 누른다. wheel_on = false 면 옛날처럼 summon() 으로 고른다 (테스트·시뮬).
+var wheel_on := true
+var spin_cost := 0
+var spin_t := 0.0             ## 남은 회전 시간 (0 이면 쉬는 중)
+var spin_pick := ""
+var wheel_w: Dictionary = {}  ## 친구 → 칸 무게
+var saving := false           ## 수입을 올리려고 웃음을 모으는 중 (룰렛이 쉰다). 올리면 풀린다
 
 
 func start(stage_n: int, seed_value: int = -1, mods_in := {}) -> void:
@@ -105,6 +113,16 @@ func start(stage_n: int, seed_value: int = -1, mods_in := {}) -> void:
 			st["cost"] = maxi(1, int(round(float(st["cost"]) * cost_mult)))
 		stats[id] = st
 		cds[id] = 0.0
+	# 한 번 값 = 편성 친구 값의 평균 (넓히기와 상관없이 같다 - 비싼 친구 칸을 넓히면 이득)
+	wheel_w = {}
+	var sum := 0.0
+	for id in lineup:
+		wheel_w[id] = LaneState.wheel_weight(String(id))
+		sum += float(stats[id]["cost"])
+	spin_cost = maxi(10, int(round(sum / maxf(1.0, float(lineup.size())) / 10.0)) * 10)
+	spin_t = 0.0
+	spin_pick = ""
+	saving = false
 	ents = []
 	_uid = 0
 	_half_fired = false
@@ -141,6 +159,7 @@ func upgrade_worker() -> bool:
 		return false
 	wallet -= float(worker_cost())
 	worker += 1
+	saving = false
 	events.append({"k": "worker", "lv": worker})
 	return true
 
@@ -164,13 +183,70 @@ func summon(id: String, manual := true) -> bool:
 	var s: Dictionary = stats[id]
 	wallet -= float(s["cost"])
 	cds[id] = float(s["cd"])
+	_put_friend(id)
+	return true
+
+
+## 룰렛 칸 몫 [{id, rarity, share}] - 화면 룰렛과 뽑기가 같은 무게를 쓴다.
+func wheel_slices() -> Array:
+	var tot := 0.0
+	for id in lineup:
+		tot += float(wheel_w.get(id, 1.0))
+	var out: Array = []
+	for id in lineup:
+		out.append({"id": String(id), "rarity": LaneData.rarity(String(id)), "share": float(wheel_w.get(id, 1.0)) / maxf(tot, 0.001)})
+	return out
+
+
+func can_spin() -> bool:
+	return wheel_on and not saving and not done and spin_t <= 0.0 and not lineup.is_empty() and _count("q") < UNIT_CAP \
+		and wallet >= float(spin_cost)
+
+
+func _pick_wheel() -> String:
+	var tot := 0.0
+	for id in lineup:
+		tot += float(wheel_w.get(id, 1.0))
+	var r := rng.randf() * tot
+	for id in lineup:
+		r -= float(wheel_w.get(id, 1.0))
+		if r <= 0.0:
+			return String(id)
+	return String(lineup[lineup.size() - 1])
+
+
+## 룰렛: 다 돌았으면 친구를 내보내고, 쉬는 중이면 웃음이 모였을 때 다시 돌린다.
+func _step_wheel(d: float) -> void:
+	if spin_t > 0.0:
+		spin_t -= d
+		if spin_t <= 0.0:
+			spin_t = 0.0
+			var id := spin_pick
+			spin_pick = ""
+			if _count("q") < UNIT_CAP:
+				tally["summons"] = int(tally.get("summons", 0)) + 1
+				if not tally.has("kinds"):
+					tally["kinds"] = {}
+				tally["kinds"][id] = true
+				_put_friend(id)
+			else:
+				wallet = minf(float(wallet_cap()), wallet + float(spin_cost))   # 자리가 없으면 돌려준다
+		return
+	if can_spin():
+		wallet -= float(spin_cost)
+		spin_pick = _pick_wheel()
+		spin_t = LaneData.SPIN_TIME
+		events.append({"k": "spin", "id": spin_pick, "t": LaneData.SPIN_TIME})
+
+
+func _put_friend(id: String) -> void:
+	var s: Dictionary = stats[id]
 	var e := _make(s, "q", rng.randf_range(0.0, 20.0))
 	# 첫 스킬 때를 조금씩 흩뜨린다 - 한꺼번에 부른 친구들의 스킬이 한순간에 겹쳐 터지지 않게
 	if String(e["sk"]) != "":
 		e["sk_t"] = float(e["sk_t"]) * rng.randf_range(0.7, 1.3)
 	ents.append(e)
 	events.append({"k": "spawn", "side": "q", "uid": e["uid"], "kind": id})
-	return true
 
 
 func cannon_ready() -> bool:
@@ -233,6 +309,8 @@ func _step(d: float) -> void:
 	for id in cds.keys():
 		cds[id] = maxf(0.0, float(cds[id]) - d)
 	_spawn_bugs(d)
+	if wheel_on:
+		_step_wheel(d)
 	if auto:
 		_ai_t -= d
 		if _ai_t <= 0.0:
@@ -700,6 +778,14 @@ func _auto_play() -> void:
 	# 일꾼(수입)에 먼저 투자: 벽이 있거나 앞이 조용하면 6단계까지
 	if can_worker() and (worker < 3 or (worker < 6 and (near == 0 or walls >= 2))):
 		upgrade_worker()
+		return
+	if wheel_on:
+		# 친구는 룰렛이 부른다 - 수입만 정한다. 올리고 싶은데 모자라면 룰렛을 잠깐 세우고 모은다
+		# 벌레가 다가오면 모으기를 멈추고 다시 돌린다 (안 풀면 친구가 안 나와 성이 무너졌다)
+		var want := worker < LaneData.WORKER_MAX and (worker < 3 or near == 0)
+		if want and can_worker():
+			upgrade_worker()
+		saving = want and not can_worker()
 		return
 	var wall_ids := _walls_by_cost(true)
 	if walls < 4:

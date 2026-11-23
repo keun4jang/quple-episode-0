@@ -1,7 +1,7 @@
 extends Node
 ## 쿼카 군단 곡선 시뮬레이션. 봇: 자동 소환으로 싸우고, 판 사이에 꿈조각으로 레벨을 올린다(가장 싼 것부터).
 ## 지면 같은 판을 다시 (진 판도 꿈조각 조금). SIM_GACHA=1 이면 뽑기도 하고(하루 1.5시간 놀아 매일 선물), 센 편성을 고른다.
-## 환경변수: SIM_STAGES, SIM_SEED, SIM_LOG=1, SIM_SPEED(판 시간 배속 표시용), SIM_DAILY=1(오늘의 도전 규칙별 승률)
+## 환경변수: SIM_WHEEL=0(룰렛 끄기), SIM_STAGES, SIM_SEED, SIM_LOG=1, SIM_SPEED(판 시간 배속 표시용), SIM_DAILY=1(오늘의 도전 규칙별 승률)
 var secs := 0.0
 var losses := 0
 var tries := 0
@@ -53,6 +53,7 @@ func _ready() -> void:
 		_spend()
 		var n := LaneState.cleared + 1
 		b.start(n, seed_v + tries)
+		b.wheel_on = OS.get_environment("SIM_WHEEL") != "0"   # SIM_WHEEL=0: 옛 방식(골라 부르기)과 견주기
 		b.auto = true
 		var t := 0.0
 		while not b.done and t < 600.0:
