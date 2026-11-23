@@ -1,7 +1,7 @@
 {
-  "version": "0.1.284",
+  "version": "0.1.285",
   "url": "https://raw.githubusercontent.com/keun4jang/quple-episode-0/claude/dreamy-heisenberg-gkeg9a/update/quple.pck",
-  "sha256": "ca7d8e3e32a9637c9b9b557af974241cea4ed322a66662523e4eb10dcb4adef2",
-  "size": 14706800,
-  "notes": "싸움 룰렛 (나올 친구를 룰렛이 정함) · 뽑기는 캡슐로"
+  "sha256": "e54a8311ebf0fd27b37cb1e8f1cce23124bf7fded8dbc2872a6f693aa22806fd",
+  "size": 14706960,
+  "notes": "처음 안내가 룰렛에서 멈추던 것 고침"
 }
