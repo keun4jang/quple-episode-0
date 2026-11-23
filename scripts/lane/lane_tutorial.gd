@@ -48,7 +48,9 @@ func _ready() -> void:
 ## 단추 하나를 가리킨다. 그 단추를 누르면 on_next. target 이 없으면 아무 데나 눌러 넘긴다.
 func point(target: Control, text: String, on_next: Callable) -> void:
 	_target = target
-	_tap_any = target == null
+	# 단추가 아닌 것(룰렛 그림 같은)을 가리키면 누를 곳이 없다 - 화면 아무 데나 눌러 넘긴다
+	# (예전엔 반짝이는 룰렛을 눌러도 아무 일이 없어 안내가 멈춰 버렸다)
+	_tap_any = target == null or not (target is BaseButton)
 	_on_next = on_next
 	_fit()
 	_text.text = text

@@ -2305,6 +2305,8 @@ func _build_hud() -> void:
 			if _ended:
 				return
 			if battle.wheel_on:
+				if _tut != null and _tut.visible:
+					return     # 안내가 이 카드를 가리켜 누른 것 - 꾸중 글은 띄우지 않는다
 				_shake_ctrl(b)
 				_toast("친구는 룰렛이 골라 불러요. 칸 넓히기는 친구 탭에서")
 				return

@@ -48,7 +48,8 @@ func _ready() -> void:
 			elif t._target != null and is_instance_valid(t._target) and t._target is BaseButton:
 				(t._target as BaseButton).pressed.emit()
 			else:
-				print("  ! 가리킬 단추가 없다 - 넘김")
+				# 사람은 여기서 멈춘다 - 누를 단추도 없고 아무 데나 눌러도 안 넘어간다
+				push_error("안내가 멈춘다: 단추가 아닌 곳을 가리키는데 화면 누르기로도 안 넘어간다 - " + t._text.text)
 				t._advance()
 		elif g.mode == "battle" and LaneState.tut == 2 and not g._ended:
 			LaneState.speed_lv = 1
